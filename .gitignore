@@ -25,3 +25,7 @@ apps/api/data/
 
 # Personal scratch / drafts not part of the project
 threads-cdp-draft.md
+
+# Product/business docs and screenshots — kept on disk for local reference
+# but never published. Removed from history via git-filter-repo.
+docs/

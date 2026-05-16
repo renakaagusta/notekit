@@ -1,0 +1,23 @@
+{
+  "name": "notekit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Notes + tickets in your Git repo. OSS, MCP-first.",
+  "license": "MIT",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.0",
+    "typescript": "^5.4.5",
+    "@types/node": "^20.12.0"
+  },
+  "packageManager": "pnpm@9.5.0",
+  "engines": {
+    "node": ">=20"
+  }
+}

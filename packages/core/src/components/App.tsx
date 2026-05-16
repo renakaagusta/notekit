@@ -1,0 +1,360 @@
+import { useEffect, useRef, useState } from "react";
+import { useNotesStore } from "../stores/notesStore";
+import { useSyncStore } from "../stores/syncStore";
+import { useVaultStore } from "../stores/vaultStore";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { noteTitle } from "../lib/note-display";
+import { getStatus as getVaultStatus } from "../lib/vault-api";
+import { start as startSync } from "../lib/sync";
+import { bootstrapCrypto } from "../lib/crypto-bootstrap";
+import type { User } from "../types/user";
+import { Editor, type EditorHandle } from "./Editor";
+import { EditorToolbar } from "./EditorToolbar";
+import { Rail, type RailPanel } from "./Rail";
+import { Sidebar } from "./Sidebar";
+import { TicketsBoard } from "./TicketsBoard";
+import { GraphView } from "./GraphView";
+import { CalendarView } from "./CalendarView";
+import { HistoryView } from "./HistoryView";
+import { AgentsView } from "./AgentsView";
+import { VaultPicker } from "./VaultPicker";
+import { VaultSetup } from "./VaultSetup";
+import { VaultPairNewDevice } from "./VaultPairing";
+import { SecretsView } from "./SecretsView";
+import { isValidYMD, journalYMDFromPath, shiftYMD, todayYMD } from "../lib/journal";
+
+type MainView = "notes" | "tickets" | "graph" | "calendar";
+
+interface AppProps {
+  user?: User | null;
+  onSignOut?: () => void;
+}
+
+export function App({ user, onSignOut }: AppProps = {}) {
+  const activeNoteId = useNotesStore((s) => s.activeNoteId);
+  const note = useNotesStore((s) =>
+    s.activeNoteId ? s.notes[s.activeNoteId] : null,
+  );
+  const updateBody = useNotesStore((s) => s.updateBody);
+  const upsert = useNotesStore((s) => s.upsert);
+  const setActive = useNotesStore((s) => s.setActive);
+  const openJournal = useNotesStore((s) => s.openJournal);
+  const updateJournalDraftBody = useNotesStore((s) => s.updateJournalDraftBody);
+  const draftJournal = useNotesStore((s) => s.draftJournal);
+  const phase = useSyncStore((s) => s.phase);
+  const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
+  const vaultPhase = useVaultStore((s) => s.phase);
+  const vault = useVaultStore((s) => s.vault);
+  const setVault = useVaultStore((s) => s.setVault);
+  const setVaultPhase = useVaultStore((s) => s.setPhase);
+  const setVaultError = useVaultStore((s) => s.setError);
+  const cryptoPhase = useCryptoStore((s) => s.phase);
+  const [view, setView] = useState<MainView>("notes");
+  const [agentsOpen, setAgentsOpen] = useState(false);
+  const [railActive, setRailActive] = useState<RailPanel | null>(null);
+  const editorRef = useRef<EditorHandle>(null);
+
+  const noteHeading = note ? noteTitle(note) : null;
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey;
+      if (!mod) return;
+      const key = e.key.toLowerCase();
+      if (key === "n") {
+        e.preventDefault();
+        const created = upsert({ title: "Untitled", body: "" });
+        setActive(created.id);
+        return;
+      }
+      // Cmd+; opens calendar
+      if (key === ";") {
+        e.preventDefault();
+        setView("calendar");
+        return;
+      }
+      // Cmd+' opens today's journal (Cmd+T is reserved by browsers for new-tab)
+      if (key === "'") {
+        e.preventDefault();
+        const ymd = e.shiftKey ? shiftYMD(todayYMD(), 1) : todayYMD();
+        openJournal(ymd);
+        setView("notes");
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [upsert, setActive, openJournal]);
+
+  useEffect(() => {
+    function onOpen(e: Event) {
+      const target = (e as CustomEvent<{ target: string }>).detail?.target;
+      if (!target) return;
+      const trimmed = target.trim();
+      if (isValidYMD(trimmed)) {
+        openJournal(trimmed);
+        setView("notes");
+        return;
+      }
+      const notes = useNotesStore.getState().all();
+      const wanted = trimmed.toLowerCase();
+      const found = notes.find(
+        (n) => noteTitle(n).trim().toLowerCase() === wanted,
+      );
+      if (found) {
+        setView("notes");
+        setActive(found.id);
+        return;
+      }
+      const created = upsert({ title: target, body: `# ${target}\n\n` });
+      setView("notes");
+      setActive(created.id);
+    }
+    window.addEventListener("notekit:open-wikilink", onOpen as EventListener);
+    return () =>
+      window.removeEventListener(
+        "notekit:open-wikilink",
+        onOpen as EventListener,
+      );
+  }, [upsert, setActive, openJournal]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const status = await getVaultStatus();
+        if (cancelled) return;
+        if (!status.hasGithubToken) {
+          setVaultPhase("needs-token");
+          return;
+        }
+        if (status.configured && status.vault) {
+          setVault(status.vault);
+          await startSync();
+          await bootstrapCrypto();
+        } else {
+          setVaultPhase("needs-pick");
+        }
+      } catch (e) {
+        if (!cancelled) setVaultError((e as Error).message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setVault, setVaultPhase, setVaultError]);
+
+  async function onVaultPicked() {
+    setVaultPhase("ready");
+    await startSync();
+    await bootstrapCrypto();
+  }
+
+  const vaultLabel = vault ? `${vault.owner}/${vault.repo}` : "Local vault";
+  const titlebarSub =
+    view === "tickets"
+      ? "Tickets"
+      : view === "graph"
+        ? "Graph"
+        : view === "calendar"
+          ? "Calendar"
+          : draftJournal
+            ? draftJournal.date
+            : noteHeading || vaultLabel;
+
+  // Editor binding: journal draft takes precedence over the active note so that
+  // ⌘+' on an unvisited day shows an in-memory buffer until first keystroke.
+  // Journal notes (existing or draft) share a stable key keyed by date so that
+  // the editor does not remount when a draft materializes into a real note.
+  const editorBinding = draftJournal
+    ? {
+        key: `journal-${draftJournal.date}`,
+        body: draftJournal.body,
+        onChange: updateJournalDraftBody,
+      }
+    : activeNoteId && note
+      ? (() => {
+          const journalDate = journalYMDFromPath(note.path);
+          return {
+            key: journalDate ? `journal-${journalDate}` : activeNoteId,
+            body: note.body,
+            onChange: (v: string) => updateBody(activeNoteId, v),
+          };
+        })()
+      : null;
+
+  const crumbLabel =
+    view === "notes"
+      ? draftJournal
+        ? draftJournal.date
+        : (noteHeading ?? "—")
+      : view === "tickets"
+        ? "Tickets"
+        : view === "graph"
+          ? "Graph"
+          : "Calendar";
+
+  return (
+    <div className="nk" data-dir="studio" data-theme="dark">
+      <div className="nk-app">
+        <header className="nk-titlebar">
+          <span className="nk-titlebar-title">NoteKit</span>
+          <span className="nk-titlebar-sub">{titlebarSub}</span>
+        </header>
+
+        <Sidebar
+          view={view}
+          onView={setView}
+          user={user}
+          onSignOut={onSignOut}
+          onOpenAgents={() => setAgentsOpen(true)}
+        />
+
+        <main className="nk-main">
+          <header className="nk-main-hd">
+            <div className="nk-crumbs">
+              <span>vault</span>
+              <span className="sep">/</span>
+              <span className="last">{crumbLabel}</span>
+            </div>
+            {view === "notes" && (
+              <button
+                className="nk-iconbtn"
+                title="New note (⌘N)"
+                onClick={() => {
+                  const created = upsert({ title: "Untitled", body: "" });
+                  setActive(created.id);
+                }}
+                aria-label="New note"
+              >
+                +
+              </button>
+            )}
+          </header>
+          {view === "notes" && (
+            <>
+              {editorBinding && (
+                <EditorToolbar getEditor={() => editorRef.current?.editor ?? null} />
+              )}
+              <div className="nk-editor-wrap">
+                {editorBinding ? (
+                  <Editor
+                    key={editorBinding.key}
+                    ref={editorRef}
+                    value={editorBinding.body}
+                    onChange={editorBinding.onChange}
+                  />
+                ) : (
+                  <div className="nk-empty nk-empty--center">
+                    <p>Pick a note, or press ⌘N for a new one.</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+          {view === "tickets" && <TicketsBoard />}
+          {view === "graph" && <GraphView />}
+          {view === "calendar" && (
+            <CalendarView
+              onOpenJournal={(ymd) => {
+                openJournal(ymd);
+                setView("notes");
+              }}
+              onOpenTicket={() => setView("tickets")}
+            />
+          )}
+        </main>
+
+        {railActive === "history" && (
+          <aside className="nk-side-panel">
+            <HistoryView
+              notePath={view === "notes" && note ? note.path : undefined}
+              compact
+            />
+          </aside>
+        )}
+
+        {railActive === "secrets" && <SecretsView />}
+
+        <Rail
+          active={railActive}
+          onToggle={(p) => setRailActive((cur) => (cur === p ? null : p))}
+        />
+
+        <footer className="nk-statusbar">
+          <span>
+            <span
+              className={
+                "dot" +
+                (phase === "idle"
+                  ? lastSyncedAt
+                    ? ""
+                    : " dot--idle"
+                  : phase === "error"
+                    ? " dot--error"
+                    : " dot--sync")
+              }
+            />
+            {syncLabel(phase, lastSyncedAt, vaultPhase, vaultLabel)}
+          </span>
+          <span>
+            {view === "notes" && note ? `${note.body.length} chars` : ""}
+          </span>
+        </footer>
+      </div>
+      {vaultPhase === "needs-pick" && (
+        <VaultPicker onPicked={onVaultPicked} />
+      )}
+      {vaultPhase === "ready" && cryptoPhase === "needs-setup" && (
+        <VaultSetup />
+      )}
+      {vaultPhase === "ready" && cryptoPhase === "needs-pair" && (
+        <VaultPairNewDevice />
+      )}
+      {agentsOpen && (
+        <div
+          className="nk-modal-backdrop"
+          onClick={() => setAgentsOpen(false)}
+        >
+          <div
+            className="nk-modal nk-modal--wide"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="nk-modal-hd">
+              <h2>Agents</h2>
+              <p className="nk-modal-sub">
+                Give an AI assistant its own git identity. Commits it makes
+                on your behalf are attributed to the agent, not to you.
+              </p>
+            </header>
+            <button
+              className="nk-modal-close nk-iconbtn"
+              onClick={() => setAgentsOpen(false)}
+              title="Close"
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <AgentsView />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function syncLabel(
+  phase: string,
+  lastSyncedAt: string | null,
+  vaultPhase: string,
+  vaultLabel: string,
+): string {
+  if (vaultPhase === "needs-token") return "Sign in with GitHub to sync";
+  if (vaultPhase === "needs-pick") return "Pick a vault repo";
+  if (phase === "fetching") return "Pulling…";
+  if (phase === "pushing") return "Syncing…";
+  if (phase === "error") return "Sync error";
+  if (lastSyncedAt) {
+    return `Synced ${new Date(lastSyncedAt).toLocaleTimeString()} · ${vaultLabel}`;
+  }
+  return vaultLabel;
+}

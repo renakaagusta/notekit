@@ -1,0 +1,2824 @@
+/* NoteKit — Studio · dark
+ * Design tokens & component styles ported from the v1 prototype.
+ * Direction A "Studio" — Linear-feel: dense, keyboard-first, sans editor.
+ */
+
+.nk {
+  --ui-font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --editor-font: "Inter", system-ui, sans-serif;
+  --mono-font: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas,
+    monospace;
+
+  --ui-size: 12.5px;
+  --editor-size: 14.5px;
+  --editor-leading: 1.6;
+  --measure: 680px;
+
+  --r-sm: 4px;
+  --r-md: 5px;
+  --r-lg: 7px;
+
+  --gap-1: 4px;
+  --gap-2: 8px;
+  --gap-3: 12px;
+  --gap-4: 16px;
+  --gap-5: 24px;
+  --gap-6: 32px;
+}
+
+.nk[data-theme="dark"] {
+  --bg: #0a0a0b;
+  --surface: #111113;
+  --surface-2: #17171a;
+  --border: #1f1f24;
+  --border-soft: #18181c;
+  --text: #e4e4e7;
+  --text-2: #a1a1aa;
+  --muted: #6b6b73;
+  --hover: rgba(255, 255, 255, 0.04);
+  --selected: rgba(255, 255, 255, 0.06);
+  --accent: #f59e0b;
+  --accent-soft: rgba(245, 158, 11, 0.14);
+  --accent-text: #fbbf24;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #0a0a0b;
+  color: #e4e4e7;
+  font-family:
+    "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+.nk {
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui-font);
+  font-size: var(--ui-size);
+  line-height: 1.5;
+}
+
+.nk ::selection {
+  background: var(--accent-soft);
+}
+
+/* ─── App shell ─────────────────────────────────────────────────── */
+
+.nk-app {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-columns: 240px 1fr auto auto;
+  grid-template-rows: 36px 1fr 24px;
+  background: var(--bg);
+  color: var(--text);
+  overflow: hidden;
+}
+
+.nk-side-panel {
+  width: 320px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.nk-history--compact .nk-history-hd {
+  padding: var(--gap-2) var(--gap-3);
+}
+
+.nk-history--compact .nk-history-hd h2 {
+  font-size: 13px;
+}
+
+.nk-history--compact .nk-commit {
+  padding: 8px var(--gap-3);
+}
+
+.nk-history--compact .nk-commit-msg {
+  font-size: 12.5px;
+}
+
+.nk-history--compact .nk-commit-meta {
+  font-size: 11px;
+}
+
+.nk-titlebar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: 0 var(--gap-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11.5px;
+  color: var(--text-2);
+  -webkit-app-region: drag;
+}
+
+.nk-titlebar-title {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.nk-titlebar-sub {
+  color: var(--muted);
+}
+
+.nk-statusbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-3);
+  padding: 0 var(--gap-3);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.nk-statusbar .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.nk-statusbar .dot--idle {
+  background: var(--muted);
+}
+
+.nk-statusbar .dot--sync {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+
+.nk-statusbar .dot--error {
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+}
+
+/* ─── Sidebar ───────────────────────────────────────────────────── */
+
+.nk-sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.nk-nav {
+  display: flex;
+  gap: 2px;
+  padding: var(--gap-2) var(--gap-2) 0;
+}
+
+.nk-nav button {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  padding: 6px 4px;
+  border-radius: var(--r-md);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font: inherit;
+}
+
+.nk-nav button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-nav button.active {
+  background: var(--selected);
+  color: var(--accent-text);
+}
+
+.nk-sidebar-section {
+  padding: var(--gap-2);
+}
+
+.nk-sidebar-section + .nk-sidebar-section {
+  border-top: 1px solid var(--border-soft);
+}
+
+.nk-sidebar-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--gap-3) var(--gap-3) var(--gap-2);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.nk-sidebar-hd-actions {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.nk-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+.nk-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  color: var(--text-2);
+  user-select: none;
+  font-size: var(--ui-size);
+  line-height: 1.5;
+  min-height: 26px;
+  position: relative;
+}
+
+.nk-tree-item::before {
+  content: '';
+  position: absolute;
+  left: var(--nk-guide, -9999px);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  pointer-events: none;
+}
+
+.nk-tree-item:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-tree-item.active {
+  background: var(--selected);
+  color: var(--text);
+}
+
+.nk-tree-item.active .nk-tree-label {
+  font-weight: 500;
+}
+
+.nk-tree-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.nk-tree-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-tree-preview {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-tree-item--note {
+  align-items: flex-start;
+  padding: 6px 8px;
+  min-height: 0;
+}
+
+.nk-tree-item--note .nk-tree-icon {
+  margin-top: 3px;
+}
+
+.nk-tree-stack {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nk-tree-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 400;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.35;
+}
+
+.nk-tree-item--folder {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.nk-tree-item--folder.drop,
+.nk-tree.drop-root {
+  background: var(--selected);
+  outline: 1px dashed var(--accent, #c8a23a);
+  outline-offset: -2px;
+}
+
+.nk-disclosure {
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--muted);
+  transition: transform 0.12s;
+  flex-shrink: 0;
+}
+
+.nk-disclosure.open {
+  transform: rotate(90deg);
+}
+
+.nk-tree-count {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.nk-tree-add-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.nk-tree-add {
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  border: 0;
+  border-radius: var(--r-sm, 4px);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.4;
+  transition: opacity 0.12s, background 0.12s, color 0.12s;
+}
+
+.nk-tree-item--folder:hover .nk-tree-add,
+.nk-tree-add:focus,
+.nk-tree-add:focus-visible {
+  opacity: 1;
+}
+
+.nk-tree-add:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* ── Tree item 3-dot context button ──────────────────────── */
+.nk-tree-ctx-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.nk-tree-ctx-btn {
+  opacity: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  border-radius: var(--r-sm);
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 13px;
+  letter-spacing: -1px;
+  padding: 0;
+  line-height: 1;
+  transition: opacity 80ms, background 80ms;
+}
+
+.nk-tree-item:hover .nk-tree-ctx-btn,
+.nk-tree-item.active .nk-tree-ctx-btn,
+.nk-tree-ctx-btn:focus-visible {
+  opacity: 1;
+}
+
+.nk-tree-ctx-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* ── Tree context menu popup ─────────────────────────────── */
+.nk-ctx-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 2px);
+  z-index: 200;
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  min-width: 140px;
+  background: var(--surface-2, #1e1e1e);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.nk-ctx-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 10px;
+  border: none;
+  background: none;
+  border-radius: var(--r-sm);
+  font-size: var(--ui-size);
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.nk-ctx-menu-item:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-ctx-menu-item--danger {
+  color: var(--danger, #e05c5c);
+}
+
+.nk-ctx-menu-item--danger:hover {
+  background: rgba(224, 92, 92, 0.12);
+  color: var(--danger, #e05c5c);
+}
+
+.nk-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nk-popover-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--ui-size);
+  text-align: left;
+  border-radius: var(--r-sm, 4px);
+  cursor: pointer;
+}
+
+.nk-popover-item:hover {
+  background: var(--hover);
+}
+
+.nk-popover-item svg {
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* ─── History view ──────────────────────────────────────────────── */
+
+.nk-history-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.nk-history-tabs {
+  display: flex;
+  gap: 4px;
+  padding: var(--gap-2) var(--gap-3);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.nk-history-tabs button {
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--ui-size);
+  padding: 4px 10px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+
+.nk-history-tabs button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-history-tabs button.active {
+  background: var(--selected);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.nk-history {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.nk-history-hd {
+  padding: var(--gap-3) var(--gap-4) var(--gap-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.nk-history-hd h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.nk-history-path {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: var(--mono-font);
+}
+
+.nk-history-error {
+  padding: var(--gap-3) var(--gap-4);
+  color: var(--danger, #c0392b);
+  font-size: var(--ui-size);
+}
+
+.nk-commitlist {
+  list-style: none;
+  margin: 0;
+  padding: var(--gap-2) 0;
+}
+
+.nk-commit {
+  padding: 10px var(--gap-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.nk-commit-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.nk-commit-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.nk-commit-avatar--ph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.nk-commit-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.nk-commit-msg {
+  color: var(--text);
+  font-size: var(--ui-size);
+  line-height: 1.4;
+  font-weight: 500;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.nk-commit-meta {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.nk-commit-link {
+  color: var(--muted);
+  font-family: var(--mono-font);
+  text-decoration: none;
+}
+
+.nk-commit-link:hover {
+  text-decoration: underline;
+}
+
+/* ─── User bar (bottom of sidebar) ──────────────────────────────── */
+
+.nk-userbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  padding: var(--gap-2) var(--gap-3);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  margin-top: auto;
+}
+
+.nk-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: var(--surface-2);
+}
+
+.nk-avatar--placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+}
+
+.nk-userbar-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.nk-userbar-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nk-userbar-plan {
+  font-size: 10.5px;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+/* ─── Main pane ─────────────────────────────────────────────────── */
+
+.nk-main {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+  position: relative;
+}
+
+.nk-main-hd {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-3);
+  padding: var(--gap-3) var(--gap-4);
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg);
+  min-height: 44px;
+}
+
+.nk-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-2);
+  flex: 1;
+  min-width: 0;
+}
+
+.nk-crumbs .sep {
+  opacity: 0.4;
+}
+
+.nk-crumbs .last {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-iconbtn {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-md);
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.nk-iconbtn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-iconbtn.active {
+  background: var(--selected);
+  color: var(--accent-text);
+}
+
+/* ─── Editor toolbar ───────────────────────────────────────────── */
+
+.nk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.nk-toolbar-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.nk-toolbar-spacer {
+  flex: 1;
+}
+
+.nk-tb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 28px;
+  min-width: 28px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.nk-tb-btn:hover {
+  background: var(--hover);
+}
+
+.nk-tb-btn[aria-expanded="true"] {
+  background: var(--hover);
+  border-color: var(--border);
+}
+
+.nk-tb-aa {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
+.nk-tb-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  min-width: 180px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.nk-tb-menu--wide {
+  min-width: 260px;
+  padding: 8px;
+  gap: 8px;
+}
+
+.nk-tb-menu > button {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nk-tb-menu > button:hover {
+  background: var(--hover);
+}
+
+.nk-tb-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-soft);
+}
+
+.nk-tb-h1 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.nk-tb-h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.nk-tb-h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.nk-tb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.nk-tb-field input {
+  height: 30px;
+  padding: 0 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font: inherit;
+}
+
+.nk-tb-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.nk-tb-primary {
+  height: 30px;
+  padding: 0 12px;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.nk-tb-primary:hover {
+  filter: brightness(1.08);
+}
+
+/* ─── Editor ────────────────────────────────────────────────────── */
+
+.nk-editor-wrap {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  background: var(--bg);
+}
+
+.nk-editor {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.nk-prose {
+  flex: 1;
+  width: 100%;
+  padding: var(--gap-4) var(--gap-5) var(--gap-6);
+  font-family: var(--editor-font);
+  font-size: var(--editor-size);
+  line-height: var(--editor-leading);
+  color: var(--text);
+  outline: none;
+  caret-color: var(--accent);
+}
+
+.nk-prose:focus { outline: none; }
+
+.nk-prose > * + * { margin-top: 0.6em; }
+
+.nk-prose p {
+  margin: 0;
+  min-height: 1em;
+}
+
+.nk-prose h1 {
+  font-size: 1.8em;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-top: 0.4em;
+  line-height: 1.2;
+}
+.nk-prose h2 {
+  font-size: 1.35em;
+  font-weight: 700;
+  margin-top: 0.6em;
+  line-height: 1.25;
+}
+.nk-prose h3 {
+  font-size: 1.1em;
+  font-weight: 700;
+  margin-top: 0.6em;
+  line-height: 1.3;
+}
+
+.nk-prose strong { font-weight: 700; }
+.nk-prose em { font-style: italic; }
+
+.nk-prose a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.nk-prose ul,
+.nk-prose ol {
+  margin: 0;
+  padding-left: 1.4em;
+}
+.nk-prose li > p { margin: 0; }
+.nk-prose li + li { margin-top: 0.15em; }
+
+.nk-prose ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.2em;
+}
+.nk-prose ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55em;
+}
+.nk-prose ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 0.25em;
+}
+.nk-prose ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+.nk-prose ul[data-type="taskList"] input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  transition: background 120ms, border-color 120ms;
+}
+.nk-prose ul[data-type="taskList"] input[type="checkbox"]:hover {
+  border-color: var(--muted);
+}
+.nk-prose ul[data-type="taskList"] input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.nk-prose ul[data-type="taskList"] input[type="checkbox"]:checked::after {
+  content: "";
+  width: 10px;
+  height: 6px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+.nk-prose ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.nk-prose blockquote {
+  margin: 0;
+  padding: 0.2em 0.9em;
+  border-left: 3px solid var(--border);
+  color: var(--muted);
+}
+
+.nk-prose code {
+  font-family: var(--mono-font, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.92em;
+  background: var(--hover);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.nk-prose pre {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.8em 1em;
+  overflow: auto;
+}
+.nk-prose pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 0.9em;
+}
+
+.nk-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  display: block;
+}
+
+.nk-prose hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.2em 0;
+}
+
+.nk-prose table {
+  border-collapse: collapse;
+  margin: 0;
+  table-layout: fixed;
+  width: 100%;
+  overflow: hidden;
+}
+.nk-prose table td,
+.nk-prose table th {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  vertical-align: top;
+  min-width: 80px;
+  position: relative;
+}
+.nk-prose table th {
+  background: var(--hover);
+  font-weight: 600;
+  text-align: left;
+}
+.nk-prose table .selectedCell::after {
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  opacity: 0.12;
+  content: "";
+  pointer-events: none;
+}
+
+.nk-wikilink {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(255, 200, 0, 0.10);
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid rgba(255, 200, 0, 0.25);
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+.nk-wikilink:hover {
+  background: rgba(255, 200, 0, 0.18);
+  border-color: rgba(255, 200, 0, 0.45);
+}
+
+.nk-prose .ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  border-radius: 4px;
+}
+
+.nk-prose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* ─── AI rail ───────────────────────────────────────────────────── */
+
+.nk-rail {
+  width: 38px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: var(--gap-2) 0;
+  gap: 2px;
+  align-items: center;
+}
+
+.nk-rail-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-md);
+  border: 0;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.nk-rail-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-rail-btn.active {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.nk-rail-divider {
+  width: 16px;
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+/* ─── Graph view ────────────────────────────────────────────────── */
+
+.nk-graph {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    var(--border) 1px,
+    transparent 0
+  );
+  background-size: 24px 24px;
+}
+
+.nk-graph svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.nk-graph-node {
+  fill: var(--surface);
+  stroke: var(--border);
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s, stroke-width 0.15s;
+}
+
+.nk-graph-node.hub {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+}
+
+.nk-graph-node:hover {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.nk-graph-edge {
+  stroke: var(--border);
+  stroke-width: 1;
+  fill: none;
+}
+
+.nk-graph-label {
+  font-family: var(--ui-font);
+  font-size: 10.5px;
+  fill: var(--text-2);
+  pointer-events: none;
+  text-anchor: middle;
+}
+
+.nk-graph-legend {
+  position: absolute;
+  top: var(--gap-4);
+  left: var(--gap-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--gap-3);
+  font-size: 11.5px;
+  color: var(--text-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nk-graph-legend b {
+  color: var(--text);
+}
+
+/* ─── Tickets board ─────────────────────────────────────────────── */
+
+.nk-board {
+  flex: 1;
+  display: flex;
+  gap: var(--gap-3);
+  padding: var(--gap-4);
+  overflow-x: auto;
+  background: var(--bg);
+}
+
+.nk-col {
+  flex: 0 0 280px;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  max-height: 100%;
+}
+
+.nk-col-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--gap-3) var(--gap-3) var(--gap-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.nk-col-hd .count {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.status-todo {
+  background: #94a3b8;
+}
+.status-progress {
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
+}
+.status-blocked {
+  background: #ef4444;
+}
+.status-done {
+  background: #22c55e;
+}
+.status-canceled {
+  background: var(--border);
+}
+
+.nk-col-body {
+  flex: 1;
+  padding: 0 var(--gap-2) var(--gap-2);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 60px;
+}
+
+.nk-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--gap-3);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nk-card:hover {
+  border-color: var(--accent);
+}
+
+.nk-card .meta {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.nk-card .id {
+  font-family: var(--mono-font);
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.nk-card .title {
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--text);
+  outline: none;
+}
+
+.nk-card .title:focus {
+  background: var(--hover);
+  border-radius: var(--r-sm);
+  margin: -2px -4px;
+  padding: 2px 4px;
+}
+
+.nk-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-2);
+  margin-top: 2px;
+}
+
+.nk-card-foot .labels {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.nk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  font-weight: 500;
+  background: var(--surface-2);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+
+.nk-chip.priority-p0 {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.nk-chip.priority-p1 {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.nk-chip.priority-p2 {
+  color: var(--text-2);
+}
+
+.nk-chip.priority-p3 {
+  color: var(--muted);
+}
+
+.nk-col-add {
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  padding: 8px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.nk-col-add:hover {
+  color: var(--text-2);
+  border-color: var(--border-soft);
+}
+
+/* ─── Empty states ──────────────────────────────────────────────── */
+
+.nk-empty {
+  padding: var(--gap-3) var(--gap-4);
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.nk-empty-hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.nk-empty--center {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  height: 100%;
+}
+
+/* ─── Sign-in card ──────────────────────────────────────────────── */
+
+.nk-signin {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gap-5);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.nk-signin-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--gap-6);
+  text-align: center;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+
+.nk-signin-brand {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.nk-signin-tag {
+  color: var(--text-2);
+  font-size: 12.5px;
+  margin: 0 0 var(--gap-5);
+}
+
+.nk-signin-error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  font-size: 12px;
+  margin-bottom: var(--gap-4);
+  text-align: left;
+}
+
+.nk-signin-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+
+.nk-signin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+
+.nk-signin-btn:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--accent);
+}
+
+.nk-signin-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.nk-signin-hint {
+  margin-top: var(--gap-4);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.nk-signin-hint code {
+  font-family: var(--mono-font);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  padding: 1px 5px;
+  border-radius: var(--r-sm);
+  font-size: 10.5px;
+}
+
+/* ─── Modal (vault picker, etc.) ───────────────────────────────── */
+
+.nk-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+}
+
+.nk-modal {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  max-width: 540px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+}
+
+.nk-modal--wide {
+  max-width: 720px;
+}
+
+.nk-modal--wide > .nk-history {
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.nk-modal-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+
+.nk-popover--userbar {
+  top: auto;
+  bottom: calc(100% + 4px);
+  right: 8px;
+}
+
+/* ── Secrets panel ─────────────────────────────────────────── */
+.nk-secrets-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.nk-secrets-hd {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  padding: 14px var(--gap-3) 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.nk-secrets-hd h2 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+  flex: 1;
+}
+
+.nk-secret-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding: var(--gap-3);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.nk-secret-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.nk-secret-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-2);
+  padding: 10px var(--gap-3);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.nk-secret-item--editing {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.nk-secret-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.nk-secret-name {
+  font-size: 12px;
+  font-family: var(--mono-font);
+  color: var(--text-1);
+  word-break: break-all;
+}
+
+.nk-secret-value {
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.nk-secret-mask {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-3);
+  font-size: 11px;
+  letter-spacing: 2px;
+}
+
+.nk-secret-mask:hover {
+  color: var(--text-2);
+}
+
+.nk-secret-revealed {
+  font-family: var(--mono-font);
+  font-size: 11px;
+  word-break: break-all;
+  color: var(--text-2);
+}
+
+.nk-secret-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.nk-agent-desc {
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 2px 0 6px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.nk-modal-hd {
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.nk-modal-hd h2 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+
+.nk-modal-sub {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.nk-modal-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.nk-modal-tabs button {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.nk-modal-tabs button:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.nk-modal-tabs button.active {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--border-soft);
+}
+
+.nk-modal-body {
+  padding: 12px 16px 16px;
+  overflow-y: auto;
+}
+
+.nk-modal-error {
+  margin: 8px 16px;
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  border-radius: var(--r-sm);
+  font-size: 11px;
+}
+
+.nk-repo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nk-repo-row {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.nk-repo-row:hover:not(:disabled) {
+  background: var(--surface-2);
+  border-color: var(--border-soft);
+}
+
+.nk-repo-row:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nk-repo-row-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.nk-repo-name {
+  font-weight: 500;
+}
+
+.nk-repo-desc {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.nk-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.nk-field--row {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.nk-field input[type="text"] {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  font-size: 12px;
+  font-family: var(--mono-font);
+}
+
+.nk-field input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ─── Vault & AI primitives ─────────────────────────────────────── */
+
+.nk-btn {
+  appearance: none;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.nk-btn:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--border);
+}
+
+.nk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.nk-btn--primary {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.nk-btn--primary:hover:not(:disabled) {
+  background: var(--accent-soft);
+  filter: brightness(1.15);
+}
+
+.nk-btn--danger {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.nk-btn--danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.nk-input,
+.nk-textarea {
+  appearance: none;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12px;
+  width: 100%;
+  font-family: var(--ui-font);
+}
+
+.nk-textarea {
+  font-family: var(--mono-font);
+  resize: vertical;
+  min-height: 56px;
+}
+
+.nk-input:focus,
+.nk-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.nk-pill {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  color: var(--text-2);
+  font-size: 10.5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.nk-divider {
+  height: 1px;
+  background: var(--border-soft);
+  margin: 12px 0;
+}
+
+.nk-error-text {
+  color: #fca5a5;
+  font-size: 11.5px;
+  margin: 4px 0;
+}
+
+.nk-muted {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.nk-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* ─── Vault setup ───────────────────────────────────────────────── */
+
+.nk-vault-setup,
+.nk-vault-pair {
+  padding: 20px 22px;
+}
+
+.nk-vault-setup h2,
+.nk-vault-pair h2 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.nk-vault-setup h3,
+.nk-vault-pair h3 {
+  font-size: 13px;
+  margin: 14px 0 6px;
+}
+
+.nk-vault-setup p,
+.nk-vault-pair p {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.nk-mnemonic-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.nk-mnemonic-hd h2 {
+  margin: 0;
+}
+
+.nk-mnemonic-grid {
+  list-style: none;
+  margin: 12px 0;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-family: var(--mono-font);
+}
+
+.nk-mnemonic-grid li {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.nk-mnemonic-num {
+  color: var(--muted);
+  font-size: 10px;
+  width: 18px;
+  text-align: right;
+}
+
+.nk-mnemonic-word {
+  color: var(--text);
+}
+
+/* ─── Vault pairing ─────────────────────────────────────────────── */
+
+.nk-pair-code {
+  font-family: var(--mono-font);
+  font-size: 28px;
+  letter-spacing: 6px;
+  text-align: center;
+  padding: 18px 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  margin: 14px 0;
+  color: var(--accent-text);
+}
+
+.nk-pair-info {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.nk-pair-info > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nk-pair-info .nk-muted {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.nk-pair-pubkey {
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+  color: var(--text);
+  word-break: break-all;
+}
+
+/* ─── AI panel ──────────────────────────────────────────────────── */
+
+.nk-ai-panel {
+  padding: 0;
+}
+
+.nk-ai-panel-hd {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nk-ai-panel-hd h2 {
+  font-size: 13px;
+  margin: 0;
+  font-weight: 600;
+}
+
+.nk-ai-section {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nk-ai-section h3 {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--muted);
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.nk-ai-section-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.nk-ai-section-hd h3 {
+  margin: 0;
+}
+
+.nk-ai-keyrow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0;
+}
+
+.nk-ai-keyrow + .nk-ai-keyrow {
+  border-top: 1px dashed var(--border-soft);
+}
+
+.nk-ai-keyrow-hd {
+  display: flex;
+  align-items: center;
+  font-size: 12.5px;
+}
+
+.nk-ai-keyrow-input {
+  display: flex;
+  gap: 6px;
+}
+
+.nk-ai-keyrow-input .nk-input {
+  flex: 1;
+}
+
+.nk-ai-answer {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-family: var(--mono-font);
+  font-size: 12px;
+  white-space: pre-wrap;
+  margin: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  color: var(--text);
+}
+
+.nk-ai-error {
+  margin: 10px 16px 0;
+}
+
+.nk-device-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nk-device-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 12px;
+}
+
+.nk-device-item strong {
+  font-weight: 500;
+}
+
+/* ─── Calendar ──────────────────────────────────────────────────── */
+
+.nk-calendar {
+  padding: var(--gap-4) var(--gap-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+  overflow: auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.nk-calendar-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-4);
+  flex-wrap: wrap;
+}
+
+.nk-calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+}
+
+.nk-calendar-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+  min-width: 200px;
+}
+
+.nk-calendar-today {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.nk-calendar-today:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-calendar-modes {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 2px;
+}
+
+.nk-calendar-mode {
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.nk-calendar-mode:hover {
+  color: var(--text);
+}
+
+.nk-calendar-mode.active {
+  background: var(--selected);
+  color: var(--accent-text);
+}
+
+.nk-calendar-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 var(--gap-2);
+}
+
+/* Grid */
+.nk-calendar-grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+
+.nk-calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.nk-calendar-weekday {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.nk-calendar-weeks {
+  display: grid;
+  grid-template-rows: repeat(6, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+
+.nk-calendar-week {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-top: 1px solid var(--border);
+}
+
+.nk-calendar-week:first-child {
+  border-top: 0;
+}
+
+.nk-calendar-week--tall {
+  min-height: 0;
+  flex: 1;
+}
+
+/* Cell */
+.nk-calendar-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+}
+
+.nk-calendar-cell:first-child {
+  border-left: 0;
+}
+
+.nk-calendar-cell:hover {
+  background: var(--hover);
+}
+
+.nk-calendar-cell.out {
+  background: var(--surface);
+}
+
+.nk-calendar-cell.out .nk-calendar-cell-num {
+  color: var(--muted);
+  opacity: 0.55;
+}
+
+.nk-calendar-cell.today .nk-calendar-cell-num {
+  background: var(--selected);
+  color: var(--accent-text);
+}
+
+.nk-calendar-cell.drop-target {
+  background: var(--selected);
+  outline: 2px dashed var(--accent, var(--text-2));
+  outline-offset: -2px;
+}
+
+.nk-calendar-cell--week {
+  min-height: 200px;
+}
+
+.nk-calendar-cell-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.nk-calendar-cell-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+}
+
+.nk-calendar-cell-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--accent, var(--text-2));
+  opacity: 0.7;
+}
+
+.nk-calendar-cell-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* Chip */
+.nk-calendar-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm, 4px);
+  font: inherit;
+  font-size: 11px;
+  color: var(--text);
+  cursor: grab;
+  text-align: left;
+  min-width: 0;
+  width: 100%;
+}
+
+.nk-calendar-chip:hover {
+  background: var(--hover);
+}
+
+.nk-calendar-chip:active {
+  cursor: grabbing;
+}
+
+.nk-calendar-chip.frozen {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.nk-calendar-chip-priority {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--hover);
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.nk-calendar-chip.priority-p0 .nk-calendar-chip-priority {
+  background: var(--p0-bg, #5a1a1a);
+  color: var(--p0-fg, #ffb4b4);
+}
+
+.nk-calendar-chip.priority-p1 .nk-calendar-chip-priority {
+  background: var(--p1-bg, #5a3f1a);
+  color: var(--p1-fg, #ffd9a3);
+}
+
+.nk-calendar-chip-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.nk-calendar-overflow {
+  font-size: 10.5px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+/* Day pane */
+.nk-calendar-day-pane {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-4);
+  padding: var(--gap-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: auto;
+}
+
+.nk-calendar-day-pane.drop-target {
+  outline: 2px dashed var(--accent, var(--text-2));
+  outline-offset: -2px;
+  background: var(--selected);
+}
+
+.nk-calendar-day-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-3);
+}
+
+.nk-calendar-day-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.nk-calendar-day-tickets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Heatmap */
+.nk-heatmap-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding-top: var(--gap-3);
+  border-top: 1px solid var(--border);
+}
+
+.nk-heatmap-toggle {
+  align-self: flex-start;
+  background: transparent;
+  border: 0;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nk-heatmap-toggle:hover {
+  color: var(--text);
+}
+
+.nk-heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+
+.nk-heatmap-hd {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gap-4);
+  flex-wrap: wrap;
+}
+
+.nk-heatmap-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.nk-heatmap-err {
+  color: var(--danger, #d97757);
+}
+
+.nk-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.nk-heatmap-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.nk-heatmap-swatch.level-1,
+.nk-heatmap-cell.level-1 {
+  background: #1c3a2c;
+}
+
+.nk-heatmap-swatch.level-2,
+.nk-heatmap-cell.level-2 {
+  background: #2d5a40;
+}
+
+.nk-heatmap-swatch.level-3,
+.nk-heatmap-cell.level-3 {
+  background: #4a8a60;
+}
+
+.nk-heatmap-swatch.level-4,
+.nk-heatmap-cell.level-4 {
+  background: #6dbf80;
+}
+
+.nk-heatmap-grid-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.nk-heatmap-months {
+  display: grid;
+  grid-template-columns: repeat(53, 12px);
+  gap: 2px;
+  font-size: 9.5px;
+  color: var(--muted);
+  height: 12px;
+  padding-left: 0;
+}
+
+.nk-heatmap-month {
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+
+.nk-heatmap-grid {
+  display: grid;
+  grid-template-columns: repeat(53, 12px);
+  gap: 2px;
+}
+
+.nk-heatmap-week {
+  display: grid;
+  grid-template-rows: repeat(7, 12px);
+  gap: 2px;
+}
+
+.nk-heatmap-cell {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 0;
+  padding: 0;
+  background: var(--surface);
+  cursor: pointer;
+  outline: 1px solid transparent;
+}
+
+.nk-heatmap-cell.level-0 {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.nk-heatmap-cell.future {
+  background: transparent;
+  border: 1px dashed var(--border);
+  cursor: default;
+}
+
+.nk-heatmap-cell:hover:not(:disabled) {
+  outline: 1px solid var(--text-2);
+}
+
+.nk-heatmap-cell.selected {
+  outline: 2px solid var(--accent, var(--text));
+  outline-offset: 1px;
+}
+
+/* Heatmap day panel */
+.nk-heatmap-day {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--gap-3) var(--gap-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+  background: var(--surface);
+}
+
+.nk-heatmap-day-hd {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--gap-3);
+}
+
+.nk-heatmap-day-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.nk-heatmap-day-sub {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-family: var(--mono-font);
+  font-size: 11px;
+}
+
+.nk-heatmap-day-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap-4);
+}
+
+@media (max-width: 720px) {
+  .nk-heatmap-day-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nk-heatmap-day-col {
+  min-width: 0;
+}
+
+.nk-heatmap-commits,
+.nk-heatmap-due {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nk-heatmap-commit {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-decoration: none;
+  color: var(--text);
+  padding: 4px 6px;
+  border-radius: var(--r-sm, 4px);
+}
+
+.nk-heatmap-commit:hover {
+  background: var(--hover);
+}
+
+.nk-heatmap-commit-msg {
+  font-size: 12.5px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-heatmap-commit-meta {
+  font-size: 10.5px;
+  color: var(--muted);
+  font-family: var(--mono-font);
+}
+
+/* ─── Scrollbars ────────────────────────────────────────────────── */
+
+.nk *::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.nk *::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.nk *::-webkit-scrollbar-track {
+  background: transparent;
+}

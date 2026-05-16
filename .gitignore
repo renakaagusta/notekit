@@ -1,0 +1,27 @@
+node_modules/
+.turbo/
+dist/
+build/
+.next/
+*.log
+.DS_Store
+.env
+.env.local
+.env.*.local
+coverage/
+.vite/
+*.tsbuildinfo
+.pnpm-store/
+.pnpm-debug.log*
+
+# Local SQLite databases (contain sessions, encrypted tokens)
+apps/api/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Editor/backup files
+*.bak
+
+# Personal scratch / drafts not part of the project
+threads-cdp-draft.md

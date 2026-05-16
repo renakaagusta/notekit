@@ -9,6 +9,8 @@ import {
   insertTable,
   insertImage,
   insertLink,
+  undo,
+  redo,
 } from "../lib/editor-commands";
 
 interface EditorToolbarProps {
@@ -19,6 +21,7 @@ export function EditorToolbar({ getEditor }: EditorToolbarProps) {
   const [aaOpen, setAaOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
+  const [, setTick] = useState(0);
   const aaRef = useRef<HTMLDivElement | null>(null);
   const imageRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -34,6 +37,19 @@ export function EditorToolbar({ getEditor }: EditorToolbarProps) {
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
+
+  const editor = getEditor();
+  useEffect(() => {
+    if (!editor) return;
+    const onChange = () => setTick((t) => t + 1);
+    editor.on("transaction", onChange);
+    return () => {
+      editor.off("transaction", onChange);
+    };
+  }, [editor]);
+
+  const canUndo = editor?.can().undo() ?? false;
+  const canRedo = editor?.can().redo() ?? false;
 
   function run(fn: (e: TipTapEditor) => void) {
     const editor = getEditor();
@@ -69,6 +85,25 @@ export function EditorToolbar({ getEditor }: EditorToolbarProps) {
 
   return (
     <div className="nk-toolbar" role="toolbar" aria-label="Formatting">
+      <button
+        className="nk-tb-btn"
+        title="Undo (⌘Z)"
+        aria-label="Undo"
+        disabled={!canUndo}
+        onClick={() => run(undo)}
+      >
+        <UndoIcon />
+      </button>
+      <button
+        className="nk-tb-btn"
+        title="Redo (⌘⇧Z)"
+        aria-label="Redo"
+        disabled={!canRedo}
+        onClick={() => run(redo)}
+      >
+        <RedoIcon />
+      </button>
+      <div className="nk-tb-divider" aria-hidden="true" />
       <div className="nk-toolbar-group" ref={aaRef}>
         <button
           className="nk-tb-btn"
@@ -260,6 +295,50 @@ function ChevronDown() {
     <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
       <path
         d="M2 4l3 3 3-3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function UndoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M6 4L2.5 7L6 10"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M2.5 7H10a3.5 3.5 0 010 7H7"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+      <path
+        d="M10 4l3.5 3L10 10"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M13.5 7H6a3.5 3.5 0 000 7h3"
         stroke="currentColor"
         strokeWidth="1.4"
         fill="none"

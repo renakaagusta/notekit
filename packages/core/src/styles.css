@@ -855,13 +855,25 @@ body {
   line-height: 1;
 }
 
-.nk-tb-btn:hover {
+.nk-tb-btn:hover:not(:disabled) {
   background: var(--hover);
 }
 
 .nk-tb-btn[aria-expanded="true"] {
   background: var(--hover);
   border-color: var(--border);
+}
+
+.nk-tb-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.nk-tb-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 4px;
+  background: var(--border);
 }
 
 .nk-tb-aa {

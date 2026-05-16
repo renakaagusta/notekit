@@ -37,6 +37,14 @@ export function insertImage(editor: TipTapEditor, url: string, alt = "") {
   editor.chain().focus().setImage({ src: url, alt }).run();
 }
 
+export function undo(editor: TipTapEditor) {
+  editor.chain().focus().undo().run();
+}
+
+export function redo(editor: TipTapEditor) {
+  editor.chain().focus().redo().run();
+}
+
 export function insertLink(editor: TipTapEditor, url: string) {
   if (!url) return;
   const { from, to, empty } = editor.state.selection;

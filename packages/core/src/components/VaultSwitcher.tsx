@@ -344,7 +344,6 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
           dest={importDest}
           vaults={vaults}
           onClose={() => setImportDest(null)}
-          onImported={() => setImportDest(null)}
         />
       )}
     </div>

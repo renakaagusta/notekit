@@ -17,7 +17,8 @@
     "dotenv": "^16.4.5",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.10",
-    "nanoid": "^5.0.7"
+    "nanoid": "^5.0.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",

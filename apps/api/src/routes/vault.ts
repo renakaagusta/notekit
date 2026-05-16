@@ -359,6 +359,33 @@ vaultRoutes.get("/repos", async (c) => {
   const { user, token } = await requireUserAndToken(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   if (!token) return c.json({ error: "no_github_token" }, 400);
+  // Dev-mode stub: fake token never hits GitHub; return a fixture so the UI works.
+  if (!env.isProd && token === "dev_github_token") {
+    return c.json({
+      repos: [
+        {
+          id: 1,
+          name: "vault-primary",
+          fullName: "dev/vault-primary",
+          owner: "dev",
+          private: true,
+          defaultBranch: "main",
+          description: "Dev primary vault",
+          updatedAt: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          name: "vault-archive",
+          fullName: "dev/vault-archive",
+          owner: "dev",
+          private: true,
+          defaultBranch: "main",
+          description: "Dev archive vault",
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    });
+  }
   try {
     const repos = await listRepos(token);
     return c.json({
@@ -602,6 +629,10 @@ vaultRoutes.get("/commits", async (c) => {
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
   const path = c.req.query("path") || undefined;
   const limit = Number(c.req.query("limit") ?? "50") || 50;
+  // Dev-mode stub: fake token never hits GitHub; return an empty commit list.
+  if (!env.isProd && token === "dev_github_token") {
+    return c.json({ commits: [] });
+  }
   try {
     const commits = await listCommits(
       token,
@@ -627,6 +658,10 @@ vaultRoutes.get("/list", async (c) => {
   const vault = await resolveVault(userId);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
   const prefix = c.req.query("prefix") ?? "";
+  // Dev-mode stub: fake token never hits GitHub; pretend the prefix is empty.
+  if (!env.isProd && token === "dev_github_token") {
+    return c.json({ entries: [] });
+  }
   try {
     const entries = await listTree(token, vault.owner, vault.repo, vault.branch, prefix);
     return c.json({

@@ -4,7 +4,7 @@ import { useSyncStore } from "../stores/syncStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { noteTitle } from "../lib/note-display";
-import { getStatus as getVaultStatus } from "../lib/vault-api";
+import { getStatus as getVaultStatus, listVaults } from "../lib/vault-api";
 import { start as startSync } from "../lib/sync";
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import type { User } from "../types/user";
@@ -21,7 +21,9 @@ import { VaultPicker } from "./VaultPicker";
 import { VaultSetup } from "./VaultSetup";
 import { VaultPairNewDevice } from "./VaultPairing";
 import { SecretsView } from "./SecretsView";
+import { SearchPalette } from "./SearchPalette";
 import { isValidYMD, journalYMDFromPath, shiftYMD, todayYMD } from "../lib/journal";
+import type { SearchHit } from "../lib/search";
 
 type MainView = "notes" | "tickets" | "graph" | "calendar";
 
@@ -46,12 +48,16 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const vaultPhase = useVaultStore((s) => s.phase);
   const vault = useVaultStore((s) => s.vault);
   const setVault = useVaultStore((s) => s.setVault);
+  const setVaults = useVaultStore((s) => s.setVaults);
   const setVaultPhase = useVaultStore((s) => s.setPhase);
   const setVaultError = useVaultStore((s) => s.setError);
   const cryptoPhase = useCryptoStore((s) => s.phase);
   const [view, setView] = useState<MainView>("notes");
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [railActive, setRailActive] = useState<RailPanel | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [focusTicketId, setFocusTicketId] = useState<string | null>(null);
+  const [focusAgentSlug, setFocusAgentSlug] = useState<string | null>(null);
   const editorRef = useRef<EditorHandle>(null);
 
   const noteHeading = note ? noteTitle(note) : null;
@@ -61,6 +67,11 @@ export function App({ user, onSignOut }: AppProps = {}) {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
       const key = e.key.toLowerCase();
+      if (key === "k") {
+        e.preventDefault();
+        setSearchOpen((open) => !open);
+        return;
+      }
       if (key === "n") {
         e.preventDefault();
         const created = upsert({ title: "Untitled", body: "" });
@@ -129,6 +140,14 @@ export function App({ user, onSignOut }: AppProps = {}) {
         }
         if (status.configured && status.vault) {
           setVault(status.vault);
+          // Populate the full vault list so the switcher is ready.
+          listVaults()
+            .then((res) => {
+              if (!cancelled) setVaults(res.vaults, res.activeId);
+            })
+            .catch(() => {
+              /* Switcher will retry on next open; not fatal. */
+            });
           await startSync();
           await bootstrapCrypto();
         } else {
@@ -141,12 +160,42 @@ export function App({ user, onSignOut }: AppProps = {}) {
     return () => {
       cancelled = true;
     };
-  }, [setVault, setVaultPhase, setVaultError]);
+  }, [setVault, setVaults, setVaultPhase, setVaultError]);
 
   async function onVaultPicked() {
     setVaultPhase("ready");
+    // Populate the full vault list so the switcher is ready right away.
+    listVaults()
+      .then((res) => setVaults(res.vaults, res.activeId))
+      .catch(() => {
+        /* Non-fatal; the switcher will lazy-load. */
+      });
     await startSync();
     await bootstrapCrypto();
+  }
+
+  function onSearchSelect(hit: SearchHit) {
+    switch (hit.payload.kind) {
+      case "journal":
+        openJournal(hit.payload.ymd);
+        setView("notes");
+        return;
+      case "note":
+        setActive(hit.payload.noteId);
+        setView("notes");
+        return;
+      case "ticket":
+        setView("tickets");
+        setFocusTicketId(hit.payload.ticketId);
+        return;
+      case "agent":
+        setAgentsOpen(true);
+        setFocusAgentSlug(hit.payload.slug);
+        return;
+      case "commit":
+        window.open(hit.payload.url, "_blank", "noopener,noreferrer");
+        return;
+    }
   }
 
   const vaultLabel = vault ? `${vault.owner}/${vault.repo}` : "Local vault";
@@ -251,7 +300,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
               </div>
             </>
           )}
-          {view === "tickets" && <TicketsBoard />}
+          {view === "tickets" && <TicketsBoard focusTicketId={focusTicketId} />}
           {view === "graph" && <GraphView />}
           {view === "calendar" && (
             <CalendarView
@@ -310,6 +359,11 @@ export function App({ user, onSignOut }: AppProps = {}) {
       {vaultPhase === "ready" && cryptoPhase === "needs-pair" && (
         <VaultPairNewDevice />
       )}
+      <SearchPalette
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelect={onSearchSelect}
+      />
       {agentsOpen && (
         <div
           className="nk-modal-backdrop"
@@ -334,7 +388,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
             >
               ×
             </button>
-            <AgentsView />
+            <AgentsView focusSlug={focusAgentSlug} />
           </div>
         </div>
       )}

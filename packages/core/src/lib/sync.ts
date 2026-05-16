@@ -413,3 +413,21 @@ export function stop(): void {
   started = false;
   if (flushTimer) clearTimeout(flushTimer);
 }
+
+/**
+ * Tear the engine down so a subsequent `start()` re-pulls from a different
+ * remote. Drops the in-flight queue, the sha cache, and any pending flush
+ * timer. Caller is responsible for clearing in-memory stores before the
+ * next start so we don't push stale state to the new remote.
+ */
+export function reset(): void {
+  started = false;
+  if (flushTimer) {
+    clearTimeout(flushTimer);
+    flushTimer = null;
+  }
+  pending.length = 0;
+  shaCache.clear();
+  flushing = false;
+  useSyncStore.getState().setPending(0);
+}

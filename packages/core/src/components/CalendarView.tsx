@@ -53,7 +53,7 @@ export function CalendarView({ onOpenJournal, onOpenTicket }: CalendarViewProps)
   const [cursor, setCursor] = useState(today);
   const [mode, setMode] = useState<Mode>("month");
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const [heatmapOpen, setHeatmapOpen] = useState(true);
+  const [heatmapOpen, setHeatmapOpen] = useState(false);
   const [heatmapSelectedYmd, setHeatmapSelectedYmd] = useState<string | null>(null);
 
   const firstWeekday = useMemo(() => localeFirstWeekday(), []);

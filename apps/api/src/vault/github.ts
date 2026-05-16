@@ -294,6 +294,19 @@ export interface GhCommit {
   url: string;
 }
 
+const COMMITS_HARD_CAP = 300;
+const COMMITS_PAGE_SIZE = 100;
+
+type RawCommit = {
+  sha: string;
+  html_url: string;
+  commit: {
+    message: string;
+    author: { name?: string; date: string } | null;
+  };
+  author: { login: string; avatar_url: string } | null;
+};
+
 export async function listCommits(
   token: string,
   owner: string,
@@ -302,34 +315,34 @@ export async function listCommits(
   path: string | undefined,
   limit: number,
 ): Promise<GhCommit[]> {
-  const params = new URLSearchParams({
-    sha: branch,
-    per_page: String(Math.min(Math.max(limit, 1), 100)),
-  });
-  if (path) params.set("path", path);
-  const url = `${GH}/repos/${owner}/${repo}/commits?${params}`;
-  const res = await fetch(url, { headers: headers(token) });
-  if (res.status === 404 || res.status === 409) return [];
-  if (!res.ok) throw new GhError(res.status, await res.text());
-  type Raw = {
-    sha: string;
-    html_url: string;
-    commit: {
-      message: string;
-      author: { name?: string; date: string } | null;
-    };
-    author: { login: string; avatar_url: string } | null;
-  };
-  const arr = (await res.json()) as Raw[];
-  return arr.map((c) => ({
-    sha: c.sha,
-    message: c.commit.message,
-    authorName: c.commit.author?.name ?? null,
-    authorLogin: c.author?.login ?? null,
-    authorAvatar: c.author?.avatar_url ?? null,
-    authoredAt: c.commit.author?.date ?? "",
-    url: c.html_url,
-  }));
+  const want = Math.min(Math.max(limit, 1), COMMITS_HARD_CAP);
+  const out: GhCommit[] = [];
+  for (let page = 1; out.length < want; page++) {
+    const params = new URLSearchParams({
+      sha: branch,
+      per_page: String(Math.min(COMMITS_PAGE_SIZE, want - out.length)),
+      page: String(page),
+    });
+    if (path) params.set("path", path);
+    const url = `${GH}/repos/${owner}/${repo}/commits?${params}`;
+    const res = await fetch(url, { headers: headers(token) });
+    if (res.status === 404 || res.status === 409) return out;
+    if (!res.ok) throw new GhError(res.status, await res.text());
+    const arr = (await res.json()) as RawCommit[];
+    for (const c of arr) {
+      out.push({
+        sha: c.sha,
+        message: c.commit.message,
+        authorName: c.commit.author?.name ?? null,
+        authorLogin: c.author?.login ?? null,
+        authorAvatar: c.author?.avatar_url ?? null,
+        authoredAt: c.commit.author?.date ?? "",
+        url: c.html_url,
+      });
+    }
+    if (arr.length < COMMITS_PAGE_SIZE) break;
+  }
+  return out.slice(0, want);
 }
 
 function encodePath(path: string): string {

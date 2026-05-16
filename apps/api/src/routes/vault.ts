@@ -19,6 +19,16 @@ import {
   type GitAuthor,
 } from "../vault/github";
 import { readAgent, defaultEmailFor } from "../vault/agents";
+import {
+  createVault,
+  deleteVault as removeVault,
+  getActiveVault,
+  getVaultById,
+  listVaultsForUser,
+  renameVault,
+  setActiveVault,
+  type VaultRow,
+} from "../vault/store";
 import { pairRoutes } from "./pair";
 
 export const vaultRoutes = new Hono();
@@ -64,27 +74,145 @@ function ghErr(c: Context, err: unknown) {
   return c.json({ error: "server_error" }, 500);
 }
 
+function vaultToRef(v: VaultRow) {
+  return {
+    id: v.id,
+    provider: v.provider,
+    owner: v.owner,
+    repo: v.repo,
+    branch: v.branch,
+    label: v.label,
+  };
+}
+
 /**
- * GET /vault/status — what vault is configured for this user, if any.
+ * GET /vault/status — the active vault for this user, if any. The `vault`
+ * shape is kept identical to the pre-multi-vault response (owner/repo/branch)
+ * so older clients keep working; new clients should prefer GET /vaults.
  */
 vaultRoutes.get("/status", async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const settings = await db.query.userSettings.findFirst({
-    where: eq(schema.userSettings.userId, user.id),
-  });
+  const active = await getActiveVault(user.id);
   const hasToken = Boolean(await getGithubToken(user.id));
   return c.json({
-    configured: Boolean(settings?.vaultOwner && settings?.vaultRepo),
+    configured: Boolean(active),
     hasGithubToken: hasToken,
-    vault: settings
+    vault: active
       ? {
-          owner: settings.vaultOwner,
-          repo: settings.vaultRepo,
-          branch: settings.vaultBranch ?? "main",
+          id: active.id,
+          owner: active.owner,
+          repo: active.repo,
+          branch: active.branch,
+          provider: active.provider,
+          label: active.label,
         }
       : null,
   });
+});
+
+/**
+ * GET /vaults — list every vault the user has registered.
+ */
+vaultRoutes.get("/vaults", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const vaults = await listVaultsForUser(user.id);
+  const active = await getActiveVault(user.id);
+  return c.json({
+    activeId: active?.id ?? null,
+    vaults: vaults.map(vaultToRef),
+  });
+});
+
+/**
+ * POST /vaults — register a new vault (an existing repo the user owns) and
+ * set it as active. Body: { provider, owner, repo, branch?, label? }.
+ * `provider` is restricted to "github" at runtime; "notekit" is reserved
+ * for future Forgejo support and returns 400 today.
+ */
+vaultRoutes.post("/vaults", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const body = (await c.req.json().catch(() => null)) as {
+    provider?: string;
+    owner?: string;
+    repo?: string;
+    branch?: string;
+    label?: string;
+  } | null;
+  if (!body?.owner || !body?.repo) {
+    return c.json({ error: "owner_and_repo_required" }, 400);
+  }
+  const provider = (body.provider ?? "github") as "github" | "notekit";
+  if (provider === "notekit") {
+    return c.json(
+      { error: "provider_not_supported", message: "NoteKit Git (Forgejo) is not wired yet." },
+      400,
+    );
+  }
+  if (provider !== "github") {
+    return c.json({ error: "provider_invalid" }, 400);
+  }
+  const vault = await createVault({
+    userId: user.id,
+    provider,
+    owner: body.owner,
+    repo: body.repo,
+    branch: body.branch ?? "main",
+    label: body.label,
+  });
+  await setActiveVault(user.id, vault.id);
+  return c.json({ vault: vaultToRef(vault), activeId: vault.id });
+});
+
+/**
+ * POST /vaults/:id/select — make this vault the active one.
+ */
+vaultRoutes.post("/vaults/:id/select", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const id = c.req.param("id");
+  const vault = await setActiveVault(user.id, id);
+  if (!vault) return c.json({ error: "vault_not_found" }, 404);
+  return c.json({ activeId: vault.id, vault: vaultToRef(vault) });
+});
+
+/**
+ * PATCH /vaults/:id — rename or change the tracked branch. Provider/owner/repo
+ * are immutable — to switch repos, register a new vault and delete the old one.
+ */
+vaultRoutes.patch("/vaults/:id", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const id = c.req.param("id");
+  const body = (await c.req.json().catch(() => null)) as {
+    label?: string | null;
+    branch?: string;
+  } | null;
+  if (!body || (body.label === undefined && body.branch === undefined)) {
+    return c.json({ error: "no_fields_to_update" }, 400);
+  }
+  const patch: { label?: string | null; branch?: string } = {};
+  if (body.label !== undefined) patch.label = body.label;
+  if (body.branch !== undefined) patch.branch = body.branch;
+  const updated = await renameVault(user.id, id, patch);
+  if (!updated) return c.json({ error: "vault_not_found" }, 404);
+  return c.json({ vault: vaultToRef(updated) });
+});
+
+/**
+ * DELETE /vaults/:id — unregister the vault from NoteKit. Does NOT delete the
+ * underlying GitHub repo. If the deleted vault was active, the next oldest
+ * vault (if any) becomes active.
+ */
+vaultRoutes.delete("/vaults/:id", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const id = c.req.param("id");
+  const result = await removeVault(user.id, id);
+  if (!result.deleted) return c.json({ error: "vault_not_found" }, 404);
+  return c.json({ ok: true, activeId: result.newActiveId });
 });
 
 /**
@@ -141,8 +269,9 @@ vaultRoutes.post("/repos", async (c) => {
 });
 
 /**
- * POST /vault/select — set the active vault repo for this user.
- * body: { owner: string, repo: string, branch?: string }
+ * POST /vault/select — legacy single-vault entry point. Registers the repo
+ * as a vault if not already, and sets it active. Kept so older clients keep
+ * working; new clients should use POST /vaults + POST /vaults/:id/select.
  */
 vaultRoutes.post("/select", async (c) => {
   const user = await getCurrentUser(c);
@@ -156,33 +285,23 @@ vaultRoutes.post("/select", async (c) => {
     return c.json({ error: "owner_and_repo_required" }, 400);
   }
   const branch = body.branch ?? "main";
-  const now = new Date();
-
-  const existing = await db.query.userSettings.findFirst({
-    where: eq(schema.userSettings.userId, user.id),
+  const vault = await createVault({
+    userId: user.id,
+    provider: "github",
+    owner: body.owner,
+    repo: body.repo,
+    branch,
   });
-  if (existing) {
-    await db
-      .update(schema.userSettings)
-      .set({
-        vaultProvider: "github",
-        vaultOwner: body.owner,
-        vaultRepo: body.repo,
-        vaultBranch: branch,
-        updatedAt: now,
-      })
-      .where(eq(schema.userSettings.userId, user.id));
-  } else {
-    await db.insert(schema.userSettings).values({
-      userId: user.id,
-      vaultProvider: "github",
-      vaultOwner: body.owner,
-      vaultRepo: body.repo,
-      vaultBranch: branch,
-      updatedAt: now,
-    });
-  }
-  return c.json({ ok: true, vault: { owner: body.owner, repo: body.repo, branch } });
+  await setActiveVault(user.id, vault.id);
+  return c.json({
+    ok: true,
+    vault: {
+      id: vault.id,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
+    },
+  });
 });
 
 /**
@@ -201,14 +320,12 @@ vaultRoutes.get("/whoami", async (c) => {
 });
 
 async function resolveVault(userId: string) {
-  const settings = await db.query.userSettings.findFirst({
-    where: eq(schema.userSettings.userId, userId),
-  });
-  if (!settings?.vaultOwner || !settings?.vaultRepo) return null;
+  const active = await getActiveVault(userId);
+  if (!active) return null;
   return {
-    owner: settings.vaultOwner,
-    repo: settings.vaultRepo,
-    branch: settings.vaultBranch ?? "main",
+    owner: active.owner,
+    repo: active.repo,
+    branch: active.branch,
   };
 }
 

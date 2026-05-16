@@ -11,16 +11,28 @@ export interface VaultRepo {
   updatedAt: string;
 }
 
+export type VaultProvider = "github" | "notekit";
+
 export interface VaultRef {
+  /** Server-side id. Undefined on responses from older API revisions. */
+  id?: string;
+  provider?: VaultProvider;
   owner: string;
   repo: string;
   branch: string;
+  /** Friendly name for the switcher. */
+  label?: string | null;
 }
 
 export interface VaultStatus {
   configured: boolean;
   hasGithubToken: boolean;
   vault: VaultRef | null;
+}
+
+export interface VaultListResponse {
+  activeId: string | null;
+  vaults: VaultRef[];
 }
 
 export function getStatus(): Promise<VaultStatus> {
@@ -44,6 +56,53 @@ export function selectVault(owner: string, repo: string, branch?: string) {
   return apiFetch<{ ok: true; vault: VaultRef }>("/vault/select", {
     method: "POST",
     body: JSON.stringify({ owner, repo, branch }),
+  });
+}
+
+// --- Multi-vault API ---
+
+export function listVaults(): Promise<VaultListResponse> {
+  return apiFetch<VaultListResponse>("/vault/vaults");
+}
+
+export function addVault(input: {
+  provider?: VaultProvider;
+  owner: string;
+  repo: string;
+  branch?: string;
+  label?: string;
+}): Promise<{ vault: VaultRef; activeId: string }> {
+  return apiFetch("/vault/vaults", {
+    method: "POST",
+    body: JSON.stringify({ provider: input.provider ?? "github", ...input }),
+  });
+}
+
+export function selectVaultById(vaultId: string): Promise<{
+  activeId: string;
+  vault: VaultRef;
+}> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}/select`, {
+    method: "POST",
+  });
+}
+
+export function patchVault(
+  vaultId: string,
+  patch: { label?: string | null; branch?: string },
+): Promise<{ vault: VaultRef }> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export function deleteVault(vaultId: string): Promise<{
+  ok: true;
+  activeId: string | null;
+}> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}`, {
+    method: "DELETE",
   });
 }
 

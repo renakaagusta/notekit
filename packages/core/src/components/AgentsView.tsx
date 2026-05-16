@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   listAgents,
   createAgent,
@@ -7,14 +7,30 @@ import {
   type AgentProfile,
 } from "../lib/agents-api";
 
+interface AgentsViewProps {
+  /** Scroll this agent into view and flash-highlight it (e.g. from search). */
+  focusSlug?: string | null;
+}
+
 interface DraftFields {
   name: string;
   email: string;
   description: string;
 }
 
-export function AgentsView() {
+export function AgentsView({ focusSlug }: AgentsViewProps = {}) {
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
+  const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
+
+  useEffect(() => {
+    if (!focusSlug || !agents) return;
+    const el = rowRefs.current.get(focusSlug);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("is-focus-flash");
+    const t = setTimeout(() => el.classList.remove("is-focus-flash"), 1400);
+    return () => clearTimeout(t);
+  }, [focusSlug, agents]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newDraft, setNewDraft] = useState<DraftFields>({
@@ -225,7 +241,14 @@ export function AgentsView() {
                 />
               </li>
             ) : (
-              <li key={a.slug} className="nk-commit">
+              <li
+                key={a.slug}
+                className="nk-commit"
+                ref={(el) => {
+                  if (el) rowRefs.current.set(a.slug, el);
+                  else rowRefs.current.delete(a.slug);
+                }}
+              >
                 <div className="nk-commit-row">
                   {a.avatarUrl ? (
                     <img className="nk-commit-avatar" src={a.avatarUrl} alt="" />

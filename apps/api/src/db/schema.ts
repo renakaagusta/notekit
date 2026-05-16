@@ -43,10 +43,30 @@ export const sessions = sqliteTable("sessions", {
     .$defaultFn(() => new Date()),
 });
 
+export const vaults = sqliteTable("vaults", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider", { enum: ["github", "notekit"] }).notNull(),
+  owner: text("owner").notNull(),
+  repo: text("repo").notNull(),
+  branch: text("branch").notNull().default("main"),
+  label: text("label"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const userSettings = sqliteTable("user_settings", {
   userId: text("user_id")
     .primaryKey()
     .references(() => users.id, { onDelete: "cascade" }),
+  activeVaultId: text("active_vault_id").references(() => vaults.id, {
+    onDelete: "set null",
+  }),
+  // Legacy single-vault columns. Kept for one release as a fallback; new code
+  // writes to `vaults` + `active_vault_id` only. Will be dropped in a later migration.
   vaultProvider: text("vault_provider", { enum: ["github"] }),
   vaultOwner: text("vault_owner"),
   vaultRepo: text("vault_repo"),
@@ -74,3 +94,5 @@ export type NewDbUser = typeof users.$inferInsert;
 export type DbSession = typeof sessions.$inferSelect;
 export type DbUserSettings = typeof userSettings.$inferSelect;
 export type DbAgentToken = typeof agentTokens.$inferSelect;
+export type DbVault = typeof vaults.$inferSelect;
+export type NewDbVault = typeof vaults.$inferInsert;

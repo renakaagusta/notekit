@@ -1,3 +1,4 @@
+export { AddVaultDialog } from "./AddVaultDialog";
 export { App } from "./App";
 export { AuthGate } from "./AuthGate";
 export { CalendarView } from "./CalendarView";
@@ -6,8 +7,10 @@ export { GraphView } from "./GraphView";
 export { Heatmap } from "./Heatmap";
 export { NoteList } from "./NoteList";
 export { Rail } from "./Rail";
+export { SearchPalette } from "./SearchPalette";
 export { Sidebar } from "./Sidebar";
 export { SignIn } from "./SignIn";
 export { TicketsBoard } from "./TicketsBoard";
 export { TicketSidebarList } from "./TicketSidebarList";
 export { VaultPicker } from "./VaultPicker";
+export { VaultSwitcher } from "./VaultSwitcher";

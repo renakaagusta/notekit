@@ -5,6 +5,7 @@ import type { User } from "../types/user";
 import { CreateMenu } from "./CreateMenu";
 import { NoteList } from "./NoteList";
 import { TicketSidebarList } from "./TicketSidebarList";
+import { VaultSwitcher } from "./VaultSwitcher";
 
 export type SidebarView = "notes" | "tickets" | "graph" | "calendar";
 
@@ -65,6 +66,7 @@ export function Sidebar({
 
   return (
     <aside className="nk-sidebar">
+      <VaultSwitcher />
       <div className="nk-nav">
         <button
           className={view === "notes" ? "active" : ""}

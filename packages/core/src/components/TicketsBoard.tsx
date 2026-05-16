@@ -2,9 +2,19 @@ import { useEffect, useRef } from "react";
 import { useTicketsStore } from "../stores/ticketsStore";
 import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
 
+/**
+ * Focus signal. Wrapping the id in a `{id, seq}` object lets a re-selection
+ * of the same ticket re-fire the effect, since identity changes even when
+ * `id` stays the same.
+ */
+export interface FocusPulse {
+  id: string;
+  seq: number;
+}
+
 interface TicketsBoardProps {
   /** Scroll this ticket into view and flash-highlight it (e.g. from search). */
-  focusTicketId?: string | null;
+  focusTicket?: FocusPulse | null;
 }
 
 const COLUMNS: { status: TicketStatus; label: string; dot: string }[] = [
@@ -37,7 +47,7 @@ const PRIORITY_CLASS: Record<TicketPriority, string> = {
   low: "priority-p3",
 };
 
-export function TicketsBoard({ focusTicketId }: TicketsBoardProps = {}) {
+export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
   const tickets = useTicketsStore((s) => s.tickets);
   const upsert = useTicketsStore((s) => s.upsert);
   const setStatus = useTicketsStore((s) => s.setStatus);
@@ -45,14 +55,14 @@ export function TicketsBoard({ focusTicketId }: TicketsBoardProps = {}) {
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   useEffect(() => {
-    if (!focusTicketId) return;
-    const el = cardRefs.current.get(focusTicketId);
+    if (!focusTicket) return;
+    const el = cardRefs.current.get(focusTicket.id);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add("is-focus-flash");
     const t = setTimeout(() => el.classList.remove("is-focus-flash"), 1400);
     return () => clearTimeout(t);
-  }, [focusTicketId]);
+  }, [focusTicket]);
 
   const all = Object.values(tickets);
 

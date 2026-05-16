@@ -63,8 +63,8 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [railActive, setRailActive] = useState<RailPanel | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [focusTicketId, setFocusTicketId] = useState<string | null>(null);
-  const [focusAgentSlug, setFocusAgentSlug] = useState<string | null>(null);
+  const [focusTicket, setFocusTicket] = useState<{ id: string; seq: number } | null>(null);
+  const [focusAgent, setFocusAgent] = useState<{ slug: string; seq: number } | null>(null);
   const editorRef = useRef<EditorHandle>(null);
 
   const noteHeading = note ? noteTitle(note) : null;
@@ -225,11 +225,11 @@ export function App({ user, onSignOut }: AppProps = {}) {
         return;
       case "ticket":
         setView("tickets");
-        setFocusTicketId(hit.payload.ticketId);
+        setFocusTicket({ id: hit.payload.ticketId, seq: Date.now() });
         return;
       case "agent":
         setAgentsOpen(true);
-        setFocusAgentSlug(hit.payload.slug);
+        setFocusAgent({ slug: hit.payload.slug, seq: Date.now() });
         return;
       case "commit":
         window.open(hit.payload.url, "_blank", "noopener,noreferrer");
@@ -340,7 +340,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
               </div>
             </>
           )}
-          {view === "tickets" && <TicketsBoard focusTicketId={focusTicketId} />}
+          {view === "tickets" && <TicketsBoard focusTicket={focusTicket} />}
           {view === "graph" && <GraphView />}
           {view === "calendar" && (
             <CalendarView
@@ -428,7 +428,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
             >
               ×
             </button>
-            <AgentsView focusSlug={focusAgentSlug} />
+            <AgentsView focusAgent={focusAgent} />
           </div>
         </div>
       )}

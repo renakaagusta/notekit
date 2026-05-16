@@ -192,6 +192,19 @@ const DEFAULT_SETTINGS: VaultSettingsValue = {
   defaultAgentSlug: null,
 };
 
+const ALLOWED_THEMES = new Set<VaultSettingsValue["theme"]>([
+  "auto",
+  "light",
+  "dark",
+]);
+
+function coerceTheme(raw: unknown): VaultSettingsValue["theme"] {
+  if (typeof raw === "string" && ALLOWED_THEMES.has(raw as VaultSettingsValue["theme"])) {
+    return raw as VaultSettingsValue["theme"];
+  }
+  return "auto";
+}
+
 export async function getVaultSettings(
   vaultId: string,
 ): Promise<VaultSettingsValue> {
@@ -200,7 +213,7 @@ export async function getVaultSettings(
   });
   if (!row) return DEFAULT_SETTINGS;
   return {
-    theme: row.theme as VaultSettingsValue["theme"],
+    theme: coerceTheme(row.theme),
     defaultFolder: row.defaultFolder,
     defaultAgentSlug: row.defaultAgentSlug,
   };

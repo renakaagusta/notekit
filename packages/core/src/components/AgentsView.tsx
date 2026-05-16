@@ -7,9 +7,14 @@ import {
   type AgentProfile,
 } from "../lib/agents-api";
 
+export interface AgentFocusPulse {
+  slug: string;
+  seq: number;
+}
+
 interface AgentsViewProps {
   /** Scroll this agent into view and flash-highlight it (e.g. from search). */
-  focusSlug?: string | null;
+  focusAgent?: AgentFocusPulse | null;
 }
 
 interface DraftFields {
@@ -18,19 +23,19 @@ interface DraftFields {
   description: string;
 }
 
-export function AgentsView({ focusSlug }: AgentsViewProps = {}) {
+export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
   const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   useEffect(() => {
-    if (!focusSlug || !agents) return;
-    const el = rowRefs.current.get(focusSlug);
+    if (!focusAgent || !agents) return;
+    const el = rowRefs.current.get(focusAgent.slug);
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.classList.add("is-focus-flash");
     const t = setTimeout(() => el.classList.remove("is-focus-flash"), 1400);
     return () => clearTimeout(t);
-  }, [focusSlug, agents]);
+  }, [focusAgent, agents]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [newDraft, setNewDraft] = useState<DraftFields>({

@@ -53,7 +53,17 @@ export function CalendarView({ onOpenJournal, onOpenTicket }: CalendarViewProps)
   const [cursor, setCursor] = useState(today);
   const [mode, setMode] = useState<Mode>("month");
   const [dragOver, setDragOver] = useState<string | null>(null);
-  const [heatmapOpen, setHeatmapOpen] = useState(false);
+  // Persist the user's collapse choice across sessions. Default-collapsed so
+  // the calendar starts compact; once the user opens the heatmap, that
+  // preference sticks until they collapse it again.
+  const [heatmapOpen, setHeatmapOpen] = useState<boolean>(() => {
+    if (typeof localStorage === "undefined") return false;
+    return localStorage.getItem("notekit:heatmapOpen") === "1";
+  });
+  useEffect(() => {
+    if (typeof localStorage === "undefined") return;
+    localStorage.setItem("notekit:heatmapOpen", heatmapOpen ? "1" : "0");
+  }, [heatmapOpen]);
   const [heatmapSelectedYmd, setHeatmapSelectedYmd] = useState<string | null>(null);
 
   const firstWeekday = useMemo(() => localeFirstWeekday(), []);

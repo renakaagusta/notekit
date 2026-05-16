@@ -1,10 +1,22 @@
 import { Hono, type Context } from "hono";
-import { eq } from "drizzle-orm";
-import { db, schema } from "../db";
 import { env } from "../env";
 import { getCurrentUser } from "../auth/sessions";
 import { getActingAgent } from "../auth/agentAuth";
 import { getGithubToken } from "../vault/tokens";
+import {
+  parseBody,
+  z,
+  FolderPathNullable,
+  AgentSlugNullable,
+  BranchName,
+  OwnerName,
+  RepoName,
+  Label,
+  LabelNullable,
+  ThemeEnum,
+  VaultProviderEnum,
+} from "../validation";
+import { rateLimit } from "../middleware/rateLimit";
 import {
   listRepos,
   createRepo,
@@ -30,12 +42,29 @@ import {
   setActiveVault,
   updateVaultSettings,
   type VaultRow,
-  type VaultSettingsValue,
 } from "../vault/store";
 import { pairRoutes } from "./pair";
 
 // Folder prefixes that count as importable NoteKit content.
 const IMPORT_PREFIXES = ["notes/", "tickets/", "journal/", "attachments/"];
+
+// Per-principal limits. Generous defaults — these are tuned for legitimate
+// interactive use; abuse trips them long before the user does.
+const vaultMutationLimit = rateLimit({
+  bucket: "vault-mutation",
+  windowMs: 60_000,
+  max: 30,
+});
+const writeLimit = rateLimit({
+  bucket: "vault-write",
+  windowMs: 60_000,
+  max: 120,
+});
+const importLimit = rateLimit({
+  bucket: "vault-import",
+  windowMs: 60 * 60_000, // 1 hour
+  max: 5,
+});
 
 export const vaultRoutes = new Hono();
 
@@ -131,42 +160,37 @@ vaultRoutes.get("/vaults", async (c) => {
   });
 });
 
+const CreateVaultBody = z.object({
+  provider: VaultProviderEnum.optional().default("github"),
+  owner: OwnerName,
+  repo: RepoName,
+  branch: BranchName.optional().default("main"),
+  label: Label.optional(),
+});
+
 /**
  * POST /vaults — register a new vault (an existing repo the user owns) and
- * set it as active. Body: { provider, owner, repo, branch?, label? }.
- * `provider` is restricted to "github" at runtime; "notekit" is reserved
- * for future Forgejo support and returns 400 today.
+ * set it as active. `provider` is restricted to "github" at runtime;
+ * "notekit" is reserved for future Forgejo support and returns 400 today.
  */
-vaultRoutes.post("/vaults", async (c) => {
+vaultRoutes.post("/vaults", vaultMutationLimit, async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const body = (await c.req.json().catch(() => null)) as {
-    provider?: string;
-    owner?: string;
-    repo?: string;
-    branch?: string;
-    label?: string;
-  } | null;
-  if (!body?.owner || !body?.repo) {
-    return c.json({ error: "owner_and_repo_required" }, 400);
-  }
-  const provider = (body.provider ?? "github") as "github" | "notekit";
-  if (provider === "notekit") {
+  const parsed = await parseBody(c, CreateVaultBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
+  if (parsed.data.provider === "notekit") {
     return c.json(
       { error: "provider_not_supported", message: "NoteKit Git (Forgejo) is not wired yet." },
       400,
     );
   }
-  if (provider !== "github") {
-    return c.json({ error: "provider_invalid" }, 400);
-  }
   const vault = await createVault({
     userId: user.id,
-    provider,
-    owner: body.owner,
-    repo: body.repo,
-    branch: body.branch ?? "main",
-    label: body.label,
+    provider: parsed.data.provider,
+    owner: parsed.data.owner,
+    repo: parsed.data.repo,
+    branch: parsed.data.branch,
+    label: parsed.data.label,
   });
   await setActiveVault(user.id, vault.id);
   return c.json({ vault: vaultToRef(vault), activeId: vault.id });
@@ -175,7 +199,7 @@ vaultRoutes.post("/vaults", async (c) => {
 /**
  * POST /vaults/:id/select — make this vault the active one.
  */
-vaultRoutes.post("/vaults/:id/select", async (c) => {
+vaultRoutes.post("/vaults/:id/select", vaultMutationLimit, async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const id = c.req.param("id");
@@ -184,25 +208,27 @@ vaultRoutes.post("/vaults/:id/select", async (c) => {
   return c.json({ activeId: vault.id, vault: vaultToRef(vault) });
 });
 
+const PatchVaultBody = z
+  .object({
+    label: LabelNullable.optional(),
+    branch: BranchName.optional(),
+  })
+  .refine(
+    (b) => b.label !== undefined || b.branch !== undefined,
+    { message: "no_fields_to_update" },
+  );
+
 /**
  * PATCH /vaults/:id — rename or change the tracked branch. Provider/owner/repo
  * are immutable — to switch repos, register a new vault and delete the old one.
  */
-vaultRoutes.patch("/vaults/:id", async (c) => {
+vaultRoutes.patch("/vaults/:id", vaultMutationLimit, async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const id = c.req.param("id");
-  const body = (await c.req.json().catch(() => null)) as {
-    label?: string | null;
-    branch?: string;
-  } | null;
-  if (!body || (body.label === undefined && body.branch === undefined)) {
-    return c.json({ error: "no_fields_to_update" }, 400);
-  }
-  const patch: { label?: string | null; branch?: string } = {};
-  if (body.label !== undefined) patch.label = body.label;
-  if (body.branch !== undefined) patch.branch = body.branch;
-  const updated = await renameVault(user.id, id, patch);
+  const parsed = await parseBody(c, PatchVaultBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
+  const updated = await renameVault(user.id, id, parsed.data);
   if (!updated) return c.json({ error: "vault_not_found" }, 404);
   return c.json({ vault: vaultToRef(updated) });
 });
@@ -212,7 +238,7 @@ vaultRoutes.patch("/vaults/:id", async (c) => {
  * underlying GitHub repo. If the deleted vault was active, the next oldest
  * vault (if any) becomes active.
  */
-vaultRoutes.delete("/vaults/:id", async (c) => {
+vaultRoutes.delete("/vaults/:id", vaultMutationLimit, async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const id = c.req.param("id");
@@ -234,21 +260,24 @@ vaultRoutes.get("/vaults/:id/settings", async (c) => {
   return c.json({ settings });
 });
 
+const PatchVaultSettingsBody = z.object({
+  theme: ThemeEnum.optional(),
+  defaultFolder: FolderPathNullable.optional(),
+  defaultAgentSlug: AgentSlugNullable.optional(),
+});
+
 /**
  * PATCH /vaults/:id/settings — partial update of per-vault preferences.
  */
-vaultRoutes.patch("/vaults/:id/settings", async (c) => {
+vaultRoutes.patch("/vaults/:id/settings", vaultMutationLimit, async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const id = c.req.param("id");
   const vault = await getVaultById(user.id, id);
   if (!vault) return c.json({ error: "vault_not_found" }, 404);
-  const body = (await c.req.json().catch(() => null)) as Partial<VaultSettingsValue> | null;
-  if (!body) return c.json({ error: "body_required" }, 400);
-  if (body.theme !== undefined && !["auto", "light", "dark"].includes(body.theme)) {
-    return c.json({ error: "invalid_theme" }, 400);
-  }
-  const settings = await updateVaultSettings(id, body);
+  const parsed = await parseBody(c, PatchVaultSettingsBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
+  const settings = await updateVaultSettings(id, parsed.data);
   return c.json({ settings });
 });
 
@@ -259,28 +288,46 @@ vaultRoutes.patch("/vaults/:id/settings", async (c) => {
  * (never overwritten). Operates entirely server-side against GitHub; the
  * client just polls the response.
  */
-vaultRoutes.post("/vaults/:destId/import", async (c) => {
+const ImportBody = z.object({
+  sourceId: z.string().min(1).max(64),
+});
+
+// Cap how many source files we'll process in one import. Each file is one
+// list + read + write to GitHub — hundreds is fine, thousands risks both
+// secondary rate limits and a request that the client times out on.
+const IMPORT_FILE_CAP = 500;
+
+// Single-flight per user: only one import may be in progress at a time.
+// Map user id → AbortController-ish marker. Cleared on completion or error.
+const inFlightImports = new Set<string>();
+
+vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
   const { userId, token } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
   if (!token) return c.json({ error: "no_github_token" }, 400);
   const destId = c.req.param("destId");
-  const body = (await c.req.json().catch(() => null)) as {
-    sourceId?: string;
-  } | null;
-  if (!body?.sourceId) return c.json({ error: "source_id_required" }, 400);
-  if (body.sourceId === destId) {
+  const parsed = await parseBody(c, ImportBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
+  if (parsed.data.sourceId === destId) {
     return c.json({ error: "source_and_dest_same" }, 400);
   }
 
   const [source, dest] = await Promise.all([
-    getVaultById(userId, body.sourceId),
+    getVaultById(userId, parsed.data.sourceId),
     getVaultById(userId, destId),
   ]);
   if (!source) return c.json({ error: "source_vault_not_found" }, 404);
   if (!dest) return c.json({ error: "dest_vault_not_found" }, 404);
 
-  // Dev-mode stub: fake token never hits GitHub; pretend nothing to import.
+  if (inFlightImports.has(userId)) {
+    return c.json({ error: "import_already_running" }, 429);
+  }
+  inFlightImports.add(userId);
+
+  // Dev-mode stub runs AFTER authz + concurrency checks so the short-circuit
+  // can never bypass them.
   if (!env.isProd && token === "dev_github_token") {
+    inFlightImports.delete(userId);
     return c.json({ imported: 0, skipped: 0, errors: [] });
   }
 
@@ -302,7 +349,9 @@ vaultRoutes.post("/vaults/:destId/import", async (c) => {
       for (const e of entries) destPaths.add(e.path);
     }
 
-    // 2. Enumerate source files; copy each one missing in dest.
+    // 2. Plan: enumerate all source files first so we can refuse over-cap
+    // imports cleanly rather than partially writing.
+    const plan: { path: string }[] = [];
     for (const prefix of IMPORT_PREFIXES) {
       const entries = await listTree(
         token,
@@ -316,39 +365,59 @@ vaultRoutes.post("/vaults/:destId/import", async (c) => {
           skipped++;
           continue;
         }
-        try {
-          const file = await readFile(
-            token,
-            source.owner,
-            source.repo,
-            entry.path,
-            source.branch,
-          );
-          if (!file) {
-            skipped++;
-            continue;
-          }
-          await writeFile(
-            token,
-            dest.owner,
-            dest.repo,
-            entry.path,
-            file.content,
-            `notekit: import ${entry.path} from ${source.owner}/${source.repo}`,
-            dest.branch,
-          );
-          imported++;
-        } catch (e) {
-          errors.push({
-            path: entry.path,
-            reason: e instanceof GhError ? `gh:${e.status}` : (e as Error).message,
-          });
+        plan.push({ path: entry.path });
+      }
+    }
+
+    if (plan.length > IMPORT_FILE_CAP) {
+      return c.json(
+        {
+          error: "import_too_large",
+          message: `Import is capped at ${IMPORT_FILE_CAP} files; source has ${plan.length} new files to copy.`,
+          cap: IMPORT_FILE_CAP,
+          would_import: plan.length,
+        },
+        413,
+      );
+    }
+
+    // 3. Copy each planned file. Per-file errors are recorded; the whole
+    // operation still returns a 200 with the partial result.
+    for (const item of plan) {
+      try {
+        const file = await readFile(
+          token,
+          source.owner,
+          source.repo,
+          item.path,
+          source.branch,
+        );
+        if (!file) {
+          skipped++;
+          continue;
         }
+        await writeFile(
+          token,
+          dest.owner,
+          dest.repo,
+          item.path,
+          file.content,
+          `notekit: import ${item.path} from ${source.owner}/${source.repo}`,
+          dest.branch,
+        );
+        imported++;
+      } catch (e) {
+        errors.push({
+          path: item.path,
+          reason: e instanceof GhError ? `gh:${e.status}` : (e as Error).message,
+        });
       }
     }
     return c.json({ imported, skipped, errors });
   } catch (err) {
     return ghErr(c, err);
+  } finally {
+    inFlightImports.delete(userId);
   }
 });
 
@@ -405,21 +474,22 @@ vaultRoutes.get("/repos", async (c) => {
   }
 });
 
+const CreateRepoBody = z.object({
+  name: RepoName,
+  private: z.boolean().optional(),
+});
+
 /**
  * POST /vault/repos — create a new repo to act as the vault.
- * body: { name: string, private?: boolean }
  */
-vaultRoutes.post("/repos", async (c) => {
+vaultRoutes.post("/repos", vaultMutationLimit, async (c) => {
   const { user, token } = await requireUserAndToken(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   if (!token) return c.json({ error: "no_github_token" }, 400);
-  const body = (await c.req.json().catch(() => null)) as {
-    name?: string;
-    private?: boolean;
-  } | null;
-  if (!body?.name) return c.json({ error: "name_required" }, 400);
+  const parsed = await parseBody(c, CreateRepoBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
   try {
-    const repo = await createRepo(token, body.name, body.private ?? true);
+    const repo = await createRepo(token, parsed.data.name, parsed.data.private ?? true);
     return c.json({
       repo: {
         owner: repo.owner.login,
@@ -432,31 +502,35 @@ vaultRoutes.post("/repos", async (c) => {
   }
 });
 
+const LegacySelectBody = z.object({
+  owner: OwnerName,
+  repo: RepoName,
+  branch: BranchName.optional().default("main"),
+});
+
 /**
  * POST /vault/select — legacy single-vault entry point. Registers the repo
  * as a vault if not already, and sets it active. Kept so older clients keep
  * working; new clients should use POST /vaults + POST /vaults/:id/select.
+ *
+ * Emits `Deprecation` per RFC 8594 so clients can surface a warning.
  */
-vaultRoutes.post("/select", async (c) => {
+vaultRoutes.post("/select", vaultMutationLimit, async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const body = (await c.req.json().catch(() => null)) as {
-    owner?: string;
-    repo?: string;
-    branch?: string;
-  } | null;
-  if (!body?.owner || !body?.repo) {
-    return c.json({ error: "owner_and_repo_required" }, 400);
-  }
-  const branch = body.branch ?? "main";
+  const parsed = await parseBody(c, LegacySelectBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
   const vault = await createVault({
     userId: user.id,
     provider: "github",
-    owner: body.owner,
-    repo: body.repo,
-    branch,
+    owner: parsed.data.owner,
+    repo: parsed.data.repo,
+    branch: parsed.data.branch,
   });
   await setActiveVault(user.id, vault.id);
+  c.header("Deprecation", "true");
+  c.header("Sunset", "Sat, 16 Aug 2026 00:00:00 GMT");
+  c.header("Link", '</vault/vaults>; rel="successor-version"');
   return c.json({
     ok: true,
     vault: {
@@ -524,7 +598,7 @@ vaultRoutes.get("/file", async (c) => {
  * If the caller is an agent (bearer token), the commit is authored as the
  * agent (Git Data API), with the user as committer.
  */
-vaultRoutes.put("/file", async (c) => {
+vaultRoutes.put("/file", writeLimit, async (c) => {
   const { userId, token, actingAs } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
   if (!token) return c.json({ error: "no_github_token" }, 400);
@@ -588,7 +662,7 @@ vaultRoutes.put("/file", async (c) => {
 /**
  * DELETE /vault/file — delete a file. body: { path, sha, message? }
  */
-vaultRoutes.delete("/file", async (c) => {
+vaultRoutes.delete("/file", writeLimit, async (c) => {
   const { userId, token } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
   if (!token) return c.json({ error: "no_github_token" }, 400);

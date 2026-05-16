@@ -3,7 +3,7 @@ import { immer } from "zustand/middleware/immer";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import type { Note } from "../types/note";
-import { notePathFor } from "../lib/file-paths";
+import { notePathFor, sanitizeFolderPath } from "../lib/file-paths";
 import {
   journalDefaultBody,
   journalPathFor,
@@ -45,12 +45,7 @@ interface NotesState {
 }
 
 function cleanFolder(folder: string | null): string | null {
-  if (folder === null) return null;
-  const parts = folder
-    .split("/")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  return parts.length ? parts.join("/") : null;
+  return sanitizeFolderPath(folder);
 }
 
 const now = () => new Date().toISOString();

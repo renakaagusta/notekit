@@ -2,6 +2,8 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { secureHeaders } from "hono/secure-headers";
+import { bodyLimit } from "hono/body-limit";
 import { env } from "./env";
 import { authRoutes } from "./routes/auth";
 import { vaultRoutes } from "./routes/vault";
@@ -9,7 +11,15 @@ import { agentRoutes } from "./routes/agents";
 
 const app = new Hono();
 
+// Defense in depth: minimum set of hardening headers. No CSP here because
+// the API serves JSON only — the web app handles its own CSP.
+app.use("*", secureHeaders({
+  crossOriginResourcePolicy: "same-site",
+  referrerPolicy: "no-referrer",
+}));
+
 app.use("*", logger());
+
 app.use(
   "*",
   cors({
@@ -19,6 +29,21 @@ app.use(
     allowHeaders: ["Content-Type", "Authorization"],
   }),
 );
+
+// 2 MiB request bodies cover everything we accept today (notes, agent
+// profiles, settings). Larger payloads almost certainly mean a bug or abuse.
+app.use(
+  "*",
+  bodyLimit({
+    maxSize: 2 * 1024 * 1024,
+    onError: (c) => c.json({ error: "payload_too_large" }, 413),
+  }),
+);
+
+app.onError((err, c) => {
+  console.error(`[api] unhandled error on ${c.req.method} ${c.req.path}:`, err);
+  return c.json({ error: "server_error" }, 500);
+});
 
 app.get("/", (c) =>
   c.json({
@@ -34,7 +59,7 @@ app.route("/auth", authRoutes);
 app.route("/vault", vaultRoutes);
 app.route("/agents", agentRoutes);
 
-serve(
+const server = serve(
   {
     fetch: app.fetch,
     port: env.port,
@@ -43,3 +68,15 @@ serve(
     console.log(`[api] listening on http://localhost:${info.port}`);
   },
 );
+
+// Graceful shutdown so in-flight requests finish and SQLite WAL flushes.
+function shutdown(signal: NodeJS.Signals) {
+  console.log(`[api] received ${signal}, shutting down`);
+  server.close(() => process.exit(0));
+  setTimeout(() => {
+    console.warn("[api] forced exit after 10s");
+    process.exit(1);
+  }, 10_000).unref();
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

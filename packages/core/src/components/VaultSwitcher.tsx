@@ -6,6 +6,8 @@ import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { reset as resetSync, start as startSync } from "../lib/sync";
 import { AddVaultDialog } from "./AddVaultDialog";
+import { VaultSettingsDialog } from "./VaultSettingsDialog";
+import { VaultImportDialog } from "./VaultImportDialog";
 
 interface VaultSwitcherProps {
   /** Optional callback fired after a successful switch (e.g. close any drawer). */
@@ -30,6 +32,8 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
   const [renameLabel, setRenameLabel] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [settingsVault, setSettingsVault] = useState<VaultRef | null>(null);
+  const [importDest, setImportDest] = useState<VaultRef | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -180,6 +184,11 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
                       >
                         <span className="nk-vault-row-label">
                           {v.label || `${v.owner}/${v.repo}`}
+                          {v.provider === "notekit" && (
+                            <span className="nk-chip nk-chip--soft" title="NoteKit Git">
+                              NK
+                            </span>
+                          )}
                           {isActive && (
                             <span className="nk-vault-active-mark" aria-label="Active">
                               ●
@@ -190,6 +199,24 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
                           {v.owner}/{v.repo}
                           {v.branch && v.branch !== "main" ? ` · ${v.branch}` : ""}
                         </span>
+                      </button>
+                      <button
+                        className="nk-iconbtn"
+                        onClick={() => setSettingsVault(v)}
+                        title="Settings"
+                        aria-label="Settings"
+                        disabled={isBusy}
+                      >
+                        ⚙
+                      </button>
+                      <button
+                        className="nk-iconbtn"
+                        onClick={() => setImportDest(v)}
+                        title="Import from another vault"
+                        aria-label="Import"
+                        disabled={isBusy || vaults.length < 2}
+                      >
+                        ↓
                       </button>
                       <button
                         className="nk-iconbtn"
@@ -296,6 +323,28 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
         <AddVaultDialog
           onAdded={onAdded}
           onCancel={() => setAddOpen(false)}
+        />
+      )}
+
+      {settingsVault && (
+        <VaultSettingsDialog
+          vault={settingsVault}
+          onClose={() => setSettingsVault(null)}
+          onSaved={(saved) => {
+            // Settings stored centrally so App can react (theme, default folder).
+            if (settingsVault.id) {
+              useVaultStore.getState().setSettingsFor(settingsVault.id, saved);
+            }
+          }}
+        />
+      )}
+
+      {importDest && (
+        <VaultImportDialog
+          dest={importDest}
+          vaults={vaults}
+          onClose={() => setImportDest(null)}
+          onImported={() => setImportDest(null)}
         />
       )}
     </div>

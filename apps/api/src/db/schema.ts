@@ -58,6 +58,20 @@ export const vaults = sqliteTable("vaults", {
     .$defaultFn(() => new Date()),
 });
 
+export const vaultSettings = sqliteTable("vault_settings", {
+  vaultId: text("vault_id")
+    .primaryKey()
+    .references(() => vaults.id, { onDelete: "cascade" }),
+  theme: text("theme", { enum: ["auto", "light", "dark"] })
+    .notNull()
+    .default("auto"),
+  defaultFolder: text("default_folder"),
+  defaultAgentSlug: text("default_agent_slug"),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const userSettings = sqliteTable("user_settings", {
   userId: text("user_id")
     .primaryKey()
@@ -96,3 +110,4 @@ export type DbUserSettings = typeof userSettings.$inferSelect;
 export type DbAgentToken = typeof agentTokens.$inferSelect;
 export type DbVault = typeof vaults.$inferSelect;
 export type NewDbVault = typeof vaults.$inferInsert;
+export type DbVaultSettings = typeof vaultSettings.$inferSelect;

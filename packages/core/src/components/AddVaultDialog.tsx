@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import * as vaultApi from "../lib/vault-api";
 import type { VaultRef, VaultRepo } from "../lib/vault-api";
 
-type Mode = "list" | "create";
+type Mode = "list" | "create" | "notekit";
 
 interface AddVaultDialogProps {
   onAdded(vault: VaultRef): void;
@@ -94,16 +94,30 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
             className={mode === "list" ? "active" : ""}
             onClick={() => setMode("list")}
           >
-            Use existing repo
+            <span className="nk-modal-tab-icon" aria-hidden>
+              ⌥
+            </span>
+            GitHub · existing
           </button>
           <button
             className={mode === "create" ? "active" : ""}
             onClick={() => setMode("create")}
           >
-            Create new repo
+            <span className="nk-modal-tab-icon" aria-hidden>
+              +
+            </span>
+            GitHub · new
           </button>
-          <button className="disabled" disabled title="Coming soon">
-            NoteKit Git (soon)
+          <button
+            className={mode === "notekit" ? "active" : ""}
+            onClick={() => setMode("notekit")}
+            title="NoteKit-hosted Git via Forgejo"
+          >
+            <span className="nk-modal-tab-icon" aria-hidden>
+              ◇
+            </span>
+            NoteKit Git
+            <span className="nk-chip nk-chip--soft">soon</span>
           </button>
         </div>
 
@@ -170,6 +184,26 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
               disabled={busy || !newName.trim()}
             >
               {busy ? "Creating…" : "Create and use this repo"}
+            </button>
+          </div>
+        )}
+
+        {mode === "notekit" && (
+          <div className="nk-modal-body nk-provider-soon">
+            <p>
+              <b>NoteKit Git</b> is our self-hosted Forgejo at{" "}
+              <code>git.notekit.app</code>. Sign in with email/Apple/Google —
+              no GitHub account required. Each user gets a private repo at{" "}
+              <code>git.notekit.app/{`{username}`}/vault.git</code>, with
+              optional one-way mirroring to a GitHub repo of your choice.
+            </p>
+            <p className="nk-empty-hint">
+              The Forgejo backend isn't deployed yet. The schema is ready —
+              vaults registered with this provider will Just Work once the
+              server flips on. For now, please use GitHub.
+            </p>
+            <button className="nk-signin-btn" disabled style={{ maxWidth: 220 }}>
+              Coming soon
             </button>
           </div>
         )}

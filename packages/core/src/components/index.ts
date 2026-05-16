@@ -12,5 +12,7 @@ export { Sidebar } from "./Sidebar";
 export { SignIn } from "./SignIn";
 export { TicketsBoard } from "./TicketsBoard";
 export { TicketSidebarList } from "./TicketSidebarList";
+export { VaultImportDialog } from "./VaultImportDialog";
 export { VaultPicker } from "./VaultPicker";
+export { VaultSettingsDialog } from "./VaultSettingsDialog";
 export { VaultSwitcher } from "./VaultSwitcher";

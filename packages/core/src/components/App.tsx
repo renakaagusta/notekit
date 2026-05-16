@@ -4,7 +4,11 @@ import { useSyncStore } from "../stores/syncStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { noteTitle } from "../lib/note-display";
-import { getStatus as getVaultStatus, listVaults } from "../lib/vault-api";
+import {
+  getStatus as getVaultStatus,
+  getVaultSettings,
+  listVaults,
+} from "../lib/vault-api";
 import { start as startSync } from "../lib/sync";
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import type { User } from "../types/user";
@@ -51,6 +55,9 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const setVaults = useVaultStore((s) => s.setVaults);
   const setVaultPhase = useVaultStore((s) => s.setPhase);
   const setVaultError = useVaultStore((s) => s.setError);
+  const setActiveSettings = useVaultStore((s) => s.setActiveSettings);
+  const activeVaultId = useVaultStore((s) => s.activeId);
+  const activeSettings = useVaultStore((s) => s.activeSettings);
   const cryptoPhase = useCryptoStore((s) => s.phase);
   const [view, setView] = useState<MainView>("notes");
   const [agentsOpen, setAgentsOpen] = useState(false);
@@ -74,7 +81,9 @@ export function App({ user, onSignOut }: AppProps = {}) {
       }
       if (key === "n") {
         e.preventDefault();
-        const created = upsert({ title: "Untitled", body: "" });
+        const folder =
+          useVaultStore.getState().activeSettings?.defaultFolder ?? null;
+        const created = upsert({ title: "Untitled", body: "", folder });
         setActive(created.id);
         return;
       }
@@ -162,6 +171,36 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, [setVault, setVaults, setVaultPhase, setVaultError]);
 
+  // Load per-vault settings whenever the active vault changes.
+  useEffect(() => {
+    if (!activeVaultId) {
+      setActiveSettings(null);
+      return;
+    }
+    let cancelled = false;
+    getVaultSettings(activeVaultId)
+      .then((res) => {
+        if (!cancelled) setActiveSettings(res.settings);
+      })
+      .catch(() => {
+        if (!cancelled) setActiveSettings(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeVaultId, setActiveSettings]);
+
+  // Resolve `auto` theme to a concrete value using the OS preference.
+  const resolvedTheme =
+    activeSettings?.theme === "light"
+      ? "light"
+      : activeSettings?.theme === "dark"
+        ? "dark"
+        : typeof window !== "undefined" &&
+            window.matchMedia?.("(prefers-color-scheme: light)").matches
+          ? "light"
+          : "dark";
+
   async function onVaultPicked() {
     setVaultPhase("ready");
     // Populate the full vault list so the switcher is ready right away.
@@ -243,7 +282,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           : "Calendar";
 
   return (
-    <div className="nk" data-dir="studio" data-theme="dark">
+    <div className="nk" data-dir="studio" data-theme={resolvedTheme}>
       <div className="nk-app">
         <header className="nk-titlebar">
           <span className="nk-titlebar-title">NoteKit</span>
@@ -270,7 +309,8 @@ export function App({ user, onSignOut }: AppProps = {}) {
                 className="nk-iconbtn"
                 title="New note (⌘N)"
                 onClick={() => {
-                  const created = upsert({ title: "Untitled", body: "" });
+                  const folder = activeSettings?.defaultFolder ?? null;
+                  const created = upsert({ title: "Untitled", body: "", folder });
                   setActive(created.id);
                 }}
                 aria-label="New note"

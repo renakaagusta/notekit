@@ -24,12 +24,18 @@ import {
   deleteVault as removeVault,
   getActiveVault,
   getVaultById,
+  getVaultSettings,
   listVaultsForUser,
   renameVault,
   setActiveVault,
+  updateVaultSettings,
   type VaultRow,
+  type VaultSettingsValue,
 } from "../vault/store";
 import { pairRoutes } from "./pair";
+
+// Folder prefixes that count as importable NoteKit content.
+const IMPORT_PREFIXES = ["notes/", "tickets/", "journal/", "attachments/"];
 
 export const vaultRoutes = new Hono();
 
@@ -213,6 +219,137 @@ vaultRoutes.delete("/vaults/:id", async (c) => {
   const result = await removeVault(user.id, id);
   if (!result.deleted) return c.json({ error: "vault_not_found" }, 404);
   return c.json({ ok: true, activeId: result.newActiveId });
+});
+
+/**
+ * GET /vaults/:id/settings — per-vault preferences.
+ */
+vaultRoutes.get("/vaults/:id/settings", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const id = c.req.param("id");
+  const vault = await getVaultById(user.id, id);
+  if (!vault) return c.json({ error: "vault_not_found" }, 404);
+  const settings = await getVaultSettings(id);
+  return c.json({ settings });
+});
+
+/**
+ * PATCH /vaults/:id/settings — partial update of per-vault preferences.
+ */
+vaultRoutes.patch("/vaults/:id/settings", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const id = c.req.param("id");
+  const vault = await getVaultById(user.id, id);
+  if (!vault) return c.json({ error: "vault_not_found" }, 404);
+  const body = (await c.req.json().catch(() => null)) as Partial<VaultSettingsValue> | null;
+  if (!body) return c.json({ error: "body_required" }, 400);
+  if (body.theme !== undefined && !["auto", "light", "dark"].includes(body.theme)) {
+    return c.json({ error: "invalid_theme" }, 400);
+  }
+  const settings = await updateVaultSettings(id, body);
+  return c.json({ settings });
+});
+
+/**
+ * POST /vaults/:destId/import — copy notes/tickets/journals/attachments from
+ * another registered vault into this one. Body: { sourceId: string }.
+ * Conflict policy: any path already present in the destination is skipped
+ * (never overwritten). Operates entirely server-side against GitHub; the
+ * client just polls the response.
+ */
+vaultRoutes.post("/vaults/:destId/import", async (c) => {
+  const { userId, token } = await requirePrincipal(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  if (!token) return c.json({ error: "no_github_token" }, 400);
+  const destId = c.req.param("destId");
+  const body = (await c.req.json().catch(() => null)) as {
+    sourceId?: string;
+  } | null;
+  if (!body?.sourceId) return c.json({ error: "source_id_required" }, 400);
+  if (body.sourceId === destId) {
+    return c.json({ error: "source_and_dest_same" }, 400);
+  }
+
+  const [source, dest] = await Promise.all([
+    getVaultById(userId, body.sourceId),
+    getVaultById(userId, destId),
+  ]);
+  if (!source) return c.json({ error: "source_vault_not_found" }, 404);
+  if (!dest) return c.json({ error: "dest_vault_not_found" }, 404);
+
+  // Dev-mode stub: fake token never hits GitHub; pretend nothing to import.
+  if (!env.isProd && token === "dev_github_token") {
+    return c.json({ imported: 0, skipped: 0, errors: [] });
+  }
+
+  let imported = 0;
+  let skipped = 0;
+  const errors: { path: string; reason: string }[] = [];
+
+  try {
+    // 1. Build dest-path set so we can skip duplicates without re-hitting GH.
+    const destPaths = new Set<string>();
+    for (const prefix of IMPORT_PREFIXES) {
+      const entries = await listTree(
+        token,
+        dest.owner,
+        dest.repo,
+        dest.branch,
+        prefix,
+      );
+      for (const e of entries) destPaths.add(e.path);
+    }
+
+    // 2. Enumerate source files; copy each one missing in dest.
+    for (const prefix of IMPORT_PREFIXES) {
+      const entries = await listTree(
+        token,
+        source.owner,
+        source.repo,
+        source.branch,
+        prefix,
+      );
+      for (const entry of entries) {
+        if (destPaths.has(entry.path)) {
+          skipped++;
+          continue;
+        }
+        try {
+          const file = await readFile(
+            token,
+            source.owner,
+            source.repo,
+            entry.path,
+            source.branch,
+          );
+          if (!file) {
+            skipped++;
+            continue;
+          }
+          await writeFile(
+            token,
+            dest.owner,
+            dest.repo,
+            entry.path,
+            file.content,
+            `notekit: import ${entry.path} from ${source.owner}/${source.repo}`,
+            dest.branch,
+          );
+          imported++;
+        } catch (e) {
+          errors.push({
+            path: entry.path,
+            reason: e instanceof GhError ? `gh:${e.status}` : (e as Error).message,
+          });
+        }
+      }
+    }
+    return c.json({ imported, skipped, errors });
+  } catch (err) {
+    return ghErr(c, err);
+  }
 });
 
 /**

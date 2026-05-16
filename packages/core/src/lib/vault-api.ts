@@ -106,6 +106,46 @@ export function deleteVault(vaultId: string): Promise<{
   });
 }
 
+// --- Per-vault settings ---
+
+export interface VaultSettings {
+  theme: "auto" | "light" | "dark";
+  defaultFolder: string | null;
+  defaultAgentSlug: string | null;
+}
+
+export function getVaultSettings(vaultId: string): Promise<{ settings: VaultSettings }> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}/settings`);
+}
+
+export function patchVaultSettings(
+  vaultId: string,
+  patch: Partial<VaultSettings>,
+): Promise<{ settings: VaultSettings }> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}/settings`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+// --- Cross-vault import ---
+
+export interface VaultImportResult {
+  imported: number;
+  skipped: number;
+  errors: { path: string; reason: string }[];
+}
+
+export function importFromVault(
+  destVaultId: string,
+  sourceVaultId: string,
+): Promise<VaultImportResult> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(destVaultId)}/import`, {
+    method: "POST",
+    body: JSON.stringify({ sourceId: sourceVaultId }),
+  });
+}
+
 export interface VaultFile {
   path: string;
   sha: string | null;

@@ -89,6 +89,14 @@ sqlite.exec(`
   CREATE INDEX IF NOT EXISTS idx_vaults_user_id ON vaults(user_id);
   CREATE UNIQUE INDEX IF NOT EXISTS uniq_vaults_user_provider_owner_repo
     ON vaults(user_id, provider, owner, repo);
+
+  CREATE TABLE IF NOT EXISTS vault_settings (
+    vault_id TEXT PRIMARY KEY REFERENCES vaults(id) ON DELETE CASCADE,
+    theme TEXT NOT NULL DEFAULT 'auto',
+    default_folder TEXT,
+    default_agent_slug TEXT,
+    updated_at INTEGER NOT NULL
+  );
 `);
 
 // One-time inline migrations. SQLite cannot ALTER ADD COLUMN unless absent;

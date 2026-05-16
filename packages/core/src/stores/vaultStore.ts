@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import type { VaultRef } from "../lib/vault-api";
+import type { VaultRef, VaultSettings } from "../lib/vault-api";
 
 export type VaultPhase =
   | "unknown"
@@ -18,6 +18,10 @@ interface VaultState {
   vaults: VaultRef[];
   /** Id of the active vault. */
   activeId: string | null;
+  /** Settings for the active vault (populated on activation). */
+  activeSettings: VaultSettings | null;
+  /** Per-vault settings cache, keyed by vault id. */
+  settingsByVault: Record<string, VaultSettings>;
   error: string | null;
   setPhase(phase: VaultPhase): void;
   setVault(vault: VaultRef | null): void;
@@ -26,6 +30,8 @@ interface VaultState {
   removeVault(id: string): void;
   setActiveId(id: string | null): void;
   setError(error: string | null): void;
+  setSettingsFor(vaultId: string, settings: VaultSettings): void;
+  setActiveSettings(settings: VaultSettings | null): void;
 }
 
 export const useVaultStore = create<VaultState>()(
@@ -34,6 +40,8 @@ export const useVaultStore = create<VaultState>()(
     vault: null,
     vaults: [],
     activeId: null,
+    activeSettings: null,
+    settingsByVault: {},
     error: null,
     setPhase(phase) {
       set((state) => {
@@ -80,6 +88,20 @@ export const useVaultStore = create<VaultState>()(
       set((state) => {
         state.error = error;
         if (error) state.phase = "error";
+      });
+    },
+    setSettingsFor(vaultId, settings) {
+      set((state) => {
+        state.settingsByVault[vaultId] = settings;
+        if (state.activeId === vaultId) state.activeSettings = settings;
+      });
+    },
+    setActiveSettings(settings) {
+      set((state) => {
+        state.activeSettings = settings;
+        if (settings && state.activeId) {
+          state.settingsByVault[state.activeId] = settings;
+        }
       });
     },
   })),

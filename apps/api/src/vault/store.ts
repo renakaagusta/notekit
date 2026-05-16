@@ -177,3 +177,64 @@ export async function getActiveVault(
   if (!settings?.activeVaultId) return null;
   return getVaultById(userId, settings.activeVaultId);
 }
+
+// --- Vault settings (per-vault preferences) ---
+
+export interface VaultSettingsValue {
+  theme: "auto" | "light" | "dark";
+  defaultFolder: string | null;
+  defaultAgentSlug: string | null;
+}
+
+const DEFAULT_SETTINGS: VaultSettingsValue = {
+  theme: "auto",
+  defaultFolder: null,
+  defaultAgentSlug: null,
+};
+
+export async function getVaultSettings(
+  vaultId: string,
+): Promise<VaultSettingsValue> {
+  const row = await db.query.vaultSettings.findFirst({
+    where: eq(schema.vaultSettings.vaultId, vaultId),
+  });
+  if (!row) return DEFAULT_SETTINGS;
+  return {
+    theme: row.theme as VaultSettingsValue["theme"],
+    defaultFolder: row.defaultFolder,
+    defaultAgentSlug: row.defaultAgentSlug,
+  };
+}
+
+export async function updateVaultSettings(
+  vaultId: string,
+  patch: Partial<VaultSettingsValue>,
+): Promise<VaultSettingsValue> {
+  const existing = await db.query.vaultSettings.findFirst({
+    where: eq(schema.vaultSettings.vaultId, vaultId),
+  });
+  const now = new Date();
+  if (existing) {
+    const updates: Partial<typeof schema.vaultSettings.$inferInsert> = {
+      updatedAt: now,
+    };
+    if (patch.theme !== undefined) updates.theme = patch.theme;
+    if (patch.defaultFolder !== undefined) updates.defaultFolder = patch.defaultFolder;
+    if (patch.defaultAgentSlug !== undefined) {
+      updates.defaultAgentSlug = patch.defaultAgentSlug;
+    }
+    await db
+      .update(schema.vaultSettings)
+      .set(updates)
+      .where(eq(schema.vaultSettings.vaultId, vaultId));
+  } else {
+    await db.insert(schema.vaultSettings).values({
+      vaultId,
+      theme: patch.theme ?? "auto",
+      defaultFolder: patch.defaultFolder ?? null,
+      defaultAgentSlug: patch.defaultAgentSlug ?? null,
+      updatedAt: now,
+    });
+  }
+  return getVaultSettings(vaultId);
+}

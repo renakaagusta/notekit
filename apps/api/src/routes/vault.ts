@@ -111,6 +111,7 @@ async function requirePrincipal(c: Context): Promise<{
 
 function ghErr(c: Context, err: unknown) {
   if (err instanceof GhError) {
+    console.error("[vault] github error:", err.status, err.message);
     return c.json(
       { error: "github_error", status: err.status, message: err.message },
       502,

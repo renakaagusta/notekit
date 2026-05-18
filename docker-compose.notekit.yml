@@ -79,7 +79,7 @@ services:
       - "traefik.http.routers.notekit-api.priority=10"
 
   notekit-git:
-    image: forgejo/forgejo:latest
+    image: codeberg.org/forgejo/forgejo:10
     container_name: notekit-git
     restart: unless-stopped
     environment:

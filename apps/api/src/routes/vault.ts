@@ -112,9 +112,21 @@ async function requirePrincipal(c: Context): Promise<{
 function ghErr(c: Context, err: unknown) {
   if (err instanceof GhError) {
     console.error("[vault] github error:", err.status, err.message);
+    let message = `GitHub error ${err.status}`;
+    try {
+      const parsed = JSON.parse(err.body) as {
+        message?: string;
+        errors?: { message?: string }[];
+      };
+      const inner = parsed.errors?.[0]?.message;
+      message = inner ?? parsed.message ?? message;
+    } catch {}
+    // Pass 4xx back to the client so the UI can show the actual message.
+    // Wrap 5xx as 502 since GitHub being down is our problem, not the client's.
+    const status = err.status >= 400 && err.status < 500 ? err.status : 502;
     return c.json(
-      { error: "github_error", status: err.status, message: err.message },
-      502,
+      { error: "github_error", status: err.status, message },
+      status as 400 | 422 | 404 | 403 | 401 | 502,
     );
   }
   console.error("[vault] unexpected error:", err);

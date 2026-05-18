@@ -25,7 +25,12 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     },
   });
   if (!res.ok) {
-    throw new Error(`API ${res.status} ${res.statusText}`);
+    let msg = `API ${res.status} ${res.statusText}`;
+    try {
+      const body = await res.json() as { message?: string };
+      if (body?.message) msg = body.message;
+    } catch {}
+    throw new Error(msg);
   }
   return res.json() as Promise<T>;
 }

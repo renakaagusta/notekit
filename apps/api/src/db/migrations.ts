@@ -115,6 +115,12 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
+    id: "006_default_theme_dark",
+    up: (db) => {
+      db.exec(`UPDATE vault_settings SET theme = 'dark' WHERE theme = 'auto'`);
+    },
+  },
+  {
     id: "005_create_forgejo_accounts",
     up: (db) => {
       db.exec(`

@@ -68,7 +68,7 @@ export const vaultSettings = sqliteTable("vault_settings", {
     .references(() => vaults.id, { onDelete: "cascade" }),
   theme: text("theme", { enum: ["auto", "light", "dark"] })
     .notNull()
-    .default("auto"),
+    .default("dark"),
   defaultFolder: text("default_folder"),
   defaultAgentSlug: text("default_agent_slug"),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" })

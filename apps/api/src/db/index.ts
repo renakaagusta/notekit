@@ -99,7 +99,7 @@ sqlite.exec(`
 
   CREATE TABLE IF NOT EXISTS vault_settings (
     vault_id TEXT PRIMARY KEY REFERENCES vaults(id) ON DELETE CASCADE,
-    theme TEXT NOT NULL DEFAULT 'auto',
+    theme TEXT NOT NULL DEFAULT 'dark',
     default_folder TEXT,
     default_agent_slug TEXT,
     updated_at INTEGER NOT NULL

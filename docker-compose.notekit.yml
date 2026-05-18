@@ -55,6 +55,9 @@ services:
       GOOGLE_PLAY_CLIENT_EMAIL: ${GOOGLE_PLAY_CLIENT_EMAIL:-}
       GOOGLE_PLAY_PRIVATE_KEY: ${GOOGLE_PLAY_PRIVATE_KEY:-}
       GOOGLE_PLAY_PUBSUB_SECRET: ${GOOGLE_PLAY_PUBSUB_SECRET:-}
+      FORGEJO_URL: https://${GIT_DOMAIN}
+      FORGEJO_DOMAIN: ${GIT_DOMAIN}
+      FORGEJO_ADMIN_TOKEN: ${FORGEJO_ADMIN_TOKEN:-}
     volumes:
       - notekit-db:/app/apps/api/data
     networks:
@@ -75,8 +78,49 @@ services:
       - "traefik.http.routers.notekit-api.service=notekit-api-svc"
       - "traefik.http.routers.notekit-api.priority=10"
 
+  notekit-git:
+    image: forgejo/forgejo:latest
+    container_name: notekit-git
+    restart: unless-stopped
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+      FORGEJO__server__DOMAIN: ${GIT_DOMAIN}
+      FORGEJO__server__HTTP_PORT: 3000
+      FORGEJO__server__ROOT_URL: https://${GIT_DOMAIN}/
+      FORGEJO__server__SSH_DOMAIN: ${GIT_DOMAIN}
+      FORGEJO__database__DB_TYPE: sqlite3
+      FORGEJO__database__PATH: /data/gitea/gitea.db
+      FORGEJO__service__DISABLE_REGISTRATION: "true"
+      FORGEJO__service__REQUIRE_SIGNIN_VIEW: "false"
+      FORGEJO__security__INSTALL_LOCK: "true"
+      FORGEJO__security__SECRET_KEY: ${FORGEJO_SECRET_KEY}
+      FORGEJO__security__INTERNAL_TOKEN: ${FORGEJO_INTERNAL_TOKEN}
+      FORGEJO__log__LEVEL: Warn
+      FORGEJO__admin__DEFAULT_EMAIL_NOTIFICATIONS: disabled
+    volumes:
+      - notekit-git-data:/data
+    networks:
+      - infrastructure
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=infrastructure"
+      - "traefik.http.services.notekit-git.loadbalancer.server.port=3000"
+      - "traefik.http.routers.notekit-git.rule=Host(`${GIT_DOMAIN}`)"
+      - "traefik.http.routers.notekit-git.entrypoints=websecure"
+      - "traefik.http.routers.notekit-git.tls.certresolver=cloudflare"
+      - "traefik.http.routers.notekit-git.service=notekit-git"
+      - "traefik.http.routers.notekit-git.priority=10"
+
 volumes:
   notekit-db:
+  notekit-git-data:
 
 networks:
   infrastructure:

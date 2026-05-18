@@ -48,6 +48,7 @@ jobs:
           ROOT_DOMAIN: ${{ secrets.ROOT_DOMAIN }}
           WEB_DOMAIN: ${{ secrets.WEB_DOMAIN }}
           API_DOMAIN: ${{ secrets.API_DOMAIN }}
+          GIT_DOMAIN: ${{ secrets.GIT_DOMAIN }}
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           GITHUB_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
           GITHUB_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
@@ -68,5 +69,8 @@ jobs:
           GOOGLE_PLAY_CLIENT_EMAIL: ${{ secrets.GOOGLE_PLAY_CLIENT_EMAIL }}
           GOOGLE_PLAY_PRIVATE_KEY: ${{ secrets.GOOGLE_PLAY_PRIVATE_KEY }}
           GOOGLE_PLAY_PUBSUB_SECRET: ${{ secrets.GOOGLE_PLAY_PUBSUB_SECRET }}
+          FORGEJO_SECRET_KEY: ${{ secrets.FORGEJO_SECRET_KEY }}
+          FORGEJO_INTERNAL_TOKEN: ${{ secrets.FORGEJO_INTERNAL_TOKEN }}
+          FORGEJO_ADMIN_TOKEN: ${{ secrets.FORGEJO_ADMIN_TOKEN }}
         run: |
           docker compose -f docker-compose.notekit.yml up -d --remove-orphans

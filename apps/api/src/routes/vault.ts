@@ -3,6 +3,7 @@ import { env } from "../env";
 import { getCurrentUser } from "../auth/sessions";
 import { getActingAgent } from "../auth/agentAuth";
 import { getGithubToken } from "../vault/tokens";
+import { getForgejoToken, provisionForgejoAccount } from "../vault/forgejoAccounts";
 import {
   parseBody,
   z,
@@ -19,15 +20,11 @@ import {
   CollaboratorPermissionEnum,
 } from "../validation";
 import { rateLimit } from "../middleware/rateLimit";
+import * as gh from "../vault/github";
+import * as fj from "../vault/forgejo";
 import {
   listRepos,
   createRepo,
-  readFile,
-  writeFile,
-  writeFileAs,
-  deleteFile,
-  listTree,
-  listCommits,
   getUserLogin,
   listCollaborators,
   addCollaborator,
@@ -40,6 +37,12 @@ import {
 import { readAgent, defaultEmailFor } from "../vault/agents";
 import { emitAgentEvent } from "../notifications/emit";
 import { isPlus } from "../iap/entitlement";
+
+type GitProvider = "github" | "notekit";
+
+function gitOps(provider: GitProvider) {
+  return provider === "notekit" ? fj : gh;
+}
 
 const MOBILE_FREE_NOTE_CAP = 50;
 import {
@@ -202,12 +205,6 @@ vaultRoutes.post("/vaults", vaultMutationLimit, async (c) => {
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const parsed = await parseBody(c, CreateVaultBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
-  if (parsed.data.provider === "notekit") {
-    return c.json(
-      { error: "provider_not_supported", message: "NoteKit Git (Forgejo) is not wired yet." },
-      400,
-    );
-  }
   const vault = await createVault({
     userId: user.id,
     provider: parsed.data.provider,
@@ -326,9 +323,8 @@ const IMPORT_FILE_CAP = 500;
 const inFlightImports = new Set<string>();
 
 vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
-  const { userId, token } = await requirePrincipal(c);
+  const { userId } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const destId = c.req.param("destId");
   const parsed = await parseBody(c, ImportBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
@@ -343,14 +339,20 @@ vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
   if (!source) return c.json({ error: "source_vault_not_found" }, 404);
   if (!dest) return c.json({ error: "dest_vault_not_found" }, 404);
 
+  const srcProvider = source.provider as GitProvider;
+  const dstProvider = dest.provider as GitProvider;
+  const [srcToken, dstToken] = await Promise.all([
+    getVaultToken(userId, srcProvider),
+    getVaultToken(userId, dstProvider),
+  ]);
+  if (!srcToken || !dstToken) return c.json({ error: "no_git_token" }, 400);
+
   if (inFlightImports.has(userId)) {
     return c.json({ error: "import_already_running" }, 429);
   }
   inFlightImports.add(userId);
 
-  // Dev-mode stub runs AFTER authz + concurrency checks so the short-circuit
-  // can never bypass them.
-  if (!env.isProd && token === "dev_github_token") {
+  if (!env.isProd && srcToken === "dev_github_token") {
     inFlightImports.delete(userId);
     return c.json({ imported: 0, skipped: 0, errors: [] });
   }
@@ -360,11 +362,11 @@ vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
   const errors: { path: string; reason: string }[] = [];
 
   try {
-    // 1. Build dest-path set so we can skip duplicates without re-hitting GH.
+    // 1. Build dest-path set so we can skip duplicates without re-hitting the provider.
     const destPaths = new Set<string>();
     for (const prefix of IMPORT_PREFIXES) {
-      const entries = await listTree(
-        token,
+      const entries = await gitOps(dstProvider).listTree(
+        dstToken,
         dest.owner,
         dest.repo,
         dest.branch,
@@ -377,8 +379,8 @@ vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
     // imports cleanly rather than partially writing.
     const plan: { path: string }[] = [];
     for (const prefix of IMPORT_PREFIXES) {
-      const entries = await listTree(
-        token,
+      const entries = await gitOps(srcProvider).listTree(
+        srcToken,
         source.owner,
         source.repo,
         source.branch,
@@ -409,8 +411,8 @@ vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
     // operation still returns a 200 with the partial result.
     for (const item of plan) {
       try {
-        const file = await readFile(
-          token,
+        const file = await gitOps(srcProvider).readFile(
+          srcToken,
           source.owner,
           source.repo,
           item.path,
@@ -420,8 +422,8 @@ vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
           skipped++;
           continue;
         }
-        await writeFile(
-          token,
+        await gitOps(dstProvider).writeFile(
+          dstToken,
           dest.owner,
           dest.repo,
           item.path,
@@ -588,7 +590,12 @@ async function resolveVault(userId: string) {
     owner: active.owner,
     repo: active.repo,
     branch: active.branch,
+    provider: active.provider as GitProvider,
   };
+}
+
+async function getVaultToken(userId: string, provider: GitProvider): Promise<string | null> {
+  return provider === "notekit" ? getForgejoToken(userId) : getGithubToken(userId);
 }
 
 /**
@@ -596,20 +603,20 @@ async function resolveVault(userId: string) {
  * at a specific commit SHA. Omit `ref` to read the branch HEAD.
  */
 vaultRoutes.get("/file", async (c) => {
-  const { userId, token } = await requirePrincipal(c);
+  const { userId } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const vault = await resolveVault(userId);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  const token = await getVaultToken(userId, vault.provider);
+  if (!token) return c.json({ error: "no_git_token" }, 400);
   const path = c.req.query("path");
   if (!path) return c.json({ error: "path_required" }, 400);
   const ref = c.req.query("ref") ?? vault.branch;
-  // Dev-mode stub: fake token never hits GitHub; all files return empty.
   if (!env.isProd && token === "dev_github_token") {
     return c.json({ path, content: null, sha: null });
   }
   try {
-    const file = await readFile(token, vault.owner, vault.repo, path, ref);
+    const file = await gitOps(vault.provider).readFile(token, vault.owner, vault.repo, path, ref);
     if (!file) return c.json({ path, content: null, sha: null });
     return c.json(file);
   } catch (err) {
@@ -625,11 +632,12 @@ vaultRoutes.get("/file", async (c) => {
  * agent (Git Data API), with the user as committer.
  */
 vaultRoutes.put("/file", writeLimit, async (c) => {
-  const { userId, token, actingAs } = await requirePrincipal(c);
+  const { userId, actingAs } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const vault = await resolveVault(userId);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  const token = await getVaultToken(userId, vault.provider);
+  if (!token) return c.json({ error: "no_git_token" }, 400);
   const body = (await c.req.json().catch(() => null)) as {
     path?: string;
     content?: string;
@@ -640,9 +648,6 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
     return c.json({ error: "path_and_content_required" }, 400);
   }
 
-  // Soft mobile-only note cap for free users. Only enforced when the client
-  // identifies itself as the mobile app AND the write is a new note (no sha).
-  // The check costs one extra GitHub listTree call, so we gate it tightly.
   const clientHeader = c.req.header("x-notekit-client");
   if (
     clientHeader === "mobile" &&
@@ -655,7 +660,7 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
       if (!env.isProd && token === "dev_github_token") {
         // Dev stub treats count as 0.
       } else {
-        const entries = await listTree(
+        const entries = await gitOps(vault.provider).listTree(
           token,
           vault.owner,
           vault.repo,
@@ -675,7 +680,6 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
       }
     }
   }
-  // Dev-mode stub: fake token never hits GitHub; pretend the write succeeded.
   if (!env.isProd && token === "dev_github_token") {
     return c.json({ path: body.path, sha: "dev_sha_000", content: body.content });
   }
@@ -692,7 +696,7 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
         name: login,
         email: `${login}@users.noreply.github.com`,
       };
-      const result = await writeFileAs(
+      const result = await gitOps(vault.provider).writeFileAs(
         token,
         vault.owner,
         vault.repo,
@@ -712,7 +716,7 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
       });
       return c.json({ path: body.path, sha: result.sha, actor: `agent:${actingAs}` });
     }
-    const result = await writeFile(
+    const result = await gitOps(vault.provider).writeFile(
       token,
       vault.owner,
       vault.repo,
@@ -732,11 +736,12 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
  * DELETE /vault/file — delete a file. body: { path, sha, message? }
  */
 vaultRoutes.delete("/file", writeLimit, async (c) => {
-  const { userId, token, actingAs } = await requirePrincipal(c);
+  const { userId, actingAs } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const vault = await resolveVault(userId);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  const token = await getVaultToken(userId, vault.provider);
+  if (!token) return c.json({ error: "no_git_token" }, 400);
   const body = (await c.req.json().catch(() => null)) as {
     path?: string;
     sha?: string;
@@ -746,7 +751,7 @@ vaultRoutes.delete("/file", writeLimit, async (c) => {
     return c.json({ error: "path_and_sha_required" }, 400);
   }
   try {
-    await deleteFile(
+    await gitOps(vault.provider).deleteFile(
       token,
       vault.owner,
       vault.repo,
@@ -773,19 +778,19 @@ vaultRoutes.delete("/file", writeLimit, async (c) => {
  * GET /vault/commits?path=...&limit=50 — list recent commits, optionally scoped to a path.
  */
 vaultRoutes.get("/commits", async (c) => {
-  const { userId, token } = await requirePrincipal(c);
+  const { userId } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const vault = await resolveVault(userId);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  const token = await getVaultToken(userId, vault.provider);
+  if (!token) return c.json({ error: "no_git_token" }, 400);
   const path = c.req.query("path") || undefined;
   const limit = Number(c.req.query("limit") ?? "50") || 50;
-  // Dev-mode stub: fake token never hits GitHub; return an empty commit list.
   if (!env.isProd && token === "dev_github_token") {
     return c.json({ commits: [] });
   }
   try {
-    const commits = await listCommits(
+    const commits = await gitOps(vault.provider).listCommits(
       token,
       vault.owner,
       vault.repo,
@@ -911,20 +916,102 @@ vaultRoutes.delete("/vaults/:id/invitations/:invitationId", vaultMutationLimit, 
  * GET /vault/list?prefix=notes/ — list all blobs under a prefix.
  */
 vaultRoutes.get("/list", async (c) => {
-  const { userId, token } = await requirePrincipal(c);
+  const { userId } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const vault = await resolveVault(userId);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  const token = await getVaultToken(userId, vault.provider);
+  if (!token) return c.json({ error: "no_git_token" }, 400);
   const prefix = c.req.query("prefix") ?? "";
-  // Dev-mode stub: fake token never hits GitHub; pretend the prefix is empty.
   if (!env.isProd && token === "dev_github_token") {
     return c.json({ entries: [] });
   }
   try {
-    const entries = await listTree(token, vault.owner, vault.repo, vault.branch, prefix);
+    const entries = await gitOps(vault.provider).listTree(token, vault.owner, vault.repo, vault.branch, prefix);
     return c.json({
       entries: entries.map((e) => ({ path: e.path, sha: e.sha })),
+    });
+  } catch (err) {
+    return ghErr(c, err);
+  }
+});
+
+// ── NoteKit-hosted Git (Forgejo) endpoints ────────────────────────────────────
+
+/**
+ * POST /vault/notekit/provision — create (or retrieve) the user's Forgejo
+ * account. Idempotent. Requires FORGEJO_ADMIN_TOKEN to be set on the server.
+ */
+vaultRoutes.post("/notekit/provision", vaultMutationLimit, async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  if (!env.forgejo.adminToken) {
+    return c.json({ error: "forgejo_not_configured" }, 503);
+  }
+  try {
+    const account = await provisionForgejoAccount(
+      user.id,
+      user.email,
+      user.name ?? null,
+    );
+    return c.json({
+      ok: true,
+      username: account.username,
+      gitUrl: env.forgejo.url ?? null,
+    });
+  } catch (err) {
+    console.error("[vault] forgejo provision error:", err);
+    return c.json({ error: "provision_failed", message: (err as Error).message }, 502);
+  }
+});
+
+/**
+ * GET /vault/notekit/repos — list repos in the user's Forgejo account.
+ */
+vaultRoutes.get("/notekit/repos", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  if (!env.forgejo.adminToken) return c.json({ error: "forgejo_not_configured" }, 503);
+  const token = await getForgejoToken(user.id);
+  if (!token) return c.json({ error: "not_provisioned" }, 400);
+  try {
+    const repos = await fj.listRepos(token);
+    return c.json({
+      repos: repos.map((r) => ({
+        id: r.id,
+        name: r.name,
+        fullName: r.full_name,
+        owner: r.owner.login,
+        private: r.private,
+        defaultBranch: r.default_branch,
+        description: r.description,
+        updatedAt: r.updated_at,
+      })),
+    });
+  } catch (err) {
+    return ghErr(c, err);
+  }
+});
+
+/**
+ * POST /vault/notekit/repos — create a new Forgejo repo.
+ */
+vaultRoutes.post("/notekit/repos", vaultMutationLimit, async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  if (!env.forgejo.adminToken) return c.json({ error: "forgejo_not_configured" }, 503);
+  const token = await getForgejoToken(user.id);
+  if (!token) return c.json({ error: "not_provisioned" }, 400);
+  const parsed = await parseBody(c, CreateRepoBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
+  try {
+    const repo = await fj.createRepo(token, parsed.data.name, parsed.data.private ?? true);
+    return c.json({
+      repo: {
+        owner: repo.owner.login,
+        name: repo.name,
+        defaultBranch: repo.default_branch,
+      },
     });
   } catch (err) {
     return ghErr(c, err);

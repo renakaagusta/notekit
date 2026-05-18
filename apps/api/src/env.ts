@@ -67,6 +67,11 @@ export const env = {
     privateKey: optionalPem("GOOGLE_PLAY_PRIVATE_KEY"),
     pubsubSecret: optional("GOOGLE_PLAY_PUBSUB_SECRET"),
   },
+  forgejo: {
+    url: optional("FORGEJO_URL"),
+    adminToken: optional("FORGEJO_ADMIN_TOKEN"),
+    domain: optional("FORGEJO_DOMAIN"),
+  },
   isProd: process.env.NODE_ENV === "production",
 };
 

@@ -5,6 +5,7 @@ import { SkeletonRepoList } from "./Skeleton";
 import type { VaultRef, VaultRepo } from "../lib/vault-api";
 
 type Mode = "list" | "create" | "notekit";
+type NotekitStep = "idle" | "provisioning" | "ready";
 
 interface AddVaultDialogProps {
   onAdded(vault: VaultRef): void;
@@ -18,6 +19,14 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   const [busy, setBusy] = useState(false);
   const [newName, setNewName] = useState("notekit-vault");
   const [newPrivate, setNewPrivate] = useState(true);
+
+  // NoteKit Git state
+  const [notekitStep, setNotekitStep] = useState<NotekitStep>("idle");
+  const [notekitUsername, setNotekitUsername] = useState<string | null>(null);
+  const [notekitRepos, setNotekitRepos] = useState<VaultRepo[] | null>(null);
+  const [notekitName, setNotekitName] = useState("vault");
+  const [notekitPrivate, setNotekitPrivate] = useState(true);
+  const [notekitMode, setNotekitMode] = useState<"list" | "create">("list");
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +43,34 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
       cancelled = true;
     };
   }, []);
+
+  // Provision Forgejo account when switching to notekit tab.
+  useEffect(() => {
+    if (mode !== "notekit" || notekitStep !== "idle") return;
+    let cancelled = false;
+    setNotekitStep("provisioning");
+    setLoadErr(null);
+    vaultApi
+      .provisionNotekit()
+      .then((res) => {
+        if (cancelled) return;
+        setNotekitUsername(res.username);
+        setNotekitStep("ready");
+        return vaultApi.listNotekitRepos();
+      })
+      .then((r) => {
+        if (!cancelled && r) setNotekitRepos(r.repos);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) {
+          setLoadErr(e.message);
+          setNotekitStep("idle");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, notekitStep]);
 
   async function pick(repo: VaultRepo) {
     setBusy(true);
@@ -60,6 +97,43 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
       const created = await vaultApi.createRepo(newName, newPrivate);
       const res = await vaultApi.addVault({
         provider: "github",
+        owner: created.repo.owner,
+        repo: created.repo.name,
+        branch: created.repo.defaultBranch,
+      });
+      onAdded(res.vault);
+    } catch (e) {
+      setLoadErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pickNotekit(repo: VaultRepo) {
+    setBusy(true);
+    setLoadErr(null);
+    try {
+      const res = await vaultApi.addVault({
+        provider: "notekit",
+        owner: repo.owner,
+        repo: repo.name,
+        branch: repo.defaultBranch,
+      });
+      onAdded(res.vault);
+    } catch (e) {
+      setLoadErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createAndPickNotekit() {
+    setBusy(true);
+    setLoadErr(null);
+    try {
+      const created = await vaultApi.createNotekitRepo(notekitName, notekitPrivate);
+      const res = await vaultApi.addVault({
+        provider: "notekit",
         owner: created.repo.owner,
         repo: created.repo.name,
         branch: created.repo.defaultBranch,
@@ -113,7 +187,6 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
           >
             <Diamond size={14} className="nk-modal-tab-icon" aria-hidden />
             NoteKit Git
-            <span className="nk-chip nk-chip--soft">soon</span>
           </button>
         </div>
 
@@ -183,22 +256,93 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
         )}
 
         {mode === "notekit" && (
-          <div className="nk-modal-body nk-provider-soon">
-            <p>
-              <b>NoteKit Git</b> is our self-hosted Forgejo at{" "}
-              <code>git.notekit.app</code>. Sign in with email/Apple/Google —
-              no GitHub account required. Each user gets a private repo at{" "}
-              <code>git.notekit.app/{`{username}`}/vault.git</code>, with
-              optional one-way mirroring to a GitHub repo of your choice.
-            </p>
-            <p className="nk-empty-hint">
-              The Forgejo backend isn't deployed yet. The schema is ready —
-              vaults registered with this provider will Just Work once the
-              server flips on. For now, please use GitHub.
-            </p>
-            <button className="nk-signin-btn" disabled style={{ maxWidth: 220 }}>
-              Coming soon
-            </button>
+          <div className="nk-modal-body">
+            {notekitStep === "provisioning" && (
+              <p className="nk-empty-hint">Setting up your NoteKit Git account…</p>
+            )}
+
+            {notekitStep === "ready" && (
+              <>
+                <div className="nk-modal-tabs" style={{ marginBottom: 12 }}>
+                  <button
+                    className={notekitMode === "list" ? "active" : ""}
+                    onClick={() => setNotekitMode("list")}
+                    style={{ fontSize: 13 }}
+                  >
+                    Existing repo
+                  </button>
+                  <button
+                    className={notekitMode === "create" ? "active" : ""}
+                    onClick={() => setNotekitMode("create")}
+                    style={{ fontSize: 13 }}
+                  >
+                    Create new repo
+                  </button>
+                </div>
+
+                {notekitMode === "list" && (
+                  <>
+                    {!notekitRepos && <SkeletonRepoList count={3} />}
+                    {notekitRepos && notekitRepos.length === 0 && (
+                      <p className="nk-empty-hint">No repos yet. Create one.</p>
+                    )}
+                    {notekitRepos && notekitRepos.length > 0 && (
+                      <ul className="nk-repo-list">
+                        {notekitRepos.map((r) => (
+                          <li key={r.id}>
+                            <button
+                              className="nk-repo-row"
+                              onClick={() => pickNotekit(r)}
+                              disabled={busy}
+                            >
+                              <div className="nk-repo-row-main">
+                                <span className="nk-repo-name">{r.fullName}</span>
+                                {r.private && <span className="nk-chip">private</span>}
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+
+                {notekitMode === "create" && (
+                  <>
+                    <p className="nk-empty-hint" style={{ marginBottom: 12 }}>
+                      Stored on NoteKit's self-hosted Forgejo as{" "}
+                      <code>{notekitUsername}/{notekitName}</code>.
+                    </p>
+                    <label className="nk-field">
+                      <span>Repo name</span>
+                      <input
+                        type="text"
+                        value={notekitName}
+                        onChange={(e) => setNotekitName(e.target.value)}
+                        disabled={busy}
+                        placeholder="vault"
+                      />
+                    </label>
+                    <label className="nk-field nk-field--row">
+                      <input
+                        type="checkbox"
+                        checked={notekitPrivate}
+                        onChange={(e) => setNotekitPrivate(e.target.checked)}
+                        disabled={busy}
+                      />
+                      <span>Make repo private (recommended)</span>
+                    </label>
+                    <button
+                      className="nk-signin-btn"
+                      onClick={createAndPickNotekit}
+                      disabled={busy || !notekitName.trim()}
+                    >
+                      {busy ? "Creating…" : "Create and use this repo"}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>

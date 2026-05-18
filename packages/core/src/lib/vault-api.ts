@@ -52,6 +52,29 @@ export function createRepo(name: string, isPrivate: boolean) {
   });
 }
 
+// ── NoteKit-hosted Git (Forgejo) ──────────────────────────────────────────────
+
+export function provisionNotekit(): Promise<{
+  ok: true;
+  username: string;
+  gitUrl: string | null;
+}> {
+  return apiFetch("/vault/notekit/provision", { method: "POST" });
+}
+
+export function listNotekitRepos(): Promise<{ repos: VaultRepo[] }> {
+  return apiFetch("/vault/notekit/repos");
+}
+
+export function createNotekitRepo(name: string, isPrivate: boolean) {
+  return apiFetch<{
+    repo: { owner: string; name: string; defaultBranch: string };
+  }>("/vault/notekit/repos", {
+    method: "POST",
+    body: JSON.stringify({ name, private: isPrivate }),
+  });
+}
+
 export function selectVault(owner: string, repo: string, branch?: string) {
   return apiFetch<{ ok: true; vault: VaultRef }>("/vault/select", {
     method: "POST",

@@ -1,0 +1,25 @@
+{
+  "name": "@notekit/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "sync": "pnpm --filter @notekit/web build && cap sync",
+    "ios": "pnpm sync && cap open ios",
+    "android": "pnpm sync && cap open android",
+    "add:ios": "cap add ios",
+    "add:android": "cap add android",
+    "doctor": "cap doctor"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/app": "^7.0.0",
+    "@capacitor/browser": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "@capacitor/push-notifications": "^7.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.0.0"
+  }
+}

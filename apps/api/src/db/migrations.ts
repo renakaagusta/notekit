@@ -115,6 +115,19 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
+    id: "005_create_forgejo_accounts",
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS forgejo_accounts (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          username TEXT NOT NULL,
+          access_token TEXT NOT NULL,
+          created_at INTEGER NOT NULL
+        )
+      `);
+    },
+  },
+  {
     id: "004_add_users_plus_columns",
     up: (db) => {
       const cols = db

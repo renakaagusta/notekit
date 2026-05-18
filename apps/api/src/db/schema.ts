@@ -94,6 +94,17 @@ export const userSettings = sqliteTable("user_settings", {
     .$defaultFn(() => new Date()),
 });
 
+export const forgejoAccounts = sqliteTable("forgejo_accounts", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  username: text("username").notNull(),
+  accessToken: text("access_token").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export const agentTokens = sqliteTable("agent_tokens", {
   id: text("id").primaryKey(),
   userId: text("user_id")
@@ -219,6 +230,7 @@ export const googleIapPurchases = sqliteTable("google_iap_purchases", {
     .$defaultFn(() => new Date()),
 });
 
+export type DbForgejoAccount = typeof forgejoAccounts.$inferSelect;
 export type DbUser = typeof users.$inferSelect;
 export type NewDbUser = typeof users.$inferInsert;
 export type DbSession = typeof sessions.$inferSelect;

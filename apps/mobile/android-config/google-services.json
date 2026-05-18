@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "578476114610",
+    "project_id": "notekit-630ae",
+    "storage_bucket": "notekit-630ae.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:578476114610:android:cec06d532816fe792cbfab",
+        "android_client_info": {
+          "package_name": "com.notekit.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0agFYJCa4SxtV2D1ZZyREEtzXG8oq2NA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

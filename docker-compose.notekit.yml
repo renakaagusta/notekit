@@ -72,6 +72,8 @@ services:
       - "traefik.http.routers.notekit-api.rule=Host(`${API_DOMAIN}`)"
       - "traefik.http.routers.notekit-api.entrypoints=websecure"
       - "traefik.http.routers.notekit-api.tls.certresolver=cloudflare"
+      - "traefik.http.routers.notekit-api.tls.domains[0].main=${WEB_DOMAIN}"
+      - "traefik.http.routers.notekit-api.tls.domains[0].sans=*.${WEB_DOMAIN}"
       - "traefik.http.routers.notekit-api.service=notekit-api-svc"
       - "traefik.http.routers.notekit-api.priority=10"
 

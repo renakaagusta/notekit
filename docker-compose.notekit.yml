@@ -23,7 +23,7 @@ services:
       - "traefik.http.routers.notekit-web.tls.domains[0].sans=*.${ROOT_DOMAIN}"
       - "traefik.http.routers.notekit-web.service=notekit-web"
       - "traefik.http.routers.notekit-web.middlewares=notekit-compress"
-      - "traefik.http.routers.notekit-web.priority=1"
+      - "traefik.http.routers.notekit-web.priority=10"
 
   notekit-api:
     image: notekit-api:latest

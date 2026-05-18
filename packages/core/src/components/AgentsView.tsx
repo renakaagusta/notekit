@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { Check, Pencil, X } from "lucide-react";
+import { SkeletonCommitList } from "./Skeleton";
 import {
   listAgents,
   createAgent,
@@ -180,7 +182,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
               onClick={() => onCopy(reveal.token)}
               title="Copy token"
             >
-              {copied ? "✓" : "Copy"}
+              {copied ? <Check size={14} aria-hidden /> : "Copy"}
             </button>
             <button
               className="nk-iconbtn"
@@ -216,7 +218,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
         />
       )}
 
-      {!error && agents === null && <div className="nk-empty">Loading…</div>}
+      {!error && agents === null && <SkeletonCommitList count={3} />}
 
       {agents && agents.length === 0 && (
         <div className="nk-empty">
@@ -285,7 +287,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
                     title="Edit agent"
                     aria-label={`Edit ${a.slug}`}
                   >
-                    ✎
+                    <Pencil size={13} aria-hidden />
                   </button>
                   <button
                     className="nk-iconbtn"
@@ -293,7 +295,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
                     title="Revoke agent"
                     aria-label={`Revoke ${a.slug}`}
                   >
-                    ×
+                    <X size={14} aria-hidden />
                   </button>
                 </div>
               </li>

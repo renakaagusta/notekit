@@ -81,6 +81,15 @@ export const ThemeEnum = z.enum(["auto", "light", "dark"]);
 
 export const VaultProviderEnum = z.enum(["github", "notekit"]);
 
+/** GitHub username. */
+export const GithubUsername = z
+  .string()
+  .min(1, "username_empty")
+  .max(39, "username_too_long")
+  .regex(/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/, "username_invalid");
+
+export const CollaboratorPermissionEnum = z.enum(["pull", "push", "admin", "maintain", "triage"]);
+
 /** Free-form label cap. */
 export const Label = z
   .string()

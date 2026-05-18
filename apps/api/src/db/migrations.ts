@@ -114,6 +114,20 @@ const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    id: "004_add_users_plus_columns",
+    up: (db) => {
+      const cols = db
+        .prepare(`PRAGMA table_info(users)`)
+        .all() as { name: string }[];
+      if (!cols.some((c) => c.name === "plus_until")) {
+        db.exec(`ALTER TABLE users ADD COLUMN plus_until INTEGER`);
+      }
+      if (!cols.some((c) => c.name === "plus_source")) {
+        db.exec(`ALTER TABLE users ADD COLUMN plus_source TEXT`);
+      }
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

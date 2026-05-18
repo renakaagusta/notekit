@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import * as vaultApi from "../lib/vault-api";
+import { SkeletonLines } from "./Skeleton";
 import type { VaultRef, VaultSettings } from "../lib/vault-api";
 
 interface VaultSettingsDialogProps {
@@ -72,13 +74,13 @@ export function VaultSettingsDialog({
           aria-label="Close"
           title="Close"
         >
-          ×
+          <X size={16} aria-hidden />
         </button>
 
         {error && <div className="nk-modal-error">{error}</div>}
         {!settings && !error && (
           <div className="nk-modal-body">
-            <p className="nk-empty-hint">Loading…</p>
+            <SkeletonLines count={4} />
           </div>
         )}
 

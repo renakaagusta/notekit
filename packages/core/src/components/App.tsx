@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
+import { NoteKitWordmark } from "./NoteKitLogo";
 import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";
 import { useVaultStore } from "../stores/vaultStore";
@@ -14,7 +16,6 @@ import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import type { User } from "../types/user";
 import { Editor, type EditorHandle } from "./Editor";
 import { EditorToolbar } from "./EditorToolbar";
-import { Rail, type RailPanel } from "./Rail";
 import { Sidebar } from "./Sidebar";
 import { TicketsBoard } from "./TicketsBoard";
 import { GraphView } from "./GraphView";
@@ -25,11 +26,12 @@ import { VaultPicker } from "./VaultPicker";
 import { VaultSetup } from "./VaultSetup";
 import { VaultPairNewDevice } from "./VaultPairing";
 import { SecretsView } from "./SecretsView";
+import { LinksView } from "./LinksView";
 import { SearchPalette } from "./SearchPalette";
 import { isValidYMD, journalYMDFromPath, shiftYMD, todayYMD } from "../lib/journal";
 import type { SearchHit } from "../lib/search";
 
-type MainView = "notes" | "tickets" | "graph" | "calendar";
+type MainView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
 
 interface AppProps {
   user?: User | null;
@@ -61,7 +63,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const cryptoPhase = useCryptoStore((s) => s.phase);
   const [view, setView] = useState<MainView>("notes");
   const [agentsOpen, setAgentsOpen] = useState(false);
-  const [railActive, setRailActive] = useState<RailPanel | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [focusTicket, setFocusTicket] = useState<{ id: string; seq: number } | null>(null);
   const [focusAgent, setFocusAgent] = useState<{ slug: string; seq: number } | null>(null);
@@ -245,9 +247,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
         ? "Graph"
         : view === "calendar"
           ? "Calendar"
-          : draftJournal
-            ? draftJournal.date
-            : noteHeading || vaultLabel;
+          : view === "secrets"
+            ? "Secrets"
+            : view === "links"
+              ? "Links"
+              : draftJournal
+                ? draftJournal.date
+                : noteHeading || vaultLabel;
 
   // Editor binding: journal draft takes precedence over the active note so that
   // ⌘+' on an unvisited day shows an in-memory buffer until first keystroke.
@@ -279,13 +285,19 @@ export function App({ user, onSignOut }: AppProps = {}) {
         ? "Tickets"
         : view === "graph"
           ? "Graph"
-          : "Calendar";
+          : view === "secrets"
+            ? "Secrets"
+            : view === "links"
+              ? "Links"
+              : "Calendar";
 
   return (
     <div className="nk" data-dir="studio" data-theme={resolvedTheme}>
       <div className="nk-app">
         <header className="nk-titlebar">
-          <span className="nk-titlebar-title">NoteKit</span>
+          <span className="nk-titlebar-title">
+            <NoteKitWordmark />
+          </span>
           <span className="nk-titlebar-sub">{titlebarSub}</span>
         </header>
 
@@ -295,6 +307,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           user={user}
           onSignOut={onSignOut}
           onOpenAgents={() => setAgentsOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
         />
 
         <main className="nk-main">
@@ -322,7 +335,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
           {view === "notes" && (
             <>
               {editorBinding && (
-                <EditorToolbar getEditor={() => editorRef.current?.editor ?? null} />
+                <EditorToolbar
+                  getEditor={() => editorRef.current?.editor ?? null}
+                  onHistoryClick={() => setHistoryOpen(true)}
+                />
               )}
               <div className="nk-editor-wrap">
                 {editorBinding ? (
@@ -351,23 +367,9 @@ export function App({ user, onSignOut }: AppProps = {}) {
               onOpenTicket={() => setView("tickets")}
             />
           )}
+          {view === "secrets" && <SecretsView />}
+          {view === "links" && <LinksView />}
         </main>
-
-        {railActive === "history" && (
-          <aside className="nk-side-panel">
-            <HistoryView
-              notePath={view === "notes" && note ? note.path : undefined}
-              compact
-            />
-          </aside>
-        )}
-
-        {railActive === "secrets" && <SecretsView />}
-
-        <Rail
-          active={railActive}
-          onToggle={(p) => setRailActive((cur) => (cur === p ? null : p))}
-        />
 
         <footer className="nk-statusbar">
           <span>
@@ -393,10 +395,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
       {vaultPhase === "needs-pick" && (
         <VaultPicker onPicked={onVaultPicked} />
       )}
-      {vaultPhase === "ready" && cryptoPhase === "needs-setup" && (
+      {view === "secrets" && vaultPhase === "ready" && cryptoPhase === "needs-setup" && (
         <VaultSetup />
       )}
-      {vaultPhase === "ready" && cryptoPhase === "needs-pair" && (
+      {view === "secrets" && vaultPhase === "ready" && cryptoPhase === "needs-pair" && (
         <VaultPairNewDevice />
       )}
       <SearchPalette
@@ -426,9 +428,39 @@ export function App({ user, onSignOut }: AppProps = {}) {
               title="Close"
               aria-label="Close"
             >
-              ×
+              <X size={16} aria-hidden />
             </button>
             <AgentsView focusAgent={focusAgent} />
+          </div>
+        </div>
+      )}
+      {historyOpen && (
+        <div
+          className="nk-modal-backdrop"
+          onClick={() => setHistoryOpen(false)}
+        >
+          <div
+            className="nk-modal nk-modal--wide"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="nk-modal-hd">
+              <h2>Activity</h2>
+              <p className="nk-modal-sub">
+                Recent commits across this vault.
+                {view === "notes" && note && " Filtered to the active note."}
+              </p>
+            </header>
+            <button
+              className="nk-modal-close nk-iconbtn"
+              onClick={() => setHistoryOpen(false)}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={16} aria-hidden />
+            </button>
+            <HistoryView
+              notePath={view === "notes" && note ? note.path : undefined}
+            />
           </div>
         </div>
       )}

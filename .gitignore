@@ -1,3 +1,4 @@
+credential.txt
 node_modules/
 .turbo/
 dist/
@@ -22,6 +23,9 @@ apps/api/data/
 
 # Editor/backup files
 *.bak
+
+# Per-service secret files (FCM Admin SDK JSON, APNs .p8, App Store key, etc.)
+apps/api/secrets/
 
 # Personal scratch / drafts not part of the project
 threads-cdp-draft.md

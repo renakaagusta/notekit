@@ -18,11 +18,13 @@
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.10",
     "nanoid": "^5.0.7",
+    "web-push": "^3.6.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
     "@types/node": "^20.12.0",
+    "@types/web-push": "^3.6.4",
     "tsx": "^4.19.1",
     "typescript": "^5.4.5"
   }

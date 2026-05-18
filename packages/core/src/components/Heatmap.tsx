@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { listCommits, type VaultCommit } from "../lib/vault-api";
+import { Skeleton } from "./Skeleton";
 
 const DAYS_BACK = 364; // 52 weeks * 7 = 364, plus today = 365 cells
 const COMMITS_LIMIT = 500;
@@ -112,7 +113,9 @@ export function Heatmap({ onSelectDay, selectedYmd }: HeatmapProps) {
         <div>
           <h3 className="nk-calendar-section-title">Activity</h3>
           <p className="nk-heatmap-sub">
-            {commits === null && !error && "Loading commits…"}
+            {commits === null && !error && (
+              <Skeleton width={180} height={12} />
+            )}
             {error && <span className="nk-heatmap-err">Couldn't load: {error}</span>}
             {commits && totalCommits > 0 && (
               <>

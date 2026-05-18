@@ -1,4 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  ChevronDown,
+  Download,
+  Pencil,
+  Settings,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 import { useVaultStore } from "../stores/vaultStore";
 import type { VaultRef } from "../lib/vault-api";
 import * as vaultApi from "../lib/vault-api";
@@ -8,6 +16,7 @@ import { reset as resetSync, start as startSync } from "../lib/sync";
 import { AddVaultDialog } from "./AddVaultDialog";
 import { VaultSettingsDialog } from "./VaultSettingsDialog";
 import { VaultImportDialog } from "./VaultImportDialog";
+import { VaultMembersDialog } from "./VaultMembersDialog";
 
 interface VaultSwitcherProps {
   /** Optional callback fired after a successful switch (e.g. close any drawer). */
@@ -34,6 +43,7 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [settingsVault, setSettingsVault] = useState<VaultRef | null>(null);
   const [importDest, setImportDest] = useState<VaultRef | null>(null);
+  const [membersVault, setMembersVault] = useState<VaultRef | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -159,9 +169,7 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
         title="Switch vault"
       >
         <span className="nk-vault-trigger-label">{triggerLabel}</span>
-        <span className="nk-vault-trigger-caret" aria-hidden>
-          ▾
-        </span>
+        <ChevronDown size={12} className="nk-vault-trigger-caret" aria-hidden />
       </button>
 
       {open && (
@@ -207,7 +215,16 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
                         aria-label="Settings"
                         disabled={isBusy}
                       >
-                        ⚙
+                        <Settings size={13} aria-hidden />
+                      </button>
+                      <button
+                        className="nk-iconbtn"
+                        onClick={() => setMembersVault(v)}
+                        title="Manage members"
+                        aria-label="Members"
+                        disabled={isBusy}
+                      >
+                        <UserPlus size={13} aria-hidden />
                       </button>
                       <button
                         className="nk-iconbtn"
@@ -216,7 +233,7 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
                         aria-label="Import"
                         disabled={isBusy || vaults.length < 2}
                       >
-                        ↓
+                        <Download size={13} aria-hidden />
                       </button>
                       <button
                         className="nk-iconbtn"
@@ -228,7 +245,7 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
                         aria-label="Rename"
                         disabled={isBusy}
                       >
-                        ✎
+                        <Pencil size={13} aria-hidden />
                       </button>
                       <button
                         className="nk-iconbtn"
@@ -237,7 +254,7 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
                         aria-label="Unregister"
                         disabled={isBusy}
                       >
-                        🗑
+                        <Trash2 size={13} aria-hidden />
                       </button>
                     </div>
                   )}
@@ -344,6 +361,13 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
           dest={importDest}
           vaults={vaults}
           onClose={() => setImportDest(null)}
+        />
+      )}
+
+      {membersVault && (
+        <VaultMembersDialog
+          vault={membersVault}
+          onClose={() => setMembersVault(null)}
         />
       )}
     </div>

@@ -1,5 +1,5 @@
 const YMD_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const JOURNAL_PATH_RE = /^journal\/(\d{4})\/(\d{2})\/(\d{2})\.md$/;
+const JOURNAL_PATH_RE = /^journal\/(\d{4})\/(\d{2})\/(\d{2})(--[^/]+)?\.md$/;
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
@@ -48,6 +48,13 @@ export function journalPathFor(ymd: string): string {
   if (!m) throw new Error(`Invalid YMD: ${ymd}`);
   const [, y, mo, d] = m;
   return `journal/${y}/${mo}/${d}.md`;
+}
+
+export function dayNotePathFor(ymd: string, id: string): string {
+  const m = ymd.match(YMD_RE);
+  if (!m) throw new Error(`Invalid YMD: ${ymd}`);
+  const [, y, mo, d] = m;
+  return `journal/${y}/${mo}/${d}--${id}.md`;
 }
 
 export function journalYMDFromPath(path: string): string | null {

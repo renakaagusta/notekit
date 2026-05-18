@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
+import { ArrowLeft, History, Pencil, X } from "lucide-react";
 import { useCryptoStore } from "../stores/cryptoStore";
 import {
   listSecretNames,
   getSecret,
   setSecret,
   removeSecret,
+  restoreSecret,
+  migrateFromBlob,
+  SECRETS_PREFIX,
 } from "../lib/secrets-vault";
+import { HistoryView } from "./HistoryView";
 
 interface SecretRow {
   name: string;
@@ -19,6 +24,7 @@ export function SecretsView() {
   const [rows, setRows] = useState<SecretRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [migrated, setMigrated] = useState(false);
 
   const [adding, setAdding] = useState(false);
   const [addName, setAddName] = useState("");
@@ -27,10 +33,17 @@ export function SecretsView() {
   const [editingName, setEditingName] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
 
+  const [historySecret, setHistorySecret] = useState<string | null>(null);
+
   async function refresh() {
     if (!device || phase !== "ready") return;
     try {
-      const names = await listSecretNames(device);
+      // Run migration once if legacy blob exists
+      if (!migrated) {
+        await migrateFromBlob(device);
+        setMigrated(true);
+      }
+      const names = await listSecretNames();
       setRows(names.map((n) => ({ name: n, revealed: null })));
     } catch (e) {
       setError((e as Error).message);
@@ -117,7 +130,7 @@ export function SecretsView() {
 
   if (phase !== "ready") {
     return (
-      <div className="nk-side-panel nk-secrets-panel">
+      <div className="nk-secrets-panel">
         <header className="nk-secrets-hd">
           <h2>Secrets</h2>
         </header>
@@ -128,8 +141,33 @@ export function SecretsView() {
     );
   }
 
+  if (historySecret !== null) {
+    return (
+      <div className="nk-secrets-panel">
+        <header className="nk-secrets-hd">
+          <button
+            className="nk-iconbtn"
+            onClick={() => setHistorySecret(null)}
+            title="Back to secrets"
+            aria-label="Back"
+          >
+            <ArrowLeft size={15} aria-hidden />
+          </button>
+          <code className="nk-secret-name">{historySecret}</code>
+        </header>
+        <HistoryView
+          notePath={`${SECRETS_PREFIX}${historySecret}.age`}
+          compact
+          onRestore={device
+            ? (sha) => restoreSecret(historySecret, sha, device)
+            : undefined}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="nk-side-panel nk-secrets-panel">
+    <div className="nk-secrets-panel">
       <header className="nk-secrets-hd">
         <h2>Secrets</h2>
         <span className="nk-muted">encrypted in vault</span>
@@ -144,7 +182,11 @@ export function SecretsView() {
         )}
       </header>
 
-      {error && <div className="nk-error-text" style={{ padding: "0 var(--gap-3)" }}>{error}</div>}
+      {error && (
+        <div className="nk-error-text" style={{ padding: "0 var(--gap-3)" }}>
+          {error}
+        </div>
+      )}
 
       {adding && (
         <div className="nk-secret-form">
@@ -155,7 +197,11 @@ export function SecretsView() {
             value={addName}
             onChange={(e) => setAddName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Escape") { setAdding(false); setAddName(""); setAddValue(""); }
+              if (e.key === "Escape") {
+                setAdding(false);
+                setAddName("");
+                setAddValue("");
+              }
             }}
             disabled={busy}
           />
@@ -168,7 +214,11 @@ export function SecretsView() {
             onChange={(e) => setAddValue(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void onAdd();
-              if (e.key === "Escape") { setAdding(false); setAddName(""); setAddValue(""); }
+              if (e.key === "Escape") {
+                setAdding(false);
+                setAddName("");
+                setAddValue("");
+              }
             }}
             disabled={busy}
           />
@@ -182,7 +232,11 @@ export function SecretsView() {
             </button>
             <button
               className="nk-btn"
-              onClick={() => { setAdding(false); setAddName(""); setAddValue(""); }}
+              onClick={() => {
+                setAdding(false);
+                setAddName("");
+                setAddValue("");
+              }}
               disabled={busy}
             >
               Cancel
@@ -213,7 +267,10 @@ export function SecretsView() {
                   onChange={(e) => setEditValue(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void onSaveEdit();
-                    if (e.key === "Escape") { setEditingName(null); setEditValue(""); }
+                    if (e.key === "Escape") {
+                      setEditingName(null);
+                      setEditValue("");
+                    }
                   }}
                   disabled={busy}
                 />
@@ -227,7 +284,10 @@ export function SecretsView() {
                   </button>
                   <button
                     className="nk-btn"
-                    onClick={() => { setEditingName(null); setEditValue(""); }}
+                    onClick={() => {
+                      setEditingName(null);
+                      setEditValue("");
+                    }}
                     disabled={busy}
                   >
                     Cancel
@@ -256,11 +316,18 @@ export function SecretsView() {
                 <div className="nk-secret-actions">
                   <button
                     className="nk-iconbtn"
+                    onClick={() => setHistorySecret(row.name)}
+                    title="View history"
+                  >
+                    <History size={13} aria-hidden />
+                  </button>
+                  <button
+                    className="nk-iconbtn"
                     onClick={() => startEdit(row)}
                     title="Edit value"
                     disabled={busy}
                   >
-                    ✎
+                    <Pencil size={13} aria-hidden />
                   </button>
                   <button
                     className="nk-iconbtn"
@@ -268,7 +335,7 @@ export function SecretsView() {
                     title="Remove secret"
                     disabled={busy}
                   >
-                    ×
+                    <X size={14} aria-hidden />
                   </button>
                 </div>
               </li>

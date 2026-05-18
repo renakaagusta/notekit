@@ -1,5 +1,6 @@
 import type { Note } from "../types/note";
 import type { Ticket } from "../types/ticket";
+import type { SavedLink } from "../types/link";
 
 /**
  * Serialize a note/ticket into a markdown file with YAML frontmatter.
@@ -133,6 +134,7 @@ export function serializeTicket(t: Ticket): string {
     dueDate: t.dueDate,
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
+    createdBy: t.createdBy,
   });
   return fm + `# ${t.title}\n\n${t.body}`;
 }
@@ -177,5 +179,49 @@ export function deserializeTicket(path: string, content: string): Ticket | null 
     createdAt: String(frontmatter.createdAt ?? new Date().toISOString()),
     updatedAt: String(frontmatter.updatedAt ?? new Date().toISOString()),
     dueDate: (frontmatter.dueDate as string | null) ?? null,
+    createdBy: (frontmatter.createdBy as string | null) ?? null,
+  };
+}
+
+export function serializeLink(link: SavedLink): string {
+  const fm = emitFrontmatter({
+    id: link.id,
+    url: link.url,
+    platform: link.platform,
+    tags: link.tags,
+    createdAt: link.createdAt,
+    updatedAt: link.updatedAt,
+  });
+  const body = link.description
+    ? `# ${link.title}\n\n${link.description}`
+    : `# ${link.title}`;
+  return fm + body;
+}
+
+export function deserializeLink(path: string, content: string): SavedLink | null {
+  const { frontmatter, body } = parseFrontmatter(content);
+  const id = String(frontmatter.id ?? "").trim();
+  if (!id) return null;
+
+  const lines = body.split("\n");
+  let title = "Untitled";
+  let description: string | null = null;
+  const first = lines[0]?.trim() ?? "";
+  if (first.startsWith("# ")) {
+    title = first.slice(2).trim() || "Untitled";
+    const rest = lines.slice(1).join("\n").replace(/^\n+/, "").trim();
+    if (rest) description = rest;
+  }
+
+  return {
+    id,
+    path,
+    url: String(frontmatter.url ?? ""),
+    title,
+    description,
+    platform: (frontmatter.platform as string | null) ?? null,
+    tags: Array.isArray(frontmatter.tags) ? (frontmatter.tags as string[]) : [],
+    createdAt: String(frontmatter.createdAt ?? new Date().toISOString()),
+    updatedAt: String(frontmatter.updatedAt ?? new Date().toISOString()),
   };
 }

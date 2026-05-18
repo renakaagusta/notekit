@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Bot, Clock, LogOut, MoreHorizontal, Plus } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import type { User } from "../types/user";
@@ -7,7 +8,7 @@ import { NoteList } from "./NoteList";
 import { TicketSidebarList } from "./TicketSidebarList";
 import { VaultSwitcher } from "./VaultSwitcher";
 
-export type SidebarView = "notes" | "tickets" | "graph" | "calendar";
+export type SidebarView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
 
 interface SidebarProps {
   view: SidebarView;
@@ -15,6 +16,7 @@ interface SidebarProps {
   user?: User | null;
   onSignOut?: () => void;
   onOpenAgents?: () => void;
+  onOpenHistory?: () => void;
 }
 
 export function Sidebar({
@@ -23,6 +25,7 @@ export function Sidebar({
   user,
   onSignOut,
   onOpenAgents,
+  onOpenHistory,
 }: SidebarProps) {
   const upsertTicket = useTicketsStore((s) => s.upsert);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
@@ -62,7 +65,11 @@ export function Sidebar({
         ? "Tickets"
         : view === "graph"
           ? "Graph"
-          : "Calendar";
+          : view === "secrets"
+            ? "Secrets"
+            : view === "links"
+              ? "Links"
+              : "Calendar";
 
   return (
     <aside className="nk-sidebar">
@@ -92,11 +99,23 @@ export function Sidebar({
         >
           Graph
         </button>
+        <button
+          className={view === "secrets" ? "active" : ""}
+          onClick={() => onView("secrets")}
+        >
+          Secrets
+        </button>
+        <button
+          className={view === "links" ? "active" : ""}
+          onClick={() => onView("links")}
+        >
+          Links
+        </button>
       </div>
 
       <div className="nk-sidebar-hd">
         <span>{heading}</span>
-        {view !== "graph" && (
+        {view !== "graph" && view !== "secrets" && view !== "links" && (
           <span className="nk-sidebar-hd-actions nk-tree-add-wrap">
             <button
               className="nk-iconbtn"
@@ -105,7 +124,7 @@ export function Sidebar({
               title={view === "notes" ? "New file or folder" : "New ticket"}
               aria-label="Add"
             >
-              +
+              <Plus size={14} aria-hidden />
             </button>
             {view === "notes" && createMenuOpen && (
               <CreateMenu
@@ -140,6 +159,24 @@ export function Sidebar({
           </p>
         </div>
       )}
+      {view === "secrets" && (
+        <div className="nk-empty">
+          <p>Encrypted secrets.</p>
+          <p className="nk-empty-hint">
+            API keys and tokens, encrypted on-device before they touch the
+            vault. Only your devices can read them.
+          </p>
+        </div>
+      )}
+      {view === "links" && (
+        <div className="nk-empty">
+          <p>Saved links.</p>
+          <p className="nk-empty-hint">
+            Bookmarks with auto-detected platform tags — X, GitHub, YouTube,
+            and more.
+          </p>
+        </div>
+      )}
 
       {user && (
         <div className="nk-userbar" ref={userMenuRef}>
@@ -162,10 +199,23 @@ export function Sidebar({
             aria-haspopup="menu"
             aria-expanded={userMenuOpen}
           >
-            ⋯
+            <MoreHorizontal size={14} aria-hidden />
           </button>
           {userMenuOpen && (
             <div className="nk-popover nk-popover--userbar" role="menu">
+              {onOpenHistory && (
+                <button
+                  className="nk-popover-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    onOpenHistory();
+                  }}
+                >
+                  <Clock size={14} aria-hidden />
+                  <span>Activity</span>
+                </button>
+              )}
               {onOpenAgents && (
                 <button
                   className="nk-popover-item"
@@ -175,7 +225,7 @@ export function Sidebar({
                     onOpenAgents();
                   }}
                 >
-                  <AgentsIcon />
+                  <Bot size={14} aria-hidden />
                   <span>Manage agents</span>
                 </button>
               )}
@@ -188,7 +238,7 @@ export function Sidebar({
                     onSignOut();
                   }}
                 >
-                  <SignOutIcon />
+                  <LogOut size={14} aria-hidden />
                   <span>Sign out</span>
                 </button>
               )}
@@ -197,40 +247,5 @@ export function Sidebar({
         </div>
       )}
     </aside>
-  );
-}
-
-function AgentsIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      width="14"
-      height="14"
-      aria-hidden
-    >
-      <circle cx="8" cy="6" r="2.5" />
-      <path d="M3 13.5c.8-2 2.7-3 5-3s4.2 1 5 3" />
-    </svg>
-  );
-}
-
-function SignOutIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      width="14"
-      height="14"
-      aria-hidden
-    >
-      <path d="M9 3.5H4a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h5" />
-      <path d="M11 5.5 13.5 8 11 10.5" />
-      <path d="M6.5 8h7" />
-    </svg>
   );
 }

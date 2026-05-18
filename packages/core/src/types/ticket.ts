@@ -14,4 +14,5 @@ export interface Ticket {
   createdAt: string;
   updatedAt: string;
   dueDate: string | null;
+  createdBy: string | null;
 }

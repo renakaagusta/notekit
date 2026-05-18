@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { FileText, Folder } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 
 interface CreateMenuProps {
@@ -55,46 +56,13 @@ export function CreateMenu({ parent, onClose }: CreateMenuProps) {
       onClick={(e) => e.stopPropagation()}
     >
       <button className="nk-popover-item" role="menuitem" onClick={onNewFile}>
-        <FileIcon />
+        <FileText size={14} aria-hidden />
         <span>New file</span>
       </button>
       <button className="nk-popover-item" role="menuitem" onClick={onNewFolder}>
-        <FolderIcon />
+        <Folder size={14} aria-hidden />
         <span>New folder</span>
       </button>
     </div>
-  );
-}
-
-function FileIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      width="14"
-      height="14"
-      aria-hidden
-    >
-      <path d="M3 2.5h6.5L13 6v7.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" />
-      <path d="M9.5 2.5V6H13" />
-    </svg>
-  );
-}
-
-function FolderIcon() {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      width="14"
-      height="14"
-      aria-hidden
-    >
-      <path d="M2 4.5a1 1 0 0 1 1-1h3.4l1.5 1.5H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
-    </svg>
   );
 }

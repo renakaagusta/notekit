@@ -1,5 +1,6 @@
 import type { Note } from "../types/note";
 import type { Ticket } from "../types/ticket";
+import type { SavedLink } from "../types/link";
 import { noteTitle } from "./note-display";
 
 export function slugify(text: string): string {
@@ -69,4 +70,9 @@ export function notePathFor(
 export function ticketPathFor(t: Pick<Ticket, "id" | "title">): string {
   const slug = slugify(t.title || "") || "untitled";
   return `tickets/${slug}--${shortId(t.id)}.md`;
+}
+
+export function linkPathFor(l: Pick<SavedLink, "id" | "title">): string {
+  const slug = slugify(l.title || "") || "link";
+  return `links/${slug}--${shortId(l.id)}.md`;
 }

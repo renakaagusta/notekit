@@ -36,7 +36,7 @@ export function AIVaultPanel() {
     setBusy(true);
     try {
       const [secretNames, deviceList] = await Promise.all([
-        listSecretNames(device),
+        listSecretNames(),
         listDevices(),
       ]);
       setNames(secretNames);

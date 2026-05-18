@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import { Diamond, Github, Plus, X } from "lucide-react";
 import * as vaultApi from "../lib/vault-api";
+import { SkeletonRepoList } from "./Skeleton";
 import type { VaultRef, VaultRepo } from "../lib/vault-api";
 
 type Mode = "list" | "create" | "notekit";
@@ -86,7 +88,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
           aria-label="Close"
           title="Close"
         >
-          ×
+          <X size={16} aria-hidden />
         </button>
 
         <div className="nk-modal-tabs">
@@ -94,18 +96,14 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
             className={mode === "list" ? "active" : ""}
             onClick={() => setMode("list")}
           >
-            <span className="nk-modal-tab-icon" aria-hidden>
-              ⌥
-            </span>
+            <Github size={14} className="nk-modal-tab-icon" aria-hidden />
             GitHub · existing
           </button>
           <button
             className={mode === "create" ? "active" : ""}
             onClick={() => setMode("create")}
           >
-            <span className="nk-modal-tab-icon" aria-hidden>
-              +
-            </span>
+            <Plus size={14} className="nk-modal-tab-icon" aria-hidden />
             GitHub · new
           </button>
           <button
@@ -113,9 +111,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
             onClick={() => setMode("notekit")}
             title="NoteKit-hosted Git via Forgejo"
           >
-            <span className="nk-modal-tab-icon" aria-hidden>
-              ◇
-            </span>
+            <Diamond size={14} className="nk-modal-tab-icon" aria-hidden />
             NoteKit Git
             <span className="nk-chip nk-chip--soft">soon</span>
           </button>
@@ -125,9 +121,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
 
         {mode === "list" && (
           <div className="nk-modal-body">
-            {!repos && !loadErr && (
-              <p className="nk-empty-hint">Loading repos…</p>
-            )}
+            {!repos && !loadErr && <SkeletonRepoList count={5} />}
             {repos && repos.length === 0 && (
               <p className="nk-empty-hint">
                 No repos found. Create a new one instead.

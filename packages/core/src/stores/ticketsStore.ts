@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
 import type { Ticket, TicketStatus } from "../types/ticket";
 import { ticketPathFor } from "../lib/file-paths";
+import { useVaultStore } from "./vaultStore";
 
 interface TicketsState {
   tickets: Record<string, Ticket>;
@@ -32,6 +33,8 @@ export const useTicketsStore = create<TicketsState>()(
         input.path ??
         existing?.path ??
         ticketPathFor({ id, title: input.title });
+      const owner = useVaultStore.getState().vault?.owner;
+      const defaultCreator = owner ? `user:${owner}` : null;
       const ticket: Ticket = {
         id,
         path,
@@ -45,6 +48,7 @@ export const useTicketsStore = create<TicketsState>()(
         createdAt: existing?.createdAt ?? timestamp,
         updatedAt: timestamp,
         dueDate: input.dueDate ?? existing?.dueDate ?? null,
+        createdBy: input.createdBy ?? existing?.createdBy ?? defaultCreator,
       };
       set((state) => {
         state.tickets[id] = ticket;

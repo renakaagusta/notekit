@@ -1,0 +1,83 @@
+services:
+  notekit-web:
+    image: notekit-web:latest
+    container_name: notekit-web
+    restart: unless-stopped
+    networks:
+      - infrastructure
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=infrastructure"
+      - "traefik.http.services.notekit-web.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.notekit-compress.compress=true"
+      - "traefik.http.routers.notekit-web.rule=Host(`${WEB_DOMAIN}`)"
+      - "traefik.http.routers.notekit-web.entrypoints=websecure"
+      - "traefik.http.routers.notekit-web.tls.certresolver=cloudflare"
+      - "traefik.http.routers.notekit-web.tls.domains[0].main=${ROOT_DOMAIN}"
+      - "traefik.http.routers.notekit-web.tls.domains[0].sans=*.${ROOT_DOMAIN}"
+      - "traefik.http.routers.notekit-web.service=notekit-web"
+      - "traefik.http.routers.notekit-web.middlewares=notekit-compress"
+      - "traefik.http.routers.notekit-web.priority=1"
+
+  notekit-api:
+    image: notekit-api:latest
+    container_name: notekit-api
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+      WEB_URL: https://${WEB_DOMAIN}
+      API_URL: https://${API_DOMAIN}
+      SESSION_SECRET: ${SESSION_SECRET}
+      DATABASE_URL: file:./data/notekit.db
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
+      APPLE_BUNDLE_ID: ${APPLE_BUNDLE_ID:-}
+      APPLE_ISSUER_ID: ${APPLE_ISSUER_ID:-}
+      APPLE_API_KEY_ID: ${APPLE_API_KEY_ID:-}
+      APPLE_API_KEY_P8: ${APPLE_API_KEY_P8:-}
+      APPLE_SHARED_SECRET: ${APPLE_SHARED_SECRET:-}
+      GOOGLE_PLAY_PACKAGE_NAME: ${GOOGLE_PLAY_PACKAGE_NAME:-}
+      GOOGLE_PLAY_CLIENT_EMAIL: ${GOOGLE_PLAY_CLIENT_EMAIL:-}
+      GOOGLE_PLAY_PRIVATE_KEY: ${GOOGLE_PLAY_PRIVATE_KEY:-}
+      GOOGLE_PLAY_PUBSUB_SECRET: ${GOOGLE_PLAY_PUBSUB_SECRET:-}
+    volumes:
+      - notekit-db:/app/apps/api/data
+    networks:
+      - infrastructure
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=infrastructure"
+      - "traefik.http.services.notekit-api-svc.loadbalancer.server.port=3001"
+      - "traefik.http.routers.notekit-api.rule=Host(`${API_DOMAIN}`)"
+      - "traefik.http.routers.notekit-api.entrypoints=websecure"
+      - "traefik.http.routers.notekit-api.tls.certresolver=cloudflare"
+      - "traefik.http.routers.notekit-api.service=notekit-api-svc"
+      - "traefik.http.routers.notekit-api.priority=10"
+
+volumes:
+  notekit-db:
+
+networks:
+  infrastructure:
+    external: true

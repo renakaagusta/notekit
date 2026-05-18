@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 import * as vaultApi from "../lib/vault-api";
 import type { VaultImportResult, VaultRef } from "../lib/vault-api";
 import { pull as syncPull } from "../lib/sync";
@@ -68,7 +69,7 @@ export function VaultImportDialog({
           title="Close"
           disabled={phase === "running"}
         >
-          ×
+          <X size={16} aria-hidden />
         </button>
 
         {error && <div className="nk-modal-error">{error}</div>}

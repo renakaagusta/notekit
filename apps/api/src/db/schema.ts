@@ -8,6 +8,10 @@ export const users = sqliteTable("users", {
   plan: text("plan", { enum: ["free", "plus", "lifetime"] })
     .notNull()
     .default("free"),
+  plusUntil: integer("plus_until", { mode: "timestamp_ms" }),
+  plusSource: text("plus_source", {
+    enum: ["apple", "google", "stripe", "lifetime"],
+  }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -103,6 +107,118 @@ export const agentTokens = sqliteTable("agent_tokens", {
   revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
 });
 
+export const notifications = sqliteTable("notifications", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  agentSlug: text("agent_slug").notNull(),
+  eventType: text("event_type").notNull(),
+  resourcePath: text("resource_path"),
+  summary: text("summary").notNull(),
+  payload: text("payload").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  readAt: integer("read_at", { mode: "timestamp_ms" }),
+});
+
+export const notificationPrefs = sqliteTable("notification_prefs", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  telegramEnabled: integer("telegram_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  webPushEnabled: integer("web_push_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  mobilePushEnabled: integer("mobile_push_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const telegramLinks = sqliteTable("telegram_links", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  chatId: text("chat_id").notNull().unique(),
+  linkedAt: integer("linked_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const telegramLinkCodes = sqliteTable("telegram_link_codes", {
+  code: text("code").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const webPushSubscriptions = sqliteTable("web_push_subscriptions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  userAgent: text("user_agent"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const mobilePushTokens = sqliteTable("mobile_push_tokens", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  platform: text("platform", { enum: ["ios", "android"] }).notNull(),
+  token: text("token").notNull().unique(),
+  deviceId: text("device_id"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const appleIapReceipts = sqliteTable("apple_iap_receipts", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  originalTransactionId: text("original_transaction_id").notNull().unique(),
+  latestTransactionId: text("latest_transaction_id").notNull(),
+  productId: text("product_id").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+  environment: text("environment", { enum: ["sandbox", "production"] }).notNull(),
+  rawJson: text("raw_json").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const googleIapPurchases = sqliteTable("google_iap_purchases", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  purchaseToken: text("purchase_token").notNull().unique(),
+  productId: text("product_id").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }),
+  acknowledged: integer("acknowledged", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  rawJson: text("raw_json").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 export type DbUser = typeof users.$inferSelect;
 export type NewDbUser = typeof users.$inferInsert;
 export type DbSession = typeof sessions.$inferSelect;
@@ -111,3 +227,10 @@ export type DbAgentToken = typeof agentTokens.$inferSelect;
 export type DbVault = typeof vaults.$inferSelect;
 export type NewDbVault = typeof vaults.$inferInsert;
 export type DbVaultSettings = typeof vaultSettings.$inferSelect;
+export type DbNotification = typeof notifications.$inferSelect;
+export type DbNotificationPrefs = typeof notificationPrefs.$inferSelect;
+export type DbTelegramLink = typeof telegramLinks.$inferSelect;
+export type DbWebPushSubscription = typeof webPushSubscriptions.$inferSelect;
+export type DbMobilePushToken = typeof mobilePushTokens.$inferSelect;
+export type DbAppleIapReceipt = typeof appleIapReceipts.$inferSelect;
+export type DbGoogleIapPurchase = typeof googleIapPurchases.$inferSelect;

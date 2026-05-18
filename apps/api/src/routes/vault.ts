@@ -15,6 +15,8 @@ import {
   LabelNullable,
   ThemeEnum,
   VaultProviderEnum,
+  GithubUsername,
+  CollaboratorPermissionEnum,
 } from "../validation";
 import { rateLimit } from "../middleware/rateLimit";
 import {
@@ -27,10 +29,19 @@ import {
   listTree,
   listCommits,
   getUserLogin,
+  listCollaborators,
+  addCollaborator,
+  removeCollaborator,
+  listInvitations,
+  cancelInvitation,
   GhError,
   type GitAuthor,
 } from "../vault/github";
 import { readAgent, defaultEmailFor } from "../vault/agents";
+import { emitAgentEvent } from "../notifications/emit";
+import { isPlus } from "../iap/entitlement";
+
+const MOBILE_FREE_NOTE_CAP = 50;
 import {
   createVault,
   deleteVault as removeVault,
@@ -568,7 +579,8 @@ async function resolveVault(userId: string) {
 }
 
 /**
- * GET /vault/file?path=... — read a single file. Returns { path, sha, content } or { content: null }.
+ * GET /vault/file?path=...&ref=<sha|branch> — read a single file, optionally
+ * at a specific commit SHA. Omit `ref` to read the branch HEAD.
  */
 vaultRoutes.get("/file", async (c) => {
   const { userId, token } = await requirePrincipal(c);
@@ -578,12 +590,13 @@ vaultRoutes.get("/file", async (c) => {
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
   const path = c.req.query("path");
   if (!path) return c.json({ error: "path_required" }, 400);
+  const ref = c.req.query("ref") ?? vault.branch;
   // Dev-mode stub: fake token never hits GitHub; all files return empty.
   if (!env.isProd && token === "dev_github_token") {
     return c.json({ path, content: null, sha: null });
   }
   try {
-    const file = await readFile(token, vault.owner, vault.repo, path, vault.branch);
+    const file = await readFile(token, vault.owner, vault.repo, path, ref);
     if (!file) return c.json({ path, content: null, sha: null });
     return c.json(file);
   } catch (err) {
@@ -613,6 +626,42 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
   if (!body?.path || typeof body.content !== "string") {
     return c.json({ error: "path_and_content_required" }, 400);
   }
+
+  // Soft mobile-only note cap for free users. Only enforced when the client
+  // identifies itself as the mobile app AND the write is a new note (no sha).
+  // The check costs one extra GitHub listTree call, so we gate it tightly.
+  const clientHeader = c.req.header("x-notekit-client");
+  if (
+    clientHeader === "mobile" &&
+    !actingAs &&
+    !body.sha &&
+    body.path.startsWith("notes/")
+  ) {
+    const me = await getCurrentUser(c);
+    if (me && !isPlus(me)) {
+      if (!env.isProd && token === "dev_github_token") {
+        // Dev stub treats count as 0.
+      } else {
+        const entries = await listTree(
+          token,
+          vault.owner,
+          vault.repo,
+          vault.branch,
+          "notes/",
+        );
+        if (entries.length >= MOBILE_FREE_NOTE_CAP) {
+          return c.json(
+            {
+              error: "free_mobile_limit",
+              cap: MOBILE_FREE_NOTE_CAP,
+              count: entries.length,
+            },
+            403,
+          );
+        }
+      }
+    }
+  }
   // Dev-mode stub: fake token never hits GitHub; pretend the write succeeded.
   if (!env.isProd && token === "dev_github_token") {
     return c.json({ path: body.path, sha: "dev_sha_000", content: body.content });
@@ -641,6 +690,13 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
         author,
         committer,
       );
+      emitAgentEvent({
+        userId,
+        agentSlug: actingAs,
+        eventType: "file.write",
+        resourcePath: body.path,
+        extra: { sha: result.sha },
+      });
       return c.json({ path: body.path, sha: result.sha, actor: `agent:${actingAs}` });
     }
     const result = await writeFile(
@@ -663,7 +719,7 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
  * DELETE /vault/file — delete a file. body: { path, sha, message? }
  */
 vaultRoutes.delete("/file", writeLimit, async (c) => {
-  const { userId, token } = await requirePrincipal(c);
+  const { userId, token, actingAs } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
   if (!token) return c.json({ error: "no_github_token" }, 400);
   const vault = await resolveVault(userId);
@@ -686,6 +742,14 @@ vaultRoutes.delete("/file", writeLimit, async (c) => {
       vault.branch,
       body.sha,
     );
+    if (actingAs) {
+      emitAgentEvent({
+        userId,
+        agentSlug: actingAs,
+        eventType: "file.delete",
+        resourcePath: body.path,
+      });
+    }
     return c.json({ ok: true });
   } catch (err) {
     return ghErr(c, err);
@@ -717,6 +781,114 @@ vaultRoutes.get("/commits", async (c) => {
       limit,
     );
     return c.json({ commits });
+  } catch (err) {
+    return ghErr(c, err);
+  }
+});
+
+/**
+ * GET /vaults/:id/members — list collaborators + pending invitations.
+ */
+vaultRoutes.get("/vaults/:id/members", async (c) => {
+  const { user, token } = await requireUserAndToken(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  if (!token) return c.json({ error: "no_github_token" }, 400);
+  const id = c.req.param("id");
+  const vault = await getVaultById(user.id, id);
+  if (!vault) return c.json({ error: "vault_not_found" }, 404);
+  if (!env.isProd && token === "dev_github_token") {
+    return c.json({ members: [], invitations: [] });
+  }
+  try {
+    const [members, invitations] = await Promise.all([
+      listCollaborators(token, vault.owner, vault.repo),
+      listInvitations(token, vault.owner, vault.repo),
+    ]);
+    return c.json({ members, invitations });
+  } catch (err) {
+    return ghErr(c, err);
+  }
+});
+
+const AddMemberBody = z.object({
+  permission: CollaboratorPermissionEnum.optional().default("push"),
+});
+
+/**
+ * PUT /vaults/:id/members/:username — add or update a collaborator.
+ * Returns { status: "invited" | "added" } depending on whether the user
+ * already had access. GitHub sends them an email invitation.
+ */
+vaultRoutes.put("/vaults/:id/members/:username", vaultMutationLimit, async (c) => {
+  const { user, token } = await requireUserAndToken(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  if (!token) return c.json({ error: "no_github_token" }, 400);
+  const id = c.req.param("id");
+  const username = c.req.param("username");
+  const usernameResult = GithubUsername.safeParse(username);
+  if (!usernameResult.success) return c.json({ error: "invalid_username" }, 400);
+  const vault = await getVaultById(user.id, id);
+  if (!vault) return c.json({ error: "vault_not_found" }, 404);
+  const parsed = await parseBody(c, AddMemberBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
+  if (!env.isProd && token === "dev_github_token") {
+    return c.json({ status: "invited", invitation: null });
+  }
+  try {
+    const result = await addCollaborator(token, vault.owner, vault.repo, usernameResult.data, parsed.data.permission);
+    return c.json({
+      status: result.status === 201 ? "invited" : "added",
+      invitation: result.invitation,
+    });
+  } catch (err) {
+    return ghErr(c, err);
+  }
+});
+
+/**
+ * DELETE /vaults/:id/members/:username — remove a collaborator.
+ */
+vaultRoutes.delete("/vaults/:id/members/:username", vaultMutationLimit, async (c) => {
+  const { user, token } = await requireUserAndToken(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  if (!token) return c.json({ error: "no_github_token" }, 400);
+  const id = c.req.param("id");
+  const username = c.req.param("username");
+  const usernameResult = GithubUsername.safeParse(username);
+  if (!usernameResult.success) return c.json({ error: "invalid_username" }, 400);
+  const vault = await getVaultById(user.id, id);
+  if (!vault) return c.json({ error: "vault_not_found" }, 404);
+  if (!env.isProd && token === "dev_github_token") {
+    return c.json({ ok: true });
+  }
+  try {
+    await removeCollaborator(token, vault.owner, vault.repo, usernameResult.data);
+    return c.json({ ok: true });
+  } catch (err) {
+    return ghErr(c, err);
+  }
+});
+
+/**
+ * DELETE /vaults/:id/invitations/:invitationId — cancel a pending invite.
+ */
+vaultRoutes.delete("/vaults/:id/invitations/:invitationId", vaultMutationLimit, async (c) => {
+  const { user, token } = await requireUserAndToken(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  if (!token) return c.json({ error: "no_github_token" }, 400);
+  const id = c.req.param("id");
+  const invitationId = Number(c.req.param("invitationId"));
+  if (!Number.isInteger(invitationId) || invitationId <= 0) {
+    return c.json({ error: "invalid_invitation_id" }, 400);
+  }
+  const vault = await getVaultById(user.id, id);
+  if (!vault) return c.json({ error: "vault_not_found" }, 404);
+  if (!env.isProd && token === "dev_github_token") {
+    return c.json({ ok: true });
+  }
+  try {
+    await cancelInvitation(token, vault.owner, vault.repo, invitationId);
+    return c.json({ ok: true });
   } catch (err) {
     return ghErr(c, err);
   }

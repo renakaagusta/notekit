@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as vaultApi from "../lib/vault-api";
+import { SkeletonRepoList } from "./Skeleton";
 import type { VaultRepo } from "../lib/vault-api";
 import { useVaultStore } from "../stores/vaultStore";
 
@@ -104,7 +105,7 @@ export function VaultPicker({ onPicked }: VaultPickerProps) {
 
         {mode === "list" && (
           <div className="nk-modal-body">
-            {!repos && !loadErr && <p className="nk-empty-hint">Loading repos…</p>}
+            {!repos && !loadErr && <SkeletonRepoList count={5} />}
             {repos && repos.length === 0 && (
               <p className="nk-empty-hint">
                 No repos found. Create a new one instead.

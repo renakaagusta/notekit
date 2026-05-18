@@ -1,0 +1,72 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, notekit, linux, arm64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          tags: notekit-api:latest
+          load: true
+          cache-from: type=local,src=/tmp/.buildx-cache-api
+          cache-to: type=local,dest=/tmp/.buildx-cache-api-new,mode=max
+
+      - name: Build web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: packages/web/Dockerfile
+          tags: notekit-web:latest
+          load: true
+          build-args: |
+            VITE_API_URL=https://api.notekit.stackbase.id
+          cache-from: type=local,src=/tmp/.buildx-cache-web
+          cache-to: type=local,dest=/tmp/.buildx-cache-web-new,mode=max
+
+      - name: Rotate build cache
+        run: |
+          rm -rf /tmp/.buildx-cache-api /tmp/.buildx-cache-web
+          mv /tmp/.buildx-cache-api-new /tmp/.buildx-cache-api || true
+          mv /tmp/.buildx-cache-web-new /tmp/.buildx-cache-web || true
+
+      - name: Deploy
+        env:
+          ROOT_DOMAIN: ${{ secrets.ROOT_DOMAIN }}
+          WEB_DOMAIN: ${{ secrets.WEB_DOMAIN }}
+          API_DOMAIN: ${{ secrets.API_DOMAIN }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          GITHUB_CLIENT_ID: ${{ secrets.GH_CLIENT_ID }}
+          GITHUB_CLIENT_SECRET: ${{ secrets.GH_CLIENT_SECRET }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_USERNAME: ${{ secrets.TELEGRAM_BOT_USERNAME }}
+          TELEGRAM_WEBHOOK_SECRET: ${{ secrets.TELEGRAM_WEBHOOK_SECRET }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          APPLE_BUNDLE_ID: ${{ secrets.APPLE_BUNDLE_ID }}
+          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_SHARED_SECRET: ${{ secrets.APPLE_SHARED_SECRET }}
+          GOOGLE_PLAY_PACKAGE_NAME: ${{ secrets.GOOGLE_PLAY_PACKAGE_NAME }}
+          GOOGLE_PLAY_CLIENT_EMAIL: ${{ secrets.GOOGLE_PLAY_CLIENT_EMAIL }}
+          GOOGLE_PLAY_PRIVATE_KEY: ${{ secrets.GOOGLE_PLAY_PRIVATE_KEY }}
+          GOOGLE_PLAY_PUBSUB_SECRET: ${{ secrets.GOOGLE_PLAY_PUBSUB_SECRET }}
+        run: |
+          docker compose -f docker-compose.notekit.yml up -d --remove-orphans

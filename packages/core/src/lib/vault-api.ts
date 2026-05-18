@@ -156,6 +156,12 @@ export function readFile(path: string): Promise<VaultFile> {
   return apiFetch<VaultFile>(`/vault/file?path=${encodeURIComponent(path)}`);
 }
 
+export function readFileAtRef(path: string, ref: string): Promise<VaultFile> {
+  return apiFetch<VaultFile>(
+    `/vault/file?path=${encodeURIComponent(path)}&ref=${encodeURIComponent(ref)}`,
+  );
+}
+
 export function writeFile(
   path: string,
   content: string,
@@ -199,6 +205,56 @@ export function listCommits(
   if (path) params.set("path", path);
   params.set("limit", String(limit));
   return apiFetch(`/vault/commits?${params.toString()}`);
+}
+
+// --- Vault member management ---
+
+export type CollaboratorPermission = "pull" | "push" | "admin" | "maintain" | "triage";
+
+export interface VaultMember {
+  login: string;
+  avatarUrl: string | null;
+  htmlUrl: string;
+  permission: CollaboratorPermission;
+}
+
+export interface VaultInvitation {
+  id: number;
+  inviteeLogin: string;
+  inviteeAvatar: string | null;
+  permission: string;
+  createdAt: string;
+  htmlUrl: string;
+}
+
+export function listVaultMembers(vaultId: string): Promise<{
+  members: VaultMember[];
+  invitations: VaultInvitation[];
+}> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}/members`);
+}
+
+export function addVaultMember(
+  vaultId: string,
+  username: string,
+  permission: CollaboratorPermission = "push",
+): Promise<{ status: "invited" | "added"; invitation: VaultInvitation | null }> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}/members/${encodeURIComponent(username)}`, {
+    method: "PUT",
+    body: JSON.stringify({ permission }),
+  });
+}
+
+export function removeVaultMember(vaultId: string, username: string): Promise<{ ok: true }> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}/members/${encodeURIComponent(username)}`, {
+    method: "DELETE",
+  });
+}
+
+export function cancelVaultInvitation(vaultId: string, invitationId: number): Promise<{ ok: true }> {
+  return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}/invitations/${invitationId}`, {
+    method: "DELETE",
+  });
 }
 
 export interface PairAnnouncement {

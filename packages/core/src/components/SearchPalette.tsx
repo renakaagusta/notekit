@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Bot, CalendarDays, FileText, GitCommit, Ticket, X, type LucideIcon } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
@@ -12,6 +13,7 @@ import {
 } from "../lib/search";
 import { listAgents, type AgentProfile } from "../lib/agents-api";
 import { listCommits, type VaultCommit } from "../lib/vault-api";
+import { SkeletonLines } from "./Skeleton";
 
 interface SearchPaletteProps {
   open: boolean;
@@ -35,12 +37,12 @@ const GROUP_LABEL: Record<SearchKind, string> = {
   commit: "Commits",
 };
 
-const GROUP_GLYPH: Record<SearchKind, string> = {
-  journal: "🗓",
-  note: "▤",
-  ticket: "◇",
-  agent: "◎",
-  commit: "⌥",
+const GROUP_GLYPH: Record<SearchKind, LucideIcon> = {
+  journal: CalendarDays,
+  note: FileText,
+  ticket: Ticket,
+  agent: Bot,
+  commit: GitCommit,
 };
 
 export function SearchPalette({ open, onClose, onSelect }: SearchPaletteProps) {
@@ -191,7 +193,7 @@ export function SearchPalette({ open, onClose, onSelect }: SearchPaletteProps) {
             title="Close (Esc)"
             aria-label="Close"
           >
-            ×
+            <X size={14} aria-hidden />
           </button>
         </div>
 
@@ -209,10 +211,11 @@ export function SearchPalette({ open, onClose, onSelect }: SearchPaletteProps) {
           {GROUP_ORDER.map((kind) => {
             const hits = grouped[kind];
             if (hits.length === 0) return null;
+            const GroupIcon = GROUP_GLYPH[kind];
             return (
               <section key={kind} className="nk-search-group">
                 <header className="nk-search-group-hd">
-                  <span aria-hidden>{GROUP_GLYPH[kind]}</span>
+                  <GroupIcon size={12} aria-hidden />
                   <span>{GROUP_LABEL[kind]}</span>
                   <span className="nk-search-group-count">{hits.length}</span>
                 </header>
@@ -249,7 +252,9 @@ export function SearchPalette({ open, onClose, onSelect }: SearchPaletteProps) {
           })}
 
           {remoteLoading && query.trim() !== "" && (
-            <div className="nk-search-loading">Loading remote sources…</div>
+            <div className="nk-search-loading">
+              <SkeletonLines count={2} />
+            </div>
           )}
           {remoteError && (
             <div className="nk-search-error">Remote search failed: {remoteError}</div>

@@ -1,6 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { Editor as TipTapEditor } from "@tiptap/react";
 import {
+  ChevronDown as LucideChevronDown,
+  History as LucideHistory,
+  Image as LucideImage,
+  ListChecks,
+  Redo2,
+  Table as LucideTable,
+  Undo2,
+} from "lucide-react";
+import {
   type Heading,
   setHeading,
   toggleBold,
@@ -8,16 +17,16 @@ import {
   insertChecklist,
   insertTable,
   insertImage,
-  insertLink,
   undo,
   redo,
 } from "../lib/editor-commands";
 
 interface EditorToolbarProps {
   getEditor(): TipTapEditor | null;
+  onHistoryClick?(): void;
 }
 
-export function EditorToolbar({ getEditor }: EditorToolbarProps) {
+export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps) {
   const [aaOpen, setAaOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -207,158 +216,20 @@ export function EditorToolbar({ getEditor }: EditorToolbarProps) {
 
       <button
         className="nk-tb-btn"
-        title="Link"
-        aria-label="Link"
-        onClick={() => {
-          const url = window.prompt("Link URL");
-          if (url) run((e) => insertLink(e, url));
-        }}
+        title="Note history"
+        aria-label="Note history"
+        onClick={onHistoryClick}
       >
-        <LinkIcon />
+        <HistoryIcon />
       </button>
     </div>
   );
 }
 
-function ChecklistIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="4" cy="4" r="2.5" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M2.7 4.2l1 1L5.5 3.3"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        fill="none"
-        strokeLinecap="round"
-      />
-      <path
-        d="M8 4h6"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-      <circle cx="4" cy="12" r="2.5" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M8 12h6"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-function TableIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect
-        x="1.5"
-        y="2.5"
-        width="13"
-        height="11"
-        rx="1.5"
-        stroke="currentColor"
-        strokeWidth="1.3"
-      />
-      <path d="M1.5 6.5h13M1.5 10.5h13M5.5 2.5v11M10.5 2.5v11"
-        stroke="currentColor" strokeWidth="1.1" />
-    </svg>
-  );
-}
-
-function ImageIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <rect
-        x="1.5"
-        y="2.5"
-        width="13"
-        height="11"
-        rx="1.5"
-        stroke="currentColor"
-        strokeWidth="1.3"
-      />
-      <circle cx="5.5" cy="6" r="1.3" fill="currentColor" />
-      <path
-        d="M2.5 13l3.5-4 3 3 2-2 4 3"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        fill="none"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function ChevronDown() {
-  return (
-    <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
-      <path
-        d="M2 4l3 3 3-3"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function UndoIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M6 4L2.5 7L6 10"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M2.5 7H10a3.5 3.5 0 010 7H7"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function RedoIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M10 4l3.5 3L10 10"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M13.5 7H6a3.5 3.5 0 000 7h3"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function LinkIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <path
-        d="M6.5 9.5l3-3M5 11a2.5 2.5 0 010-3.5l2-2a2.5 2.5 0 013.5 3.5l-.5.5M11 5a2.5 2.5 0 010 3.5l-2 2a2.5 2.5 0 01-3.5-3.5l.5-.5"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        fill="none"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
+const ChecklistIcon = () => <ListChecks size={16} aria-hidden />;
+const TableIcon = () => <LucideTable size={16} aria-hidden />;
+const ImageIcon = () => <LucideImage size={16} aria-hidden />;
+const ChevronDown = () => <LucideChevronDown size={10} aria-hidden />;
+const UndoIcon = () => <Undo2 size={16} aria-hidden />;
+const RedoIcon = () => <Redo2 size={16} aria-hidden />;
+const HistoryIcon = () => <LucideHistory size={16} aria-hidden />;

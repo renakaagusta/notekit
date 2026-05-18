@@ -345,6 +345,141 @@ export async function listCommits(
   return out.slice(0, want);
 }
 
+export type CollaboratorPermission = "pull" | "push" | "admin" | "maintain" | "triage";
+
+export interface GhCollaborator {
+  login: string;
+  avatarUrl: string | null;
+  htmlUrl: string;
+  permission: CollaboratorPermission;
+}
+
+export interface GhInvitation {
+  id: number;
+  inviteeLogin: string;
+  inviteeAvatar: string | null;
+  permission: string;
+  createdAt: string;
+  htmlUrl: string;
+}
+
+export async function listCollaborators(
+  token: string,
+  owner: string,
+  repo: string,
+): Promise<GhCollaborator[]> {
+  const res = await fetch(
+    `${GH}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators?affiliation=direct&per_page=100`,
+    { headers: headers(token) },
+  );
+  if (!res.ok) throw new GhError(res.status, await res.text());
+  const arr = (await res.json()) as {
+    login: string;
+    avatar_url: string | null;
+    html_url: string;
+    role_name: string;
+    permissions?: { pull: boolean; push: boolean; admin: boolean };
+  }[];
+  return arr.map((u) => ({
+    login: u.login,
+    avatarUrl: u.avatar_url,
+    htmlUrl: u.html_url,
+    permission: (u.role_name as CollaboratorPermission) ?? "push",
+  }));
+}
+
+export async function addCollaborator(
+  token: string,
+  owner: string,
+  repo: string,
+  username: string,
+  permission: CollaboratorPermission,
+): Promise<{ status: 201 | 204; invitation: GhInvitation | null }> {
+  const res = await fetch(
+    `${GH}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators/${encodeURIComponent(username)}`,
+    {
+      method: "PUT",
+      headers: headers(token, true),
+      body: JSON.stringify({ permission }),
+    },
+  );
+  if (res.status === 204) return { status: 204, invitation: null };
+  if (res.status === 201) {
+    const json = (await res.json()) as {
+      id: number;
+      invitee: { login: string; avatar_url: string | null } | null;
+      permissions: string;
+      created_at: string;
+      html_url: string;
+    };
+    return {
+      status: 201,
+      invitation: {
+        id: json.id,
+        inviteeLogin: json.invitee?.login ?? username,
+        inviteeAvatar: json.invitee?.avatar_url ?? null,
+        permission: json.permissions,
+        createdAt: json.created_at,
+        htmlUrl: json.html_url,
+      },
+    };
+  }
+  throw new GhError(res.status, await res.text());
+}
+
+export async function removeCollaborator(
+  token: string,
+  owner: string,
+  repo: string,
+  username: string,
+): Promise<void> {
+  const res = await fetch(
+    `${GH}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators/${encodeURIComponent(username)}`,
+    { method: "DELETE", headers: headers(token) },
+  );
+  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+}
+
+export async function listInvitations(
+  token: string,
+  owner: string,
+  repo: string,
+): Promise<GhInvitation[]> {
+  const res = await fetch(
+    `${GH}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/invitations?per_page=100`,
+    { headers: headers(token) },
+  );
+  if (!res.ok) throw new GhError(res.status, await res.text());
+  const arr = (await res.json()) as {
+    id: number;
+    invitee: { login: string; avatar_url: string | null } | null;
+    permissions: string;
+    created_at: string;
+    html_url: string;
+  }[];
+  return arr.map((i) => ({
+    id: i.id,
+    inviteeLogin: i.invitee?.login ?? "unknown",
+    inviteeAvatar: i.invitee?.avatar_url ?? null,
+    permission: i.permissions,
+    createdAt: i.created_at,
+    htmlUrl: i.html_url,
+  }));
+}
+
+export async function cancelInvitation(
+  token: string,
+  owner: string,
+  repo: string,
+  invitationId: number,
+): Promise<void> {
+  const res = await fetch(
+    `${GH}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/invitations/${invitationId}`,
+    { method: "DELETE", headers: headers(token) },
+  );
+  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+}
+
 function encodePath(path: string): string {
   return path.split("/").map(encodeURIComponent).join("/");
 }

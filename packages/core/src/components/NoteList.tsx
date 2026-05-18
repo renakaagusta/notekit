@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronRight, FileText, Folder, MoreHorizontal, Plus } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { noteTitle, notePreview } from "../lib/note-display";
+import { journalYMDFromPath } from "../lib/journal";
 import type { Note } from "../types/note";
 import { CreateMenu } from "./CreateMenu";
 
@@ -62,7 +64,11 @@ export function NoteList() {
   const removeFolder = useNotesStore((s) => s.removeFolder);
   const upsert = useNotesStore((s) => s.upsert);
 
-  const tree = useMemo(() => buildTree(all, folders), [all, folders]);
+  const nonJournalNotes = useMemo(
+    () => all.filter((n) => !journalYMDFromPath(n.path)),
+    [all],
+  );
+  const tree = useMemo(() => buildTree(nonJournalNotes, folders), [nonJournalNotes, folders]);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -186,10 +192,10 @@ export function NoteList() {
             onDropTo(node.path);
           }}
         >
-          <span className={"nk-disclosure" + (isCollapsed ? "" : " open")}>
-            ▸
+          <span className={"nk-disclosure" + (isCollapsed ? "" : " open")} aria-hidden>
+            <ChevronRight size={12} />
           </span>
-          <FolderIcon />
+          <Folder size={14} className="nk-tree-icon" aria-hidden />
           <span className="nk-tree-label">{node.name}</span>
           <span className="nk-tree-count">
             {node.notes.length + node.children.length}
@@ -205,7 +211,7 @@ export function NoteList() {
                 setMenuFor((cur) => (cur === node.path ? null : node.path));
               }}
             >
-              +
+              <Plus size={12} aria-hidden />
             </button>
             {isMenuOpen && (
               <CreateMenu
@@ -226,7 +232,7 @@ export function NoteList() {
                 );
               }}
             >
-              ···
+              <MoreHorizontal size={12} aria-hidden />
             </button>
             {ctxMenu === `folder:${node.path}` && (
               <TreeContextMenu
@@ -284,7 +290,7 @@ export function NoteList() {
             setDropTarget(null);
           }}
         >
-          <FileIcon />
+          <FileText size={14} className="nk-tree-icon" aria-hidden />
           <span className="nk-tree-stack">
             <span className="nk-tree-label">{title}</span>
             {preview && (
@@ -305,7 +311,7 @@ export function NoteList() {
                 );
               }}
             >
-              ···
+              <MoreHorizontal size={12} aria-hidden />
             </button>
             {ctxMenu === `note:${n.id}` && (
               <TreeContextMenu
@@ -386,33 +392,3 @@ function TreeContextMenu({
   );
 }
 
-function FileIcon() {
-  return (
-    <svg
-      className="nk-tree-icon"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      aria-hidden
-    >
-      <path d="M3 2.5h6.5L13 6v7.5a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" />
-      <path d="M9.5 2.5V6H13" />
-    </svg>
-  );
-}
-
-function FolderIcon() {
-  return (
-    <svg
-      className="nk-tree-icon"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      aria-hidden
-    >
-      <path d="M2 4.5a1 1 0 0 1 1-1h3.4l1.5 1.5H13a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z" />
-    </svg>
-  );
-}

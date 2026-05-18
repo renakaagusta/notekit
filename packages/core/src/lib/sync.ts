@@ -7,6 +7,7 @@ import * as vault from "./vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useSyncStore } from "../stores/syncStore";
+import { useMembersStore } from "../stores/membersStore";
 import {
   serializeNote,
   serializeTicket,
@@ -113,6 +114,19 @@ function ticketMessage(
     case "move":
       return `Move ticket ${quote(title)} → ${status ?? "?"}`;
   }
+}
+
+function ticketChanged(a: Ticket, b: Ticket): boolean {
+  return (
+    a.body !== b.body ||
+    a.title !== b.title ||
+    a.status !== b.status ||
+    a.priority !== b.priority ||
+    a.assignee !== b.assignee ||
+    a.dueDate !== b.dueDate ||
+    a.labels.join("\u0000") !== b.labels.join("\u0000") ||
+    a.linkedNotes.join("\u0000") !== b.linkedNotes.join("\u0000")
+  );
 }
 
 async function flush() {
@@ -323,6 +337,8 @@ export async function pull(): Promise<void> {
     const { notes, tickets } = await pullAll();
     if (notes.length > 0) useNotesStore.getState().replaceAll(notes);
     if (tickets.length > 0) useTicketsStore.getState().replaceAll(tickets);
+    // Best-effort: members file is optional. Failures don't block the pull.
+    void useMembersStore.getState().load();
     useSyncStore.getState().markSynced();
   } catch (e) {
     console.error("[sync] pull failed", e);
@@ -380,13 +396,7 @@ export async function start(): Promise<void> {
     for (const id of Object.keys(next)) {
       const a = lastTickets[id];
       const b = next[id]!;
-      if (
-        !a ||
-        a.body !== b.body ||
-        a.title !== b.title ||
-        a.status !== b.status ||
-        a.priority !== b.priority
-      ) {
+      if (!a || ticketChanged(a, b)) {
         enqueue({
           kind: "ticket",
           id,

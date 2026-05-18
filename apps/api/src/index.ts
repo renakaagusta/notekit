@@ -8,6 +8,10 @@ import { env } from "./env";
 import { authRoutes } from "./routes/auth";
 import { vaultRoutes } from "./routes/vault";
 import { agentRoutes } from "./routes/agents";
+import { notificationRoutes } from "./routes/notifications";
+import { integrationsRoutes } from "./routes/integrations";
+import { iapRoutes } from "./routes/iap";
+import { startTelegramPoller } from "./notifications/telegramPoller";
 
 const app = new Hono();
 
@@ -58,6 +62,9 @@ app.get("/health", (c) => c.json({ ok: true }));
 app.route("/auth", authRoutes);
 app.route("/vault", vaultRoutes);
 app.route("/agents", agentRoutes);
+app.route("/notifications", notificationRoutes);
+app.route("/integrations", integrationsRoutes);
+app.route("/iap", iapRoutes);
 
 const server = serve(
   {
@@ -68,6 +75,9 @@ const server = serve(
     console.log(`[api] listening on http://localhost:${info.port}`);
   },
 );
+
+// Long-poll Telegram for bot replies in dev. In prod, set a webhook instead.
+startTelegramPoller();
 
 // Graceful shutdown so in-flight requests finish and SQLite WAL flushes.
 function shutdown(signal: NodeJS.Signals) {

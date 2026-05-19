@@ -1,0 +1,59 @@
+# Lint + typecheck on every PR and every push to main. Build steps are
+# scoped to the packages whose builds are cheap (cli, mcp, web) — the
+# Electron desktop build is intentionally skipped here because it would
+# pull down ~300 MB of Electron and add minutes per run for no value the
+# typecheck doesn't already catch. Run it manually before tagging a
+# desktop release.
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A new push to a PR cancels in-flight runs so we don't waste minutes on
+# already-superseded commits. main pushes get unique groups so they never
+# cancel each other.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  typecheck:
+    name: typecheck + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.5.0
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (all packages)
+        run: pnpm -r typecheck
+
+      - name: Build @notekit/web
+        run: pnpm --filter @notekit/web build
+
+      - name: Build @notekit/cli
+        run: pnpm --filter @notekit/cli build
+
+      - name: Build @notekit/mcp
+        run: pnpm --filter @notekit/mcp build
+
+      - name: Build @notekit/desktop (TS only, no Electron packaging)
+        run: pnpm --filter @notekit/desktop build:tsc

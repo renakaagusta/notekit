@@ -118,6 +118,32 @@ export const agentTokens = sqliteTable("agent_tokens", {
   revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
 });
 
+/**
+ * Personal access tokens — long-lived bearer credentials a user mints to give
+ * to their own CLI or MCP client. Distinct from `agent_tokens` (which are
+ * scoped to an agent persona inside a vault). The plaintext is shown to the
+ * user exactly once at creation and never stored; the `token_hash` column
+ * holds a sha256 of the token so `Authorization: Bearer <token>` lookups
+ * stay constant-time.
+ */
+export const personalAccessTokens = sqliteTable("personal_access_tokens", {
+  id: text("id").primaryKey(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** Human label so the user can tell two tokens apart in the management UI. */
+  name: text("name").notNull(),
+  /** sha256 of the plaintext token. Plaintext is never stored. */
+  tokenHash: text("token_hash").notNull().unique(),
+  /** Where the token is intended to be used. Informational; not enforced. */
+  scope: text("scope", { enum: ["cli", "mcp"] }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+  lastUsedAt: integer("last_used_at", { mode: "timestamp_ms" }),
+  revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+});
+
 export const notifications = sqliteTable("notifications", {
   id: text("id").primaryKey(),
   userId: text("user_id")
@@ -236,6 +262,8 @@ export type NewDbUser = typeof users.$inferInsert;
 export type DbSession = typeof sessions.$inferSelect;
 export type DbUserSettings = typeof userSettings.$inferSelect;
 export type DbAgentToken = typeof agentTokens.$inferSelect;
+export type DbPersonalAccessToken = typeof personalAccessTokens.$inferSelect;
+export type NewDbPersonalAccessToken = typeof personalAccessTokens.$inferInsert;
 export type DbVault = typeof vaults.$inferSelect;
 export type NewDbVault = typeof vaults.$inferInsert;
 export type DbVaultSettings = typeof vaultSettings.$inferSelect;

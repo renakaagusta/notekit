@@ -5,7 +5,13 @@
 // URL builders here so CLI / desktop can open them in the user's browser.
 
 import type { NoteKitClient } from "../transport";
-import type { MeResponse, ProvidersResponse } from "../types";
+import type {
+  MeResponse,
+  NewPersonalAccessToken,
+  PersonalAccessTokenScope,
+  PersonalAccessTokenSummary,
+  ProvidersResponse,
+} from "../types";
 
 export function authEndpoints(client: NoteKitClient) {
   return {
@@ -22,6 +28,42 @@ export function authEndpoints(client: NoteKitClient) {
     /** POST /auth/signout — clears the session cookie. */
     async signOut(): Promise<void> {
       await client.request("/auth/signout", { method: "POST" });
+    },
+
+    /**
+     * Build the URL the CLI / desktop opens in the browser to start the
+     * loopback PKCE-style flow. The API redirects back to redirect_uri
+     * with `?token=<plaintext>&state=<state>` after consent.
+     */
+    cliStartUrl(
+      baseUrl: string,
+      params: { redirect_uri: string; state: string },
+    ): string {
+      const u = new URL("/auth/cli/start", baseUrl);
+      u.searchParams.set("redirect_uri", params.redirect_uri);
+      u.searchParams.set("state", params.state);
+      return u.toString();
+    },
+
+    /** GET /auth/tokens — list user's personal access tokens. */
+    async listTokens(): Promise<{ tokens: PersonalAccessTokenSummary[] }> {
+      return client.request("/auth/tokens");
+    },
+
+    /**
+     * POST /auth/tokens — mint a token. Plaintext is in `token` and is
+     * shown exactly once — store it immediately.
+     */
+    async createToken(input: {
+      name: string;
+      scope?: PersonalAccessTokenScope;
+    }): Promise<NewPersonalAccessToken> {
+      return client.request("/auth/tokens", { method: "POST", body: input });
+    },
+
+    /** DELETE /auth/tokens/:id — soft-revoke. Idempotent on already-revoked. */
+    async revokeToken(id: string): Promise<{ ok: true }> {
+      return client.request(`/auth/tokens/${encodeURIComponent(id)}`, { method: "DELETE" });
     },
 
     /**

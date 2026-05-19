@@ -51,12 +51,36 @@ const switchCmd = defineCommand({
 });
 
 const syncCmd = defineCommand({
-  meta: { name: "sync", description: "Pull / push the active vault. (placeholder)" },
+  meta: {
+    name: "sync",
+    description:
+      "Verify the active vault is reachable and print the latest commit on the branch.",
+  },
   async run() {
-    // Phase 2 TODO: api-client doesn't expose a sync trigger yet. The web app
-    // syncs implicitly on every write; CLI should hit a `/vault/sync` endpoint
-    // once it lands. For now we no-op so scripts don't blow up.
-    process.stdout.write(kleur.yellow("TODO: vault sync is not wired up yet. See docs/PLAN.md (Phase 2).\n"));
+    try {
+      const nk = await getClient({ requireAuth: true });
+      // The server doesn't keep a local working copy — every read/write
+      // round-trips to the remote — so this is currently a proof-of-life
+      // sync (auth OK, branch HEAD readable). True offline pull/push will
+      // land when desktop/CLI gain a local cache.
+      const res = await nk.vault.sync();
+      const label = res.vault.label ?? `${res.vault.owner}/${res.vault.repo}`;
+      process.stdout.write(
+        `${kleur.green("ok")}  ${label}  ${kleur.gray(`(${res.vault.branch})`)}\n`,
+      );
+      if (res.latestCommit) {
+        const { sha, message, authorName, authoredAt } = res.latestCommit;
+        process.stdout.write(
+          `${kleur.dim(sha.slice(0, 7))}  ${message.split("\n")[0]}  ${kleur.dim(
+            `— ${authorName ?? "unknown"} ${authoredAt}`,
+          )}\n`,
+        );
+      } else {
+        process.stdout.write(kleur.dim("(no commits yet)\n"));
+      }
+    } catch (err) {
+      dieWithError(err);
+    }
   },
 });
 

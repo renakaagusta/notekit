@@ -3,9 +3,9 @@
 `notekit` — NoteKit's terminal client. Create and edit notes, manage tickets,
 switch vaults, and run the MCP server, all from your shell.
 
-> Status: scaffolding. The `auth login` browser flow waits on the API's
-> `/auth/cli/*` endpoints (Phase 2). Until those ship, use
-> `notekit auth login --token <jwt>` to seed a token.
+> Status: usable. `notekit auth login` runs a PKCE-style loopback flow
+> against the API's `/auth/cli/*` endpoints; `--token <t>` remains as a
+> paste-path for scripts.
 
 ## Install
 
@@ -58,7 +58,8 @@ Run `notekit --help` (or `notekit <group> --help`) for the up-to-date list.
 - `notekit note new | list | read | edit | rm | search`
 - `notekit ticket new | list | show | close | reopen | assign`
 - `notekit vault list | switch | sync | members`
-- `notekit mcp serve`
+- `notekit mcp serve [--sse --port <n>]`
+- `notekit upgrade [--open]`
 
 ## License
 

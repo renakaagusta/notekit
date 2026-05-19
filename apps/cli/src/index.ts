@@ -13,6 +13,7 @@ import { noteCommand } from "./commands/note.js";
 import { ticketCommand } from "./commands/ticket.js";
 import { vaultCommand } from "./commands/vault.js";
 import { mcpCommand } from "./commands/mcp.js";
+import { upgradeCommand } from "./commands/upgrade.js";
 
 const main = defineCommand({
   meta: {
@@ -26,6 +27,7 @@ const main = defineCommand({
     ticket: ticketCommand,
     vault: vaultCommand,
     mcp: mcpCommand,
+    upgrade: upgradeCommand,
   },
 });
 

@@ -12,7 +12,7 @@
  * calling apiFetch by hand. The wrappers in this folder will keep working
  * during the migration.
  */
-import { NoteKitClient } from "@notekit/api-client";
+import { NoteKitClient, createNoteKitClient, type NoteKitApi } from "@notekit/api-client";
 
 function resolveApiUrl(): string {
   const fromEnv =
@@ -24,10 +24,21 @@ function resolveApiUrl(): string {
 
 export const apiUrl: string = resolveApiUrl();
 
-const client = new NoteKitClient({
+/**
+ * The typed API client. New components should use this directly:
+ *
+ *     import { nk } from "../lib/api";
+ *     const { tokens } = await nk.auth.listTokens();
+ *
+ * Falls back to `apiFetch` (defined below) only for legacy callers in this
+ * folder's *-api.ts wrappers — those still work but should migrate.
+ */
+export const nk: NoteKitApi = createNoteKitClient({
   baseUrl: apiUrl,
   auth: { mode: "cookie" },
 });
+
+const client: NoteKitClient = nk.client;
 
 type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 

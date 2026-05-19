@@ -1,0 +1,160 @@
+/*
+ * Scoped styles for AccessTokensView. Lives next to the component instead of
+ * in the global styles.css so that this can be revisited or torn out without
+ * touching the main stylesheet. Vite picks it up via the side-effect import
+ * at the top of AccessTokensView.tsx.
+ */
+
+.access-tokens {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.5rem 0;
+}
+
+.access-tokens .error {
+  background: rgba(220, 80, 80, 0.12);
+  border: 1px solid rgba(220, 80, 80, 0.3);
+  color: #f0a;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+/* one-time secret reveal */
+.token-reveal {
+  background: rgba(91, 143, 249, 0.08);
+  border: 1px solid rgba(91, 143, 249, 0.3);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.token-reveal header strong {
+  display: block;
+  font-size: 0.95rem;
+}
+.token-reveal header p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+.token-reveal__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.token-reveal__value {
+  flex: 1;
+  font-family: var(--mono-font, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.85rem;
+  border: 1px solid var(--border, #2a2a31);
+  background: var(--bg, #0b0b0d);
+  color: var(--text, #e7e7e9);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  resize: vertical;
+  min-height: 2.5rem;
+}
+.token-reveal button.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.token-reveal button.link {
+  background: transparent;
+  border: none;
+  color: var(--muted, #76767e);
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0;
+  align-self: flex-start;
+}
+.token-reveal button.link:hover {
+  color: var(--text, #e7e7e9);
+}
+
+/* mint form */
+.token-create {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.token-create header strong {
+  font-size: 0.95rem;
+}
+.token-create header p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+}
+.token-create__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.token-create__row input[type="text"] {
+  flex: 1;
+  font: inherit;
+  border: 1px solid var(--border, #2a2a31);
+  background: var(--bg, #0b0b0d);
+  color: var(--text, #e7e7e9);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+}
+.token-create__row select {
+  font: inherit;
+  border: 1px solid var(--border, #2a2a31);
+  background: var(--bg, #0b0b0d);
+  color: var(--text, #e7e7e9);
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+}
+.token-create__row button.primary {
+  white-space: nowrap;
+}
+
+/* list */
+.token-list header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+.token-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.token-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--border, #2a2a31);
+  border-radius: 6px;
+  padding: 0.6rem 0.75rem;
+  background: var(--card, #16161a);
+}
+.token-row__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.token-row__name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+.token-row__name span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.token-row__meta {
+  font-size: 0.8rem;
+}

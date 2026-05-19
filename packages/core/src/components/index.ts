@@ -27,6 +27,7 @@ export { VaultImportDialog } from "./VaultImportDialog";
 export { VaultPicker } from "./VaultPicker";
 export { VaultSettingsDialog } from "./VaultSettingsDialog";
 export { VaultSwitcher } from "./VaultSwitcher";
+export { AccessTokensView } from "./AccessTokensView";
 export { NotificationSettings } from "./NotificationSettings";
 export { NotificationsInbox } from "./NotificationsInbox";
 export { LinksView } from "./LinksView";

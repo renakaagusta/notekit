@@ -22,6 +22,7 @@ import { GraphView } from "./GraphView";
 import { CalendarView } from "./CalendarView";
 import { HistoryView } from "./HistoryView";
 import { AgentsView } from "./AgentsView";
+import { AccessTokensView } from "./AccessTokensView";
 import { VaultPicker } from "./VaultPicker";
 import { VaultSetup } from "./VaultSetup";
 import { VaultPairNewDevice } from "./VaultPairing";
@@ -63,6 +64,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const cryptoPhase = useCryptoStore((s) => s.phase);
   const [view, setView] = useState<MainView>("notes");
   const [agentsOpen, setAgentsOpen] = useState(false);
+  const [tokensOpen, setTokensOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [focusTicket, setFocusTicket] = useState<{ id: string; seq: number } | null>(null);
@@ -308,6 +310,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onSignOut={onSignOut}
           onOpenAgents={() => setAgentsOpen(true)}
           onOpenHistory={() => setHistoryOpen(true)}
+          onOpenTokens={() => setTokensOpen(true)}
         />
 
         <main className="nk-main">
@@ -431,6 +434,35 @@ export function App({ user, onSignOut }: AppProps = {}) {
               <X size={16} aria-hidden />
             </button>
             <AgentsView focusAgent={focusAgent} />
+          </div>
+        </div>
+      )}
+      {tokensOpen && (
+        <div
+          className="nk-modal-backdrop"
+          onClick={() => setTokensOpen(false)}
+        >
+          <div
+            className="nk-modal nk-modal--wide"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="nk-modal-hd">
+              <h2>API tokens</h2>
+              <p className="nk-modal-sub">
+                Long-lived credentials for the NoteKit CLI and the MCP server
+                (Claude Desktop, Cursor). The full token is shown exactly once
+                — copy it the moment you mint it.
+              </p>
+            </header>
+            <button
+              className="nk-modal-close nk-iconbtn"
+              onClick={() => setTokensOpen(false)}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={16} aria-hidden />
+            </button>
+            <AccessTokensView />
           </div>
         </div>
       )}

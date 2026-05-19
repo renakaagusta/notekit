@@ -23,6 +23,8 @@ import { CalendarView } from "./CalendarView";
 import { HistoryView } from "./HistoryView";
 import { AgentsView } from "./AgentsView";
 import { AccessTokensView } from "./AccessTokensView";
+import { NotificationsInbox } from "./NotificationsInbox";
+import { NotificationSettings } from "./NotificationSettings";
 import { VaultPicker } from "./VaultPicker";
 import { VaultSetup } from "./VaultSetup";
 import { VaultPairNewDevice } from "./VaultPairing";
@@ -66,6 +68,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [tokensOpen, setTokensOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [focusTicket, setFocusTicket] = useState<{ id: string; seq: number } | null>(null);
   const [focusAgent, setFocusAgent] = useState<{ slug: string; seq: number } | null>(null);
@@ -311,6 +314,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onOpenAgents={() => setAgentsOpen(true)}
           onOpenHistory={() => setHistoryOpen(true)}
           onOpenTokens={() => setTokensOpen(true)}
+          onOpenNotifications={() => setNotificationsOpen(true)}
         />
 
         <main className="nk-main">
@@ -463,6 +467,37 @@ export function App({ user, onSignOut }: AppProps = {}) {
               <X size={16} aria-hidden />
             </button>
             <AccessTokensView />
+          </div>
+        </div>
+      )}
+      {notificationsOpen && (
+        <div
+          className="nk-modal-backdrop"
+          onClick={() => setNotificationsOpen(false)}
+        >
+          <div
+            className="nk-modal nk-modal--wide"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="nk-modal-hd">
+              <h2>Notifications</h2>
+              <p className="nk-modal-sub">
+                What agents have done in your vault — and which channels deliver
+                those updates outside the app.
+              </p>
+            </header>
+            <button
+              className="nk-modal-close nk-iconbtn"
+              onClick={() => setNotificationsOpen(false)}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={16} aria-hidden />
+            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
+              <NotificationsInbox />
+              <NotificationSettings />
+            </div>
           </div>
         </div>
       )}

@@ -37,7 +37,10 @@ export class NoteKitClient {
   constructor(public readonly opts: NoteKitClientOptions) {}
 
   private get fetchFn(): typeof fetch {
-    return this.opts.fetch ?? globalThis.fetch;
+    // Bind to globalThis so extension-wrapped fetches (Tampermonkey, privacy
+    // tools) don't throw "Illegal invocation" when called as a method.
+    const f = this.opts.fetch ?? globalThis.fetch;
+    return f.bind(globalThis);
   }
 
   async request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {

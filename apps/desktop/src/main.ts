@@ -7,7 +7,7 @@
 
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { autoUpdater } from "electron-updater";
-import keytar from "keytar";
+import { Entry } from "@napi-rs/keyring";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -100,12 +100,25 @@ function createMainWindow(): BrowserWindow {
   return win;
 }
 
+// One Entry per (service, account) tuple. We construct on demand because
+// Entry instances are cheap and @napi-rs/keyring's underlying OS calls do
+// the actual locking — caching here would add a Map for no measurable win.
+function keychainEntry(key: string): Entry {
+  return new Entry(KEYCHAIN_SERVICE, key);
+}
+
 function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.KeychainGet,
     async (_event, payload: KeychainGetPayload): Promise<string | null> => {
       if (!payload?.key) return null;
-      return keytar.getPassword(KEYCHAIN_SERVICE, payload.key);
+      try {
+        return keychainEntry(payload.key).getPassword() ?? null;
+      } catch {
+        // No entry yet, or the OS keyring is locked — treat as "absent" so
+        // the renderer can fall back to its sign-in flow.
+        return null;
+      }
     },
   );
 
@@ -115,7 +128,7 @@ function registerIpcHandlers(): void {
       if (!payload?.key) {
         throw new Error("keychain.set: missing key");
       }
-      await keytar.setPassword(KEYCHAIN_SERVICE, payload.key, payload.value ?? "");
+      keychainEntry(payload.key).setPassword(payload.value ?? "");
     },
   );
 
@@ -123,7 +136,13 @@ function registerIpcHandlers(): void {
     IPC_CHANNELS.KeychainDelete,
     async (_event, payload: KeychainDeletePayload): Promise<boolean> => {
       if (!payload?.key) return false;
-      return keytar.deletePassword(KEYCHAIN_SERVICE, payload.key);
+      try {
+        keychainEntry(payload.key).deletePassword();
+        return true;
+      } catch {
+        // Entry didn't exist — preserve keytar's "returns false" semantic.
+        return false;
+      }
     },
   );
 

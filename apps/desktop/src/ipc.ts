@@ -15,7 +15,10 @@ export const IPC_CHANNELS = {
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
 
-// The keytar service name; collected here so main/preload agree.
+// OS keychain service name; collected here so main/preload agree.
+// Backed by @napi-rs/keyring (macOS Keychain, Windows Credential Manager,
+// libsecret/kwallet on Linux). Same library the CLI uses, so a future
+// "share token with CLI" gesture only needs the user to opt in.
 export const KEYCHAIN_SERVICE = "com.notekit.desktop";
 
 export interface KeychainGetPayload {

@@ -10,7 +10,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "com.notekit.app",
   appName: "NoteKit",
-  webDir: "../../packages/web/dist",
+  webDir: "../web/dist",
   server: {
     androidScheme: "https",
     // Comment in for local dev so the app loads from the Vite dev server

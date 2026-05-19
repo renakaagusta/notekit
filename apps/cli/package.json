@@ -1,0 +1,41 @@
+{
+  "name": "@notekit/cli",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "NoteKit command-line client. Manage notes, tickets, and vaults from your terminal.",
+  "bin": {
+    "notekit": "./bin/notekit.mjs"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo dist *.tsbuildinfo"
+  },
+  "dependencies": {
+    "@napi-rs/keyring": "^1.1.6",
+    "@notekit/api-client": "workspace:*",
+    "@notekit/core": "workspace:*",
+    "citty": "^0.1.6",
+    "kleur": "^4.1.5",
+    "nanoid": "^5.0.7",
+    "open": "^10.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.1",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

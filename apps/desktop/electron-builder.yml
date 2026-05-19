@@ -1,0 +1,61 @@
+appId: com.notekit.desktop
+productName: NoteKit
+copyright: Copyright © NoteKit contributors. MIT licensed.
+
+directories:
+  output: out
+  buildResources: build
+
+# Bundle the compiled main/preload AND the apps/web build. electron-builder
+# rewrites globs relative to this file, so `../web/dist` resolves to the
+# Vite output and lands inside the asar at `web/`.
+files:
+  - "dist/**/*"
+  - "package.json"
+
+extraResources:
+  - from: "../web/dist"
+    to: "app/web"
+    filter:
+      - "**/*"
+
+# main.ts loads the web build from `process.resourcesPath/app/web/index.html`
+# at runtime, matching the extraResources entry above.
+
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  # TODO(user): configure code signing — set CSC_LINK + CSC_KEY_PASSWORD
+  # env vars in CI, and add `identity:` here once you have a Developer ID.
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDir: true
+
+linux:
+  category: Office
+  target:
+    - AppImage
+    - deb
+
+publish:
+  provider: github
+  # TODO(user): replace with the real GitHub owner/repo before running
+  # `electron-builder --publish always`. These placeholders intentionally
+  # do NOT resolve so a misconfigured release fails loudly.
+  owner: TODO-github-owner
+  repo: TODO-github-repo
+  releaseType: release

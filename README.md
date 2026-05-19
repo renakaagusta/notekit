@@ -34,9 +34,14 @@ Open http://localhost:5173 and sign in with GitHub or Google.
 ```
 packages/
   core/         shared TS + React + stores + editor + auth hook
-  web/          Vite web app
+  api-client/   typed HTTP wrapper around @notekit/api (consumed by every client)
 apps/
-  api/          Hono API server (auth, sessions, sync orchestration)
+  api/          Hono API server (auth, sessions, sync orchestration)  [AGPL]
+  web/          Vite web app                                          [MIT]
+  mobile/       Capacitor wrapper of apps/web for iOS + Android       [MIT]
+  desktop/      Electron wrapper of apps/web for macOS/Win/Linux      [MIT]
+  cli/          Node CLI hitting the API                              [MIT]
+  mcp/          MCP server exposing notes/tickets to Claude/Cursor    [AGPL]
 docs/           product, business, architecture, and growth docs
 ```
 

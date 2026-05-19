@@ -805,6 +805,62 @@ vaultRoutes.get("/commits", async (c) => {
 });
 
 /**
+ * POST /vault/sync — proof-of-life sync. Reads the active vault's latest
+ * commit so the caller (CLI / desktop) gets a sensible "everything's
+ * reachable, branch is at <sha>" response without us doing any local Git
+ * work (every file op already round-trips to the remote).
+ *
+ * This intentionally does NOT pull or push — there is no server-side
+ * working copy. Future work: implement true sync once we add an offline
+ * cache layer for desktop/CLI.
+ */
+vaultRoutes.post("/sync", async (c) => {
+  const { userId } = await requirePrincipal(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  const vault = await resolveVault(userId);
+  if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  const token = await getVaultToken(userId, vault.provider);
+  if (!token) return c.json({ error: "no_git_token" }, 400);
+
+  // resolveVault returns a slim shape (owner/repo/branch/provider). Mirror
+  // the same fields the CLI expects from VaultRef — no extra DB hop.
+  const vaultRef = {
+    provider: vault.provider,
+    owner: vault.owner,
+    repo: vault.repo,
+    branch: vault.branch,
+  };
+
+  if (!env.isProd && token === "dev_github_token") {
+    return c.json({
+      ok: true,
+      vault: vaultRef,
+      latestCommit: null,
+      syncedAt: new Date().toISOString(),
+    });
+  }
+
+  try {
+    const commits = await gitOps(vault.provider).listCommits(
+      token,
+      vault.owner,
+      vault.repo,
+      vault.branch,
+      undefined,
+      1,
+    );
+    return c.json({
+      ok: true,
+      vault: vaultRef,
+      latestCommit: commits[0] ?? null,
+      syncedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    return ghErr(c, err);
+  }
+});
+
+/**
  * GET /vaults/:id/members — list collaborators + pending invitations.
  */
 vaultRoutes.get("/vaults/:id/members", async (c) => {

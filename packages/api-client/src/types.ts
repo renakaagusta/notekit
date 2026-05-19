@@ -144,6 +144,43 @@ export interface AgentProfile {
 // notifications + iap
 // ──────────────────────────────────────────────────────────────────────────
 
+// ──────────────────────────────────────────────────────────────────────────
+// personal access tokens (CLI / MCP credentials)
+// ──────────────────────────────────────────────────────────────────────────
+
+export type PersonalAccessTokenScope = "cli" | "mcp";
+
+export interface PersonalAccessTokenSummary {
+  id: string;
+  name: string;
+  scope: PersonalAccessTokenScope;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+/**
+ * Response from POST /auth/tokens. The plaintext `token` is shown exactly
+ * once — clients must persist it immediately.
+ */
+export interface NewPersonalAccessToken {
+  id: string;
+  token: string;
+  name: string;
+  scope: PersonalAccessTokenScope;
+  createdAt: string;
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// sync
+// ──────────────────────────────────────────────────────────────────────────
+
+export interface VaultSyncResult {
+  ok: true;
+  vault: VaultRef;
+  latestCommit: VaultCommit | null;
+  syncedAt: string;
+}
+
 export interface NotificationItem {
   id: string;
   agentSlug: string;

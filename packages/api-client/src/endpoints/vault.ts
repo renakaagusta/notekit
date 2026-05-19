@@ -16,6 +16,7 @@ import type {
   VaultRepo,
   VaultSettings,
   VaultStatus,
+  VaultSyncResult,
 } from "../types";
 
 export function vaultEndpoints(client: NoteKitClient) {
@@ -143,6 +144,11 @@ export function vaultEndpoints(client: NoteKitClient) {
       return client.request("/vault/commits", {
         query: { path: opts.path, limit: opts.limit ?? 50 },
       });
+    },
+
+    // ── sync (proof-of-life, not a real pull/push yet) ──────────────────
+    async sync(): Promise<VaultSyncResult> {
+      return client.request<VaultSyncResult>("/vault/sync", { method: "POST" });
     },
 
     // ── members ─────────────────────────────────────────────────────────

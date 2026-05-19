@@ -147,6 +147,29 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    id: "007_create_personal_access_tokens",
+    up: (db) => {
+      // Long-lived bearer tokens for CLI and MCP clients. See schema.ts for
+      // the table doc-comment. Indexed by token_hash because that's the
+      // lookup path on every authenticated bearer request.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS personal_access_tokens (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          name TEXT NOT NULL,
+          token_hash TEXT NOT NULL UNIQUE,
+          scope TEXT NOT NULL CHECK (scope IN ('cli', 'mcp')),
+          created_at INTEGER NOT NULL,
+          last_used_at INTEGER,
+          revoked_at INTEGER
+        )
+      `);
+      db.exec(
+        `CREATE INDEX IF NOT EXISTS idx_pat_user_id ON personal_access_tokens (user_id)`,
+      );
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

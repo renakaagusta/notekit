@@ -11,6 +11,7 @@
     "./types": "./src/types/index.ts",
     "./stores": "./src/stores/index.ts",
     "./components": "./src/components/index.ts",
+    "./secrets": "./src/lib/secrets-vault.ts",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {

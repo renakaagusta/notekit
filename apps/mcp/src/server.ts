@@ -8,6 +8,7 @@ import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 
 import { makeClient, type NoteKitMcpConfig } from "./lib/notekit.js";
 import { registerNoteTools } from "./tools/notes.js";
+import { registerSecretTools } from "./tools/secrets.js";
 import { registerTicketTools } from "./tools/tickets.js";
 import { registerVaultTools } from "./tools/vault.js";
 import { registerNoteResource } from "./resources/note.js";
@@ -38,6 +39,7 @@ export function createMcpServer(opts: CreateServerOptions): McpServer {
   );
 
   registerVaultTools(server, nk);
+  registerSecretTools(server, nk);
   registerNoteTools(server, nk);
   registerTicketTools(server, nk);
   registerNoteResource(server, nk);

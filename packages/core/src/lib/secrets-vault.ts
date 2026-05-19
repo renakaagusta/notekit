@@ -1,25 +1,92 @@
 /**
- * Per-secret storage. Each secret lives at `.notekit/secrets/{NAME}.age` —
- * an armored age file encrypting a SecretEntry JSON to all device pubkeys +
- * the recovery pubkey. This gives each secret independent git history so
- * HistoryView can show commits scoped to a single secret file.
+ * Per-secret storage. Each secret lives at `.notekit/secrets/{NAME}.age` for
+ * the Default vault, or `.notekit/secrets/{slug}/{NAME}.age` when grouped
+ * under a named secret vault. Files are armored age, encrypting a SecretEntry
+ * JSON to all device pubkeys + the recovery pubkey. Each secret keeps its own
+ * git history so HistoryView can scope commits to a single file.
  *
  * The vault layout (all under `.notekit/`):
- *   - `devices/{deviceId}.json` — public pubkey registry
- *   - `recovery.json`           — recovery pubkey (BIP39-derived)
- *   - `secrets/{NAME}.age`      — one armored age file per secret
+ *   - `devices/{deviceId}.json`          — public pubkey registry
+ *   - `recovery.json`                    — recovery pubkey (BIP39-derived)
+ *   - `secrets/{NAME}.age`               — Default-vault secret
+ *   - `secrets/{slug}/{NAME}.age`        — secret inside a named vault
+ *   - `secrets/_vaults.json`             — index of named vaults (unencrypted)
+ *
+ * Named-vault slugs are URL-safe identifiers used as folder names; labels are
+ * human-readable display names stored in the index. The Default vault has no
+ * slug — its secrets sit directly under `secrets/`.
  */
-import * as vault from "./vault-api";
+import * as defaultVaultApi from "./vault-api";
 import { encryptSecrets, decryptSecrets } from "./crypto/vault-crypto";
-import { readFileAtRef } from "./vault-api";
 import type { DeviceIdentity } from "./crypto/device-key";
+import type { NoteKitApi } from "@notekit/api-client";
+
+/**
+ * File-level vault operations the secrets module depends on. Browser code
+ * gets these from `./vault-api` (cookie auth, the default backend); CLI / MCP
+ * inject their own backend that talks to the API via bearer auth. Calling
+ * {@link configureSecretsBackend} swaps the active implementation.
+ */
+export interface SecretsBackend {
+  listFiles(prefix: string): Promise<{ entries: { path: string; sha: string }[] }>;
+  readFile(path: string): Promise<{ path: string; content: string | null; sha: string | null }>;
+  readFileAtRef(
+    path: string,
+    ref: string,
+  ): Promise<{ path: string; content: string | null; sha: string | null }>;
+  writeFile(
+    path: string,
+    content: string,
+    message: string,
+    sha?: string,
+  ): Promise<{ path: string; sha: string }>;
+  deleteFile(path: string, sha: string, message?: string): Promise<{ ok: true }>;
+}
+
+let backend: SecretsBackend = {
+  listFiles: defaultVaultApi.listFiles,
+  readFile: defaultVaultApi.readFile,
+  readFileAtRef: defaultVaultApi.readFileAtRef,
+  writeFile: defaultVaultApi.writeFile,
+  deleteFile: defaultVaultApi.deleteFile,
+};
+
+/** Override the backend that the secrets module uses for vault file I/O. */
+export function configureSecretsBackend(custom: SecretsBackend): void {
+  backend = custom;
+}
+
+/**
+ * Wrap a {@link NoteKitApi} client (bearer-auth, used by CLI / MCP / desktop)
+ * into the {@link SecretsBackend} shape so it can be passed to
+ * {@link configureSecretsBackend}. Browser code uses the default backend and
+ * doesn't need this helper.
+ */
+export function secretsBackendFromApi(nk: NoteKitApi): SecretsBackend {
+  return {
+    listFiles: (prefix) => nk.vault.listFiles(prefix),
+    readFile: (path) => nk.vault.readFile(path),
+    readFileAtRef: (path, ref) => nk.vault.readFileAtRef(path, ref),
+    writeFile: (path, content, message, sha) =>
+      nk.vault.writeFile(path, content, message ?? "", sha),
+    deleteFile: (path, sha, message) => nk.vault.deleteFile(path, sha, message),
+  };
+}
 
 export const DEVICES_PREFIX = ".notekit/devices/";
 export const RECOVERY_PATH = ".notekit/recovery.json";
 export const SECRETS_PREFIX = ".notekit/secrets/";
+export const VAULTS_INDEX_PATH = ".notekit/secrets/_vaults.json";
+
+/** Slug for the unnamed root-level vault. Empty string by design. */
+export const DEFAULT_VAULT_SLUG = "";
+/** Display label for the Default vault. */
+export const DEFAULT_VAULT_LABEL = "Default";
 
 /** Path of the old single-blob format — used only for migration. */
 const LEGACY_SECRETS_PATH = ".notekit/secrets.age";
+
+const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
 
 export interface DeviceRecord {
   deviceId: string;
@@ -38,22 +105,63 @@ export interface SecretEntry {
   updatedAt: string;
 }
 
+export interface SecretVaultRecord {
+  slug: string;
+  label: string;
+  createdAt: string;
+}
+
+export interface SecretRef {
+  /** Empty string = Default vault. */
+  vault: string;
+  name: string;
+}
+
+interface VaultsIndex {
+  version: 1;
+  vaults: SecretVaultRecord[];
+}
+
 const shaCache = new Map<string, string>();
 
-function secretPath(name: string): string {
-  return `${SECRETS_PREFIX}${name}.age`;
+// ─── Path helpers ────────────────────────────────────────────────────────────
+
+function secretPath(name: string, vaultSlug: string = ""): string {
+  return vaultSlug
+    ? `${SECRETS_PREFIX}${vaultSlug}/${name}.age`
+    : `${SECRETS_PREFIX}${name}.age`;
+}
+
+/** Parse a path returned by listFiles into a secret ref, or null if not a secret. */
+function parseSecretPath(path: string): SecretRef | null {
+  if (!path.startsWith(SECRETS_PREFIX) || !path.endsWith(".age")) return null;
+  const rel = path.slice(SECRETS_PREFIX.length, -".age".length);
+  if (!rel) return null;
+  const slash = rel.indexOf("/");
+  if (slash === -1) return { vault: "", name: rel };
+  return { vault: rel.slice(0, slash), name: rel.slice(slash + 1) };
 }
 
 function devicePath(deviceId: string): string {
   return `${DEVICES_PREFIX}${deviceId}.json`;
 }
 
+function assertValidSlug(slug: string): void {
+  if (!SLUG_RE.test(slug)) {
+    throw new Error(
+      `Invalid vault slug "${slug}". Use lowercase letters, digits, and hyphens (1–40 chars, starting with a letter or digit).`,
+    );
+  }
+}
+
+// ─── Device & recovery records ───────────────────────────────────────────────
+
 export async function listDevices(): Promise<DeviceRecord[]> {
-  const { entries } = await vault.listFiles(DEVICES_PREFIX);
+  const { entries } = await backend.listFiles(DEVICES_PREFIX);
   const devices: DeviceRecord[] = [];
   for (const e of entries) {
     if (!e.path.endsWith(".json")) continue;
-    const file = await vault.readFile(e.path);
+    const file = await backend.readFile(e.path);
     if (file.sha) shaCache.set(file.path, file.sha);
     if (typeof file.content !== "string") continue;
     try {
@@ -66,7 +174,7 @@ export async function listDevices(): Promise<DeviceRecord[]> {
 }
 
 export async function readRecovery(): Promise<RecoveryRecord | null> {
-  const file = await vault.readFile(RECOVERY_PATH);
+  const file = await backend.readFile(RECOVERY_PATH);
   if (file.sha) shaCache.set(file.path, file.sha);
   if (typeof file.content !== "string") return null;
   try {
@@ -87,13 +195,13 @@ async function collectRecipients(device: DeviceIdentity): Promise<string[]> {
 
 async function ensureSha(path: string): Promise<void> {
   if (shaCache.has(path)) return;
-  const file = await vault.readFile(path);
+  const file = await backend.readFile(path);
   if (file.sha) shaCache.set(path, file.sha);
 }
 
 async function writeDeviceRecord(record: DeviceRecord, message: string) {
   const path = devicePath(record.deviceId);
-  const result = await vault.writeFile(
+  const result = await backend.writeFile(
     path,
     JSON.stringify(record, null, 2),
     message,
@@ -103,7 +211,7 @@ async function writeDeviceRecord(record: DeviceRecord, message: string) {
 }
 
 async function writeRecoveryRecord(record: RecoveryRecord, message: string) {
-  const result = await vault.writeFile(
+  const result = await backend.writeFile(
     RECOVERY_PATH,
     JSON.stringify(record, null, 2),
     message,
@@ -112,30 +220,132 @@ async function writeRecoveryRecord(record: RecoveryRecord, message: string) {
   shaCache.set(RECOVERY_PATH, result.sha);
 }
 
-/** Re-encrypt every existing secret for an updated recipient list. */
+/** Re-encrypt every existing secret (across all vaults) for an updated recipient list. */
 async function reEncryptAll(
   signer: DeviceIdentity,
   recipients: string[],
-  commitMessage: (name: string) => string,
+  commitMessage: (ref: SecretRef) => string,
 ): Promise<void> {
-  const { entries } = await vault.listFiles(SECRETS_PREFIX);
+  const { entries } = await backend.listFiles(SECRETS_PREFIX);
   for (const e of entries) {
-    if (!e.path.endsWith(".age")) continue;
-    const file = await vault.readFile(e.path);
+    const ref = parseSecretPath(e.path);
+    if (!ref) continue;
+    const file = await backend.readFile(e.path);
     if (!file.sha || typeof file.content !== "string" || !file.content) continue;
     shaCache.set(e.path, file.sha);
-    const name = e.path.slice(SECRETS_PREFIX.length, -".age".length);
     const json = await decryptSecrets(file.content, signer.identity);
     const armored = await encryptSecrets(json, recipients);
-    const result = await vault.writeFile(e.path, armored, commitMessage(name), file.sha);
+    const result = await backend.writeFile(e.path, armored, commitMessage(ref), file.sha);
     shaCache.set(e.path, result.sha);
   }
 }
 
-// ─── Public API ──────────────────────────────────────────────────────────────
+// ─── Vault index ─────────────────────────────────────────────────────────────
+
+async function readVaultsIndex(): Promise<VaultsIndex> {
+  const file = await backend.readFile(VAULTS_INDEX_PATH);
+  if (file.sha) shaCache.set(VAULTS_INDEX_PATH, file.sha);
+  if (typeof file.content !== "string" || !file.content) {
+    return { version: 1, vaults: [] };
+  }
+  try {
+    const parsed = JSON.parse(file.content) as VaultsIndex;
+    if (parsed.version !== 1 || !Array.isArray(parsed.vaults)) {
+      return { version: 1, vaults: [] };
+    }
+    return parsed;
+  } catch {
+    return { version: 1, vaults: [] };
+  }
+}
+
+async function writeVaultsIndex(index: VaultsIndex, message: string): Promise<void> {
+  const result = await backend.writeFile(
+    VAULTS_INDEX_PATH,
+    JSON.stringify(index, null, 2),
+    message,
+    shaCache.get(VAULTS_INDEX_PATH),
+  );
+  shaCache.set(VAULTS_INDEX_PATH, result.sha);
+}
+
+/**
+ * Return all named secret vaults registered in the index, sorted by label.
+ * The Default vault is implicit and not included.
+ */
+export async function listSecretVaults(): Promise<SecretVaultRecord[]> {
+  const idx = await readVaultsIndex();
+  return idx.vaults.slice().sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Create a new named secret vault. Throws if the slug already exists. */
+export async function createSecretVault(slug: string, label: string): Promise<SecretVaultRecord> {
+  assertValidSlug(slug);
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error("Vault label cannot be empty.");
+  const idx = await readVaultsIndex();
+  if (idx.vaults.some((v) => v.slug === slug)) {
+    throw new Error(`A vault with slug "${slug}" already exists.`);
+  }
+  const record: SecretVaultRecord = {
+    slug,
+    label: trimmed,
+    createdAt: new Date().toISOString(),
+  };
+  idx.vaults.push(record);
+  await writeVaultsIndex(idx, `Create secret vault "${trimmed}"`);
+  return record;
+}
+
+/** Rename a vault's display label. Slug (folder) stays the same. */
+export async function renameSecretVault(slug: string, newLabel: string): Promise<SecretVaultRecord> {
+  const trimmed = newLabel.trim();
+  if (!trimmed) throw new Error("Vault label cannot be empty.");
+  const idx = await readVaultsIndex();
+  const found = idx.vaults.find((v) => v.slug === slug);
+  if (!found) throw new Error(`Vault "${slug}" not found.`);
+  const oldLabel = found.label;
+  found.label = trimmed;
+  await writeVaultsIndex(idx, `Rename vault "${oldLabel}" → "${trimmed}"`);
+  return found;
+}
+
+/**
+ * Delete a named vault. By default the vault must be empty; pass
+ * `{ force: true }` to remove any remaining secrets first.
+ */
+export async function deleteSecretVault(
+  slug: string,
+  opts: { force?: boolean } = {},
+): Promise<void> {
+  const idx = await readVaultsIndex();
+  const found = idx.vaults.find((v) => v.slug === slug);
+  if (!found) return;
+
+  const refs = (await listAllSecrets()).filter((r) => r.vault === slug);
+  if (refs.length > 0) {
+    if (!opts.force) {
+      throw new Error(
+        `Vault "${found.label}" still contains ${refs.length} secret(s). Move or remove them first.`,
+      );
+    }
+    for (const ref of refs) {
+      const path = secretPath(ref.name, ref.vault);
+      await ensureSha(path);
+      const sha = shaCache.get(path);
+      if (sha) await backend.deleteFile(path, sha, `Remove secret "${ref.name}" (vault deletion)`);
+      shaCache.delete(path);
+    }
+  }
+
+  idx.vaults = idx.vaults.filter((v) => v.slug !== slug);
+  await writeVaultsIndex(idx, `Delete secret vault "${found.label}"`);
+}
+
+// ─── Secret listing ──────────────────────────────────────────────────────────
 
 export async function isVaultInitialized(): Promise<boolean> {
-  const file = await vault.readFile(RECOVERY_PATH);
+  const file = await backend.readFile(RECOVERY_PATH);
   if (file.sha) shaCache.set(file.path, file.sha);
   return typeof file.content === "string" && file.content.length > 0;
 }
@@ -157,23 +367,42 @@ export async function initVault({ device, recoveryRecipient }: InitVaultArgs): P
   );
 }
 
-export async function listSecretNames(): Promise<string[]> {
-  const { entries } = await vault.listFiles(SECRETS_PREFIX);
-  const names: string[] = [];
-  for (const e of entries) {
-    if (!e.path.endsWith(".age")) continue;
-    shaCache.set(e.path, e.sha);
-    names.push(e.path.slice(SECRETS_PREFIX.length, -".age".length));
-  }
-  return names.sort();
+/**
+ * List secret names within a specific vault. Pass an empty string (the
+ * default) for the Default/root vault. Returns sorted names.
+ */
+export async function listSecretNames(vaultSlug: string = ""): Promise<string[]> {
+  const refs = await listAllSecrets();
+  return refs
+    .filter((r) => r.vault === vaultSlug)
+    .map((r) => r.name)
+    .sort();
 }
+
+/** List every secret across every vault, including Default. */
+export async function listAllSecrets(): Promise<SecretRef[]> {
+  const { entries } = await backend.listFiles(SECRETS_PREFIX);
+  const refs: SecretRef[] = [];
+  for (const e of entries) {
+    const ref = parseSecretPath(e.path);
+    if (!ref) continue;
+    shaCache.set(e.path, e.sha);
+    refs.push(ref);
+  }
+  return refs.sort((a, b) =>
+    a.vault === b.vault ? a.name.localeCompare(b.name) : a.vault.localeCompare(b.vault),
+  );
+}
+
+// ─── Secret CRUD ─────────────────────────────────────────────────────────────
 
 export async function getSecret(
   name: string,
   device: DeviceIdentity,
+  vaultSlug: string = "",
 ): Promise<string | null> {
-  const path = secretPath(name);
-  const file = await vault.readFile(path);
+  const path = secretPath(name, vaultSlug);
+  const file = await backend.readFile(path);
   if (file.sha) shaCache.set(path, file.sha);
   if (typeof file.content !== "string" || !file.content) return null;
   const json = await decryptSecrets(file.content, device.identity);
@@ -185,17 +414,20 @@ export async function setSecret(
   name: string,
   value: string,
   device: DeviceIdentity,
+  vaultSlug: string = "",
 ): Promise<void> {
-  const path = secretPath(name);
+  if (vaultSlug) assertValidSlug(vaultSlug);
+  const path = secretPath(name, vaultSlug);
   await ensureSha(path);
   const existed = shaCache.has(path);
   const entry: SecretEntry = { value, updatedAt: new Date().toISOString() };
   const recipients = await collectRecipients(device);
   const armored = await encryptSecrets(JSON.stringify(entry), recipients);
-  const result = await vault.writeFile(
+  const label = vaultSlug ? `${vaultSlug}/${name}` : name;
+  const result = await backend.writeFile(
     path,
     armored,
-    existed ? `Rotate secret "${name}"` : `Set secret "${name}"`,
+    existed ? `Rotate secret "${label}"` : `Set secret "${label}"`,
     shaCache.get(path),
   );
   shaCache.set(path, result.sha);
@@ -204,13 +436,65 @@ export async function setSecret(
 export async function removeSecret(
   name: string,
   _device: DeviceIdentity,
+  vaultSlug: string = "",
 ): Promise<void> {
-  const path = secretPath(name);
+  const path = secretPath(name, vaultSlug);
   await ensureSha(path);
   const sha = shaCache.get(path);
   if (!sha) return;
-  await vault.deleteFile(path, sha, `Remove secret "${name}"`);
+  const label = vaultSlug ? `${vaultSlug}/${name}` : name;
+  await backend.deleteFile(path, sha, `Remove secret "${label}"`);
   shaCache.delete(path);
+}
+
+/**
+ * Move a secret to a different vault (or to/from Default). Re-encrypts under
+ * a new path and deletes the old one. Both vault arguments are slugs; "" =
+ * Default.
+ */
+export async function moveSecret(
+  name: string,
+  fromVault: string,
+  toVault: string,
+  device: DeviceIdentity,
+): Promise<void> {
+  if (fromVault === toVault) return;
+  if (toVault) assertValidSlug(toVault);
+
+  const value = await getSecret(name, device, fromVault);
+  if (value === null) throw new Error(`Secret "${name}" not found in source vault.`);
+
+  const fromPath = secretPath(name, fromVault);
+  const toPath = secretPath(name, toVault);
+
+  // Refuse to overwrite an existing secret with the same name at the destination.
+  await ensureSha(toPath);
+  if (shaCache.has(toPath)) {
+    throw new Error(
+      `A secret named "${name}" already exists in the destination vault.`,
+    );
+  }
+
+  const entry: SecretEntry = { value, updatedAt: new Date().toISOString() };
+  const recipients = await collectRecipients(device);
+  const armored = await encryptSecrets(JSON.stringify(entry), recipients);
+  const fromLabel = fromVault ? `${fromVault}/${name}` : name;
+  const toLabel = toVault ? `${toVault}/${name}` : name;
+
+  const writeResult = await backend.writeFile(
+    toPath,
+    armored,
+    `Move secret "${fromLabel}" → "${toLabel}"`,
+    undefined,
+  );
+  shaCache.set(toPath, writeResult.sha);
+
+  await ensureSha(fromPath);
+  const fromSha = shaCache.get(fromPath);
+  if (fromSha) {
+    await backend.deleteFile(fromPath, fromSha, `Move secret "${fromLabel}" → "${toLabel}"`);
+    shaCache.delete(fromPath);
+  }
 }
 
 export async function addDevice(
@@ -226,7 +510,10 @@ export async function addDevice(
   await reEncryptAll(
     signer,
     recipients,
-    (n) => `Re-encrypt secret "${n}" for device "${newDevice.name}"`,
+    (r) => {
+      const label = r.vault ? `${r.vault}/${r.name}` : r.name;
+      return `Re-encrypt secret "${label}" for device "${newDevice.name}"`;
+    },
   );
 }
 
@@ -235,19 +522,22 @@ export async function removeDevice(
   signer: DeviceIdentity,
 ): Promise<void> {
   const path = devicePath(deviceId);
-  const file = await vault.readFile(path);
+  const file = await backend.readFile(path);
   if (!file.sha) return;
   let removedName = deviceId;
   if (typeof file.content === "string") {
     try { removedName = (JSON.parse(file.content) as DeviceRecord).name ?? deviceId; } catch { /* keep id */ }
   }
-  await vault.deleteFile(path, file.sha, `Revoke device "${removedName}"`);
+  await backend.deleteFile(path, file.sha, `Revoke device "${removedName}"`);
   shaCache.delete(path);
   const recipients = await collectRecipients(signer);
   await reEncryptAll(
     signer,
     recipients,
-    (n) => `Re-encrypt secret "${n}" after revoking "${removedName}"`,
+    (r) => {
+      const label = r.vault ? `${r.vault}/${r.name}` : r.name;
+      return `Re-encrypt secret "${label}" after revoking "${removedName}"`;
+    },
   );
 }
 
@@ -260,24 +550,26 @@ export async function restoreSecret(
   name: string,
   commitSha: string,
   device: DeviceIdentity,
+  vaultSlug: string = "",
 ): Promise<void> {
-  const path = secretPath(name);
-  const file = await readFileAtRef(path, commitSha);
+  const path = secretPath(name, vaultSlug);
+  const file = await backend.readFileAtRef(path, commitSha);
   if (typeof file.content !== "string" || !file.content) {
     throw new Error(`Secret "${name}" not found at commit ${commitSha.slice(0, 7)}`);
   }
   const json = await decryptSecrets(file.content, device.identity);
   const entry = JSON.parse(json) as SecretEntry;
-  await setSecret(name, entry.value, device);
+  await setSecret(name, entry.value, device, vaultSlug);
 }
 
 /**
  * One-time migration: if the legacy single-blob `.notekit/secrets.age` exists,
- * split it into per-secret files then delete the blob.
+ * split it into per-secret files then delete the blob. Migrated secrets land
+ * in the Default vault (root of `.notekit/secrets/`).
  * Returns true if migration ran, false if there was nothing to migrate.
  */
 export async function migrateFromBlob(device: DeviceIdentity): Promise<boolean> {
-  const file = await vault.readFile(LEGACY_SECRETS_PATH);
+  const file = await backend.readFile(LEGACY_SECRETS_PATH);
   if (!file.sha || typeof file.content !== "string" || !file.content) return false;
 
   interface LegacyDoc {
@@ -298,10 +590,10 @@ export async function migrateFromBlob(device: DeviceIdentity): Promise<boolean> 
   for (const [name, entry] of Object.entries(doc.secrets)) {
     const path = secretPath(name);
     const armored = await encryptSecrets(JSON.stringify(entry), recipients);
-    const result = await vault.writeFile(path, armored, `Migrate secret "${name}"`, undefined);
+    const result = await backend.writeFile(path, armored, `Migrate secret "${name}"`, undefined);
     shaCache.set(path, result.sha);
   }
 
-  await vault.deleteFile(LEGACY_SECRETS_PATH, file.sha, "Remove legacy secrets.age after migration");
+  await backend.deleteFile(LEGACY_SECRETS_PATH, file.sha, "Remove legacy secrets.age after migration");
   return true;
 }

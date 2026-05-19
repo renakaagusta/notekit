@@ -1,0 +1,29 @@
+{
+  "name": "@notekit/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "NoteKit desktop app — MIT-licensed Electron wrapper around the @notekit/web build.",
+  "main": "dist/main.js",
+  "scripts": {
+    "dev": "concurrently -k -n web,electron -c blue,magenta \"pnpm --filter @notekit/web dev\" \"wait-on tcp:5173 && pnpm build:tsc && cross-env NOTEKIT_DEV=1 electron .\"",
+    "build": "pnpm --filter @notekit/web build && tsc -p . && electron-builder",
+    "build:tsc": "tsc -p .",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf .turbo dist out"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "cross-env": "^7.0.3",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.4.5",
+    "wait-on": "^8.0.1",
+    "@types/node": "^20.12.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9",
+    "keytar": "^7.9.0"
+  }
+}

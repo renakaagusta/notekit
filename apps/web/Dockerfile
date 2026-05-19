@@ -19,13 +19,13 @@ COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
 ARG VITE_API_URL=https://api.notekit.app
 ENV VITE_API_URL=$VITE_API_URL
 
-WORKDIR /app/packages/web
+WORKDIR /app/apps/web
 RUN pnpm build
 
 # Stage 3: Serve with nginx
 FROM nginx:1.27-alpine AS runner
-COPY --from=builder /app/packages/web/dist /usr/share/nginx/html
-COPY packages/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
+COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s \

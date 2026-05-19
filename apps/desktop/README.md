@@ -32,16 +32,20 @@ That runs the web build, compiles `src/*.ts` to `dist/`, then invokes
 
 ## Keychain location per OS
 
-`window.notekit.keychain.*` uses [keytar], which writes to the platform's
-native secret store under service id `com.notekit.desktop`:
+`window.notekit.keychain.*` uses [@napi-rs/keyring], which writes to the
+platform's native secret store under service id `com.notekit.desktop`. Same
+library the NoteKit CLI uses, so a future "share token between desktop and
+CLI" gesture won't need a second library.
 
 - **macOS** — Keychain Access app, item kind "application password".
 - **Windows** — Credential Manager > Windows Credentials > Generic
   Credentials, prefixed with `com.notekit.desktop`.
-- **Linux** — `libsecret` (GNOME Keyring, KWallet, etc). Requires
-  `libsecret-1-dev` at build time on Debian/Ubuntu.
+- **Linux** — `libsecret` (GNOME Keyring, KWallet, etc). The N-API prebuilds
+  link against the system `libsecret`, so `libsecret-1-0` must be installed
+  at runtime (`apt install libsecret-1-0`). No `*-dev` package needed at
+  build time.
 
-[keytar]: https://github.com/atom/node-keytar
+[@napi-rs/keyring]: https://github.com/napi-rs/node-keyring
 
 ## TODOs before shipping
 

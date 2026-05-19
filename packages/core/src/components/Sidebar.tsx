@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Clock, KeyRound, LogOut, MoreHorizontal, Plus } from "lucide-react";
+import { Bell, Bot, Clock, KeyRound, LogOut, MoreHorizontal, Plus } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import type { User } from "../types/user";
@@ -18,6 +18,7 @@ interface SidebarProps {
   onOpenAgents?: () => void;
   onOpenHistory?: () => void;
   onOpenTokens?: () => void;
+  onOpenNotifications?: () => void;
 }
 
 export function Sidebar({
@@ -28,6 +29,7 @@ export function Sidebar({
   onOpenAgents,
   onOpenHistory,
   onOpenTokens,
+  onOpenNotifications,
 }: SidebarProps) {
   const upsertTicket = useTicketsStore((s) => s.upsert);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
@@ -229,6 +231,19 @@ export function Sidebar({
                 >
                   <Bot size={14} aria-hidden />
                   <span>Manage agents</span>
+                </button>
+              )}
+              {onOpenNotifications && (
+                <button
+                  className="nk-popover-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    onOpenNotifications();
+                  }}
+                >
+                  <Bell size={14} aria-hidden />
+                  <span>Notifications</span>
                 </button>
               )}
               {onOpenTokens && (

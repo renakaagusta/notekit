@@ -74,3 +74,31 @@ export async function destroySession(sessionId: string): Promise<void> {
 export function getSessionId(c: Context): string | null {
   return getCookie(c, SESSION_COOKIE) ?? null;
 }
+
+/**
+ * Cookie-ONLY user lookup. Use this for endpoints that manage credentials
+ * themselves (PAT mint/list/revoke, `POST /auth/cli/authorize`) so that a
+ * stolen PAT cannot mint more PATs or revoke its predecessors.
+ *
+ * The general `getCurrentUser` accepts either cookie or bearer — that's the
+ * right default for read/write endpoints on user data, but it would let a
+ * leaked bearer perpetuate itself if applied to credential management.
+ */
+export async function getSessionUser(c: Context) {
+  const sessionId = getSessionId(c);
+  if (!sessionId) return null;
+
+  const session = await db.query.sessions.findFirst({
+    where: eq(schema.sessions.id, sessionId),
+  });
+  if (!session) return null;
+  if (session.expiresAt.getTime() < Date.now()) {
+    await db.delete(schema.sessions).where(eq(schema.sessions.id, sessionId));
+    return null;
+  }
+
+  const user = await db.query.users.findFirst({
+    where: eq(schema.users.id, session.userId),
+  });
+  return user ?? null;
+}

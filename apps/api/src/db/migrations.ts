@@ -12,6 +12,9 @@ import { nanoid } from "nanoid";
 
 type Migration = { id: string; up: (db: Database.Database) => void };
 
+// Apply order is the array order — IDs are documentation, not the sort key.
+// Keep the IDs ascending for readability; a fresh DB runs them top-to-bottom,
+// and deployed DBs skip any ID already recorded in `schema_migrations`.
 const MIGRATIONS: Migration[] = [
   {
     id: "001_add_active_vault_id",
@@ -115,9 +118,17 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
-    id: "006_default_theme_dark",
+    id: "004_add_users_plus_columns",
     up: (db) => {
-      db.exec(`UPDATE vault_settings SET theme = 'dark' WHERE theme = 'auto'`);
+      const cols = db
+        .prepare(`PRAGMA table_info(users)`)
+        .all() as { name: string }[];
+      if (!cols.some((c) => c.name === "plus_until")) {
+        db.exec(`ALTER TABLE users ADD COLUMN plus_until INTEGER`);
+      }
+      if (!cols.some((c) => c.name === "plus_source")) {
+        db.exec(`ALTER TABLE users ADD COLUMN plus_source TEXT`);
+      }
     },
   },
   {
@@ -134,17 +145,9 @@ const MIGRATIONS: Migration[] = [
     },
   },
   {
-    id: "004_add_users_plus_columns",
+    id: "006_default_theme_dark",
     up: (db) => {
-      const cols = db
-        .prepare(`PRAGMA table_info(users)`)
-        .all() as { name: string }[];
-      if (!cols.some((c) => c.name === "plus_until")) {
-        db.exec(`ALTER TABLE users ADD COLUMN plus_until INTEGER`);
-      }
-      if (!cols.some((c) => c.name === "plus_source")) {
-        db.exec(`ALTER TABLE users ADD COLUMN plus_source TEXT`);
-      }
+      db.exec(`UPDATE vault_settings SET theme = 'dark' WHERE theme = 'auto'`);
     },
   },
   {

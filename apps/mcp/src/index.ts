@@ -6,11 +6,13 @@
 //
 // Usage:
 //   notekit-mcp                        # stdio transport (default; Claude Desktop)
-//   notekit-mcp --sse --port 3030      # SSE transport on http://localhost:3030
+//   notekit-mcp --sse --port 3030      # SSE transport on 127.0.0.1:3030
 //
 // Env:
-//   NOTEKIT_API_URL   default http://localhost:3001
-//   NOTEKIT_TOKEN     required — bearer token minted from the NoteKit web UI
+//   NOTEKIT_API_URL          default http://localhost:3001
+//   NOTEKIT_TOKEN            required — bearer token minted from the NoteKit web UI
+//   NOTEKIT_MCP_SSE_HOST     SSE bind host (default 127.0.0.1; opt out for tunnels)
+//   NOTEKIT_MCP_SSE_SECRET   SSE Authorization bearer (default: same as NOTEKIT_TOKEN)
 
 import { createMcpServer } from "./server.js";
 import { runStdio } from "./transports/stdio.js";
@@ -95,7 +97,15 @@ async function main(): Promise<void> {
   if (cli.transport === "stdio") {
     await runStdio(server);
   } else {
-    await runSse(server, cli.port);
+    // SSE binds to 127.0.0.1 by default; users who genuinely want remote
+    // access (over a Tailscale tunnel, an SSH forward, …) can set
+    // NOTEKIT_MCP_SSE_HOST=0.0.0.0 and accept the threat model.
+    const host = process.env["NOTEKIT_MCP_SSE_HOST"]?.trim() || undefined;
+    // Reuse the NoteKit PAT as the SSE bearer unless the user supplies a
+    // dedicated secret (recommended when sharing with another machine —
+    // narrows the blast radius if the SSE bearer leaks).
+    const secret = process.env["NOTEKIT_MCP_SSE_SECRET"]?.trim() || token;
+    await runSse(server, { port: cli.port, host, secret });
   }
 }
 

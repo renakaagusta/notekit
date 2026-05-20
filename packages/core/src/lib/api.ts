@@ -14,10 +14,13 @@
  */
 import { NoteKitClient, createNoteKitClient, type NoteKitApi } from "@notekit/api-client";
 
+interface ViteImportMeta {
+  env?: { VITE_API_URL?: string };
+}
+
 function resolveApiUrl(): string {
-  const fromEnv =
-    typeof import.meta !== "undefined" &&
-    (import.meta as any).env?.VITE_API_URL;
+  const meta = typeof import.meta !== "undefined" ? (import.meta as ViteImportMeta) : null;
+  const fromEnv = meta?.env?.VITE_API_URL;
   if (typeof fromEnv === "string" && fromEnv.length > 0) return fromEnv;
   return "http://localhost:3001";
 }
@@ -60,12 +63,19 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     return (await res.json()) as T;
   }
 
+  // All existing *-api.ts wrappers in this folder pass JSON-stringified
+  // bodies. A non-JSON string body would have been double-encoded by the
+  // transport's JSON.stringify call below — throw early so a future caller
+  // that forgets to stringify gets a clear error instead of a silently
+  // malformed wire payload.
   let body: unknown;
   if (typeof init.body === "string") {
     try {
       body = JSON.parse(init.body);
-    } catch {
-      body = init.body;
+    } catch (err) {
+      throw new TypeError(
+        `apiFetch: string body must be JSON-encoded (got: ${init.body.slice(0, 40)}...): ${(err as Error).message}`,
+      );
     }
   } else if (init.body !== undefined && init.body !== null) {
     body = init.body;

@@ -1016,8 +1016,11 @@ vaultRoutes.post("/notekit/provision", vaultMutationLimit, async (c) => {
       gitUrl: env.forgejo.url ?? null,
     });
   } catch (err) {
+    // The error message can include stack frames, file paths from the
+    // forgejo HTTP client, or other internals we don't want to expose.
+    // Log it server-side, surface a stable error code to the caller.
     console.error("[vault] forgejo provision error:", err);
-    return c.json({ error: "provision_failed", message: (err as Error).message }, 502);
+    return c.json({ error: "provision_failed" }, 502);
   }
 });
 

@@ -4,7 +4,6 @@
 // process without going through `process.argv` / `process.env`.
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 
 import { makeClient, type NoteKitMcpConfig } from "./lib/notekit.js";
 import { registerNoteTools } from "./tools/notes.js";
@@ -46,11 +45,4 @@ export function createMcpServer(opts: CreateServerOptions): McpServer {
   registerTicketResource(server, nk);
 
   return server;
-}
-
-export async function connectServer(
-  server: McpServer,
-  transport: Transport,
-): Promise<void> {
-  await server.connect(transport);
 }

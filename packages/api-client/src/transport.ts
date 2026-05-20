@@ -25,25 +25,45 @@ export interface NoteKitClientOptions {
   onRequest?: (req: { method: string; url: string }) => void;
 }
 
-export interface RequestInit {
+/**
+ * Per-request options. Named `NoteKitRequestInit` (not `RequestInit`) so it
+ * doesn't shadow the global Fetch RequestInit — the two have different
+ * shapes and confusing them is easy if both names are in scope.
+ */
+export interface NoteKitRequestInit {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   query?: Record<string, string | number | boolean | undefined | null>;
+  /** JSON-encoded by default. Set `form: true` to send as x-www-form-urlencoded. */
   body?: unknown;
-  /** Send body as form-encoded instead of JSON. Rare; used by OAuth token exchange. */
+  /**
+   * When true, `body` must be a record of scalar values; we encode it as
+   * `application/x-www-form-urlencoded`. Used only by OAuth token exchange.
+   */
   form?: boolean;
 }
 
-export class NoteKitClient {
-  constructor(public readonly opts: NoteKitClientOptions) {}
+/** Legacy alias kept for compatibility — prefer `NoteKitRequestInit`. */
+export type RequestInit = NoteKitRequestInit;
 
-  private get fetchFn(): typeof fetch {
-    // Bind to globalThis so extension-wrapped fetches (Tampermonkey, privacy
-    // tools) don't throw "Illegal invocation" when called as a method.
-    const f = this.opts.fetch ?? globalThis.fetch;
-    return f.bind(globalThis);
+/** Value types we accept in a form-encoded body. Reject everything else. */
+type FormScalar = string | number | boolean;
+
+export class NoteKitClient {
+  /**
+   * Bind once at construction so a fetch installed onto globalThis (by a
+   * browser extension, by an undici polyfill, etc.) works without the
+   * "Illegal invocation" error you get when calling a `fetch` method on the
+   * wrong receiver. The `bind` would also work in the getter — but doing
+   * it once here avoids re-binding on every request.
+   */
+  private readonly fetchFn: typeof fetch;
+
+  constructor(public readonly opts: NoteKitClientOptions) {
+    const f = opts.fetch ?? globalThis.fetch;
+    this.fetchFn = f.bind(globalThis);
   }
 
-  async request<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+  async request<T = unknown>(path: string, init: NoteKitRequestInit = {}): Promise<T> {
     const url = new URL(path, this.opts.baseUrl);
     if (init.query) {
       for (const [k, v] of Object.entries(init.query)) {
@@ -58,11 +78,7 @@ export class NoteKitClient {
     if (init.body !== undefined) {
       if (init.form) {
         headers["Content-Type"] = "application/x-www-form-urlencoded";
-        const form = new URLSearchParams();
-        for (const [k, v] of Object.entries(init.body as Record<string, string>)) {
-          form.set(k, String(v));
-        }
-        body = form.toString();
+        body = encodeForm(init.body);
       } else {
         headers["Content-Type"] = "application/json";
         body = JSON.stringify(init.body);
@@ -95,7 +111,7 @@ export class NoteKitClient {
 
     if (!res.ok) {
       if (res.status === 401) throw new NoteKitAuthError();
-      const code = (parsed as { error?: string })?.error ?? "unknown_error";
+      const code = extractErrorCode(parsed);
       throw new NoteKitApiError(res.status, code, `${res.status} ${code}`, parsed);
     }
 
@@ -109,4 +125,43 @@ function safeJson(text: string): unknown {
   } catch {
     return text;
   }
+}
+
+/**
+ * Pull a string `.error` out of a response body without trusting the shape.
+ * Anything else — non-object, missing key, nested object — collapses to
+ * "unknown_error" so the thrown NoteKitApiError carries a sane string code
+ * instead of `[object Object]`.
+ */
+function extractErrorCode(parsed: unknown): string {
+  if (
+    parsed !== null &&
+    typeof parsed === "object" &&
+    "error" in parsed &&
+    typeof (parsed as { error: unknown }).error === "string"
+  ) {
+    return (parsed as { error: string }).error;
+  }
+  return "unknown_error";
+}
+
+/**
+ * Encode a flat scalar map as `application/x-www-form-urlencoded`. Throws on
+ * a non-record body or non-scalar values rather than silently producing
+ * `String(undefined)` (= "undefined") or `String({})` (= "[object Object]")
+ * the way a blanket coercion would.
+ */
+function encodeForm(body: unknown): string {
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    throw new TypeError("form bodies must be a record of scalar values");
+  }
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(body as Record<string, unknown>)) {
+    if (v === undefined || v === null) continue;
+    if (typeof v !== "string" && typeof v !== "number" && typeof v !== "boolean") {
+      throw new TypeError(`form value for "${k}" must be string | number | boolean`);
+    }
+    params.set(k, String(v as FormScalar));
+  }
+  return params.toString();
 }

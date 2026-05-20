@@ -1,13 +1,12 @@
 // `notekit auth <sub>` — login / logout / whoami.
 //
-// `login` runs the PKCE-style loopback flow: spin up an HTTP server on a random
+// `login` runs a PKCE-style loopback flow: spin up an HTTP server on a random
 // localhost port, open the API's `/auth/cli/start` URL in the browser, wait for
 // the API to redirect back with `?token=...`, persist that token in the OS
 // keychain.
 //
-// PHASE 2 TODO: the API endpoints `/auth/cli/start` and `/auth/cli/callback`
-// do not exist yet. See docs/PLAN.md (Phase 2 — CLI auth). Until they ship,
-// the `--token` flag is the supported path for testing.
+// `--token <t>` skips the browser flow and accepts a token directly. Useful
+// for scripted setups and for sandboxing tests against a non-default API.
 
 import { defineCommand } from "citty";
 import http from "node:http";
@@ -42,7 +41,8 @@ const login = defineCommand({
         return;
       }
 
-      const token = await runBrowserFlow(Number(args.timeout ?? 180));
+      const timeoutSec = parseTimeout(args.timeout);
+      const token = await runBrowserFlow(timeoutSec);
       await setToken(token);
       await verifyAndStoreIdentity();
       process.stdout.write(kleur.green("Signed in.\n"));
@@ -97,18 +97,25 @@ export const authCommand = defineCommand({
 // ── internals ──────────────────────────────────────────────────────────────
 
 async function verifyAndStoreIdentity(): Promise<void> {
-  // Best-effort: hit /auth/me so the user sees an early error if the token is
-  // bad, and so we can cache the user id + email in config.json.
-  try {
-    const nk = await getClient({ requireAuth: true });
-    const me = await nk.auth.me();
-    if (me.user) {
-      await patchConfig({ userId: me.user.id, email: me.user.email });
-    }
-  } catch {
-    // Server may not implement /auth/me for CLI tokens yet (Phase 2). Don't
-    // block the user — they can still try other commands.
+  // Hit /auth/me so the user sees an early error if the token is bad, and
+  // so we can cache the user id + email in config.json. Failures bubble up
+  // — they indicate either a revoked token or an unreachable server, both
+  // of which the user wants to know about immediately.
+  const nk = await getClient({ requireAuth: true });
+  const me = await nk.auth.me();
+  if (me.user) {
+    await patchConfig({ userId: me.user.id, email: me.user.email });
   }
+}
+
+/** Parse the `--timeout` flag with a sensible default and a clear error. */
+function parseTimeout(raw: string | undefined): number {
+  if (!raw) return 180;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new Error(`--timeout must be a positive number of seconds, got: ${raw}`);
+  }
+  return n;
 }
 
 async function runBrowserFlow(timeoutSec: number): Promise<string> {
@@ -119,18 +126,20 @@ async function runBrowserFlow(timeoutSec: number): Promise<string> {
   const { server, port } = await listenOnRandomPort();
 
   const redirectUri = `http://127.0.0.1:${port}/callback`;
-  // PHASE 2 TODO: API must accept this redirect_uri + state and ultimately
-  // redirect back to /callback with `?token=<jwt>&state=<state>`.
-  const startUrl =
-    `${cfg.apiUrl.replace(/\/$/, "")}/auth/cli/start` +
-    `?redirect_uri=${encodeURIComponent(redirectUri)}` +
-    `&state=${encodeURIComponent(state)}`;
+  // Build via WHATWG URL — handles trailing slashes, encodes query params,
+  // and is robust to a future api-client schema change.
+  const startUrlString = (() => {
+    const u = new URL("/auth/cli/start", cfg.apiUrl);
+    u.searchParams.set("redirect_uri", redirectUri);
+    u.searchParams.set("state", state);
+    return u.toString();
+  })();
 
-  process.stdout.write(`Opening ${kleur.cyan(startUrl)}\n`);
+  process.stdout.write(`Opening ${kleur.cyan(startUrlString)}\n`);
   process.stdout.write("Waiting for browser callback (Ctrl-C to cancel)...\n");
 
   // Fire and forget — if the browser doesn't open the user can copy-paste.
-  open(startUrl).catch(() => undefined);
+  open(startUrlString).catch(() => undefined);
 
   try {
     return await waitForCallback(server, state, timeoutSec * 1000);

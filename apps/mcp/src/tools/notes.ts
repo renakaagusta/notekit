@@ -32,18 +32,30 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
     },
     async ({ query, limit }) => {
       const max = limit ?? 10;
+      // Cap the candidate read fan-out so an LLM eagerly calling search on
+      // a large vault doesn't trigger thousands of API round-trips. The
+      // factor of 5 leaves headroom past `max` so frontmatter-only matches
+      // don't immediately starve full-body matches.
+      const maxCandidates = max * 5;
       try {
         const entries = await listVaultFiles(nk, NOTES_PREFIX);
         const needle = query.toLowerCase();
-        const hits: { path: string; title: string; snippet: string; tags: unknown }[] = [];
+        const hits: { path: string; title: string; snippet: string; tags: string[] }[] = [];
 
+        let scanned = 0;
         for (const entry of entries) {
           if (!entry.path.endsWith(".md")) continue;
+          if (scanned >= maxCandidates && hits.length === 0) break;
+          scanned++;
+
           const file = await nk.vault.readFile(entry.path);
           const { frontmatter, body } = parseMarkdown(file.content ?? "");
           const title = String(frontmatter["title"] ?? deriveTitle(entry.path));
-          const tags = frontmatter["tags"] ?? [];
-          const hay = `${title}\n${JSON.stringify(tags)}\n${body}`.toLowerCase();
+          const tags = normalizeTags(frontmatter["tags"]);
+          // Join tags as plain whitespace-separated text so a query of `"`
+          // doesn't accidentally match the JSON quoting (the previous
+          // implementation used JSON.stringify which leaked syntax chars).
+          const hay = `${title}\n${tags.join(" ")}\n${body}`.toLowerCase();
           if (!hay.includes(needle)) continue;
           hits.push({
             path: entry.path,
@@ -189,6 +201,17 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
 function deriveTitle(path: string): string {
   const base = path.split("/").pop() ?? path;
   return base.replace(/\.md$/, "");
+}
+
+/**
+ * Frontmatter `tags` is `unknown` at the type level. Normalize anything
+ * sensible into `string[]` so the search haystack is plain text and the
+ * response shape is predictable for the calling LLM.
+ */
+function normalizeTags(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map((t) => String(t));
+  if (typeof raw === "string") return raw.split(/[,\s]+/).filter(Boolean);
+  return [];
 }
 
 function slugify(s: string): string {

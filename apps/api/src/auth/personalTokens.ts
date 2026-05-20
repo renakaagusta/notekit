@@ -62,9 +62,10 @@ export async function getPatPrincipal(c: Context): Promise<PatPrincipal | null> 
   });
   if (!row) return null;
 
-  // Best-effort last-used update. We don't await — a slow DB shouldn't
-  // delay the request, and a failure shouldn't block auth.
-  db.update(schema.personalAccessTokens)
+  // Best-effort last-used update. The leading `void` is the explicit
+  // "intentional fire-and-forget" marker — without it this reads like a
+  // missing await and trips up both linters and reviewers.
+  void db.update(schema.personalAccessTokens)
     .set({ lastUsedAt: new Date() })
     .where(eq(schema.personalAccessTokens.id, row.id))
     .catch((err) => {

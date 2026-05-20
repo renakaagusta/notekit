@@ -66,8 +66,18 @@ const serveCmd = defineCommand({
     }
 
     const child = spawn(process.execPath, childArgs, { stdio: "inherit", env });
-    child.on("close", (code) => {
-      process.exit(code ?? 0);
+    child.on("close", (code, signal) => {
+      if (code !== null) {
+        process.exit(code);
+        return;
+      }
+      // Null code + a signal means the child was killed (SIGSEGV, SIGTERM,
+      // …). Treat as failure so a CI script driving `notekit mcp serve` can
+      // notice the crash rather than mistaking it for a clean shutdown.
+      if (signal) {
+        process.stderr.write(`MCP server exited on signal ${signal}\n`);
+      }
+      process.exit(1);
     });
   },
 });

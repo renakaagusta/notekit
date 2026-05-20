@@ -9,7 +9,7 @@ import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { autoUpdater } from "electron-updater";
 import { Entry } from "@napi-rs/keyring";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
 import {
   IPC_CHANNELS,
   KEYCHAIN_SERVICE,
@@ -261,7 +261,3 @@ app.on("web-contents-created", (_event, contents) => {
 });
 
 void app.whenReady().then(bootstrap);
-
-// Silence unused-import warning for fileURLToPath in CJS — kept available
-// for future ESM migration of this entrypoint.
-void fileURLToPath;

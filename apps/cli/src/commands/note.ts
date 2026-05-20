@@ -77,7 +77,16 @@ const listCmd = defineCommand({
     try {
       const nk = await getClient({ requireAuth: true });
       const { index: idx } = await readIndex(nk);
-      const limit = args.limit ? Number(args.limit) : idx.notes.length;
+      // `--limit foo` would otherwise become NaN and silently return zero
+      // results via slice(0, NaN). Reject early so the user sees the bug.
+      let limit = idx.notes.length;
+      if (args.limit) {
+        const parsed = Number(args.limit);
+        if (!Number.isInteger(parsed) || parsed < 0) {
+          throw new Error(`--limit must be a non-negative integer, got: ${args.limit}`);
+        }
+        limit = parsed;
+      }
       for (const n of idx.notes.slice(0, limit)) {
         process.stdout.write(`${kleur.dim(n.id)}  ${n.title}\n`);
       }

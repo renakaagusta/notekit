@@ -17,6 +17,6 @@ tags:
 ---
 - runFlow: helpers/signin.yml
 
-- assertVisible: "Press ⌘N to create one."
+- assertVisible: "Notes"
 
 - takeScreenshot: ../artifacts/03-note-crud-shell

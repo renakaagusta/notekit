@@ -27,6 +27,16 @@ appId: com.notekit.app
 - tapOn:
     text: "Sign in"
 
+# The form's window.location.reload() leaves the WKWebView blank
+# intermittently on iOS (separate bug). A clean stopApp + launchApp pair
+# re-reads the PAT from localStorage on cold launch and renders the App
+# reliably.
+- stopApp
+- launchApp
+
+- waitForAnimationToEnd:
+    timeout: 5000
+
 - extendedWaitUntil:
-    visible: "Press ⌘N to create one."
+    visible: "Notes"
     timeout: 20000

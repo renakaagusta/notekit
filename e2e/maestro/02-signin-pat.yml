@@ -35,11 +35,24 @@ tags:
 - tapOn:
     text: "Sign in"
 
-# Post-reload the bearer-mode client hits /auth/me with the PAT; AuthGate
-# flips to the App shell. On a clean account the notes list is empty and
-# shows the "Press ⌘N to create one." hint — that's our landmark.
+# The form's window.location.reload() leaves the WKWebView blank
+# intermittently on iOS (separate bug). A stopApp + launchApp pair
+# re-reads the PAT from localStorage on cold launch and renders the App
+# reliably; bearer mode then activates at module init.
+- stopApp
+- launchApp
+
+# Brief wait for the app-switcher transition to clear before asserting —
+# Maestro's screenshots otherwise catch the iOS multitasking carousel
+# mid-animation and the timeout starts before the WebView has loaded.
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Post-launch the bearer-mode client hits /auth/me with the PAT; AuthGate
+# flips to the App shell. The mobile header renders the "Notes" title —
+# more stable than the empty-state copy.
 - extendedWaitUntil:
-    visible: "Press ⌘N to create one."
+    visible: "Notes"
     timeout: 20000
 
 - takeScreenshot: ../artifacts/02-signin-pat

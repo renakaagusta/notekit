@@ -19,7 +19,12 @@ const config: CapacitorConfig = {
     // cleartext: true,
   },
   ios: {
-    contentInset: "always",
+    // `never`, not `always`: when the WKWebView consumes the safe-area
+    // insets itself, CSS `env(safe-area-inset-*)` resolves to 0 and our
+    // mobile shell collides with the Dynamic Island / status bar.
+    // Setting `never` hands the inset back to CSS so `body { padding-top:
+    // env(safe-area-inset-top) }` and similar rules can pad correctly.
+    contentInset: "never",
     limitsNavigationsToAppBoundDomains: true,
   },
   android: {

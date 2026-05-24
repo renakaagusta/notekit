@@ -2,7 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- `viewport-fit=cover` lets the page draw under the iOS notch /
+         Dynamic Island and exposes `env(safe-area-inset-*)` for the
+         mobile-shell CSS to pad correctly. Without it iOS reports all
+         insets as 0 and the app bar collides with the status bar. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <!-- `light dark` (in that order) lets the browser pre-paint the page
          in the user's OS theme — light desktops no longer see a flash of
          pure black before the app mounts and resolves theme. -->

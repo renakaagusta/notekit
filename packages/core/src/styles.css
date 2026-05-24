@@ -85,6 +85,24 @@ body,
   color: var(--text, #e4e4e7);
 }
 
+/* iOS notch / Android status bar inset.
+ *
+ * Capacitor's WKWebView and Android WebView both draw edge-to-edge (the
+ * `viewport-fit=cover` in index.html turns this on for iOS). Without an
+ * explicit inset our app bars overlap the status bar / Dynamic Island.
+ * Pushing the inset onto `body` means every layout — mobile shell,
+ * desktop fallback, sign-in card — clears the top automatically. The
+ * .nk wrapper's `--bg` still paints under the inset so we keep the
+ * full-bleed look that makes the status bar overlay feel native.
+ *
+ * `box-sizing: border-box` so the `height: 100%` above still resolves
+ * to the visible area (not visible + inset, which would overflow).
+ */
+body {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 body {
   font-family:
     "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -5753,7 +5771,10 @@ a.nk-commit-sha:hover {
     display: none;
   }
 
-  /* The section header doubles as the screen title on mobile. */
+  /* The section header doubles as the screen title on mobile.
+     (Status-bar inset is handled at the body level — see the
+     `padding-top: env(safe-area-inset-top)` rule near the top of this
+     file — so this header only needs its own visual padding.) */
   .nk-app[data-mobile="true"] .nk-sidebar-hd {
     padding: 6px 16px 8px;
     font-size: 22px;
@@ -6068,6 +6089,7 @@ a.nk-commit-sha:hover {
   display: flex;
   align-items: center;
   gap: 8px;
+  /* Top inset is on body — see the safe-area block early in this file. */
   padding: 12px 12px 8px;
   border-bottom: 1px solid var(--border-soft);
 }

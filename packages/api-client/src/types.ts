@@ -48,7 +48,7 @@ export interface ProvidersResponse {
 // vault
 // ──────────────────────────────────────────────────────────────────────────
 
-export type VaultProvider = "github" | "notekit";
+export type VaultProvider = "github" | "gitlab" | "notekit";
 
 export interface VaultRef {
   id?: string;
@@ -97,6 +97,9 @@ export interface VaultCommit {
   sha: string;
   message: string;
   authorName: string | null;
+  /** Author email from the commit object. Useful for matching against
+   *  agent profiles client-side when the server hasn't enriched yet. */
+  authorEmail: string | null;
   authorLogin: string | null;
   authorAvatar: string | null;
   authoredAt: string;
@@ -134,9 +137,11 @@ export interface VaultImportResult {
 export interface AgentProfile {
   slug: string;
   name: string;
+  /** Drives the agent's Gravatar lookup. Register this email at
+   *  https://gravatar.com to give the agent a profile picture across
+   *  NoteKit, GitHub commit pages, and Forgejo. */
   email: string;
   description: string;
-  avatarUrl: string | null;
   createdAt: string;
 }
 

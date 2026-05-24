@@ -371,6 +371,26 @@ body {
   outline-offset: -2px;
 }
 
+.nk-tree-item--link {
+  align-items: flex-start;
+  padding: 8px 8px;
+  min-height: 0;
+  cursor: grab;
+}
+
+.nk-tree-item--link:active {
+  cursor: grabbing;
+}
+
+.nk-tree-item--link .nk-link-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.nk-tree-item--link .nk-link-card-actions {
+  margin-left: auto;
+}
+
 .nk-disclosure {
   display: inline-block;
   width: 12px;
@@ -730,6 +750,32 @@ body {
 
 .nk-commit:hover .nk-commit-body {
   background: var(--hover);
+}
+
+/* Avatar shown next to agent profiles in the agent list, vault members
+   dialog, and inline next to commit authors in the history view. The
+   `--inline` variant is the smaller form factor used in tight meta rows. */
+.nk-commit-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--surface-2);
+  object-fit: cover;
+}
+.nk-commit-avatar--inline {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+.nk-commit-avatar--ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--text-dim);
+  border: 1px dashed var(--border);
 }
 
 /* The graph column: top-line · dot · bottom-line */
@@ -1447,6 +1493,67 @@ a.nk-commit-sha:hover {
 .nk-graph-legend b {
   color: var(--text);
 }
+
+/* Typed graph: per-kind node fills and edge styles. Hubs (project,
+ * member) live on top of the dot grid; items (note, ticket) stay
+ * neutral so the eye reads hubs as anchors. */
+.nk-graph-node--note { fill: var(--surface); stroke: var(--border); }
+.nk-graph-node--ticket { fill: var(--surface); stroke: var(--accent); }
+.nk-graph-node--project { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+.nk-graph-node--member { fill: rgba(120, 180, 255, 0.18); stroke: rgba(120, 180, 255, 0.85); stroke-width: 1.8; }
+.nk-graph-node--member.agent { fill: rgba(180, 140, 255, 0.18); stroke: rgba(180, 140, 255, 0.85); }
+
+.nk-graph-edge--wikilink { stroke: var(--border); }
+.nk-graph-edge--linked { stroke: var(--accent); stroke-opacity: 0.45; }
+.nk-graph-edge--creator { stroke: rgba(120, 180, 255, 0.7); stroke-width: 1.5; }
+.nk-graph-edge--collaborator {
+  stroke: rgba(120, 180, 255, 0.45);
+  stroke-dasharray: 4 3;
+}
+.nk-graph-edge--project { stroke: rgba(200, 162, 58, 0.4); }
+
+/* Filter chips above the SVG. The toolbar sits inside .nk-graph so it
+ * shares the grid background, but pads itself off the top edge. */
+.nk-graph-filters {
+  position: absolute;
+  top: var(--gap-4);
+  right: var(--gap-4);
+  display: flex;
+  gap: 6px;
+  z-index: 1;
+}
+
+.nk-graph-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  font-size: 11px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.nk-graph-chip.active {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.nk-graph-chip--note.active { border-color: var(--border); color: var(--text); }
+.nk-graph-chip--ticket.active { border-color: var(--accent); }
+.nk-graph-chip--project.active { border-color: rgba(200, 162, 58, 0.85); }
+.nk-graph-chip--member.active { border-color: rgba(120, 180, 255, 0.85); }
+
+.nk-graph-chip-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.nk-graph-chip.active .nk-graph-chip-count { color: var(--text-2); }
 
 /* ─── Tickets board ─────────────────────────────────────────────── */
 
@@ -2401,10 +2508,30 @@ a.nk-commit-sha:hover {
   color: var(--text);
 }
 
-.nk-qa-danger {
+.nk-qa-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border: 0;
   border-top: 1px solid var(--border);
+  padding: 6px 4px 6px;
+  margin-top: 2px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.nk-qa-action:hover {
+  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+  border-radius: var(--r-sm);
+}
+
+.nk-qa-danger {
+  background: transparent;
+  border: 0;
   padding: 6px 4px 2px;
   margin-top: 2px;
   font: inherit;
@@ -2418,6 +2545,97 @@ a.nk-commit-sha:hover {
   color: #ef4444;
   background: rgba(239, 68, 68, 0.06);
   border-radius: var(--r-sm);
+}
+
+/* Lock chip on encrypted cards. Visual marker only — the real boundary
+   is in the sync layer and the age recipient list. */
+.nk-card-encrypted {
+  color: var(--text-muted, #64748b);
+  background: rgba(127, 127, 127, 0.1);
+}
+
+/* Lock badge inline with a note title in the sidebar list. */
+.nk-tree-lock {
+  display: inline-block;
+  vertical-align: -1px;
+  margin-right: 4px;
+  color: var(--text-muted, #64748b);
+}
+
+/* Toolbar lock button — same shape as other nk-tb-btn but highlighted
+   when the active note is encrypted. */
+.nk-tb-btn.is-encrypted {
+  color: var(--accent, #2563eb);
+}
+
+/* Inline lock badge on a saved-link card. */
+.nk-link-lock {
+  color: var(--text-muted, #64748b);
+  flex: 0 0 auto;
+}
+
+/* Encrypted graph nodes get a thin ring so they read as distinct without
+   needing a separate fill color. Hub-ness still dominates the visual
+   weight, encryption is a secondary signal. */
+.nk-graph-node.encrypted {
+  stroke: var(--text-muted, #64748b);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}
+
+/* Banner that surfaces encrypted items the current device couldn't
+   decrypt. Lives under .nk-main-hd; dismisses for the session. */
+.nk-encrypted-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 8px 12px 0;
+  border-radius: var(--r-sm);
+  background: rgba(127, 127, 127, 0.08);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.nk-encrypted-banner-icon {
+  color: var(--text-muted, #64748b);
+  flex: 0 0 auto;
+}
+
+.nk-encrypted-banner-body {
+  flex: 1;
+  line-height: 1.4;
+}
+
+/* First-encrypt dialog. Reuses the existing .nk-modal / .nk-modal-hd /
+   .nk-modal-body / .nk-modal-actions scaffolding from styles.css; the
+   classes below only add what's specific to the encryption flow. */
+.nk-first-encrypt-list {
+  margin: 12px 0;
+  padding-left: 20px;
+  line-height: 1.55;
+  font-size: 13px;
+}
+.nk-first-encrypt-list li + li {
+  margin-top: 8px;
+}
+
+.nk-first-encrypt-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: rgba(127, 127, 127, 0.08);
+  font-size: 13px;
+  cursor: pointer;
+  user-select: none;
+}
+.nk-first-encrypt-ack input[type="checkbox"] {
+  margin-top: 3px;
+  cursor: pointer;
 }
 
 /* ─── Assignee picker ───────────────────────────────────────────── */
@@ -5041,4 +5259,842 @@ a.nk-commit-sha:hover {
 .nk-platform--substack {
   background: #ff6719;
   color: #fff;
+}
+
+/* ─── Ticket sidebar rows ──────────────────────────────────────────
+ * Shared between desktop sidebar and mobile list pane; the mobile shell
+ * adds card-style chrome via the @media block below. */
+
+.nk-ticket-list {
+  padding: 4px 0;
+}
+
+.nk-ticket-row {
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 4px;
+  padding: 8px 12px !important;
+  cursor: pointer;
+}
+.nk-ticket-row:hover {
+  background: var(--hover);
+}
+
+.nk-ticket-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.nk-ticket-row .status-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+}
+
+.nk-ticket-row-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-ticket-row-prio {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--mono-font);
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border-soft);
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+.nk-ticket-row-prio.prio-urgent {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+.nk-ticket-row-prio.prio-high {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+}
+.nk-ticket-row-prio.prio-medium {
+  color: var(--text-2, var(--muted));
+}
+.nk-ticket-row-prio.prio-low {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.nk-ticket-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-left: 16px; /* aligns under title past status dot */
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.nk-ticket-row-label {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--surface-2, var(--surface));
+  border: 1px solid var(--border-soft);
+  color: var(--text-2, var(--muted));
+}
+
+.nk-ticket-row-assignee {
+  margin-left: auto;
+  font-family: var(--mono-font);
+  font-size: 10px;
+}
+
+/* ─── Mobile shell ──────────────────────────────────────────────────
+ * Activated by useMediaQuery(MOBILE_BREAKPOINT) in App.tsx, which sets
+ * data-mobile="true" on .nk-app. We keep the same DOM tree the desktop
+ * shell uses — Sidebar, main, statusbar, all of it — and restyle it into
+ * a single-pane shell with a bottom nav. Pane-stacking is driven by
+ * data-mobile-pane="list" | "detail".
+ *
+ * Design intent comes from the NoteKit prototype's mobile companion
+ * (notekit-design/project/notekit/mobile.jsx + theme.css ~876-970).
+ * ─────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 720px) {
+  .nk-app[data-mobile="true"] {
+    /* Replace the desktop 240-1fr grid with a single full-bleed column.
+       The Obsidian-style drawer replaces the bottom tab bar, so the only
+       bottom reservation we need is the iOS home-indicator safe area. */
+    display: flex;
+    flex-direction: column;
+    grid-template-columns: none;
+    grid-template-rows: none;
+    height: 100%;
+    overflow: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Desktop brand bar and bottom statusbar don't earn their keep on a
+     402px viewport — fold the sync indicator into the More sheet. */
+  .nk-app[data-mobile="true"] .nk-titlebar,
+  .nk-app[data-mobile="true"] .nk-statusbar {
+    display: none;
+  }
+
+  /* Sidebar and main both go fullscreen, stacked. Only the active pane
+     is visible, driven by data-mobile-pane. */
+  .nk-app[data-mobile="true"] .nk-sidebar,
+  .nk-app[data-mobile="true"] .nk-main {
+    border: 0;
+    width: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .nk-app[data-mobile="true"][data-mobile-pane="list"] .nk-main {
+    display: none;
+  }
+  .nk-app[data-mobile="true"][data-mobile-pane="detail"] .nk-sidebar {
+    display: none;
+  }
+
+  /* ── Sidebar (list pane) ──────────────────────────────────────── */
+
+  .nk-app[data-mobile="true"] .nk-sidebar {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+  /* Vault switcher and user chip live in the drawer on mobile, so hide the
+     copies that the desktop sidebar renders inline. */
+  .nk-app[data-mobile="true"] .nk-sidebar > .nk-vault-switcher {
+    display: none;
+  }
+  .nk-app[data-mobile="true"] .nk-sidebar > .nk-userbar {
+    display: none;
+  }
+
+  /* Desktop tab strip is replaced by the bottom nav. */
+  .nk-app[data-mobile="true"] .nk-nav {
+    display: none;
+  }
+
+  /* The section header doubles as the screen title on mobile. */
+  .nk-app[data-mobile="true"] .nk-sidebar-hd {
+    padding: 6px 16px 8px;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-transform: none;
+    color: var(--text);
+  }
+  .nk-app[data-mobile="true"] .nk-sidebar-hd .nk-iconbtn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Folder tree fills the rest of the list pane, with taller hit areas. */
+  .nk-app[data-mobile="true"] .nk-tree {
+    padding: 0;
+  }
+  .nk-app[data-mobile="true"] .nk-tree-row {
+    min-height: 44px;
+    padding: 10px 16px;
+    font-size: 15px;
+  }
+  .nk-app[data-mobile="true"] .nk-tree-row .nk-tree-label {
+    font-size: 15px;
+  }
+
+  /* Mobile has no hover, so per-row "more options" must always be visible.
+     The desktop pattern fades these in on .nk-tree-item:hover; on touch
+     devices that hover never fires. Also bump the hit-area to 32×32. */
+  .nk-app[data-mobile="true"] .nk-tree-ctx-btn {
+    opacity: 1;
+    width: 32px;
+    height: 32px;
+  }
+
+  /* ── Bottom-sheet menus ──────────────────────────────────────────
+   * On mobile, every popover-style menu (CreateMenu, TreeContextMenu,
+   * EditorToolbar's Aa / image dropdowns, the drawer's 3-dot popover)
+   * is restyled as a bottom sheet: pinned to the screen bottom, full
+   * width, rounded top, with a drag-handle pill and a dimmed viewport
+   * via box-shadow (no extra backdrop element needed, so existing
+   * click-outside-to-dismiss listeners keep working — the menu element
+   * stays a child of its anchor in the DOM, only its paint position
+   * moves).
+   *
+   * Applies to .nk-popover, .nk-ctx-menu, .nk-tb-menu — the three
+   * popover families across the app.
+   * ───────────────────────────────────────────────────────────────── */
+
+  /* The selectors below intentionally drop the .nk-app[data-mobile] scope
+     so they also catch menus rendered as siblings of .nk-app — notably
+     the drawer's user menu, which lives outside the app div. The media
+     query alone guarantees mobile width. */
+  .nk-popover,
+  .nk-ctx-menu,
+  .nk-tb-menu {
+    position: fixed;
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    margin: 0;
+    padding: 8px 8px calc(12px + env(safe-area-inset-bottom, 0px));
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    background: var(--surface);
+    box-shadow:
+      0 -8px 32px rgba(0, 0, 0, 0.4),
+      0 0 0 100vmax rgba(0, 0, 0, 0.45);
+    /* The 100vmax shadow dims the rest of the viewport without needing
+       a separate backdrop element. It's purely visual — taps still
+       hit whatever's behind, which triggers each menu's existing
+       outside-click dismiss. */
+    z-index: 50;
+    animation: nk-sheet-up 200ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  /* Drag-handle pill at the top of every sheet. */
+  .nk-popover::before,
+  .nk-ctx-menu::before,
+  .nk-tb-menu::before {
+    content: "";
+    display: block;
+    width: 40px;
+    height: 4px;
+    margin: 4px auto 12px;
+    border-radius: 4px;
+    background: var(--border);
+  }
+
+  /* Bigger touch targets for menu items inside the sheet. */
+  .nk-popover-item,
+  .nk-ctx-menu-item,
+  .nk-tb-menu > button {
+    padding: 14px 16px;
+    font-size: 15px;
+    min-height: 48px;
+    border-radius: 8px;
+  }
+  .nk-popover-item svg,
+  .nk-ctx-menu-item svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  /* The drawer's own bottom-sheet user menu needs to render ABOVE the
+     drawer (drawer is z-index 40). */
+  .nk-mdrawer-user-menu {
+    z-index: 60;
+  }
+
+  /* The editor toolbar's dropdown sheet covers the toolbar itself —
+     fine; dismissing the sheet reveals the toolbar again. */
+
+  /* Ticket rows become cards on mobile: matches the prototype's
+     .nk-m-ticket pattern. */
+  .nk-app[data-mobile="true"] .nk-ticket-list {
+    padding: 8px 12px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .nk-app[data-mobile="true"] .nk-ticket-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg, 10px);
+    padding: 12px 14px !important;
+    gap: 8px;
+  }
+  .nk-app[data-mobile="true"] .nk-ticket-row:hover {
+    background: var(--surface);
+  }
+  .nk-app[data-mobile="true"] .nk-ticket-row:active {
+    background: var(--hover);
+  }
+  .nk-app[data-mobile="true"] .nk-ticket-row-title {
+    font-size: 15px;
+  }
+  .nk-app[data-mobile="true"] .nk-ticket-row-prio {
+    font-size: 10.5px;
+    padding: 3px 8px;
+  }
+  .nk-app[data-mobile="true"] .nk-ticket-row-meta {
+    font-size: 11.5px;
+  }
+  .nk-app[data-mobile="true"] .nk-ticket-row-label {
+    font-size: 10.5px;
+    padding: 3px 7px;
+  }
+
+  .nk-app[data-mobile="true"] .nk-userbar {
+    margin-bottom: 8px;
+  }
+
+  /* ── Main (detail pane) ───────────────────────────────────────── */
+
+  .nk-app[data-mobile="true"] .nk-main {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+  }
+
+  .nk-app[data-mobile="true"] .nk-main-hd {
+    padding: 10px 12px;
+    gap: 8px;
+    min-height: 48px;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .nk-app[data-mobile="true"] .nk-main-back,
+  .nk-app[data-mobile="true"] .nk-main-menu {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+  }
+  .nk-app[data-mobile="true"] .nk-sidebar-menu {
+    width: 32px;
+    height: 32px;
+    margin-right: 4px;
+  }
+  .nk-app[data-mobile="true"] .nk-crumbs {
+    flex: 1;
+    min-width: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .nk-app[data-mobile="true"] .nk-crumbs .last {
+    color: var(--text);
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .nk-app[data-mobile="true"] .nk-main-hd .nk-iconbtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* Editor toolbar pins to the page bottom (no nav below it now),
+     scrolls horizontally if the format buttons overflow. */
+  .nk-app[data-mobile="true"] .nk-toolbar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: env(safe-area-inset-bottom, 0px);
+    z-index: 20;
+    margin: 0;
+    padding: 6px 8px;
+    gap: 4px;
+    border-top: 1px solid var(--border);
+    border-bottom: 0;
+    background: var(--surface);
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+  .nk-app[data-mobile="true"] .nk-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  .nk-app[data-mobile="true"] .nk-toolbar > * {
+    flex-shrink: 0;
+  }
+  .nk-app[data-mobile="true"] .nk-editor-wrap {
+    padding-bottom: 56px;
+  }
+  .nk-app[data-mobile="true"] .nk-editor-wrap .ProseMirror,
+  .nk-app[data-mobile="true"] .nk-editor-wrap [contenteditable] {
+    font-size: 17px;
+    line-height: 1.55;
+  }
+
+  /* ── TicketsBoard at mobile width ────────────────────────────── */
+
+  .nk-app[data-mobile="true"] .nk-board {
+    grid-auto-flow: row;
+    grid-auto-columns: 1fr;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+    overflow: auto;
+  }
+  .nk-app[data-mobile="true"] .nk-board-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 8px 12px;
+  }
+  .nk-app[data-mobile="true"] .nk-board-toolbar::-webkit-scrollbar {
+    display: none;
+  }
+  .nk-app[data-mobile="true"] .nk-board-toolbar > * {
+    flex-shrink: 0;
+  }
+
+  /* ── Calendar at mobile width ────────────────────────────────── */
+
+  .nk-app[data-mobile="true"] .nk-cal-grid {
+    font-size: 11px;
+  }
+  .nk-app[data-mobile="true"] .nk-cal-cell {
+    min-height: 48px;
+    padding: 4px;
+  }
+
+  .nk-app[data-mobile="true"] .nk-empty {
+    padding: 32px 24px;
+    text-align: center;
+  }
+}
+
+/* ─── Mobile drawer (Obsidian-style left-slide nav) ─────────────── */
+
+.nk-mdrawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  animation: nk-fade-in 120ms ease-out;
+}
+
+.nk-mdrawer {
+  width: min(82vw, 320px);
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  animation: nk-slide-in-left 180ms ease-out;
+}
+
+@keyframes nk-slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes nk-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.nk-mdrawer-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px 8px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.nk-mdrawer-hd .nk-vault-switcher {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+}
+.nk-mdrawer-hd .nk-vault-trigger {
+  font-size: 13px;
+}
+.nk-mdrawer-close {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.nk-mdrawer-sync {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border-soft);
+}
+.nk-mdrawer-sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+.nk-mdrawer-sync[data-tone="ready"] .nk-mdrawer-sync-dot {
+  background: #22c55e;
+}
+.nk-mdrawer-sync[data-tone="sync"] .nk-mdrawer-sync-dot {
+  background: var(--accent);
+  animation: nk-pulse 1.2s ease-in-out infinite;
+}
+.nk-mdrawer-sync[data-tone="error"] .nk-mdrawer-sync-dot {
+  background: #ef4444;
+}
+.nk-mdrawer-sync[data-tone="error"] {
+  color: #ef4444;
+}
+.nk-mdrawer-sync-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-mdrawer-section {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+.nk-mdrawer-section:last-of-type {
+  border-bottom: 0;
+}
+.nk-mdrawer-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nk-mdrawer-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: 0;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  min-height: 44px;
+  border-radius: 0;
+}
+.nk-mdrawer-list button:active {
+  background: var(--hover);
+}
+.nk-mdrawer-list button.active {
+  color: var(--accent-text, var(--accent));
+  background: var(--selected, transparent);
+  border-left: 2px solid var(--accent);
+  padding-left: 12px;
+}
+.nk-mdrawer-list button.danger {
+  color: #ef4444;
+}
+
+.nk-mdrawer-user {
+  position: relative; /* anchor for the 3-dot popover */
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-top: 1px solid var(--border-soft);
+  margin-top: auto; /* pin to the bottom of the drawer regardless of nav length */
+}
+.nk-mdrawer-user .nk-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.nk-mdrawer-user-meta {
+  flex: 1;
+  min-width: 0;
+}
+.nk-mdrawer-user-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nk-mdrawer-user-plan {
+  font-size: 11.5px;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+/* The drawer's 3-dot popover ("Account menu") renders as a bottom sheet
+   on mobile via the @media block above. The drawer itself only mounts at
+   mobile width, so no desktop-specific positioning is needed here. The
+   danger variant (Sign out) keeps its red colour and full-opacity icon. */
+.nk-popover-item--danger {
+  color: #ef4444;
+}
+.nk-popover-item--danger svg {
+  opacity: 1;
+}
+
+/* ─── Mobile bottom nav (legacy — kept for reference, no longer rendered) ── */
+
+.nk-mnav {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 6px 4px calc(8px + env(safe-area-inset-bottom, 0px));
+}
+.nk-mnav button {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0;
+  min-height: 52px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 10.5px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.nk-mnav button:active {
+  background: var(--hover);
+}
+.nk-mnav button.active {
+  color: var(--accent-text, var(--accent));
+}
+.nk-mnav button svg {
+  display: block;
+}
+
+/* ─── More sheet (full-height drawer behind the "More" tab) ─────── */
+
+.nk-msheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  animation: nk-fade-in 120ms ease-out;
+}
+.nk-msheet {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  animation: nk-slide-up 180ms ease-out;
+}
+
+@keyframes nk-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes nk-slide-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.nk-msheet-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+.nk-msheet-ttl {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.nk-msheet-hd .nk-iconbtn {
+  width: 36px;
+  height: 36px;
+}
+
+.nk-msheet-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.nk-msheet-user .nk-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.nk-msheet-user-meta {
+  flex: 1;
+  min-width: 0;
+}
+.nk-msheet-user-name {
+  font-size: 15px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nk-msheet-user-plan {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.nk-msheet-sync {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  font-size: 12.5px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border-soft);
+}
+.nk-msheet-sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex-shrink: 0;
+}
+.nk-msheet-sync[data-tone="ready"] .nk-msheet-sync-dot {
+  background: #22c55e;
+}
+.nk-msheet-sync[data-tone="sync"] .nk-msheet-sync-dot {
+  background: var(--accent);
+  animation: nk-pulse 1.2s ease-in-out infinite;
+}
+.nk-msheet-sync[data-tone="error"] .nk-msheet-sync-dot {
+  background: #ef4444;
+}
+.nk-msheet-sync[data-tone="error"] {
+  color: #ef4444;
+}
+@keyframes nk-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.nk-msheet-sync-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nk-msheet-section {
+  padding: 8px 0 4px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.nk-msheet-section:last-of-type {
+  border-bottom: 0;
+}
+.nk-msheet-section-ttl {
+  margin: 0;
+  padding: 12px 16px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.nk-msheet-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nk-msheet-list button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: transparent;
+  border: 0;
+  padding: 14px 16px;
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  min-height: 48px;
+}
+.nk-msheet-list button:active {
+  background: var(--hover);
+}
+.nk-msheet-list button.active {
+  color: var(--accent-text, var(--accent));
+}
+.nk-msheet-list button.danger {
+  color: #ef4444;
+}
+.nk-msheet-list button .chev {
+  margin-left: auto;
+  color: var(--muted);
 }

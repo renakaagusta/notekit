@@ -8,6 +8,7 @@ import {
   deleteAgent,
   type AgentProfile,
 } from "../lib/agents-api";
+import { gravatarUrlFor } from "../lib/gravatar";
 
 export interface AgentFocusPulse {
   slug: string;
@@ -51,9 +52,13 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
     email: "",
     description: "",
   });
-  const [reveal, setReveal] = useState<{ slug: string; token: string } | null>(
-    null,
-  );
+  const [reveal, setReveal] = useState<{
+    slug: string;
+    token: string;
+    /** Surfaced in the reveal panel so the user can register a Gravatar
+     *  for this email and unlock the avatar on GitHub commit pages. */
+    email: string;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -86,7 +91,11 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
         email: newDraft.email.trim() || undefined,
         description: newDraft.description.trim() || undefined,
       });
-      setReveal({ slug: res.agent.slug, token: res.token });
+      setReveal({
+        slug: res.agent.slug,
+        token: res.token,
+        email: res.agent.email,
+      });
       resetNewDraft();
       setCreating(false);
       await refresh();
@@ -155,6 +164,29 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
     <section className="nk-history">
       {error && <div className="nk-history-error">Failed: {error}</div>}
 
+      {/* Once at the top of the section: explain where avatars come from. */}
+      <div
+        style={{
+          padding: "var(--gap-2) var(--gap-3)",
+          fontSize: "0.85em",
+          color: "var(--text-dim)",
+          borderBottom: "1px solid var(--border)",
+        }}
+      >
+        💡 Profile pictures come from{" "}
+        <a
+          href="https://gravatar.com"
+          target="_blank"
+          rel="noreferrer noopener"
+          style={{ color: "inherit", textDecoration: "underline" }}
+        >
+          Gravatar
+        </a>
+        . Register an agent's email at gravatar.com to give it a real photo
+        everywhere — NoteKit, GitHub commit pages, and Forgejo. Otherwise
+        Gravatar's deterministic identicon is shown.
+      </div>
+
       {reveal && (
         <div
           className="nk-history-error"
@@ -162,9 +194,12 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
             background: "rgba(245, 197, 24, 0.08)",
             borderColor: "rgba(245, 197, 24, 0.35)",
             color: "var(--text)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "var(--gap-3)",
           }}
         >
-          <div style={{ marginBottom: "var(--gap-2)" }}>
+          <div>
             <strong>Token for {reveal.slug}</strong> — shown once. Copy it now;
             you won't see it again. If you lose it, delete the agent and create
             a new one.
@@ -191,6 +226,37 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
             >
               Done
             </button>
+          </div>
+
+          {/*
+            Gravatar is the single source of truth for agent avatars across
+            NoteKit, GitHub commit pages, and Forgejo. There's no per-agent
+            URL stored; just the email above.
+          */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "var(--gap-2)",
+              paddingTop: "var(--gap-2)",
+              borderTop: "1px solid rgba(245, 197, 24, 0.25)",
+            }}
+          >
+            <img className="nk-commit-avatar" src={gravatarUrlFor(reveal.email)} alt="" />
+            <div style={{ flex: 1, fontSize: "0.9em" }}>
+              To give this agent a profile picture, register{" "}
+              <code style={{ fontFamily: "var(--mono-font)" }}>{reveal.email}</code>{" "}
+              on Gravatar. The avatar then appears here, on GitHub commits, and on
+              Forgejo.
+            </div>
+            <a
+              className="nk-btn"
+              href={`https://gravatar.com/connect/?email=${encodeURIComponent(reveal.email)}`}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Set up Gravatar
+            </a>
           </div>
         </div>
       )}
@@ -257,13 +323,15 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
                 }}
               >
                 <div className="nk-commit-row">
-                  {a.avatarUrl ? (
-                    <img className="nk-commit-avatar" src={a.avatarUrl} alt="" />
-                  ) : (
-                    <div className="nk-commit-avatar nk-commit-avatar--ph">
-                      {a.name.slice(0, 1).toUpperCase()}
-                    </div>
-                  )}
+                  {/* Gravatar serves the agent owner's photo for registered
+                      emails, or its identicon otherwise. No URL stored on the
+                      agent — it's computed from the email at render time. */}
+                  <img
+                    className="nk-commit-avatar"
+                    src={gravatarUrlFor(a.email)}
+                    alt=""
+                  />
+
                   <div className="nk-commit-body">
                     <div className="nk-commit-msg">{a.name}</div>
                     {a.description && (
@@ -352,7 +420,8 @@ function AgentForm({
       <input
         className="nk-input"
         placeholder={
-          emailHint ?? "Email (optional — defaults to <slug>@agents.notekit.app)"
+          emailHint ??
+          "Email (optional — server picks a default if you leave it blank; pick a Gravatar-registered email to get a real avatar)"
         }
         value={draft.email}
         onChange={(e) => onChange({ ...draft, email: e.target.value })}
@@ -367,6 +436,43 @@ function AgentForm({
         rows={3}
         style={{ resize: "vertical", fontFamily: "inherit" }}
       />
+      {/* Live preview of the avatar the agent will render with, sourced
+          from Gravatar by email hash. Until the email is filled in (or
+          defaulted by the server on submit), show the placeholder. */}
+      {draft.email.trim() && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "var(--gap-2)",
+            fontSize: "0.85em",
+            color: "var(--text-dim)",
+          }}
+        >
+          <img
+            className="nk-commit-avatar"
+            alt=""
+            src={gravatarUrlFor(draft.email.trim())}
+            style={{ background: "var(--surface-2)" }}
+          />
+          <span>
+            Avatar comes from Gravatar for{" "}
+            <code style={{ fontFamily: "var(--mono-font)" }}>
+              {draft.email.trim()}
+            </code>
+            . Register that email at{" "}
+            <a
+              href="https://gravatar.com"
+              target="_blank"
+              rel="noreferrer noopener"
+              style={{ color: "inherit", textDecoration: "underline" }}
+            >
+              gravatar.com
+            </a>{" "}
+            to replace the identicon with a real photo.
+          </span>
+        </div>
+      )}
       <div style={{ display: "flex", gap: "var(--gap-2)" }}>
         <button
           className="nk-btn nk-btn--primary"

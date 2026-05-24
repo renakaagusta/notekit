@@ -1,9 +1,19 @@
 import { Hono, type Context } from "hono";
+import { streamSSE } from "hono/streaming";
+import { and, eq } from "drizzle-orm";
+import { db, schema } from "../db";
 import { env } from "../env";
+import {
+  publishVaultEvent,
+  subscribeVault,
+  type VaultEvent,
+} from "../lib/vault-events";
+import { issueSseTicket, redeemSseTicket } from "../auth/sseTickets";
 import { getCurrentUser } from "../auth/sessions";
 import { getActingAgent } from "../auth/agentAuth";
-import { getGithubToken } from "../vault/tokens";
-import { getForgejoToken, provisionForgejoAccount } from "../vault/forgejoAccounts";
+import { getVaultToken, type GitProvider } from "../vault/tokens";
+import { provisionForgejoAccount } from "../vault/forgejoAccounts";
+import { checkWriteAllowed, refreshUsedBytesIfStale } from "../vault/quota";
 import {
   parseBody,
   z,
@@ -22,26 +32,27 @@ import {
 import { rateLimit } from "../middleware/rateLimit";
 import * as gh from "../vault/github";
 import * as fj from "../vault/forgejo";
-import {
-  listRepos,
-  createRepo,
-  getUserLogin,
-  listCollaborators,
-  addCollaborator,
-  removeCollaborator,
-  listInvitations,
-  cancelInvitation,
-  GhError,
-  type GitAuthor,
-} from "../vault/github";
+import * as gl from "../vault/gitlab";
+import { GhError, type GitAuthor } from "../vault/github";
+import { encryptToken } from "../auth/tokenCrypto";
 import { readAgent, defaultEmailFor } from "../vault/agents";
 import { emitAgentEvent } from "../notifications/emit";
 import { isPlus } from "../iap/entitlement";
 
-type GitProvider = "github" | "notekit";
-
 function gitOps(provider: GitProvider) {
-  return provider === "notekit" ? fj : gh;
+  if (provider === "notekit") return fj;
+  if (provider === "gitlab") return gl;
+  return gh;
+}
+
+/**
+ * Dev-mode shortcut: the auth/dev-vault and auth/dev-login flows seed
+ * sentinel tokens that the route layer recognizes and short-circuits with
+ * fixture responses, so a developer can exercise the UI without standing
+ * up real GitHub repos or a Forgejo container.
+ */
+function isDevToken(token: string): boolean {
+  return token === "dev_github_token" || token === "dev_forgejo_token";
 }
 
 const MOBILE_FREE_NOTE_CAP = 50;
@@ -79,37 +90,39 @@ const importLimit = rateLimit({
   windowMs: 60 * 60_000, // 1 hour
   max: 5,
 });
+// Auto-provisioning creates a real Forgejo user + repo on our infra, so the
+// limit is strict: a single user shouldn't need more than one provision
+// attempt per hour under normal use, and a hard daily cap stops abuse from
+// turning a free signup into a free file host.
+const provisionLimit = rateLimit({
+  bucket: "vault-provision",
+  windowMs: 60 * 60_000, // 1 hour
+  max: 3,
+});
 
 export const vaultRoutes = new Hono();
 
 vaultRoutes.route("/pair", pairRoutes);
 
-async function requireUserAndToken(c: Context) {
-  const user = await getCurrentUser(c);
-  if (!user) return { user: null, token: null };
-  const token = await getGithubToken(user.id);
-  return { user, token };
-}
-
 /**
  * Resolve the acting principal: either a session user, or an agent acting
- * on behalf of the user that created it. Returns the underlying user (so
- * we know which GitHub token to use) plus the optional acting agent slug.
+ * on behalf of the user that created it. Returns the underlying user id (so
+ * downstream code can resolve the user's active vault and dispatch to the
+ * right token) plus the optional acting agent slug. Vault token retrieval
+ * is intentionally NOT done here — that's the caller's job, after it knows
+ * which vault is being operated on, via `getVaultToken(userId, provider)`.
  */
 async function requirePrincipal(c: Context): Promise<{
   userId: string | null;
-  token: string | null;
   actingAs: string | null;
 }> {
   const agent = await getActingAgent(c);
   if (agent) {
-    const token = await getGithubToken(agent.userId);
-    return { userId: agent.userId, token, actingAs: agent.agentSlug };
+    return { userId: agent.userId, actingAs: agent.agentSlug };
   }
   const user = await getCurrentUser(c);
-  if (!user) return { userId: null, token: null, actingAs: null };
-  const token = await getGithubToken(user.id);
-  return { userId: user.id, token, actingAs: null };
+  if (!user) return { userId: null, actingAs: null };
+  return { userId: user.id, actingAs: null };
 }
 
 function ghErr(c: Context, err: unknown) {
@@ -156,10 +169,14 @@ vaultRoutes.get("/status", async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const active = await getActiveVault(user.id);
-  const hasToken = Boolean(await getGithubToken(user.id));
+  const [hasGithubToken, hasGitlabToken] = await Promise.all([
+    getVaultToken(user.id, "github").then(Boolean),
+    getVaultToken(user.id, "gitlab").then(Boolean),
+  ]);
   return c.json({
     configured: Boolean(active),
-    hasGithubToken: hasToken,
+    hasGithubToken,
+    hasGitlabToken,
     vault: active
       ? {
           id: active.id,
@@ -347,12 +364,33 @@ vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
   ]);
   if (!srcToken || !dstToken) return c.json({ error: "no_git_token" }, 400);
 
+  // Bulk import bypasses the per-write quota guard on PUT /file, so we
+  // re-check here before kicking off the loop. Catches the common case where
+  // a user with a near-full managed vault imports a large source vault and
+  // would otherwise discover the limit halfway through. Per-write enforcement
+  // would still kick in via the underlying writeFile calls, but failing
+  // upfront is friendlier.
+  if (dstProvider === "notekit") {
+    await refreshUsedBytesIfStale(userId);
+    const guard = await checkWriteAllowed(userId, dstProvider);
+    if (!guard.ok) {
+      return c.json(
+        {
+          error: guard.reason,
+          quotaBytes: guard.state.quotaBytes,
+          usedBytes: guard.state.usedBytes,
+        },
+        413,
+      );
+    }
+  }
+
   if (inFlightImports.has(userId)) {
     return c.json({ error: "import_already_running" }, 429);
   }
   inFlightImports.add(userId);
 
-  if (!env.isProd && srcToken === "dev_github_token") {
+  if (!env.isProd && isDevToken(srcToken)) {
     inFlightImports.delete(userId);
     return c.json({ imported: 0, skipped: 0, errors: [] });
   }
@@ -422,7 +460,7 @@ vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
           skipped++;
           continue;
         }
-        await gitOps(dstProvider).writeFile(
+        const writeRes = await gitOps(dstProvider).writeFile(
           dstToken,
           dest.owner,
           dest.repo,
@@ -431,6 +469,11 @@ vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
           `notekit: import ${item.path} from ${source.owner}/${source.repo}`,
           dest.branch,
         );
+        publishVaultEvent(dest.id, {
+          type: "write",
+          path: item.path,
+          sha: writeRes.sha,
+        });
         imported++;
       } catch (e) {
         errors.push({
@@ -450,39 +493,64 @@ vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
 /**
  * GET /vault/repos — list user's GitHub repos for the picker.
  */
+function providerFromQuery(c: Context): GitProvider {
+  const q = c.req.query("provider");
+  if (q === "notekit") return "notekit";
+  if (q === "gitlab") return "gitlab";
+  return "github";
+}
+
+const DEV_GH_REPOS = [
+  {
+    id: 1,
+    name: "vault-primary",
+    fullName: "dev/vault-primary",
+    owner: "dev",
+    private: true,
+    defaultBranch: "main",
+    description: "Dev primary vault",
+    updatedAt: new Date(0).toISOString(),
+  },
+  {
+    id: 2,
+    name: "vault-archive",
+    fullName: "dev/vault-archive",
+    owner: "dev",
+    private: true,
+    defaultBranch: "main",
+    description: "Dev archive vault",
+    updatedAt: new Date(0).toISOString(),
+  },
+];
+
+const DEV_FJ_REPOS = [
+  {
+    id: 101,
+    name: "notekit",
+    fullName: "dev-notekit/notekit",
+    owner: "dev-notekit",
+    private: true,
+    defaultBranch: "main",
+    description: "Dev NoteKit-hosted vault",
+    updatedAt: new Date(0).toISOString(),
+  },
+];
+
+/**
+ * GET /vault/repos?provider=github|gitlab|notekit — list the user's repos on
+ * the given backend. Defaults to github so existing clients keep working.
+ */
 vaultRoutes.get("/repos", async (c) => {
-  const { user, token } = await requireUserAndToken(c);
+  const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
-  // Dev-mode stub: fake token never hits GitHub; return a fixture so the UI works.
-  if (!env.isProd && token === "dev_github_token") {
-    return c.json({
-      repos: [
-        {
-          id: 1,
-          name: "vault-primary",
-          fullName: "dev/vault-primary",
-          owner: "dev",
-          private: true,
-          defaultBranch: "main",
-          description: "Dev primary vault",
-          updatedAt: new Date().toISOString(),
-        },
-        {
-          id: 2,
-          name: "vault-archive",
-          fullName: "dev/vault-archive",
-          owner: "dev",
-          private: true,
-          defaultBranch: "main",
-          description: "Dev archive vault",
-          updatedAt: new Date().toISOString(),
-        },
-      ],
-    });
-  }
+  const provider = providerFromQuery(c);
+  const token = await getVaultToken(user.id, provider);
+  if (!token) return c.json({ error: "vault_token_missing", provider }, 400);
+  // Dev fixtures: fake tokens never hit the real backend.
+  if (!env.isProd && token === "dev_github_token") return c.json({ repos: DEV_GH_REPOS });
+  if (!env.isProd && token === "dev_forgejo_token") return c.json({ repos: DEV_FJ_REPOS }); // provider-specific fixtures, intentional
   try {
-    const repos = await listRepos(token);
+    const repos = await gitOps(provider).listRepos(token);
     return c.json({
       repos: repos.map((r) => ({
         id: r.id,
@@ -506,16 +574,23 @@ const CreateRepoBody = z.object({
 });
 
 /**
- * POST /vault/repos — create a new repo to act as the vault.
+ * POST /vault/repos?provider=github|gitlab|notekit — create a new repo to
+ * act as a vault. Defaults to github.
  */
 vaultRoutes.post("/repos", vaultMutationLimit, async (c) => {
-  const { user, token } = await requireUserAndToken(c);
+  const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
+  const provider = providerFromQuery(c);
+  const token = await getVaultToken(user.id, provider);
+  if (!token) return c.json({ error: "vault_token_missing", provider }, 400);
   const parsed = await parseBody(c, CreateRepoBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
   try {
-    const repo = await createRepo(token, parsed.data.name, parsed.data.private ?? true);
+    const repo = await gitOps(provider).createRepo(
+      token,
+      parsed.data.name,
+      parsed.data.private ?? true,
+    );
     return c.json({
       repo: {
         owner: repo.owner.login,
@@ -569,15 +644,36 @@ vaultRoutes.post("/select", vaultMutationLimit, async (c) => {
 });
 
 /**
- * GET /vault/whoami — convenience: GH login from current token.
+ * GET /vault/whoami?provider=github|gitlab|notekit — return the user's
+ * login on the given backend. Defaults to the active vault's provider,
+ * falling back to github so older clients keep working.
  */
 vaultRoutes.get("/whoami", async (c) => {
-  const { user, token } = await requireUserAndToken(c);
+  const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
+  const queryProvider = c.req.query("provider");
+  let provider: GitProvider;
+  if (
+    queryProvider === "github" ||
+    queryProvider === "gitlab" ||
+    queryProvider === "notekit"
+  ) {
+    provider = queryProvider;
+  } else {
+    const active = await getActiveVault(user.id);
+    provider = (active?.provider as GitProvider) ?? "github";
+  }
+  const token = await getVaultToken(user.id, provider);
+  if (!token) return c.json({ error: "vault_token_missing", provider }, 400);
+  if (!env.isProd && isDevToken(token)) {
+    return c.json({
+      provider,
+      login: provider === "notekit" ? "dev-notekit" : "dev",
+    });
+  }
   try {
-    const login = await getUserLogin(token);
-    return c.json({ login });
+    const login = await gitOps(provider).getUserLogin(token);
+    return c.json({ provider, login });
   } catch (err) {
     return ghErr(c, err);
   }
@@ -587,15 +683,12 @@ async function resolveVault(userId: string) {
   const active = await getActiveVault(userId);
   if (!active) return null;
   return {
+    id: active.id,
     owner: active.owner,
     repo: active.repo,
     branch: active.branch,
     provider: active.provider as GitProvider,
   };
-}
-
-async function getVaultToken(userId: string, provider: GitProvider): Promise<string | null> {
-  return provider === "notekit" ? getForgejoToken(userId) : getGithubToken(userId);
 }
 
 /**
@@ -612,7 +705,7 @@ vaultRoutes.get("/file", async (c) => {
   const path = c.req.query("path");
   if (!path) return c.json({ error: "path_required" }, 400);
   const ref = c.req.query("ref") ?? vault.branch;
-  if (!env.isProd && token === "dev_github_token") {
+  if (!env.isProd && isDevToken(token)) {
     return c.json({ path, content: null, sha: null });
   }
   try {
@@ -648,6 +741,24 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
     return c.json({ error: "path_and_content_required" }, 400);
   }
 
+  // NoteKit-hosted vaults are subject to a storage quota — refresh the
+  // cached usage (cheap when fresh) and reject if the user is over.
+  // GitHub vaults bypass this check.
+  if (vault.provider === "notekit") {
+    await refreshUsedBytesIfStale(userId);
+    const guard = await checkWriteAllowed(userId, vault.provider);
+    if (!guard.ok) {
+      return c.json(
+        {
+          error: guard.reason,
+          quotaBytes: guard.state.quotaBytes,
+          usedBytes: guard.state.usedBytes,
+        },
+        413,
+      );
+    }
+  }
+
   const clientHeader = c.req.header("x-notekit-client");
   if (
     clientHeader === "mobile" &&
@@ -657,7 +768,7 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
   ) {
     const me = await getCurrentUser(c);
     if (me && !isPlus(me)) {
-      if (!env.isProd && token === "dev_github_token") {
+      if (!env.isProd && isDevToken(token)) {
         // Dev stub treats count as 0.
       } else {
         const entries = await gitOps(vault.provider).listTree(
@@ -680,21 +791,40 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
       }
     }
   }
-  if (!env.isProd && token === "dev_github_token") {
+  if (!env.isProd && isDevToken(token)) {
+    // Publish even in the dev stub branch so the SSE loop is exercisable
+    // end-to-end without a real Git backend. Without this, dev-mode writes
+    // would silently bypass cross-device sync notifications.
+    publishVaultEvent(vault.id, {
+      type: "write",
+      path: body.path,
+      sha: "dev_sha_000",
+    });
     return c.json({ path: body.path, sha: "dev_sha_000", content: body.content });
   }
   try {
     if (actingAs) {
-      const found = await readAgent(token, vault.owner, vault.repo, vault.branch, actingAs);
+      const found = await readAgent(vault.provider, token, vault.owner, vault.repo, vault.branch, actingAs);
       if (!found) return c.json({ error: "agent_profile_missing", slug: actingAs }, 409);
       const author: GitAuthor = {
         name: found.profile.name,
         email: found.profile.email || defaultEmailFor(actingAs),
       };
-      const login = await getUserLogin(token);
+      const login = await gitOps(vault.provider).getUserLogin(token);
+      // GitHub publishes `<login>@users.noreply.github.com` for users who
+      // hide their email; GitLab uses the same `users.noreply.gitlab.com`
+      // shape; Forgejo follows the same convention rooted at its own host.
+      // The committer email is informational on commits and doesn't have to
+      // map to a real inbox.
+      const committerHost =
+        vault.provider === "notekit"
+          ? `users.noreply.${env.forgejo.domain ?? "notekit.app"}`
+          : vault.provider === "gitlab"
+            ? "users.noreply.gitlab.com"
+            : "users.noreply.github.com";
       const committer: GitAuthor = {
         name: login,
-        email: `${login}@users.noreply.github.com`,
+        email: `${login}@${committerHost}`,
       };
       const result = await gitOps(vault.provider).writeFileAs(
         token,
@@ -714,6 +844,11 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
         resourcePath: body.path,
         extra: { sha: result.sha },
       });
+      publishVaultEvent(vault.id, {
+        type: "write",
+        path: body.path,
+        sha: result.sha,
+      });
       return c.json({ path: body.path, sha: result.sha, actor: `agent:${actingAs}` });
     }
     const result = await gitOps(vault.provider).writeFile(
@@ -726,6 +861,11 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
       vault.branch,
       body.sha,
     );
+    publishVaultEvent(vault.id, {
+      type: "write",
+      path: body.path,
+      sha: result.sha,
+    });
     return c.json({ path: body.path, sha: result.sha, actor: "user" });
   } catch (err) {
     return ghErr(c, err);
@@ -750,6 +890,12 @@ vaultRoutes.delete("/file", writeLimit, async (c) => {
   if (!body?.path || !body?.sha) {
     return c.json({ error: "path_and_sha_required" }, 400);
   }
+  if (!env.isProd && isDevToken(token)) {
+    // Dev stub mirrors the PUT branch: skip the real Git call but still
+    // publish the event so SSE consumers see deletes in dev mode.
+    publishVaultEvent(vault.id, { type: "delete", path: body.path });
+    return c.json({ ok: true });
+  }
   try {
     await gitOps(vault.provider).deleteFile(
       token,
@@ -768,10 +914,137 @@ vaultRoutes.delete("/file", writeLimit, async (c) => {
         resourcePath: body.path,
       });
     }
+    publishVaultEvent(vault.id, { type: "delete", path: body.path });
     return c.json({ ok: true });
   } catch (err) {
     return ghErr(c, err);
   }
+});
+
+/**
+ * POST /vault/events/ticket — mint a single-use, short-lived ticket the
+ * caller can pass as `?ticket=` on `GET /vault/events`. Required for
+ * bearer-only clients (CLI, MCP, desktop-PAT), because native EventSource
+ * can't send an Authorization header. Cookie clients don't need this —
+ * they can hit `/vault/events` directly with `credentials: include`.
+ */
+vaultRoutes.post("/events/ticket", async (c) => {
+  const { userId } = await requirePrincipal(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  try {
+    const issued = issueSseTicket(userId);
+    return c.json({
+      ticket: issued.ticket,
+      expiresAt: issued.expiresAt.toISOString(),
+    });
+  } catch (err) {
+    if ((err as Error).message === "ticket_pool_full") {
+      return c.json({ error: "ticket_pool_full" }, 503);
+    }
+    throw err;
+  }
+});
+
+/**
+ * GET /vault/events — server-sent events for cross-device sync. Emits
+ * `write` and `delete` events whenever the caller's active vault is
+ * mutated by any client (web/desktop/mobile/agent). Subscribers react by
+ * re-pulling on their sync engine — debounced and gated, so a flurry of
+ * edits doesn't translate into a flurry of refreshes.
+ *
+ * Heartbeats every 25s keep the connection alive through idle-timeout
+ * proxies (nginx default 60s, Cloudflare 100s). The stream stays open
+ * until the client closes it or the process terminates.
+ *
+ * Auth modes (in order):
+ *   1. `?ticket=<nks_…>` — single-use, minted via POST /vault/events/ticket.
+ *      Required for bearer-only clients (no header support in EventSource).
+ *   2. Cookie / agent token — same path as the rest of /vault/*.
+ */
+vaultRoutes.get("/events", async (c) => {
+  let userId: string | null = null;
+  const ticketParam = c.req.query("ticket");
+  if (ticketParam) {
+    const redeemed = redeemSseTicket(ticketParam);
+    if (!redeemed) return c.json({ error: "invalid_or_expired_ticket" }, 401);
+    userId = redeemed.userId;
+  } else {
+    const principal = await requirePrincipal(c);
+    userId = principal.userId;
+  }
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  const vault = await resolveVault(userId);
+  if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  const vaultId = vault.id;
+
+  return streamSSE(c, async (stream) => {
+    const queue: VaultEvent[] = [];
+    let wake: (() => void) | null = null;
+    let aborted = false;
+
+    const wakeNow = () => {
+      if (wake) {
+        const r = wake;
+        wake = null;
+        r();
+      }
+    };
+
+    stream.onAbort(() => {
+      aborted = true;
+      wakeNow();
+    });
+
+    const unsubscribe = subscribeVault(vaultId, (event) => {
+      queue.push(event);
+      wakeNow();
+    });
+
+    try {
+      // Send a ready event so the client can reset its reconnect backoff
+      // on first successful connect.
+      await stream.writeSSE({ data: "{}", event: "ready" });
+
+      const HEARTBEAT_MS = 25_000;
+
+      while (!aborted) {
+        // Drain anything that arrived while we weren't watching.
+        while (queue.length > 0 && !aborted) {
+          const ev = queue.shift()!;
+          try {
+            await stream.writeSSE({
+              data: JSON.stringify(ev),
+              event: ev.type,
+            });
+          } catch {
+            // Stream is gone — bail out and let the finally{} clean up.
+            aborted = true;
+          }
+        }
+        if (aborted) break;
+
+        // Wait for either a new event or the heartbeat tick, whichever
+        // comes first. wake() races setTimeout().
+        await new Promise<void>((resolve) => {
+          const t = setTimeout(resolve, HEARTBEAT_MS);
+          wake = () => {
+            clearTimeout(t);
+            resolve();
+          };
+        });
+
+        if (!aborted && queue.length === 0) {
+          try {
+            await stream.writeSSE({ data: "", event: "heartbeat" });
+          } catch {
+            aborted = true;
+          }
+        }
+      }
+    } finally {
+      unsubscribe();
+    }
+  });
 });
 
 /**
@@ -786,7 +1059,7 @@ vaultRoutes.get("/commits", async (c) => {
   if (!token) return c.json({ error: "no_git_token" }, 400);
   const path = c.req.query("path") || undefined;
   const limit = Number(c.req.query("limit") ?? "50") || 50;
-  if (!env.isProd && token === "dev_github_token") {
+  if (!env.isProd && isDevToken(token)) {
     return c.json({ commits: [] });
   }
   try {
@@ -798,6 +1071,10 @@ vaultRoutes.get("/commits", async (c) => {
       path,
       limit,
     );
+    // Agent avatars used to be enriched here from per-agent stored URLs.
+    // The store-no-avatar refactor moved that responsibility to the
+    // client, which now computes the Gravatar URL inline from the commit's
+    // author email. Pass commits through unchanged.
     return c.json({ commits });
   } catch (err) {
     return ghErr(c, err);
@@ -831,7 +1108,7 @@ vaultRoutes.post("/sync", async (c) => {
     branch: vault.branch,
   };
 
-  if (!env.isProd && token === "dev_github_token") {
+  if (!env.isProd && isDevToken(token)) {
     return c.json({
       ok: true,
       vault: vaultRef,
@@ -864,19 +1141,23 @@ vaultRoutes.post("/sync", async (c) => {
  * GET /vaults/:id/members — list collaborators + pending invitations.
  */
 vaultRoutes.get("/vaults/:id/members", async (c) => {
-  const { user, token } = await requireUserAndToken(c);
+  const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const id = c.req.param("id");
   const vault = await getVaultById(user.id, id);
   if (!vault) return c.json({ error: "vault_not_found" }, 404);
-  if (!env.isProd && token === "dev_github_token") {
+  const token = await getVaultToken(user.id, vault.provider);
+  if (!token) {
+    return c.json({ error: "vault_token_missing", provider: vault.provider }, 400);
+  }
+  if (!env.isProd && isDevToken(token)) {
     return c.json({ members: [], invitations: [] });
   }
   try {
+    const ops = gitOps(vault.provider);
     const [members, invitations] = await Promise.all([
-      listCollaborators(token, vault.owner, vault.repo),
-      listInvitations(token, vault.owner, vault.repo),
+      ops.listCollaborators(token, vault.owner, vault.repo),
+      ops.listInvitations(token, vault.owner, vault.repo),
     ]);
     return c.json({ members, invitations });
   } catch (err) {
@@ -894,22 +1175,31 @@ const AddMemberBody = z.object({
  * already had access. GitHub sends them an email invitation.
  */
 vaultRoutes.put("/vaults/:id/members/:username", vaultMutationLimit, async (c) => {
-  const { user, token } = await requireUserAndToken(c);
+  const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const id = c.req.param("id");
   const username = c.req.param("username");
   const usernameResult = GithubUsername.safeParse(username);
   if (!usernameResult.success) return c.json({ error: "invalid_username" }, 400);
   const vault = await getVaultById(user.id, id);
   if (!vault) return c.json({ error: "vault_not_found" }, 404);
+  const token = await getVaultToken(user.id, vault.provider);
+  if (!token) {
+    return c.json({ error: "vault_token_missing", provider: vault.provider }, 400);
+  }
   const parsed = await parseBody(c, AddMemberBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
-  if (!env.isProd && token === "dev_github_token") {
+  if (!env.isProd && isDevToken(token)) {
     return c.json({ status: "invited", invitation: null });
   }
   try {
-    const result = await addCollaborator(token, vault.owner, vault.repo, usernameResult.data, parsed.data.permission);
+    const result = await gitOps(vault.provider).addCollaborator(
+      token,
+      vault.owner,
+      vault.repo,
+      usernameResult.data,
+      parsed.data.permission,
+    );
     return c.json({
       status: result.status === 201 ? "invited" : "added",
       invitation: result.invitation,
@@ -923,20 +1213,28 @@ vaultRoutes.put("/vaults/:id/members/:username", vaultMutationLimit, async (c) =
  * DELETE /vaults/:id/members/:username — remove a collaborator.
  */
 vaultRoutes.delete("/vaults/:id/members/:username", vaultMutationLimit, async (c) => {
-  const { user, token } = await requireUserAndToken(c);
+  const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const id = c.req.param("id");
   const username = c.req.param("username");
   const usernameResult = GithubUsername.safeParse(username);
   if (!usernameResult.success) return c.json({ error: "invalid_username" }, 400);
   const vault = await getVaultById(user.id, id);
   if (!vault) return c.json({ error: "vault_not_found" }, 404);
-  if (!env.isProd && token === "dev_github_token") {
+  const token = await getVaultToken(user.id, vault.provider);
+  if (!token) {
+    return c.json({ error: "vault_token_missing", provider: vault.provider }, 400);
+  }
+  if (!env.isProd && isDevToken(token)) {
     return c.json({ ok: true });
   }
   try {
-    await removeCollaborator(token, vault.owner, vault.repo, usernameResult.data);
+    await gitOps(vault.provider).removeCollaborator(
+      token,
+      vault.owner,
+      vault.repo,
+      usernameResult.data,
+    );
     return c.json({ ok: true });
   } catch (err) {
     return ghErr(c, err);
@@ -947,9 +1245,8 @@ vaultRoutes.delete("/vaults/:id/members/:username", vaultMutationLimit, async (c
  * DELETE /vaults/:id/invitations/:invitationId — cancel a pending invite.
  */
 vaultRoutes.delete("/vaults/:id/invitations/:invitationId", vaultMutationLimit, async (c) => {
-  const { user, token } = await requireUserAndToken(c);
+  const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   const id = c.req.param("id");
   const invitationId = Number(c.req.param("invitationId"));
   if (!Number.isInteger(invitationId) || invitationId <= 0) {
@@ -957,11 +1254,20 @@ vaultRoutes.delete("/vaults/:id/invitations/:invitationId", vaultMutationLimit, 
   }
   const vault = await getVaultById(user.id, id);
   if (!vault) return c.json({ error: "vault_not_found" }, 404);
-  if (!env.isProd && token === "dev_github_token") {
+  const token = await getVaultToken(user.id, vault.provider);
+  if (!token) {
+    return c.json({ error: "vault_token_missing", provider: vault.provider }, 400);
+  }
+  if (!env.isProd && isDevToken(token)) {
     return c.json({ ok: true });
   }
   try {
-    await cancelInvitation(token, vault.owner, vault.repo, invitationId);
+    await gitOps(vault.provider).cancelInvitation(
+      token,
+      vault.owner,
+      vault.repo,
+      invitationId,
+    );
     return c.json({ ok: true });
   } catch (err) {
     return ghErr(c, err);
@@ -979,7 +1285,7 @@ vaultRoutes.get("/list", async (c) => {
   const token = await getVaultToken(userId, vault.provider);
   if (!token) return c.json({ error: "no_git_token" }, 400);
   const prefix = c.req.query("prefix") ?? "";
-  if (!env.isProd && token === "dev_github_token") {
+  if (!env.isProd && isDevToken(token)) {
     return c.json({ entries: [] });
   }
   try {
@@ -992,13 +1298,123 @@ vaultRoutes.get("/list", async (c) => {
   }
 });
 
+// ── GitLab connect endpoints ─────────────────────────────────────────────────
+//
+// GitLab is BYO-storage only — the user pastes a Personal Access Token from
+// gitlab.com (scopes: api, write_repository) and we store it encrypted in
+// oauth_accounts under provider='gitlab'. There's no OAuth dance because
+// auth is Google-only; GitLab is purely a storage backend.
+
+const GitlabConnectBody = z.object({
+  // PATs are ~26+ chars. We accept up to 200 to leave headroom for future
+  // longer formats; the validity check is whether GitLab accepts it.
+  token: z.string().min(8).max(200),
+});
+
+/**
+ * GET /vault/gitlab/status — is GitLab connected and as which user?
+ */
+vaultRoutes.get("/gitlab/status", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const token = await getVaultToken(user.id, "gitlab");
+  if (!token) return c.json({ connected: false, login: null });
+  if (!env.isProd && isDevToken(token)) {
+    return c.json({ connected: true, login: "dev-gitlab" });
+  }
+  try {
+    const login = await gl.getUserLogin(token);
+    return c.json({ connected: true, login });
+  } catch (err) {
+    // Token may have been revoked on GitLab's side. Surface as "not connected"
+    // so the UI prompts a re-connect rather than blocking on a stale row.
+    if (err instanceof GhError && (err.status === 401 || err.status === 403)) {
+      return c.json({ connected: false, login: null, reason: "token_invalid" });
+    }
+    return ghErr(c, err);
+  }
+});
+
+/**
+ * POST /vault/gitlab/connect { token } — validate the PAT against GitLab,
+ * then store it encrypted under provider='gitlab' in oauth_accounts.
+ * Idempotent: re-connecting overwrites the existing row.
+ */
+vaultRoutes.post("/gitlab/connect", vaultMutationLimit, async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const parsed = await parseBody(c, GitlabConnectBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
+
+  try {
+    const info = await gl.getCurrentUserInfo(parsed.data.token);
+    const encrypted = encryptToken(parsed.data.token);
+
+    // Upsert by (provider, provider_account_id). If this GitLab account is
+    // already linked to a *different* NoteKit user, reject — connecting the
+    // same GitLab identity to two NoteKit users would let either of them
+    // overwrite the other's vault contents.
+    const existing = await db.query.oauthAccounts.findFirst({
+      where: and(
+        eq(schema.oauthAccounts.provider, "gitlab"),
+        eq(schema.oauthAccounts.providerAccountId, String(info.id)),
+      ),
+    });
+    if (existing && existing.userId !== user.id) {
+      return c.json({ error: "gitlab_already_linked" }, 409);
+    }
+    if (existing) {
+      await db
+        .update(schema.oauthAccounts)
+        .set({ accessToken: encrypted })
+        .where(
+          and(
+            eq(schema.oauthAccounts.provider, "gitlab"),
+            eq(schema.oauthAccounts.providerAccountId, String(info.id)),
+          ),
+        );
+    } else {
+      await db.insert(schema.oauthAccounts).values({
+        provider: "gitlab",
+        providerAccountId: String(info.id),
+        userId: user.id,
+        accessToken: encrypted,
+      });
+    }
+    return c.json({ ok: true, login: info.username });
+  } catch (err) {
+    if (err instanceof GhError && (err.status === 401 || err.status === 403)) {
+      return c.json({ error: "token_invalid" }, 400);
+    }
+    return ghErr(c, err);
+  }
+});
+
+/**
+ * DELETE /vault/gitlab/connect — disconnect GitLab. Does NOT touch the
+ * GitLab account itself; only forgets the PAT on our side.
+ */
+vaultRoutes.delete("/gitlab/connect", vaultMutationLimit, async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  await db
+    .delete(schema.oauthAccounts)
+    .where(
+      and(
+        eq(schema.oauthAccounts.provider, "gitlab"),
+        eq(schema.oauthAccounts.userId, user.id),
+      ),
+    );
+  return c.json({ ok: true });
+});
+
 // ── NoteKit-hosted Git (Forgejo) endpoints ────────────────────────────────────
 
 /**
  * POST /vault/notekit/provision — create (or retrieve) the user's Forgejo
  * account. Idempotent. Requires FORGEJO_ADMIN_TOKEN to be set on the server.
  */
-vaultRoutes.post("/notekit/provision", vaultMutationLimit, async (c) => {
+vaultRoutes.post("/notekit/provision", provisionLimit, async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   if (!env.forgejo.adminToken) {
@@ -1031,7 +1447,7 @@ vaultRoutes.get("/notekit/repos", async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   if (!env.forgejo.adminToken) return c.json({ error: "forgejo_not_configured" }, 503);
-  const token = await getForgejoToken(user.id);
+  const token = await getVaultToken(user.id, "notekit");
   if (!token) return c.json({ error: "not_provisioned" }, 400);
   try {
     const repos = await fj.listRepos(token);
@@ -1059,7 +1475,7 @@ vaultRoutes.post("/notekit/repos", vaultMutationLimit, async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   if (!env.forgejo.adminToken) return c.json({ error: "forgejo_not_configured" }, 503);
-  const token = await getForgejoToken(user.id);
+  const token = await getVaultToken(user.id, "notekit");
   if (!token) return c.json({ error: "not_provisioned" }, 400);
   const parsed = await parseBody(c, CreateRepoBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);

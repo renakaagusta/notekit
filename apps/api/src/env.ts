@@ -72,6 +72,26 @@ export const env = {
     adminToken: optional("FORGEJO_ADMIN_TOKEN"),
     domain: optional("FORGEJO_DOMAIN"),
   },
+  agents: {
+    // Default email pattern for new agents. Two ways to configure:
+    //
+    //  AGENT_EMAIL_PATTERN  — full template with `{slug}` substitution
+    //                         e.g. `myname+{slug}@gmail.com`
+    //                         e.g. `<gh-id>+{slug}@users.noreply.github.com`
+    //  AGENT_EMAIL_DOMAIN   — legacy shorthand for `{slug}@<domain>`
+    //
+    // The pattern wins when both are set. The chosen address must be
+    // either (a) a Gravatar-registered email so GitHub renders the
+    // avatar, or (b) a GitHub noreply form (`<id>+<slug>@users.noreply.
+    // github.com`) which GitHub recognizes as belonging to that user
+    // and renders their avatar with the agent's name. Gmail `+` aliases
+    // (a) work cleanly because Gravatar treats them as distinct emails
+    // while Gmail collapses them to your real inbox for verification.
+    //
+    // See docs/architecture/agent-email-routing.md.
+    emailPattern: optional("AGENT_EMAIL_PATTERN"),
+    emailDomain: optional("AGENT_EMAIL_DOMAIN") ?? "agents.notekit.app",
+  },
   isProd: process.env.NODE_ENV === "production",
 };
 

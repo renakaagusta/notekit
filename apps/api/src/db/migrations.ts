@@ -173,6 +173,59 @@ const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    id: "009_agent_avatar_cache",
+    up: (db) => {
+      // Historical: cached per-agent custom avatar URLs for the federated
+      // /avatar/:hash endpoint. Superseded by migration 010 — NoteKit no
+      // longer stores per-agent avatar URLs. Kept as a no-op so the
+      // migration id stays recorded and existing deployments don't
+      // re-run anything; the table itself is dropped in 010.
+      void db;
+    },
+  },
+  {
+    id: "008_forgejo_storage_quota",
+    up: (db) => {
+      // Per-user storage cap on the NoteKit-hosted Forgejo backend. GitHub
+      // vaults don't need this — GitHub bills users directly. For Forgejo
+      // we pay for disk, so writes get rejected once `used_bytes` crosses
+      // `quota_bytes`. `used_bytes` is refreshed periodically from the
+      // Forgejo repo `size` field; it lags real usage by minutes but is
+      // good enough to stop runaway growth.
+      const cols = db
+        .prepare(`PRAGMA table_info(forgejo_accounts)`)
+        .all() as { name: string }[];
+      if (!cols.some((c) => c.name === "quota_bytes")) {
+        // 100 MB default — covers thousands of plaintext notes and tickets
+        // but blocks anyone trying to use NoteKit as a generic file host.
+        // Plus subscribers get bumped via getEffectiveQuotaBytes().
+        db.exec(
+          `ALTER TABLE forgejo_accounts ADD COLUMN quota_bytes INTEGER NOT NULL DEFAULT 104857600`,
+        );
+      }
+      if (!cols.some((c) => c.name === "used_bytes")) {
+        db.exec(
+          `ALTER TABLE forgejo_accounts ADD COLUMN used_bytes INTEGER NOT NULL DEFAULT 0`,
+        );
+      }
+      if (!cols.some((c) => c.name === "usage_updated_at")) {
+        db.exec(
+          `ALTER TABLE forgejo_accounts ADD COLUMN usage_updated_at INTEGER`,
+        );
+      }
+    },
+  },
+  {
+    id: "010_drop_agent_avatars",
+    up: (db) => {
+      // We no longer store per-agent avatar URLs — agents render their
+      // owner's Gravatar via email hash at request time. Drop the cache
+      // table so the schema reflects the codebase. Safe on fresh installs
+      // (DROP IF EXISTS) and on existing installs that ran migration 009.
+      db.exec(`DROP TABLE IF EXISTS agent_avatars`);
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

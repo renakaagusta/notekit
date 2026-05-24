@@ -20,7 +20,10 @@ export const users = sqliteTable("users", {
 export const oauthAccounts = sqliteTable(
   "oauth_accounts",
   {
-    provider: text("provider", { enum: ["github", "google"] }).notNull(),
+    // "github" + "google" are sign-in providers.
+    // "gitlab" is a storage-only connection — a PAT the user pastes so we
+    // can sync their vault to gitlab.com. It never authenticates a session.
+    provider: text("provider", { enum: ["github", "google", "gitlab"] }).notNull(),
     providerAccountId: text("provider_account_id").notNull(),
     userId: text("user_id")
       .notNull()
@@ -52,7 +55,7 @@ export const vaults = sqliteTable("vaults", {
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  provider: text("provider", { enum: ["github", "notekit"] }).notNull(),
+  provider: text("provider", { enum: ["github", "gitlab", "notekit"] }).notNull(),
   owner: text("owner").notNull(),
   repo: text("repo").notNull(),
   branch: text("branch").notNull().default("main"),
@@ -100,6 +103,15 @@ export const forgejoAccounts = sqliteTable("forgejo_accounts", {
     .references(() => users.id, { onDelete: "cascade" }),
   username: text("username").notNull(),
   accessToken: text("access_token").notNull(),
+  // Hard cap on the user's NoteKit-hosted vault size, in bytes. Default
+  // 100 MB matches the migration default. The entitlement layer reads
+  // this column but free/plus tiers may override it at read time.
+  quotaBytes: integer("quota_bytes").notNull().default(104857600),
+  // Most-recent observed total repo size across the user's Forgejo repos.
+  // Refreshed by the usage-recompute job; treat as an estimate, not a
+  // truth — a fast burst of writes can blow past it before the next refresh.
+  usedBytes: integer("used_bytes").notNull().default(0),
+  usageUpdatedAt: integer("usage_updated_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),

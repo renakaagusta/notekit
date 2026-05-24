@@ -58,6 +58,7 @@ services:
       FORGEJO_URL: https://${GIT_DOMAIN}
       FORGEJO_DOMAIN: ${GIT_DOMAIN}
       FORGEJO_ADMIN_TOKEN: ${FORGEJO_ADMIN_TOKEN:-}
+      AGENT_EMAIL_DOMAIN: ${AGENT_EMAIL_DOMAIN:-agents.notekit.app}
     volumes:
       - notekit-db:/app/apps/api/data
     networks:
@@ -98,6 +99,15 @@ services:
       FORGEJO__security__INTERNAL_TOKEN: ${FORGEJO_INTERNAL_TOKEN}
       FORGEJO__log__LEVEL: Warn
       FORGEJO__admin__DEFAULT_EMAIL_NOTIFICATIONS: disabled
+      # Federated avatars: instead of Gravatar.com (which knows nothing
+      # about our agents), Forgejo queries NoteKit's `/avatar/:hash`
+      # endpoint for any unknown email. Agent-authored commits then
+      # render with the agent's own avatar in Forgejo's UI, no extra
+      # setup per agent. Real Forgejo users keep their own profile pic
+      # since Forgejo checks local users before falling back.
+      FORGEJO__picture__DISABLE_GRAVATAR: "false"
+      FORGEJO__picture__GRAVATAR_SOURCE: https://${API_DOMAIN}/avatar/
+      FORGEJO__picture__ENABLE_FEDERATED_AVATAR: "true"
     volumes:
       - notekit-git-data:/data
     networks:

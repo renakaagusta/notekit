@@ -7,7 +7,7 @@ import { Hono, type Context } from "hono";
 import { and, eq, isNull } from "drizzle-orm";
 import { db, schema } from "../db";
 import { getCurrentUser } from "../auth/sessions";
-import { getGithubToken } from "../vault/tokens";
+import { getActiveVaultToken } from "../vault/tokens";
 import { GhError } from "../vault/github";
 import {
   readAgent,
@@ -28,7 +28,7 @@ export const agentRoutes = new Hono();
 function ghErr(c: Context, err: unknown) {
   if (err instanceof GhError) {
     return c.json(
-      { error: "github_error", status: err.status, message: err.message },
+      { error: "vault_backend_error", status: err.status, message: err.message },
       502,
     );
   }
@@ -36,55 +36,60 @@ function ghErr(c: Context, err: unknown) {
   return c.json({ error: "server_error" }, 500);
 }
 
+/**
+ * Resolve the user, their active vault, and the access token for that vault's
+ * backend in one go. Replaces the old `requireUserVault` which read legacy
+ * single-vault columns and only returned a GitHub token. Returns one of:
+ *   { user: null }                              → 401
+ *   { user, vault: null }                       → 409 no_vault_configured
+ *   { user, vault, token: null }                → 400 vault_token_missing
+ *   { user, vault, token }                      → ready to operate
+ */
 async function requireUserVault(c: Context) {
   const user = await getCurrentUser(c);
-  if (!user) return { user: null, token: null, vault: null } as const;
-  const token = await getGithubToken(user.id);
-  if (!token) return { user, token: null, vault: null } as const;
-  const settings = await db.query.userSettings.findFirst({
-    where: eq(schema.userSettings.userId, user.id),
-  });
-  if (!settings?.vaultOwner || !settings?.vaultRepo) {
-    return { user, token, vault: null } as const;
-  }
-  return {
-    user,
-    token,
-    vault: {
-      owner: settings.vaultOwner,
-      repo: settings.vaultRepo,
-      branch: settings.vaultBranch ?? "main",
-    },
-  } as const;
+  if (!user) return { user: null, vault: null, token: null } as const;
+  const { vault, token } = await getActiveVaultToken(user.id);
+  return { user, vault, token } as const;
 }
 
-/**
- * GET /agents — list agents from the user's vault.
- */
 agentRoutes.get("/", async (c) => {
-  const { user, token, vault } = await requireUserVault(c);
+  const { user, vault, token } = await requireUserVault(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  if (!token) {
+    return c.json({ error: "vault_token_missing", provider: vault.provider }, 400);
+  }
   try {
-    const agents = await listAgents(token, vault.owner, vault.repo, vault.branch);
+    const agents = await listAgents(
+      vault.provider,
+      token,
+      vault.owner,
+      vault.repo,
+      vault.branch,
+    );
     return c.json({ agents });
   } catch (err) {
     return ghErr(c, err);
   }
 });
 
-/**
- * GET /agents/:slug — read a single agent profile from the vault.
- */
 agentRoutes.get("/:slug", async (c) => {
-  const { user, token, vault } = await requireUserVault(c);
+  const { user, vault, token } = await requireUserVault(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  if (!token) {
+    return c.json({ error: "vault_token_missing", provider: vault.provider }, 400);
+  }
   const slug = c.req.param("slug");
   try {
-    const found = await readAgent(token, vault.owner, vault.repo, vault.branch, slug);
+    const found = await readAgent(
+      vault.provider,
+      token,
+      vault.owner,
+      vault.repo,
+      vault.branch,
+      slug,
+    );
     if (!found) return c.json({ error: "not_found" }, 404);
     return c.json({ agent: found.profile });
   } catch (err) {
@@ -98,16 +103,17 @@ agentRoutes.get("/:slug", async (c) => {
  * Returns { agent, token } — token is shown ONCE and never retrievable again.
  */
 agentRoutes.post("/", async (c) => {
-  const { user, token, vault } = await requireUserVault(c);
+  const { user, vault, token } = await requireUserVault(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  if (!token) {
+    return c.json({ error: "vault_token_missing", provider: vault.provider }, 400);
+  }
 
   const body = (await c.req.json().catch(() => null)) as {
     name?: string;
     email?: string;
     description?: string;
-    avatarUrl?: string | null;
   } | null;
   if (!body?.name || typeof body.name !== "string") {
     return c.json({ error: "name_required" }, 400);
@@ -119,19 +125,33 @@ agentRoutes.post("/", async (c) => {
   if (!slug) return c.json({ error: "invalid_name" }, 400);
 
   try {
-    const existing = await readAgent(token, vault.owner, vault.repo, vault.branch, slug);
+    const existing = await readAgent(
+      vault.provider,
+      token,
+      vault.owner,
+      vault.repo,
+      vault.branch,
+      slug,
+    );
     if (existing) return c.json({ error: "slug_taken", slug }, 409);
 
+    const resolvedEmail = body.email?.trim() || defaultEmailFor(slug);
     const profile: AgentProfile = {
       slug,
       name: trimmedName,
-      email: body.email?.trim() || defaultEmailFor(slug),
+      email: resolvedEmail,
       description: body.description?.trim() ?? "",
-      avatarUrl: body.avatarUrl ?? null,
       createdAt: new Date().toISOString(),
     };
 
-    await writeAgent(token, vault.owner, vault.repo, vault.branch, profile);
+    await writeAgent(
+      vault.provider,
+      token,
+      vault.owner,
+      vault.repo,
+      vault.branch,
+      profile,
+    );
 
     const { plain, hash } = generateAgentToken();
     await db.insert(schema.agentTokens).values({
@@ -152,22 +172,30 @@ agentRoutes.post("/", async (c) => {
  * Slug stays immutable; renaming would split git history under a different path.
  */
 agentRoutes.patch("/:slug", async (c) => {
-  const { user, token, vault } = await requireUserVault(c);
+  const { user, vault, token } = await requireUserVault(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  if (!token) {
+    return c.json({ error: "vault_token_missing", provider: vault.provider }, 400);
+  }
 
   const slug = c.req.param("slug");
   const body = (await c.req.json().catch(() => null)) as {
     name?: string;
     email?: string;
     description?: string;
-    avatarUrl?: string | null;
   } | null;
   if (!body) return c.json({ error: "invalid_body" }, 400);
 
   try {
-    const found = await readAgent(token, vault.owner, vault.repo, vault.branch, slug);
+    const found = await readAgent(
+      vault.provider,
+      token,
+      vault.owner,
+      vault.repo,
+      vault.branch,
+      slug,
+    );
     if (!found) return c.json({ error: "not_found" }, 404);
 
     const next: AgentProfile = {
@@ -178,11 +206,18 @@ agentRoutes.patch("/:slug", async (c) => {
         body.description !== undefined
           ? body.description.trim()
           : found.profile.description,
-      avatarUrl:
-        body.avatarUrl !== undefined ? body.avatarUrl : found.profile.avatarUrl,
     };
 
-    await writeAgent(token, vault.owner, vault.repo, vault.branch, next, found.sha);
+    await writeAgent(
+      vault.provider,
+      token,
+      vault.owner,
+      vault.repo,
+      vault.branch,
+      next,
+      found.sha,
+    );
+
     return c.json({ agent: next });
   } catch (err) {
     return ghErr(c, err);
@@ -193,15 +228,32 @@ agentRoutes.patch("/:slug", async (c) => {
  * DELETE /agents/:slug — revoke all tokens for an agent and delete the file.
  */
 agentRoutes.delete("/:slug", async (c) => {
-  const { user, token, vault } = await requireUserVault(c);
+  const { user, vault, token } = await requireUserVault(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  if (!token) return c.json({ error: "no_github_token" }, 400);
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  if (!token) {
+    return c.json({ error: "vault_token_missing", provider: vault.provider }, 400);
+  }
   const slug = c.req.param("slug");
   try {
-    const found = await readAgent(token, vault.owner, vault.repo, vault.branch, slug);
+    const found = await readAgent(
+      vault.provider,
+      token,
+      vault.owner,
+      vault.repo,
+      vault.branch,
+      slug,
+    );
     if (found) {
-      await deleteAgentFile(token, vault.owner, vault.repo, vault.branch, slug, found.sha);
+      await deleteAgentFile(
+        vault.provider,
+        token,
+        vault.owner,
+        vault.repo,
+        vault.branch,
+        slug,
+        found.sha,
+      );
     }
     await db
       .update(schema.agentTokens)

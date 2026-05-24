@@ -115,6 +115,13 @@ export function HistoryView({ notePath, compact = false, onRestore }: HistoryVie
               <div className="nk-commit-body">
                 <span className="nk-commit-msg">{firstLine(c.message)}</span>
                 <span className="nk-commit-meta">
+                  {c.authorAvatar ? (
+                    <img
+                      className="nk-commit-avatar nk-commit-avatar--inline"
+                      src={c.authorAvatar}
+                      alt=""
+                    />
+                  ) : null}
                   <span className="nk-commit-author">{c.authorLogin ?? c.authorName ?? "unknown"}</span>
                   <span className="nk-commit-sep">·</span>
                   <span className="nk-commit-time" title={c.authoredAt}>{relativeTime(c.authoredAt)}</span>

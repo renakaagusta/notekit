@@ -45,6 +45,19 @@ echo "→ using sim $SIM_UDID"
 # ── build + install ──────────────────────────────────────────────────────
 bash "$REPO_ROOT/e2e/scripts/build-and-install-ios.sh"
 
+# ── helpers ──────────────────────────────────────────────────────────────
+APP_PATH="$REPO_ROOT/apps/mobile/ios/App/build/Build/Products/Debug-iphonesimulator/App.app"
+
+reset_app() {
+  # Uninstall + reinstall to mirror the Android flow's clean-slate model.
+  # This is what `launchApp: clearState: true` would do, but we don't use
+  # that because it's blocked on real Android devices — keeping both
+  # platforms on the same wrapper-driven model means the same .yml files
+  # work everywhere without per-platform branching.
+  xcrun simctl uninstall booted com.notekit.app >/dev/null 2>&1 || true
+  xcrun simctl install booted "$APP_PATH"
+}
+
 # ── run maestro flows sequentially ───────────────────────────────────────
 mkdir -p e2e/artifacts
 cd e2e/maestro
@@ -56,8 +69,9 @@ FAILED_FLOWS=()
 for flow in 01-shell-smoke.yml 02-signin-pat.yml 03-note-crud.yml 04-sync.yml; do
   echo
   echo "──────────────────────────────────────────────"
-  echo "  Running $flow"
+  echo "  Running $flow (with fresh install)"
   echo "──────────────────────────────────────────────"
+  reset_app
   if maestro --device "$SIM_UDID" test -e E2E_PAT="$E2E_PAT" "$flow"; then
     PASS=$((PASS+1))
   else

@@ -8,6 +8,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import {
   IPC_CHANNELS,
   invokeKeychain,
+  type AuthStartSignInResult,
   type IpcChannel,
   type IpcContract,
   type NotekitDesktopBridge,
@@ -40,6 +41,11 @@ const bridge: NotekitDesktopBridge = {
   updater: {
     checkForUpdates(): Promise<UpdaterCheckResult> {
       return invoker.invoke(IPC_CHANNELS.UpdaterCheck, undefined);
+    },
+  },
+  auth: {
+    startSignIn(provider: "github" | "google"): Promise<AuthStartSignInResult> {
+      return invoker.invoke(IPC_CHANNELS.AuthStartSignIn, { provider });
     },
   },
 };

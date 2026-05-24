@@ -11,6 +11,14 @@ export const IPC_CHANNELS = {
   AppGetVersion: "notekit:app:getVersion",
   AppOpenExternal: "notekit:app:openExternal",
   UpdaterCheck: "notekit:updater:check",
+  /**
+   * Kick off the loopback PAT flow. Main process spawns a one-shot HTTP
+   * server on 127.0.0.1, opens the OAuth URL in the user's external browser,
+   * and resolves the IPC once the loopback receives the minted PAT.
+   * The token is also stashed in the OS keychain under "token" before the
+   * promise resolves, so the renderer can read it back without coordinating.
+   */
+  AuthStartSignIn: "notekit:auth:startSignIn",
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -45,6 +53,17 @@ export interface UpdaterCheckResult {
   error?: string;
 }
 
+export interface AuthStartSignInPayload {
+  /** OAuth provider to use, e.g. "github" or "google". */
+  provider: "github" | "google";
+}
+
+export interface AuthStartSignInResult {
+  ok: boolean;
+  /** Error string when ok=false. Never contains the token. */
+  error?: string;
+}
+
 // Channel-to-payload/return map. Used by the typed helpers below.
 export interface IpcContract {
   [IPC_CHANNELS.KeychainGet]: {
@@ -70,6 +89,10 @@ export interface IpcContract {
   [IPC_CHANNELS.UpdaterCheck]: {
     payload: void;
     result: UpdaterCheckResult;
+  };
+  [IPC_CHANNELS.AuthStartSignIn]: {
+    payload: AuthStartSignInPayload;
+    result: AuthStartSignInResult;
   };
 }
 
@@ -112,5 +135,15 @@ export interface NotekitDesktopBridge {
   };
   updater: {
     checkForUpdates(): Promise<UpdaterCheckResult>;
+  };
+  auth: {
+    /**
+     * Drive the loopback PAT sign-in flow. Resolves once the loopback
+     * receives the token (which is stored in the OS keychain under
+     * "token") or rejects on timeout / port conflict / state mismatch.
+     * The renderer should then reload itself so api-client picks up the
+     * fresh bearer token from `keychain.get("token")`.
+     */
+    startSignIn(provider: "github" | "google"): Promise<AuthStartSignInResult>;
   };
 }

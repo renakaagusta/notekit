@@ -39,6 +39,36 @@ export function vaultEndpoints(client: NoteKitClient) {
       }>("/vault/repos", { method: "POST", body: { name, private: isPrivate } });
     },
 
+    // ── GitLab (BYO storage via PAT) ────────────────────────────────────
+    async getGitlabStatus(): Promise<{
+      connected: boolean;
+      login: string | null;
+      reason?: "token_invalid";
+    }> {
+      return client.request("/vault/gitlab/status");
+    },
+    async connectGitlab(token: string): Promise<{ ok: true; login: string }> {
+      return client.request("/vault/gitlab/connect", {
+        method: "POST",
+        body: { token },
+      });
+    },
+    async disconnectGitlab(): Promise<{ ok: true }> {
+      return client.request("/vault/gitlab/connect", { method: "DELETE" });
+    },
+    async listGitlabRepos(): Promise<{ repos: VaultRepo[] }> {
+      return client.request("/vault/repos", { query: { provider: "gitlab" } });
+    },
+    async createGitlabRepo(name: string, isPrivate: boolean) {
+      return client.request<{
+        repo: { owner: string; name: string; defaultBranch: string };
+      }>("/vault/repos", {
+        method: "POST",
+        query: { provider: "gitlab" },
+        body: { name, private: isPrivate },
+      });
+    },
+
     // ── NoteKit-hosted Forgejo repos ────────────────────────────────────
     async provisionNotekit(): Promise<{ ok: true; username: string; gitUrl: string | null }> {
       return client.request("/vault/notekit/provision", { method: "POST" });
@@ -149,6 +179,16 @@ export function vaultEndpoints(client: NoteKitClient) {
     // ── sync (proof-of-life, not a real pull/push yet) ──────────────────
     async sync(): Promise<VaultSyncResult> {
       return client.request<VaultSyncResult>("/vault/sync", { method: "POST" });
+    },
+
+    // ── real-time events ────────────────────────────────────────────────
+    /**
+     * Mint a single-use ticket for opening the SSE stream at
+     * `GET /vault/events?ticket=…`. Bearer clients need this because
+     * native EventSource can't send an Authorization header.
+     */
+    async issueEventsTicket(): Promise<{ ticket: string; expiresAt: string }> {
+      return client.request("/vault/events/ticket", { method: "POST" });
     },
 
     // ── members ─────────────────────────────────────────────────────────

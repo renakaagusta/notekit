@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { ArrowLeft, Menu, Search, X } from "lucide-react";
 import { NoteKitWordmark } from "./NoteKitLogo";
+import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
+import { MobileDrawer } from "./MobileDrawer";
 import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";
 import { useVaultStore } from "../stores/vaultStore";
@@ -11,11 +13,18 @@ import {
   getVaultSettings,
   listVaults,
 } from "../lib/vault-api";
-import { start as startSync } from "../lib/sync";
+import { refresh as refreshSync, start as startSync } from "../lib/sync";
+import { bindVaultPersistence } from "../lib/vault-persistence";
+import {
+  startVaultEventStream,
+  stopVaultEventStream,
+} from "../lib/vault-events-client";
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import type { User } from "../types/user";
 import { Editor, type EditorHandle } from "./Editor";
 import { EditorToolbar } from "./EditorToolbar";
+import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
+import { FirstEncryptDialog } from "./FirstEncryptDialog";
 import { Sidebar } from "./Sidebar";
 import { TicketsBoard } from "./TicketsBoard";
 import { GraphView } from "./GraphView";
@@ -70,9 +79,16 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // On phone, list and detail are separate full-screen panes. `mobilePane`
+  // tracks which one is on top — opening a note flips it to "detail", the
+  // back-arrow in the editor header flips it back. Ignored on desktop where
+  // both panes are always visible side-by-side.
+  const [mobilePane, setMobilePane] = useState<"list" | "detail">("list");
   const [focusTicket, setFocusTicket] = useState<{ id: string; seq: number } | null>(null);
   const [focusAgent, setFocusAgent] = useState<{ slug: string; seq: number } | null>(null);
   const editorRef = useRef<EditorHandle>(null);
+  const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
 
   const noteHeading = note ? noteTitle(note) : null;
 
@@ -144,6 +160,23 @@ export function App({ user, onSignOut }: AppProps = {}) {
       );
   }, [upsert, setActive, openJournal]);
 
+  // On phones, opening a note slides the editor over the list (notes view).
+  // Other views render their primary content in the `<main>` pane — kanban,
+  // month grid, graph — so on mobile we default those to "detail" and let
+  // the user reach the sidebar list via the relevant bottom-nav tap. Tickets
+  // is the exception: its sidebar list is the design-intended mobile surface
+  // (matches the prototype's card stack), so it stays on "list".
+  useEffect(() => {
+    if (!isMobile) return;
+    if (view === "notes") {
+      setMobilePane(activeNoteId || draftJournal ? "detail" : "list");
+    } else if (view === "tickets") {
+      setMobilePane("list");
+    } else {
+      setMobilePane("detail");
+    }
+  }, [isMobile, view, activeNoteId, draftJournal]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -164,7 +197,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
             .catch(() => {
               /* Switcher will retry on next open; not fatal. */
             });
+          // Bind persistence BEFORE startSync so any saved state for this
+          // vault is rehydrated before the subscribe baselines are taken.
+          await bindVaultPersistence(status.vault);
           await startSync();
+          // Open the real-time event stream so edits from other devices
+          // arrive via push instead of waiting for the next focus-pull.
+          startVaultEventStream();
           await bootstrapCrypto();
         } else {
           setVaultPhase("needs-pick");
@@ -197,6 +236,40 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, [activeVaultId, setActiveSettings]);
 
+  // Pull from the remote on tab visibility / window focus so a device that
+  // was backgrounded catches up on edits made elsewhere. refreshSync() is a
+  // no-op if the engine hasn't started or local writes are still queued, so
+  // it's safe to wire here unconditionally — covers web, Electron, and the
+  // Capacitor WebView (which fires visibilitychange on app resume).
+  useEffect(() => {
+    function onWake() {
+      if (typeof document === "undefined") return;
+      if (document.visibilityState !== "visible") return;
+      void refreshSync();
+    }
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", onWake);
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", onWake);
+    }
+    return () => {
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onWake);
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", onWake);
+      }
+    };
+  }, []);
+
+  // Tear down the SSE event stream when the App unmounts. AuthGate
+  // unmounts App on sign-out, so this catches that path; vault switches
+  // and deletions handle the stream themselves in VaultSwitcher.
+  useEffect(() => {
+    return () => stopVaultEventStream();
+  }, []);
+
   // Resolve `auto` theme to a concrete value using the OS preference.
   const resolvedTheme =
     activeSettings?.theme === "light"
@@ -216,7 +289,12 @@ export function App({ user, onSignOut }: AppProps = {}) {
       .catch(() => {
         /* Non-fatal; the switcher will lazy-load. */
       });
+    // Bind persistence to the just-picked vault before sync starts so its
+    // saved state is rehydrated and future writes route to the right slot.
+    const pickedVault = useVaultStore.getState().vault;
+    if (pickedVault) await bindVaultPersistence(pickedVault);
     await startSync();
+    startVaultEventStream();
     await bootstrapCrypto();
   }
 
@@ -296,9 +374,28 @@ export function App({ user, onSignOut }: AppProps = {}) {
               ? "Links"
               : "Calendar";
 
+  function exitMobileDetail() {
+    setActive(null);
+    setMobilePane("list");
+  }
+
+  function onMobileView(next: MainView) {
+    setView(next);
+    setMobilePane("list");
+    setDrawerOpen(false);
+  }
+
   return (
-    <div className="nk" data-dir="studio" data-theme={resolvedTheme}>
-      <div className="nk-app">
+    <div
+      className="nk"
+      data-dir="studio"
+      data-theme={resolvedTheme}
+    >
+      <div
+        className="nk-app"
+        data-mobile={isMobile ? "true" : undefined}
+        data-mobile-pane={isMobile ? mobilePane : undefined}
+      >
         <header className="nk-titlebar">
           <span className="nk-titlebar-title">
             <NoteKitWordmark />
@@ -315,16 +412,47 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onOpenHistory={() => setHistoryOpen(true)}
           onOpenTokens={() => setTokensOpen(true)}
           onOpenNotifications={() => setNotificationsOpen(true)}
+          onOpenSearch={isMobile ? () => setSearchOpen(true) : undefined}
+          onOpenMenu={isMobile ? () => setDrawerOpen(true) : undefined}
         />
 
         <main className="nk-main">
           <header className="nk-main-hd">
+            {isMobile && view === "notes" && mobilePane === "detail" ? (
+              <button
+                className="nk-iconbtn nk-main-back"
+                onClick={exitMobileDetail}
+                aria-label="Back"
+                title="Back"
+              >
+                <ArrowLeft size={18} aria-hidden />
+              </button>
+            ) : isMobile ? (
+              <button
+                className="nk-iconbtn nk-main-menu"
+                onClick={() => setDrawerOpen(true)}
+                aria-label="Open menu"
+                title="Menu"
+              >
+                <Menu size={18} aria-hidden />
+              </button>
+            ) : null}
             <div className="nk-crumbs">
               <span>vault</span>
               <span className="sep">/</span>
               <span className="last">{crumbLabel}</span>
             </div>
-            {view === "notes" && (
+            {isMobile && mobilePane === "list" && (
+              <button
+                className="nk-iconbtn"
+                onClick={() => setSearchOpen(true)}
+                aria-label="Search"
+                title="Search"
+              >
+                <Search size={16} aria-hidden />
+              </button>
+            )}
+            {view === "notes" && (!isMobile || mobilePane === "list") && (
               <button
                 className="nk-iconbtn"
                 title="New note (⌘N)"
@@ -339,6 +467,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
               </button>
             )}
           </header>
+          <EncryptedSkippedBanner />
           {view === "notes" && (
             <>
               {editorBinding && (
@@ -399,13 +528,39 @@ export function App({ user, onSignOut }: AppProps = {}) {
           </span>
         </footer>
       </div>
+      {isMobile && (
+        <MobileDrawer
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          view={view}
+          onView={onMobileView}
+          user={user}
+          syncStatus={syncLabel(phase, lastSyncedAt, vaultPhase, vaultLabel)}
+          syncTone={syncTone(phase, lastSyncedAt, vaultPhase)}
+          onSignOut={onSignOut}
+          onOpenAgents={() => setAgentsOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
+          onOpenTokens={() => setTokensOpen(true)}
+          onOpenNotifications={() => setNotificationsOpen(true)}
+        />
+      )}
       {vaultPhase === "needs-pick" && (
         <VaultPicker onPicked={onVaultPicked} />
       )}
       {view === "secrets" && vaultPhase === "ready" && cryptoPhase === "needs-setup" && (
         <VaultSetup />
       )}
-      {view === "secrets" && vaultPhase === "ready" && cryptoPhase === "needs-pair" && (
+      {/*
+       * Pair-this-device modal is hoisted out of the Secrets-tab gate so
+       * users discover it from any view. E2EE on notes/tickets/links also
+       * needs the device to be registered (`collectVaultRecipients` only
+       * picks up devices that landed in `.notekit/devices/`), so blocking
+       * it behind a tab navigation would leave new devices encrypting to
+       * themselves only — readable on this device but not by other paired
+       * devices. The modal is dismissable via the recovery-phrase escape
+       * hatch if the user really wants to skip.
+       */}
+      {vaultPhase === "ready" && cryptoPhase === "needs-pair" && (
         <VaultPairNewDevice />
       )}
       <SearchPalette
@@ -531,6 +686,8 @@ export function App({ user, onSignOut }: AppProps = {}) {
           </div>
         </div>
       )}
+
+      <FirstEncryptDialog />
     </div>
   );
 }
@@ -550,4 +707,16 @@ function syncLabel(
     return `Synced ${new Date(lastSyncedAt).toLocaleTimeString()} · ${vaultLabel}`;
   }
   return vaultLabel;
+}
+
+function syncTone(
+  phase: string,
+  lastSyncedAt: string | null,
+  vaultPhase: string,
+): "idle" | "sync" | "error" | "ready" {
+  if (vaultPhase === "needs-token" || vaultPhase === "needs-pick") return "idle";
+  if (phase === "error") return "error";
+  if (phase === "fetching" || phase === "pushing") return "sync";
+  if (lastSyncedAt) return "ready";
+  return "idle";
 }

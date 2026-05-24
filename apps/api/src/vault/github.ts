@@ -26,6 +26,8 @@ export interface GhRepo {
   default_branch: string;
   description: string | null;
   updated_at: string;
+  /** Repo size in KiB. GitHub + Forgejo both report this on /user/repos. */
+  size?: number;
 }
 
 export async function listRepos(token: string): Promise<GhRepo[]> {
@@ -288,6 +290,10 @@ export interface GhCommit {
   sha: string;
   message: string;
   authorName: string | null;
+  /** Author email from the commit object. Needed to match against agent
+   *  profiles for avatar enrichment — agents aren't GitHub users so
+   *  `authorLogin` is null for them. */
+  authorEmail: string | null;
   authorLogin: string | null;
   authorAvatar: string | null;
   authoredAt: string;
@@ -302,7 +308,7 @@ type RawCommit = {
   html_url: string;
   commit: {
     message: string;
-    author: { name?: string; date: string } | null;
+    author: { name?: string; email?: string; date: string } | null;
   };
   author: { login: string; avatar_url: string } | null;
 };
@@ -334,6 +340,7 @@ export async function listCommits(
         sha: c.sha,
         message: c.commit.message,
         authorName: c.commit.author?.name ?? null,
+        authorEmail: c.commit.author?.email ?? null,
         authorLogin: c.author?.login ?? null,
         authorAvatar: c.author?.avatar_url ?? null,
         authoredAt: c.commit.author?.date ?? "",

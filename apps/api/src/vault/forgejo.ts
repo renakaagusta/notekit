@@ -15,6 +15,9 @@ import {
   type GhTreeEntry,
   type GhCommit,
   type GitAuthor,
+  type GhCollaborator,
+  type GhInvitation,
+  type CollaboratorPermission,
 } from "./github";
 
 function baseUrl(): string {
@@ -313,7 +316,7 @@ export async function listCommits(
     html_url: string;
     commit: {
       message: string;
-      author: { name?: string; date: string } | null;
+      author: { name?: string; email?: string; date: string } | null;
     };
     author: { login: string; avatar_url: string } | null;
   }>;
@@ -321,9 +324,131 @@ export async function listCommits(
     sha: c.sha,
     message: c.commit.message,
     authorName: c.commit.author?.name ?? null,
+    authorEmail: c.commit.author?.email ?? null,
     authorLogin: c.author?.login ?? null,
     authorAvatar: c.author?.avatar_url ?? null,
     authoredAt: c.commit.author?.date ?? "",
     url: c.html_url,
   }));
 }
+
+// ── Collaborators ─────────────────────────────────────────────────────────────
+//
+// Forgejo's collaborator API mirrors GitHub's for the basic shape, with one
+// product difference: Forgejo has no "pending invitation" concept — adding a
+// collaborator grants access immediately. We surface `listInvitations` and
+// `cancelInvitation` as no-ops so callers don't need to branch on provider.
+
+const FJ_PERMISSION_MAP: Record<CollaboratorPermission, "read" | "write" | "admin"> = {
+  pull: "read",
+  triage: "read",
+  push: "write",
+  maintain: "write",
+  admin: "admin",
+};
+
+export async function listCollaborators(
+  token: string,
+  owner: string,
+  repo: string,
+): Promise<GhCollaborator[]> {
+  const res = await fetch(
+    `${baseUrl()}/api/v1/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators`,
+    { headers: headers(token) },
+  );
+  if (!res.ok) throw new GhError(res.status, await res.text());
+  const arr = (await res.json()) as Array<{
+    login: string;
+    avatar_url: string | null;
+    html_url?: string;
+  }>;
+  // Forgejo's list endpoint doesn't return permission per row; we fetch it
+  // separately. Keep this bounded — vaults with hundreds of collaborators are
+  // out of scope for the hosted free tier.
+  const out: GhCollaborator[] = [];
+  for (const u of arr) {
+    let permission: CollaboratorPermission = "push";
+    try {
+      const permRes = await fetch(
+        `${baseUrl()}/api/v1/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators/${encodeURIComponent(u.login)}/permission`,
+        { headers: headers(token) },
+      );
+      if (permRes.ok) {
+        const perm = (await permRes.json()) as { permission: "read" | "write" | "admin" | "none" };
+        if (perm.permission === "read") permission = "pull";
+        else if (perm.permission === "admin") permission = "admin";
+        else permission = "push";
+      }
+    } catch {
+      // fall through with the default
+    }
+    out.push({
+      login: u.login,
+      avatarUrl: u.avatar_url,
+      htmlUrl: u.html_url ?? `${baseUrl()}/${u.login}`,
+      permission,
+    });
+  }
+  return out;
+}
+
+export async function addCollaborator(
+  token: string,
+  owner: string,
+  repo: string,
+  username: string,
+  permission: CollaboratorPermission,
+): Promise<{ status: 201 | 204; invitation: GhInvitation | null }> {
+  const fjPerm = FJ_PERMISSION_MAP[permission] ?? "write";
+  const res = await fetch(
+    `${baseUrl()}/api/v1/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators/${encodeURIComponent(username)}`,
+    {
+      method: "PUT",
+      headers: headers(token, true),
+      body: JSON.stringify({ permission: fjPerm }),
+    },
+  );
+  // Forgejo returns 204 on both create and update — there are no pending invites.
+  if (res.status === 204 || res.status === 201) {
+    return { status: 204, invitation: null };
+  }
+  throw new GhError(res.status, await res.text());
+}
+
+export async function removeCollaborator(
+  token: string,
+  owner: string,
+  repo: string,
+  username: string,
+): Promise<void> {
+  const res = await fetch(
+    `${baseUrl()}/api/v1/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators/${encodeURIComponent(username)}`,
+    { method: "DELETE", headers: headers(token) },
+  );
+  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+}
+
+/**
+ * Forgejo has no pending-invitation flow — collaborator access is immediate.
+ * Returns [] so callers can treat both backends uniformly.
+ */
+export async function listInvitations(
+  _token: string,
+  _owner: string,
+  _repo: string,
+): Promise<GhInvitation[]> {
+  return [];
+}
+
+/**
+ * No-op for symmetry with GitHub. Forgejo has no pending invitations to cancel.
+ */
+export async function cancelInvitation(
+  _token: string,
+  _owner: string,
+  _repo: string,
+  _invitationId: number,
+): Promise<void> {
+  // intentionally empty
+}
+

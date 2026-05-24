@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { Lock, MoreHorizontal, Unlock } from "lucide-react";
 import type { Ticket, TicketPriority } from "../types/ticket";
 
 const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
@@ -14,6 +14,7 @@ interface CardQuickActionsProps {
   onPriority(p: TicketPriority): void;
   onDueDate(ymd: string | null): void;
   onDelete(): void;
+  onToggleEncrypted(): void;
 }
 
 export function CardQuickActions({
@@ -21,6 +22,7 @@ export function CardQuickActions({
   onPriority,
   onDueDate,
   onDelete,
+  onToggleEncrypted,
 }: CardQuickActionsProps) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -46,6 +48,14 @@ export function CardQuickActions({
       onDelete();
       setOpen(false);
     }
+  }
+
+  function handleToggleEncrypted() {
+    // Parent (TicketsBoard) routes the first-encrypt path through the
+    // shared onboarding gate, so we just delegate. Decrypts and repeat
+    // encrypts both go straight through.
+    onToggleEncrypted();
+    setOpen(false);
   }
 
   return (
@@ -112,6 +122,28 @@ export function CardQuickActions({
               )}
             </div>
           </div>
+
+          <button
+            type="button"
+            className="nk-qa-action"
+            onClick={handleToggleEncrypted}
+            role="menuitem"
+            title={
+              ticket.encrypted
+                ? "Decrypt this ticket and store it as plain markdown"
+                : "End-to-end encrypt this ticket"
+            }
+          >
+            {ticket.encrypted ? (
+              <>
+                <Unlock size={14} aria-hidden /> Decrypt ticket
+              </>
+            ) : (
+              <>
+                <Lock size={14} aria-hidden /> Encrypt ticket
+              </>
+            )}
+          </button>
 
           <button
             type="button"

@@ -1,17 +1,41 @@
-// Ticket tools — list, create, update tickets. Tickets live at
-// `tickets/<id>.md` with YAML frontmatter that maps 1:1 to the
-// `Ticket` shape from @notekit/core.
+// Ticket tools — list, create, update tickets in the active scope.
+// Tickets live at `<writePrefix><id>.md` with YAML frontmatter that maps
+// 1:1 to the `Ticket` shape from `@notekit/core`. Scope rules mirror
+// notes_*: project-default with read-everywhere fallback, see
+// `lib/scope.ts`.
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
-import { errorContent, jsonContent, listVaultFiles, textContent } from "../lib/notekit.js";
+import {
+  encryptedSkippedNote,
+  errorContent,
+  isEncryptedItemPath,
+  jsonContent,
+  listVaultFiles,
+  textContent,
+} from "../lib/notekit.js";
 import { parseMarkdown, serializeMarkdown } from "../lib/markdown.js";
-
-const TICKETS_PREFIX = "tickets/";
+import { resolveProjectContext } from "../lib/project.js";
+import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
 
 const STATUSES = ["todo", "in_progress", "blocked", "done", "archived"] as const;
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+const SCOPE_VALUES = ["project", "global", "all"] as const;
+
+const scopeSchema = z
+  .enum(SCOPE_VALUES)
+  .optional()
+  .describe(
+    "Where to look. `project` (default) scopes to the active `.notekit` project, with fallback reads from top-level tickets. `global` is top-level only. `all` is everything.",
+  );
+
+const projectSchema = z
+  .string()
+  .optional()
+  .describe(
+    "Override the active project slug for this call. Implies `scope` defaults to `project`.",
+  );
 
 export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(
@@ -19,29 +43,39 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
     {
       title: "List tickets",
       description:
-        "List tickets in the selected vault, optionally filtered by status, priority, or assignee. Returns a compact summary. Use this when the user asks 'what am I working on', 'show me open tickets', or before tickets_create to check for duplicates.",
+        "List tickets in the active scope, optionally filtered by status, priority, or assignee. Returns a compact summary. Use this when the user asks 'what am I working on', 'show me open tickets', or before tickets_create to check for duplicates. Scope-aware (see `scope`).",
       inputSchema: {
         status: z.enum(STATUSES).optional().describe("Filter by ticket status."),
         priority: z.enum(PRIORITIES).optional().describe("Filter by priority."),
         assignee: z.string().optional().describe("Filter by assignee username."),
         limit: z.number().int().min(1).max(100).optional().describe("Max results (default 25)."),
+        scope: scopeSchema,
+        project: projectSchema,
       },
+      annotations: { readOnlyHint: true, idempotentHint: true },
     },
-    async ({ status, priority, assignee, limit }) => {
+    async ({ status, priority, assignee, limit, scope, project }) => {
       const max = limit ?? 25;
       try {
-        const entries = await listVaultFiles(nk, TICKETS_PREFIX);
+        const ctx = resolveProjectContext();
+        const resolved = resolveScope("tickets", { scope, project, ctx });
+        const candidatePaths = await collectCandidatePaths(nk, resolved.readPrefixes);
         const tickets: Record<string, unknown>[] = [];
-        for (const entry of entries) {
-          if (!entry.path.endsWith(".md")) continue;
-          const file = await nk.vault.readFile(entry.path);
+        let encryptedSkipped = 0;
+        for (const filePath of candidatePaths) {
+          if (isEncryptedItemPath(filePath)) {
+            encryptedSkipped++;
+            continue;
+          }
+          if (!filePath.endsWith(".md")) continue;
+          const file = await nk.vault.readFile(filePath);
           const { frontmatter, body } = parseMarkdown(file.content ?? "");
           if (status && frontmatter["status"] !== status) continue;
           if (priority && frontmatter["priority"] !== priority) continue;
           if (assignee && frontmatter["assignee"] !== assignee) continue;
           tickets.push({
-            path: entry.path,
-            title: frontmatter["title"] ?? deriveTitle(entry.path),
+            path: filePath,
+            title: frontmatter["title"] ?? deriveTitle(filePath),
             status: frontmatter["status"] ?? "todo",
             priority: frontmatter["priority"] ?? "medium",
             assignee: frontmatter["assignee"] ?? null,
@@ -51,7 +85,13 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
           });
           if (tickets.length >= max) break;
         }
-        return jsonContent({ count: tickets.length, tickets });
+        return jsonContent({
+          count: tickets.length,
+          scope: resolved.effective,
+          project: resolved.project,
+          tickets,
+          ...(encryptedSkippedNote(encryptedSkipped, "ticket") ?? {}),
+        });
       } catch (err) {
         return errorContent(`tickets_list failed: ${(err as Error).message}`);
       }
@@ -63,7 +103,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
     {
       title: "Create ticket",
       description:
-        "Create a new ticket in the selected vault. Use when the user wants to track work, file a bug, or create a TODO. Defaults: status=`todo`, priority=`medium`.",
+        "Create a new ticket. Default path is `<writePrefix><slugified-title>.md` (project-scoped folder if a `.notekit` marker is present). Defaults: status=`todo`, priority=`medium`.",
       inputSchema: {
         title: z.string().min(1).describe("Ticket title."),
         body: z.string().optional().describe("Optional Markdown description."),
@@ -72,27 +112,38 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         assignee: z.string().optional().describe("Assignee username."),
         labels: z.array(z.string()).optional().describe("Label list."),
         dueDate: z.string().optional().describe("ISO 8601 due date."),
-        path: z.string().optional().describe("Override path (default `tickets/<slug>.md`)."),
+        path: z.string().optional().describe("Override absolute vault path."),
         commitMessage: z.string().optional().describe("Git commit message."),
+        scope: scopeSchema,
+        project: projectSchema,
       },
+      annotations: { destructiveHint: false, idempotentHint: false },
     },
     async (args) => {
       try {
-        const now = new Date().toISOString();
-        const targetPath = args.path ?? `${TICKETS_PREFIX}${slugify(args.title)}.md`;
-        const content = serializeMarkdown({
-          frontmatter: {
-            title: args.title,
-            status: args.status ?? "todo",
-            priority: args.priority ?? "medium",
-            assignee: args.assignee ?? null,
-            labels: args.labels ?? [],
-            dueDate: args.dueDate ?? null,
-            createdAt: now,
-            updatedAt: now,
-          },
-          body: args.body ?? "",
+        const ctx = resolveProjectContext();
+        const resolved = resolveScope("tickets", {
+          scope: args.scope,
+          project: args.project,
+          ctx,
         });
+        const now = new Date().toISOString();
+        const targetPath =
+          args.path ?? `${resolved.writePrefix}${slugify(args.title)}.md`;
+        const frontmatter: Record<string, unknown> = {
+          title: args.title,
+          status: args.status ?? "todo",
+          priority: args.priority ?? "medium",
+          assignee: args.assignee ?? null,
+          labels: args.labels ?? [],
+          dueDate: args.dueDate ?? null,
+          createdAt: now,
+          updatedAt: now,
+        };
+        if (resolved.project && targetPath.startsWith(`projects/${resolved.project}/`)) {
+          frontmatter["project"] = resolved.project;
+        }
+        const content = serializeMarkdown({ frontmatter, body: args.body ?? "" });
         await nk.vault.writeFile(
           targetPath,
           content,
@@ -122,9 +173,15 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         body: z.string().optional().describe("Replace ticket body."),
         commitMessage: z.string().optional(),
       },
+      annotations: { destructiveHint: false, idempotentHint: false },
     },
     async ({ path, body, commitMessage, ...patch }) => {
       try {
+        if (isEncryptedItemPath(path)) {
+          return errorContent(
+            `tickets_update: ${path} is end-to-end encrypted. The MCP server cannot edit it — the user must update this ticket on one of their devices.`,
+          );
+        }
         const existing = await nk.vault.readFile(path);
         const parsed = parseMarkdown(existing.content ?? "");
         const fm: Record<string, unknown> = { ...parsed.frontmatter };
@@ -149,6 +206,52 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
       }
     },
   );
+
+  server.registerTool(
+    "tickets_delete",
+    {
+      title: "Delete ticket",
+      description:
+        "Delete a ticket. The deletion is committed to Git — it stays in history. Use when the user wants to remove a ticket entirely (not just close it — for that, use `tickets_update` with `status: 'archived'`).",
+      inputSchema: {
+        path: z.string().min(1).describe("Vault path of the ticket."),
+        commitMessage: z.string().optional().describe("Git commit message."),
+      },
+      annotations: { destructiveHint: true, idempotentHint: true },
+    },
+    async ({ path, commitMessage }) => {
+      try {
+        const file = await nk.vault.readFile(path);
+        if (!file.sha) {
+          return errorContent(
+            `tickets_delete: ${path} has no SHA — refusing to delete to avoid surprises.`,
+          );
+        }
+        await nk.vault.deleteFile(path, file.sha, commitMessage ?? `notekit: delete ticket ${path}`);
+        return textContent(`Deleted ${path}`);
+      } catch (err) {
+        return errorContent(`tickets_delete failed: ${(err as Error).message}`);
+      }
+    },
+  );
+}
+
+async function collectCandidatePaths(
+  nk: NoteKitApi,
+  prefixes: string[],
+): Promise<string[]> {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const prefix of prefixes) {
+    const entries = await listVaultFiles(nk, prefix);
+    for (const entry of entries) {
+      if (!isUnderAnyPrefix(entry.path, [prefix])) continue;
+      if (seen.has(entry.path)) continue;
+      seen.add(entry.path);
+      out.push(entry.path);
+    }
+  }
+  return out;
 }
 
 function deriveTitle(path: string): string {

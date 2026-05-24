@@ -79,7 +79,7 @@ export const OwnerName = z
 
 export const ThemeEnum = z.enum(["auto", "light", "dark"]);
 
-export const VaultProviderEnum = z.enum(["github", "notekit"]);
+export const VaultProviderEnum = z.enum(["github", "gitlab", "notekit"]);
 
 /** GitHub username. */
 export const GithubUsername = z

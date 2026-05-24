@@ -31,3 +31,5 @@ export { AccessTokensView } from "./AccessTokensView";
 export { NotificationSettings } from "./NotificationSettings";
 export { NotificationsInbox } from "./NotificationsInbox";
 export { LinksView } from "./LinksView";
+export { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
+export { FirstEncryptDialog } from "./FirstEncryptDialog";

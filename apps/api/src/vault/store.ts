@@ -10,7 +10,7 @@ import { db, schema } from "../db";
 export interface VaultRow {
   id: string;
   userId: string;
-  provider: "github" | "notekit";
+  provider: "github" | "gitlab" | "notekit";
   owner: string;
   repo: string;
   branch: string;
@@ -22,7 +22,7 @@ function toApiVault(row: typeof schema.vaults.$inferSelect): VaultRow {
   return {
     id: row.id,
     userId: row.userId,
-    provider: row.provider as "github" | "notekit",
+    provider: row.provider as "github" | "gitlab" | "notekit",
     owner: row.owner,
     repo: row.repo,
     branch: row.branch,
@@ -54,7 +54,7 @@ export async function getVaultById(
 
 export interface CreateVaultInput {
   userId: string;
-  provider: "github" | "notekit";
+  provider: "github" | "gitlab" | "notekit";
   owner: string;
   repo: string;
   branch?: string;

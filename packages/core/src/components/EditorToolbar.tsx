@@ -5,9 +5,11 @@ import {
   History as LucideHistory,
   Image as LucideImage,
   ListChecks,
+  Lock as LucideLock,
   Redo2,
   Table as LucideTable,
   Undo2,
+  Unlock as LucideUnlock,
 } from "lucide-react";
 import {
   type Heading,
@@ -20,6 +22,10 @@ import {
   undo,
   redo,
 } from "../lib/editor-commands";
+import { useNotesStore } from "../stores/notesStore";
+import { useVaultStore } from "../stores/vaultStore";
+import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
+import { noteTitle } from "../lib/note-display";
 
 interface EditorToolbarProps {
   getEditor(): TipTapEditor | null;
@@ -59,6 +65,35 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
 
   const canUndo = editor?.can().undo() ?? false;
   const canRedo = editor?.can().redo() ?? false;
+
+  // Encryption controls live on the toolbar rather than as a per-note menu
+  // because the encryption decision is fundamentally about *this* note's
+  // content — same place a user reaches when they reach for formatting.
+  const activeNoteId = useNotesStore((s) => s.activeNoteId);
+  const activeNote = useNotesStore((s) =>
+    s.activeNoteId ? s.notes[s.activeNoteId] : undefined,
+  );
+  const toggleEncryptedAction = useNotesStore((s) => s.toggleEncrypted);
+  const vaultId = useVaultStore((s) => s.activeId);
+  const requestEncrypt = useE2eeOnboardingStore((s) => s.requestEncrypt);
+
+  function handleToggleEncrypted() {
+    if (!activeNote) return;
+    // Decrypting is reversible enough to skip the gate — we only intercept
+    // the *first* encryption per vault, because that's the irreversible-
+    // in-Git-history move that needs explicit acknowledgment.
+    if (activeNote.encrypted) {
+      toggleEncryptedAction(activeNote.id);
+      return;
+    }
+    if (!vaultId) return;
+    requestEncrypt({
+      vaultId,
+      kind: "note",
+      title: noteTitle(activeNote),
+      onConfirm: () => toggleEncryptedAction(activeNote.id),
+    });
+  }
 
   function run(fn: (e: TipTapEditor) => void) {
     const editor = getEditor();
@@ -214,6 +249,26 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
 
       <div className="nk-toolbar-spacer" />
 
+      {activeNoteId && activeNote && (
+        <button
+          className={
+            "nk-tb-btn" + (activeNote.encrypted ? " is-encrypted" : "")
+          }
+          title={
+            activeNote.encrypted
+              ? "Encrypted — click to decrypt and store as plain markdown"
+              : "End-to-end encrypt this note"
+          }
+          aria-label={
+            activeNote.encrypted ? "Decrypt note" : "Encrypt note"
+          }
+          aria-pressed={!!activeNote.encrypted}
+          onClick={handleToggleEncrypted}
+        >
+          {activeNote.encrypted ? <UnlockIcon /> : <LockIcon />}
+        </button>
+      )}
+
       <button
         className="nk-tb-btn"
         title="Note history"
@@ -233,3 +288,5 @@ const ChevronDown = () => <LucideChevronDown size={10} aria-hidden />;
 const UndoIcon = () => <Undo2 size={16} aria-hidden />;
 const RedoIcon = () => <Redo2 size={16} aria-hidden />;
 const HistoryIcon = () => <LucideHistory size={16} aria-hidden />;
+const LockIcon = () => <LucideLock size={16} aria-hidden />;
+const UnlockIcon = () => <LucideUnlock size={16} aria-hidden />;

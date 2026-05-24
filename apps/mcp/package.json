@@ -1,18 +1,57 @@
 {
   "name": "@notekit/mcp",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Model Context Protocol server exposing NoteKit notes, tickets, and vault to LLM clients.",
+  "version": "0.4.0",
+  "description": "Model Context Protocol server exposing NoteKit notes, tickets, and project-scoped memory to Claude Code, Cursor, Codex, OpenCode, Continue, Zed, Windsurf, and Claude Desktop.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "claude-code",
+    "cursor",
+    "codex",
+    "opencode",
+    "agent-memory",
+    "notes",
+    "tickets",
+    "git-backed",
+    "notekit"
+  ],
   "license": "AGPL-3.0-only",
   "type": "module",
+  "homepage": "https://github.com/renakaagusta/notekit/tree/main/apps/mcp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renakaagusta/notekit.git",
+    "directory": "apps/mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/renakaagusta/notekit/issues"
+  },
+  "author": "Rena Kaagusta <renakaagusta28@gmail.com>",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./run": "./src/run.ts",
+    "./server": "./src/server.ts"
+  },
   "bin": {
-    "notekit-mcp": "./bin/notekit-mcp.mjs"
+    "notekit-mcp": "bin/notekit-mcp.mjs"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf dist .turbo *.tsbuildinfo"
   },
   "dependencies": {
@@ -25,6 +64,10 @@
     "@types/node": "^20.12.0",
     "tsup": "^8.3.0",
     "tsx": "^4.19.1",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.7"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }

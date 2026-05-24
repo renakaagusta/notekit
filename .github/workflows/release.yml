@@ -1,0 +1,124 @@
+name: Release
+
+# Builds the unified `notekit` binary for 5 platforms when a `v*` tag is
+# pushed, attaches them + SHA256 sums to a GitHub Release, and publishes
+# the corresponding install.sh script. Single source of truth for end
+# users who run `curl -fsSL .../install.sh | sh`.
+#
+# Trigger:
+#   git tag v0.4.0 && git push --tags
+#
+# Output: GitHub Release `v0.4.0` with the following artifacts:
+#   notekit-darwin-arm64        notekit-darwin-arm64.sha256
+#   notekit-darwin-x64          notekit-darwin-x64.sha256
+#   notekit-linux-x64           notekit-linux-x64.sha256
+#   notekit-linux-arm64         notekit-linux-arm64.sha256
+#   notekit-windows-x64.exe     notekit-windows-x64.exe.sha256
+#   SHA256SUMS                  (combined checksum manifest)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write  # needed for `gh release create` / asset upload
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: bun-darwin-arm64
+            artifact: notekit-darwin-arm64
+            runs-on: macos-14
+          - target: bun-darwin-x64
+            artifact: notekit-darwin-x64
+            runs-on: macos-13
+          - target: bun-linux-x64
+            artifact: notekit-linux-x64
+            runs-on: ubuntu-latest
+          - target: bun-linux-arm64
+            artifact: notekit-linux-arm64
+            runs-on: ubuntu-24.04-arm
+          - target: bun-windows-x64
+            artifact: notekit-windows-x64.exe
+            runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Compile ${{ matrix.artifact }}
+        run: |
+          bun build apps/cli/src/index.ts \
+            --compile \
+            --target=${{ matrix.target }} \
+            --outfile=${{ matrix.artifact }}
+
+      - name: SHA256
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ] || [ "$RUNNER_OS" = "Linux" ]; then
+            sha256sum ${{ matrix.artifact }} > ${{ matrix.artifact }}.sha256
+          else
+            shasum -a 256 ${{ matrix.artifact }} > ${{ matrix.artifact }}.sha256
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            ${{ matrix.artifact }}
+            ${{ matrix.artifact }}.sha256
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Build combined SHA256SUMS manifest
+        run: |
+          cd artifacts
+          cat *.sha256 > SHA256SUMS
+          ls -la
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            artifacts/notekit-* \
+            artifacts/SHA256SUMS \
+            scripts/install.sh \
+            --title "NoteKit ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --latest

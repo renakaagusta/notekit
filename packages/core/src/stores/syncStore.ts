@@ -1,13 +1,16 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import type { SyncState } from "../types/sync";
+import type { EncryptedSkipped, SyncState } from "../types/sync";
 
 interface SyncStoreState extends SyncState {
   setPhase(phase: SyncState["phase"]): void;
   markSynced(): void;
   setError(error: string | null): void;
   setPending(count: number): void;
+  setEncryptedSkipped(counts: EncryptedSkipped): void;
 }
+
+const ZERO_SKIPPED: EncryptedSkipped = { notes: 0, tickets: 0, links: 0 };
 
 export const useSyncStore = create<SyncStoreState>()(
   immer((set) => ({
@@ -15,6 +18,7 @@ export const useSyncStore = create<SyncStoreState>()(
     lastSyncedAt: null,
     pendingChanges: 0,
     error: null,
+    encryptedSkipped: { ...ZERO_SKIPPED },
     setPhase(phase) {
       set((state) => {
         state.phase = phase;
@@ -37,6 +41,11 @@ export const useSyncStore = create<SyncStoreState>()(
     setPending(count) {
       set((state) => {
         state.pendingChanges = count;
+      });
+    },
+    setEncryptedSkipped(counts) {
+      set((state) => {
+        state.encryptedSkipped = counts;
       });
     },
   })),

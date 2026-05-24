@@ -15,4 +15,12 @@ export interface Ticket {
   updatedAt: string;
   dueDate: string | null;
   createdBy: string | null;
+  /**
+   * True when this ticket is end-to-end encrypted at
+   * `tickets/<id>.md.age`. Status, priority, and dueDate stay in
+   * plaintext frontmatter so the board renders correctly even when
+   * locked; title, body, assignee, and labels live inside the
+   * ciphertext.
+   */
+  encrypted?: boolean;
 }

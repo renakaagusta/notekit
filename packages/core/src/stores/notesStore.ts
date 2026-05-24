@@ -30,6 +30,14 @@ interface NotesState {
   updateBody(id: string, body: string): void;
   setRemotePath(id: string, path: string): void;
   setFolder(id: string, folder: string | null): void;
+  /**
+   * Flip the encryption flag on a note. The sync layer notices the change
+   * on its next flush, writes to the new path (`notes/<id>.md.age` or
+   * back to `notes/<slug>--<id>.md`), and cleans up the old path.
+   * Note: the old path's content survives in Git history forever — be
+   * explicit about that in any UI that exposes this action.
+   */
+  toggleEncrypted(id: string): void;
   createFolder(path: string): void;
   removeFolder(path: string): void;
   remove(id: string): void;
@@ -75,6 +83,9 @@ export const useNotesStore = create<NotesState>()(
         input.path ??
         existing?.path ??
         notePathFor({ id, body: input.body, folder, title: input.title });
+      // `encrypted` is sticky once set — a sync-down hydration shouldn't
+      // accidentally flip a locally-encrypted note back to plaintext.
+      const encrypted = input.encrypted ?? existing?.encrypted ?? false;
       const note: Note = {
         id,
         path,
@@ -85,6 +96,7 @@ export const useNotesStore = create<NotesState>()(
         updatedAt: timestamp,
         folder,
         tags: input.tags ?? existing?.tags ?? [],
+        encrypted,
       };
       set((state) => {
         state.notes[id] = note;
@@ -116,6 +128,18 @@ export const useNotesStore = create<NotesState>()(
         if (!note) return;
         note.folder = cleanFolder(folder);
         note.updatedAt = now();
+      });
+    },
+
+    toggleEncrypted(id) {
+      set((state) => {
+        const note = state.notes[id];
+        if (!note) return;
+        note.encrypted = !note.encrypted;
+        note.updatedAt = now();
+        // Don't recompute the path here — the sync layer is the one that
+        // owns the on-disk path, and it'll pick the right plaintext or
+        // encrypted target on the next flush.
       });
     },
 
@@ -220,14 +244,24 @@ export const useNotesStore = create<NotesState>()(
     },
   })),
     {
-      name: "notekit:notes",
-      storage: createJSONStorage(() => localStorage),
+      // Default name + noop storage are placeholders until
+      // bindVaultPersistence() rebinds them to a vault-scoped slot in
+      // localStorage. Without rebinding, persistence is a no-op — this
+      // prevents two accounts on the same browser from sharing the same
+      // `notekit:notes` slot and leaking notes between each other.
+      name: "notekit:notes:__unbound",
+      storage: createJSONStorage(() => ({
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+      })),
       partialize: (state) => ({
         notes: state.notes,
         folders: state.folders,
         activeNoteId: state.activeNoteId,
       }),
       version: 1,
+      skipHydration: true,
     },
   ),
 );

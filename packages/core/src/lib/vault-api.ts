@@ -11,7 +11,7 @@ export interface VaultRepo {
   updatedAt: string;
 }
 
-export type VaultProvider = "github" | "notekit";
+export type VaultProvider = "github" | "gitlab" | "notekit";
 
 export interface VaultRef {
   /** Server-side id. Undefined on responses from older API revisions. */
@@ -27,6 +27,7 @@ export interface VaultRef {
 export interface VaultStatus {
   configured: boolean;
   hasGithubToken: boolean;
+  hasGitlabToken?: boolean;
   vault: VaultRef | null;
 }
 
@@ -47,6 +48,40 @@ export function createRepo(name: string, isPrivate: boolean) {
   return apiFetch<{
     repo: { owner: string; name: string; defaultBranch: string };
   }>("/vault/repos", {
+    method: "POST",
+    body: JSON.stringify({ name, private: isPrivate }),
+  });
+}
+
+// ── GitLab (BYO storage via PAT) ──────────────────────────────────────────────
+
+export function getGitlabStatus(): Promise<{
+  connected: boolean;
+  login: string | null;
+  reason?: "token_invalid";
+}> {
+  return apiFetch("/vault/gitlab/status");
+}
+
+export function connectGitlab(token: string): Promise<{ ok: true; login: string }> {
+  return apiFetch("/vault/gitlab/connect", {
+    method: "POST",
+    body: JSON.stringify({ token }),
+  });
+}
+
+export function disconnectGitlab(): Promise<{ ok: true }> {
+  return apiFetch("/vault/gitlab/connect", { method: "DELETE" });
+}
+
+export function listGitlabRepos(): Promise<{ repos: VaultRepo[] }> {
+  return apiFetch("/vault/repos?provider=gitlab");
+}
+
+export function createGitlabRepo(name: string, isPrivate: boolean) {
+  return apiFetch<{
+    repo: { owner: string; name: string; defaultBranch: string };
+  }>("/vault/repos?provider=gitlab", {
     method: "POST",
     body: JSON.stringify({ name, private: isPrivate }),
   });

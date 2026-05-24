@@ -12,6 +12,13 @@ interface TicketsState {
   setStatus(id: string, status: TicketStatus): void;
   setDueDate(id: string, dueDate: string | null): void;
   setRemotePath(id: string, path: string): void;
+  /**
+   * Flip the encryption flag on a ticket. The board keeps rendering the
+   * card after the flip because status/priority/dueDate remain in
+   * plaintext frontmatter. The sync layer writes to the new path on
+   * its next flush; Git history of pre-encryption versions persists.
+   */
+  toggleEncrypted(id: string): void;
   remove(id: string): void;
   replaceAll(tickets: Ticket[]): void;
   byStatus(status: TicketStatus): Ticket[];
@@ -49,6 +56,7 @@ export const useTicketsStore = create<TicketsState>()(
         updatedAt: timestamp,
         dueDate: input.dueDate ?? existing?.dueDate ?? null,
         createdBy: input.createdBy ?? existing?.createdBy ?? defaultCreator,
+        encrypted: input.encrypted ?? existing?.encrypted ?? false,
       };
       set((state) => {
         state.tickets[id] = ticket;
@@ -82,6 +90,15 @@ export const useTicketsStore = create<TicketsState>()(
       });
     },
 
+    toggleEncrypted(id) {
+      set((state) => {
+        const ticket = state.tickets[id];
+        if (!ticket) return;
+        ticket.encrypted = !ticket.encrypted;
+        ticket.updatedAt = now();
+      });
+    },
+
     remove(id) {
       set((state) => {
         delete state.tickets[id];
@@ -104,10 +121,18 @@ export const useTicketsStore = create<TicketsState>()(
     },
   })),
     {
-      name: "notekit:tickets",
-      storage: createJSONStorage(() => localStorage),
+      // Default name + noop storage are placeholders until
+      // bindVaultPersistence() rebinds them to a vault-scoped slot in
+      // localStorage. See packages/core/src/lib/vault-persistence.ts.
+      name: "notekit:tickets:__unbound",
+      storage: createJSONStorage(() => ({
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+      })),
       partialize: (state) => ({ tickets: state.tickets }),
       version: 1,
+      skipHydration: true,
     },
   ),
 );

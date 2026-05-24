@@ -43,7 +43,7 @@ win:
 nsis:
   oneClick: false
   perMachine: false
-  allowToChangeInstallationDir: true
+  allowToChangeInstallationDirectory: true
 
 linux:
   category: Office

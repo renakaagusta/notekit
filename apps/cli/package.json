@@ -1,12 +1,37 @@
 {
   "name": "@notekit/cli",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.4.0",
   "license": "MIT",
   "type": "module",
-  "description": "NoteKit command-line client. Manage notes, tickets, and vaults from your terminal.",
+  "description": "NoteKit CLI — manage notes, tickets, and vaults from your terminal; also embeds the NoteKit MCP server for Claude Code, Cursor, Codex, OpenCode, Continue, Zed, Windsurf, and Claude Desktop.",
+  "keywords": [
+    "notekit",
+    "cli",
+    "mcp",
+    "model-context-protocol",
+    "claude-code",
+    "cursor",
+    "codex",
+    "agent-memory",
+    "notes",
+    "tickets",
+    "git-backed"
+  ],
+  "homepage": "https://github.com/renakaagusta/notekit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/renakaagusta/notekit.git",
+    "directory": "apps/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/renakaagusta/notekit/issues"
+  },
+  "author": "Rena Kaagusta <renakaagusta28@gmail.com>",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
-    "notekit": "./bin/notekit.mjs"
+    "notekit": "bin/notekit.mjs"
   },
   "files": [
     "bin",
@@ -18,22 +43,28 @@
     "build": "tsup",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "clean": "rm -rf .turbo dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@napi-rs/keyring": "^1.1.6",
     "@notekit/api-client": "workspace:*",
     "@notekit/core": "workspace:*",
+    "@notekit/mcp": "workspace:*",
     "citty": "^0.1.6",
     "kleur": "^4.1.5",
     "nanoid": "^5.0.7",
-    "open": "^10.1.0"
+    "open": "^10.1.0",
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",
     "tsup": "^8.3.5",
     "tsx": "^4.19.1",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^4.1.7"
   },
   "engines": {
     "node": ">=20"

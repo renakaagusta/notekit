@@ -15,6 +15,7 @@ export function registerVaultTools(server: McpServer, nk: NoteKitApi): void {
       description:
         "List all vaults the user can access, marking which one is currently selected. Use this before notes_/tickets_ operations if the user mentions 'switch vault' or seems unsure which vault is active.",
       inputSchema: {},
+      annotations: { readOnlyHint: true, idempotentHint: true },
     },
     async () => {
       try {
@@ -39,6 +40,7 @@ export function registerVaultTools(server: McpServer, nk: NoteKitApi): void {
       inputSchema: {
         vaultId: z.string().min(1).describe("Vault id from vault_list."),
       },
+      annotations: { destructiveHint: false, idempotentHint: true },
     },
     async ({ vaultId }) => {
       try {

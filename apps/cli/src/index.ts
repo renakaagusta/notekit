@@ -19,7 +19,7 @@ import { upgradeCommand } from "./commands/upgrade.js";
 const main = defineCommand({
   meta: {
     name: "notekit",
-    version: "0.1.0",
+    version: "0.4.0",
     description: "NoteKit CLI — notes, tickets, and vaults in your terminal.",
   },
   subCommands: {

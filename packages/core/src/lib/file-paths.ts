@@ -72,7 +72,35 @@ export function ticketPathFor(t: Pick<Ticket, "id" | "title">): string {
   return `tickets/${slug}--${shortId(t.id)}.md`;
 }
 
-export function linkPathFor(l: Pick<SavedLink, "id" | "title">): string {
+export function linkPathFor(
+  l: Pick<SavedLink, "id" | "title"> & { folder?: string | null },
+): string {
   const slug = slugify(l.title || "") || "link";
-  return `links/${slug}--${shortId(l.id)}.md`;
+  return `links/${folderSegment(l.folder)}${slug}--${shortId(l.id)}.md`;
+}
+
+// ── Encrypted item paths ─────────────────────────────────────────────────
+//
+// Encrypted items use opaque filenames — a human-readable slug would leak
+// the title (or, for links, the URL), so we drop it and keep the full id
+// under `.md.age`. The folder for notes stays in the public frontmatter,
+// not the path, so the path layout itself doesn't leak folder names.
+
+const ENCRYPTED_SUFFIX = ".md.age";
+
+export function encryptedNotePathFor(note: Pick<Note, "id">): string {
+  return `notes/${note.id}${ENCRYPTED_SUFFIX}`;
+}
+
+export function encryptedTicketPathFor(t: Pick<Ticket, "id">): string {
+  return `tickets/${t.id}${ENCRYPTED_SUFFIX}`;
+}
+
+export function encryptedLinkPathFor(l: Pick<SavedLink, "id">): string {
+  return `links/${l.id}${ENCRYPTED_SUFFIX}`;
+}
+
+/** True for any encrypted item path (`<kind>/<id>.md.age`). */
+export function isEncryptedItemPath(path: string): boolean {
+  return path.endsWith(ENCRYPTED_SUFFIX);
 }

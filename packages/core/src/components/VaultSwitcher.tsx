@@ -13,6 +13,14 @@ import * as vaultApi from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { reset as resetSync, start as startSync } from "../lib/sync";
+import {
+  bindVaultPersistence,
+  unbindVaultPersistence,
+} from "../lib/vault-persistence";
+import {
+  startVaultEventStream,
+  stopVaultEventStream,
+} from "../lib/vault-events-client";
 import { AddVaultDialog } from "./AddVaultDialog";
 import { VaultSettingsDialog } from "./VaultSettingsDialog";
 import { VaultImportDialog } from "./VaultImportDialog";
@@ -74,6 +82,10 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
     try {
       // Tear down the sync engine + clear in-memory stores so the new vault's
       // pull cannot collide with the previous vault's queued writes.
+      // Also close the SSE stream — the server resolves the channel by
+      // active-vault at connect time, so we need a fresh connection for the
+      // new vault to receive its events.
+      stopVaultEventStream();
       resetSync();
       useNotesStore.getState().replaceAll([]);
       useTicketsStore.getState().replaceAll([]);
@@ -82,7 +94,11 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
       const res = await vaultApi.selectVaultById(vault.id);
       setActiveId(res.activeId);
       setVault(res.vault);
+      // Rebind localStorage persistence to the new vault before sync starts
+      // so the previous vault's saved state isn't pushed into this one.
+      await bindVaultPersistence(res.vault);
       await startSync();
+      startVaultEventStream();
       onSwitched?.(res.vault);
       setOpen(false);
     } catch (e) {
@@ -124,9 +140,11 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
         }
       } else if (!res.activeId) {
         // No vaults left.
+        stopVaultEventStream();
         resetSync();
         useNotesStore.getState().replaceAll([]);
         useTicketsStore.getState().replaceAll([]);
+        unbindVaultPersistence();
         setVault(null);
         setPhase("needs-pick");
       }
@@ -195,6 +213,11 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
                           {v.provider === "notekit" && (
                             <span className="nk-chip nk-chip--soft" title="NoteKit Git">
                               NK
+                            </span>
+                          )}
+                          {v.provider === "gitlab" && (
+                            <span className="nk-chip nk-chip--soft" title="GitLab">
+                              GL
                             </span>
                           )}
                           {isActive && (
@@ -296,7 +319,13 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
                     <div className="nk-vault-confirm">
                       <p>
                         Unregister <b>{v.label || `${v.owner}/${v.repo}`}</b>?
-                        Your GitHub repo is left untouched.
+                        The underlying{" "}
+                        {v.provider === "gitlab"
+                          ? "GitLab project"
+                          : v.provider === "notekit"
+                            ? "NoteKit Git repo"
+                            : "GitHub repo"}{" "}
+                        is left untouched.
                       </p>
                       <div className="nk-vault-confirm-actions">
                         <button

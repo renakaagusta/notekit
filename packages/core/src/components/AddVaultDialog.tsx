@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Diamond, Github, Plus, X } from "lucide-react";
+import { Diamond, GitBranch, Github, Plus, X } from "lucide-react";
 import * as vaultApi from "../lib/vault-api";
 import { SkeletonRepoList } from "./Skeleton";
 import type { VaultRef, VaultRepo } from "../lib/vault-api";
 
-type Mode = "list" | "create" | "notekit";
+type Mode = "list" | "create" | "gitlab" | "notekit";
 type NotekitStep = "idle" | "provisioning" | "ready";
+type GitlabStep = "idle" | "checking" | "needs-connect" | "ready";
 
 interface AddVaultDialogProps {
   onAdded(vault: VaultRef): void;
@@ -27,6 +28,15 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   const [notekitName, setNotekitName] = useState("vault");
   const [notekitPrivate, setNotekitPrivate] = useState(true);
   const [notekitMode, setNotekitMode] = useState<"list" | "create">("list");
+
+  // GitLab state
+  const [gitlabStep, setGitlabStep] = useState<GitlabStep>("idle");
+  const [gitlabLogin, setGitlabLogin] = useState<string | null>(null);
+  const [gitlabRepos, setGitlabRepos] = useState<VaultRepo[] | null>(null);
+  const [gitlabPat, setGitlabPat] = useState("");
+  const [gitlabName, setGitlabName] = useState("notekit-vault");
+  const [gitlabPrivate, setGitlabPrivate] = useState(true);
+  const [gitlabMode, setGitlabMode] = useState<"list" | "create">("list");
 
   useEffect(() => {
     let cancelled = false;
@@ -97,6 +107,93 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
       const created = await vaultApi.createRepo(newName, newPrivate);
       const res = await vaultApi.addVault({
         provider: "github",
+        owner: created.repo.owner,
+        repo: created.repo.name,
+        branch: created.repo.defaultBranch,
+      });
+      onAdded(res.vault);
+    } catch (e) {
+      setLoadErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Check GitLab connection state when entering the tab.
+  useEffect(() => {
+    if (mode !== "gitlab" || gitlabStep !== "idle") return;
+    let cancelled = false;
+    setGitlabStep("checking");
+    setLoadErr(null);
+    vaultApi
+      .getGitlabStatus()
+      .then((res) => {
+        if (cancelled) return;
+        if (!res.connected) {
+          setGitlabStep("needs-connect");
+          return;
+        }
+        setGitlabLogin(res.login);
+        setGitlabStep("ready");
+        return vaultApi.listGitlabRepos();
+      })
+      .then((r) => {
+        if (!cancelled && r) setGitlabRepos(r.repos);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) {
+          setLoadErr(e.message);
+          setGitlabStep("needs-connect");
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, gitlabStep]);
+
+  async function connectGitlab() {
+    if (!gitlabPat.trim()) return;
+    setBusy(true);
+    setLoadErr(null);
+    try {
+      const res = await vaultApi.connectGitlab(gitlabPat.trim());
+      setGitlabLogin(res.login);
+      setGitlabPat("");
+      setGitlabStep("ready");
+      const list = await vaultApi.listGitlabRepos();
+      setGitlabRepos(list.repos);
+    } catch (e) {
+      setLoadErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function pickGitlab(repo: VaultRepo) {
+    setBusy(true);
+    setLoadErr(null);
+    try {
+      const res = await vaultApi.addVault({
+        provider: "gitlab",
+        owner: repo.owner,
+        repo: repo.name,
+        branch: repo.defaultBranch,
+      });
+      onAdded(res.vault);
+    } catch (e) {
+      setLoadErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createAndPickGitlab() {
+    setBusy(true);
+    setLoadErr(null);
+    try {
+      const created = await vaultApi.createGitlabRepo(gitlabName, gitlabPrivate);
+      const res = await vaultApi.addVault({
+        provider: "gitlab",
         owner: created.repo.owner,
         repo: created.repo.name,
         branch: created.repo.defaultBranch,
@@ -181,6 +278,14 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
             GitHub · new
           </button>
           <button
+            className={mode === "gitlab" ? "active" : ""}
+            onClick={() => setMode("gitlab")}
+            title="GitLab (bring your own)"
+          >
+            <GitBranch size={14} className="nk-modal-tab-icon" aria-hidden />
+            GitLab
+          </button>
+          <button
             className={mode === "notekit" ? "active" : ""}
             onClick={() => setMode("notekit")}
             title="NoteKit-hosted Git via Forgejo"
@@ -252,6 +357,140 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
             >
               {busy ? "Creating…" : "Create and use this repo"}
             </button>
+          </div>
+        )}
+
+        {mode === "gitlab" && (
+          <div className="nk-modal-body">
+            {gitlabStep === "checking" && (
+              <p className="nk-empty-hint">Checking GitLab connection…</p>
+            )}
+
+            {gitlabStep === "needs-connect" && (
+              <>
+                <p className="nk-empty-hint" style={{ marginBottom: 12 }}>
+                  Paste a GitLab Personal Access Token to connect. Scopes
+                  needed: <code>api</code> and <code>write_repository</code>.
+                  Create one at{" "}
+                  <a
+                    href="https://gitlab.com/-/user_settings/personal_access_tokens"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    gitlab.com/-/user_settings/personal_access_tokens
+                  </a>
+                  .
+                </p>
+                <label className="nk-field">
+                  <span>Personal access token</span>
+                  <input
+                    type="password"
+                    value={gitlabPat}
+                    onChange={(e) => setGitlabPat(e.target.value)}
+                    disabled={busy}
+                    placeholder="glpat-…"
+                    autoComplete="off"
+                  />
+                </label>
+                <button
+                  className="nk-signin-btn"
+                  onClick={connectGitlab}
+                  disabled={busy || !gitlabPat.trim()}
+                >
+                  {busy ? "Connecting…" : "Connect GitLab"}
+                </button>
+              </>
+            )}
+
+            {gitlabStep === "ready" && (
+              <>
+                <p
+                  className="nk-empty-hint"
+                  style={{ marginBottom: 12, fontSize: 12 }}
+                >
+                  Connected as <code>{gitlabLogin}</code> on gitlab.com.
+                </p>
+                <div className="nk-modal-tabs" style={{ marginBottom: 12 }}>
+                  <button
+                    className={gitlabMode === "list" ? "active" : ""}
+                    onClick={() => setGitlabMode("list")}
+                    style={{ fontSize: 13 }}
+                  >
+                    Existing project
+                  </button>
+                  <button
+                    className={gitlabMode === "create" ? "active" : ""}
+                    onClick={() => setGitlabMode("create")}
+                    style={{ fontSize: 13 }}
+                  >
+                    Create new project
+                  </button>
+                </div>
+
+                {gitlabMode === "list" && (
+                  <>
+                    {!gitlabRepos && <SkeletonRepoList count={3} />}
+                    {gitlabRepos && gitlabRepos.length === 0 && (
+                      <p className="nk-empty-hint">
+                        No projects yet. Create one.
+                      </p>
+                    )}
+                    {gitlabRepos && gitlabRepos.length > 0 && (
+                      <ul className="nk-repo-list">
+                        {gitlabRepos.map((r) => (
+                          <li key={r.id}>
+                            <button
+                              className="nk-repo-row"
+                              onClick={() => pickGitlab(r)}
+                              disabled={busy}
+                            >
+                              <div className="nk-repo-row-main">
+                                <span className="nk-repo-name">{r.fullName}</span>
+                                {r.private && <span className="nk-chip">private</span>}
+                              </div>
+                              {r.description && (
+                                <div className="nk-repo-desc">{r.description}</div>
+                              )}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+
+                {gitlabMode === "create" && (
+                  <>
+                    <label className="nk-field">
+                      <span>Project name</span>
+                      <input
+                        type="text"
+                        value={gitlabName}
+                        onChange={(e) => setGitlabName(e.target.value)}
+                        disabled={busy}
+                        placeholder="notekit-vault"
+                      />
+                    </label>
+                    <label className="nk-field nk-field--row">
+                      <input
+                        type="checkbox"
+                        checked={gitlabPrivate}
+                        onChange={(e) => setGitlabPrivate(e.target.checked)}
+                        disabled={busy}
+                      />
+                      <span>Make project private (recommended)</span>
+                    </label>
+                    <button
+                      className="nk-signin-btn"
+                      onClick={createAndPickGitlab}
+                      disabled={busy || !gitlabName.trim()}
+                    >
+                      {busy ? "Creating…" : "Create and use this project"}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
           </div>
         )}
 

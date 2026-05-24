@@ -18,6 +18,13 @@
  */
 import * as defaultVaultApi from "./vault-api";
 import { encryptSecrets, decryptSecrets } from "./crypto/vault-crypto";
+import {
+  classifyEncryptedPath,
+  encryptItemPayload,
+  parseEncryptedEnvelope,
+  decryptItemPayload,
+  type EncryptedItemKind,
+} from "./crypto/item-crypto";
 import type { DeviceIdentity } from "./crypto/device-key";
 import type { NoteKitApi } from "@notekit/api-client";
 
@@ -185,6 +192,23 @@ export async function readRecovery(): Promise<RecoveryRecord | null> {
 }
 
 async function collectRecipients(device: DeviceIdentity): Promise<string[]> {
+  return collectVaultRecipients(device);
+}
+
+/**
+ * Public flavor of {@link collectRecipients} — gather every age recipient
+ * that should be able to read newly encrypted data in this vault: each
+ * registered device pubkey, the current device's pubkey (in case it's
+ * mid-pair and not yet listed under `.notekit/devices/`), and the BIP39
+ * recovery pubkey if one exists.
+ *
+ * Used by sync.ts to seal per-item E2EE files for the same audience that
+ * already reads the secrets vault, so a user who's set up encryption for
+ * API keys doesn't pick a separate passphrase for encrypted notes.
+ */
+export async function collectVaultRecipients(
+  device: DeviceIdentity,
+): Promise<string[]> {
   const [devices, recovery] = await Promise.all([listDevices(), readRecovery()]);
   const recipients = new Set<string>();
   for (const d of devices) recipients.add(d.recipient);
@@ -237,6 +261,68 @@ async function reEncryptAll(
     const armored = await encryptSecrets(json, recipients);
     const result = await backend.writeFile(e.path, armored, commitMessage(ref), file.sha);
     shaCache.set(e.path, result.sha);
+  }
+}
+
+/**
+ * Walk every E2EE note/ticket/link (`<kind>/<id>.md.age`) and re-seal it to
+ * the supplied recipient set, preserving the plaintext frontmatter. Used by
+ * {@link addDevice} after a new device is registered so that pre-existing
+ * encrypted items can be read from that device, and by {@link removeDevice}
+ * after a key is revoked so subsequent edits aren't readable by it.
+ *
+ * Same shape as {@link reEncryptAll} for secrets, scoped to the three item
+ * prefixes. Failures on individual files are logged and skipped — a single
+ * bad file shouldn't block the rest of the rewrap.
+ */
+async function reencryptAllItems(
+  signer: DeviceIdentity,
+  recipients: string[],
+  commitMessage: (kind: EncryptedItemKind, id: string) => string,
+): Promise<void> {
+  const prefixes: ReadonlyArray<{ prefix: string; kind: EncryptedItemKind }> = [
+    { prefix: "notes/", kind: "note" },
+    { prefix: "tickets/", kind: "ticket" },
+    { prefix: "links/", kind: "link" },
+  ];
+  for (const { prefix } of prefixes) {
+    let entries: { path: string; sha: string }[] = [];
+    try {
+      ({ entries } = await backend.listFiles(prefix));
+    } catch (err) {
+      console.warn(`[items-rewrap] list ${prefix} failed`, err);
+      continue;
+    }
+    for (const e of entries) {
+      const kind = classifyEncryptedPath(e.path);
+      if (!kind) continue;
+      try {
+        const file = await backend.readFile(e.path);
+        if (!file.sha || typeof file.content !== "string" || !file.content) continue;
+        shaCache.set(e.path, file.sha);
+        const env = parseEncryptedEnvelope(file.content);
+        if (!env) {
+          console.warn(`[items-rewrap] ${e.path} not a valid encrypted envelope, skipping`);
+          continue;
+        }
+        const payload = await decryptItemPayload<unknown>(env.ciphertext, signer.identity);
+        const armored = await encryptItemPayload(payload, recipients);
+        // Header bytes are deterministic from the public frontmatter, which
+        // we preserve verbatim. Only the ciphertext below is replaced.
+        const headerEnd = file.content.indexOf("-----BEGIN AGE ENCRYPTED FILE-----");
+        const header = headerEnd >= 0 ? file.content.slice(0, headerEnd) : "---\n---\n";
+        const next = `${header}${armored}\n`;
+        const result = await backend.writeFile(
+          e.path,
+          next,
+          commitMessage(kind, env.fm.id),
+          file.sha,
+        );
+        shaCache.set(e.path, result.sha);
+      } catch (err) {
+        console.warn(`[items-rewrap] ${e.path} rewrap failed`, err);
+      }
+    }
   }
 }
 
@@ -515,6 +601,18 @@ export async function addDevice(
       return `Re-encrypt secret "${label}" for device "${newDevice.name}"`;
     },
   );
+  // Re-encrypt every E2EE note/ticket/link to the new recipient set as well,
+  // so the newly-paired device can read items that already exist. Without
+  // this the new device sees `.md.age` files it can't decrypt and the
+  // encryptedSkipped banner trips. Failures here don't undo the device add
+  // (the secret re-encryption already succeeded), but they do surface so
+  // the operator can investigate.
+  await reencryptAllItems(
+    signer,
+    recipients,
+    (kind, id) =>
+      `Re-encrypt ${kind} "${id}" for device "${newDevice.name}"`,
+  );
 }
 
 export async function removeDevice(
@@ -538,6 +636,15 @@ export async function removeDevice(
       const label = r.vault ? `${r.vault}/${r.name}` : r.name;
       return `Re-encrypt secret "${label}" after revoking "${removedName}"`;
     },
+  );
+  // Items get the same treatment so a revoked device can no longer
+  // decrypt newly-pushed history (it could already cache older ciphertext
+  // it had access to, but the next change shouldn't be readable).
+  await reencryptAllItems(
+    signer,
+    recipients,
+    (kind, id) =>
+      `Re-encrypt ${kind} "${id}" after revoking "${removedName}"`,
   );
 }
 

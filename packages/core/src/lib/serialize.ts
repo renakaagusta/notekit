@@ -115,7 +115,11 @@ export function deserializeNote(path: string, content: string): Note | null {
     path,
     title: "", // first-line is the title; legacy field
     body,
-    frontmatter: {},
+    // Preserve the full parsed frontmatter so consumers (e.g. GraphView's
+    // creator/collaborators/project lookups) can read keys that aren't
+    // first-class fields on Note. The first-class fields above still win
+    // when both exist.
+    frontmatter,
     createdAt: String(frontmatter.createdAt ?? new Date().toISOString()),
     updatedAt: String(frontmatter.updatedAt ?? new Date().toISOString()),
     folder: (frontmatter.folder as string | null) ?? null,
@@ -188,6 +192,7 @@ export function serializeLink(link: SavedLink): string {
     id: link.id,
     url: link.url,
     platform: link.platform,
+    folder: link.folder,
     tags: link.tags,
     createdAt: link.createdAt,
     updatedAt: link.updatedAt,
@@ -221,7 +226,22 @@ export function deserializeLink(path: string, content: string): SavedLink | null
     description,
     platform: (frontmatter.platform as string | null) ?? null,
     tags: Array.isArray(frontmatter.tags) ? (frontmatter.tags as string[]) : [],
+    folder: folderFromFrontmatter(frontmatter.folder, path),
     createdAt: String(frontmatter.createdAt ?? new Date().toISOString()),
     updatedAt: String(frontmatter.updatedAt ?? new Date().toISOString()),
   };
+}
+
+/**
+ * Resolve a link's folder. Prefer the explicit `folder:` frontmatter
+ * value; fall back to deriving it from the path so old links written
+ * before the folder field existed still slot into the right place when
+ * a user moves them into a folder by hand (e.g. via Git).
+ */
+function folderFromFrontmatter(raw: unknown, path: string): string | null {
+  if (typeof raw === "string" && raw.trim()) return raw.trim();
+  const rel = path.startsWith("links/") ? path.slice("links/".length) : path;
+  const slash = rel.lastIndexOf("/");
+  if (slash === -1) return null;
+  return rel.slice(0, slash);
 }

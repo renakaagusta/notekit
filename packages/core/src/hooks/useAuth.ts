@@ -1,5 +1,12 @@
 import { useEffect, useState } from "react";
-import { apiUrl, apiFetch } from "../lib/api";
+import {
+  apiUrl,
+  apiFetch,
+  clearDesktopToken,
+  ensureDesktopAuthLoaded,
+  isDesktop,
+  startDesktopSignIn,
+} from "../lib/api";
 import { useAuthStore } from "../stores/authStore";
 import type { User } from "../types/user";
 
@@ -26,6 +33,11 @@ export function useAuth() {
     let cancelled = false;
     (async () => {
       try {
+        // Under Electron we need the bearer token from the OS keychain
+        // before the first authenticated request fires. On web this is a
+        // no-op (ensureDesktopAuthLoaded short-circuits when isDesktop is
+        // false) so there's no extra latency.
+        await ensureDesktopAuthLoaded();
         const [{ user: me }, providerInfo] = await Promise.all([
           apiFetch<MeResponse>("/auth/me"),
           apiFetch<ProvidersResponse>("/auth/providers"),
@@ -59,14 +71,33 @@ export function useAuth() {
     if (user) setStatus("authenticated");
   }, [user]);
 
-  function startSignIn(provider: "github" | "google") {
+  async function startSignIn(provider: "github" | "google") {
+    if (isDesktop) {
+      // Loopback PAT flow: opens the user's external browser, waits for
+      // the callback, stores the token in the OS keychain, then the main
+      // process reloads this window so the next mount of useAuth picks up
+      // the bearer token via ensureDesktopAuthLoaded().
+      try {
+        await startDesktopSignIn(provider);
+      } catch (err) {
+        console.error("[auth] desktop sign-in failed", err);
+      }
+      return;
+    }
     window.location.href = `${apiUrl}/auth/${provider}`;
   }
 
   async function doSignOut() {
     try {
       await apiFetch("/auth/signout", { method: "POST" });
+    } catch (err) {
+      // Don't block the local sign-out on a remote failure — if the network
+      // is gone we still want the UI to drop the session.
+      console.warn("[auth] signout request failed", err);
     } finally {
+      if (isDesktop) {
+        await clearDesktopToken();
+      }
       signOut();
       setStatus("anonymous");
     }

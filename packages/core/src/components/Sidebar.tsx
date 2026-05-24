@@ -1,5 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { Bell, Bot, Clock, KeyRound, LogOut, MoreHorizontal, Plus } from "lucide-react";
+import {
+  Bell,
+  Bot,
+  Clock,
+  KeyRound,
+  LogOut,
+  Menu,
+  MoreHorizontal,
+  Plus,
+  Search,
+} from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import type { User } from "../types/user";
@@ -19,6 +29,16 @@ interface SidebarProps {
   onOpenHistory?: () => void;
   onOpenTokens?: () => void;
   onOpenNotifications?: () => void;
+  /**
+   * When provided, the section header renders a search icon next to the
+   * "+" button. Used by the mobile shell where no ⌘K shortcut is reachable.
+   */
+  onOpenSearch?: () => void;
+  /**
+   * When provided, the section header renders a hamburger icon on the left
+   * that opens the global mobile drawer (vault picker + all surfaces).
+   */
+  onOpenMenu?: () => void;
 }
 
 export function Sidebar({
@@ -30,6 +50,8 @@ export function Sidebar({
   onOpenHistory,
   onOpenTokens,
   onOpenNotifications,
+  onOpenSearch,
+  onOpenMenu,
 }: SidebarProps) {
   const upsertTicket = useTicketsStore((s) => s.upsert);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
@@ -118,26 +140,48 @@ export function Sidebar({
       </div>
 
       <div className="nk-sidebar-hd">
-        <span>{heading}</span>
-        {view !== "graph" && view !== "secrets" && view !== "links" && (
-          <span className="nk-sidebar-hd-actions nk-tree-add-wrap">
-            <button
-              className="nk-iconbtn"
-              data-create-toggle={view === "notes" ? "" : undefined}
-              onClick={onAdd}
-              title={view === "notes" ? "New file or folder" : "New ticket"}
-              aria-label="Add"
-            >
-              <Plus size={14} aria-hidden />
-            </button>
-            {view === "notes" && createMenuOpen && (
-              <CreateMenu
-                parent={null}
-                onClose={() => setCreateMenuOpen(false)}
-              />
-            )}
-          </span>
+        {onOpenMenu && (
+          <button
+            className="nk-iconbtn nk-sidebar-menu"
+            onClick={onOpenMenu}
+            title="Menu"
+            aria-label="Open menu"
+          >
+            <Menu size={16} aria-hidden />
+          </button>
         )}
+        <span>{heading}</span>
+        <span className="nk-sidebar-hd-actions nk-tree-add-wrap">
+          {onOpenSearch && (
+            <button
+              className="nk-iconbtn nk-sidebar-search"
+              onClick={onOpenSearch}
+              title="Search"
+              aria-label="Search"
+            >
+              <Search size={14} aria-hidden />
+            </button>
+          )}
+          {view !== "graph" && view !== "secrets" && view !== "links" && (
+            <>
+              <button
+                className="nk-iconbtn"
+                data-create-toggle={view === "notes" ? "" : undefined}
+                onClick={onAdd}
+                title={view === "notes" ? "New file or folder" : "New ticket"}
+                aria-label="Add"
+              >
+                <Plus size={14} aria-hidden />
+              </button>
+              {view === "notes" && createMenuOpen && (
+                <CreateMenu
+                  parent={null}
+                  onClose={() => setCreateMenuOpen(false)}
+                />
+              )}
+            </>
+          )}
+        </span>
       </div>
 
       {view === "notes" && <NoteList />}

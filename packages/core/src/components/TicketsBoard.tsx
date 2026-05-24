@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
+import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
-import { CalendarDays, CheckSquare } from "lucide-react";
+import { CalendarDays, CheckSquare, Lock } from "lucide-react";
 import { BoardToolbar } from "./BoardToolbar";
 import { CardQuickActions } from "./CardQuickActions";
 import { SubtaskList } from "./SubtaskList";
@@ -79,6 +80,25 @@ export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
   const upsert = useTicketsStore((s) => s.upsert);
   const setStatus = useTicketsStore((s) => s.setStatus);
   const remove = useTicketsStore((s) => s.remove);
+  const toggleEncrypted = useTicketsStore((s) => s.toggleEncrypted);
+  const vaultId = useVaultStore((s) => s.activeId);
+  const requestEncrypt = useE2eeOnboardingStore((s) => s.requestEncrypt);
+
+  function handleToggleTicketEncrypted(t: Ticket): void {
+    // Decrypts skip the gate; first encrypt per vault routes through the
+    // onboarding modal so the user reads what Git history can't take back.
+    if (t.encrypted) {
+      toggleEncrypted(t.id);
+      return;
+    }
+    if (!vaultId) return;
+    requestEncrypt({
+      vaultId,
+      kind: "ticket",
+      title: t.title,
+      onConfirm: () => toggleEncrypted(t.id),
+    });
+  }
   const vault = useVaultStore((s) => s.vault);
 
   const cardRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -405,6 +425,15 @@ export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
                     <span className={`nk-chip ${PRIORITY_CLASS[t.priority]}`}>
                       {PRIORITY_LABEL[t.priority]}
                     </span>
+                    {t.encrypted && (
+                      <span
+                        className="nk-chip nk-card-encrypted"
+                        title="End-to-end encrypted — body and title are only readable on your devices"
+                        aria-label="Encrypted"
+                      >
+                        <Lock size={11} strokeWidth={2} aria-hidden />
+                      </span>
+                    )}
                     {progress.total > 0 && (
                       <span
                         className={
@@ -429,6 +458,7 @@ export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
                       onPriority={(p) => upsert({ ...t, priority: p })}
                       onDueDate={(d) => upsert({ ...t, dueDate: d })}
                       onDelete={() => remove(t.id)}
+                      onToggleEncrypted={() => handleToggleTicketEncrypted(t)}
                     />
                   </div>
                   <button

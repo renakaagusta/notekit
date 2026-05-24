@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, FileText, Folder, MoreHorizontal, Plus } from "lucide-react";
+import { ChevronRight, FileText, Folder, Lock, MoreHorizontal } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { noteTitle, notePreview } from "../lib/note-display";
 import { journalYMDFromPath } from "../lib/journal";
 import type { Note } from "../types/note";
-import { CreateMenu } from "./CreateMenu";
 
 interface FolderNode {
   name: string;
@@ -63,6 +62,23 @@ export function NoteList() {
   const remove = useNotesStore((s) => s.remove);
   const removeFolder = useNotesStore((s) => s.removeFolder);
   const upsert = useNotesStore((s) => s.upsert);
+  const createFolder = useNotesStore((s) => s.createFolder);
+
+  // Inlined from the old CreateMenu popover — both actions are now items in
+  // the folder's "more options" menu, so the standalone "+" button is gone.
+  function createNewFile(parent: string | null) {
+    const note = upsert({ title: "Untitled", body: "", folder: parent });
+    setActive(note.id);
+  }
+
+  function createNewFolder(parent: string | null) {
+    const name = window.prompt("Folder name:");
+    if (!name) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const full = parent ? `${parent}/${trimmed}` : trimmed;
+    createFolder(full);
+  }
 
   const nonJournalNotes = useMemo(
     () => all.filter((n) => !journalYMDFromPath(n.path)),
@@ -72,7 +88,6 @@ export function NoteList() {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
-  const [menuFor, setMenuFor] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<string | null>(null);
 
   function toggle(path: string) {
@@ -162,7 +177,6 @@ export function NoteList() {
     const rows: React.ReactElement[] = [];
 
     if (!isRoot) {
-      const isMenuOpen = menuFor === node.path;
       const guideLeft = depth > 0 ? 8 + (depth - 1) * 16 + 7 : undefined;
       rows.push(
         <li
@@ -197,29 +211,6 @@ export function NoteList() {
           </span>
           <Folder size={14} className="nk-tree-icon" aria-hidden />
           <span className="nk-tree-label">{node.name}</span>
-          <span className="nk-tree-count">
-            {node.notes.length + node.children.length}
-          </span>
-          <span className="nk-tree-add-wrap">
-            <button
-              className="nk-tree-add"
-              data-create-toggle
-              title="New file or folder"
-              aria-label="New file or folder"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuFor((cur) => (cur === node.path ? null : node.path));
-              }}
-            >
-              <Plus size={12} aria-hidden />
-            </button>
-            {isMenuOpen && (
-              <CreateMenu
-                parent={node.path}
-                onClose={() => setMenuFor(null)}
-              />
-            )}
-          </span>
           <span className="nk-tree-ctx-wrap">
             <button
               className="nk-tree-ctx-btn"
@@ -238,6 +229,14 @@ export function NoteList() {
               <TreeContextMenu
                 onClose={() => setCtxMenu(null)}
                 items={[
+                  {
+                    label: "New file",
+                    onClick: () => createNewFile(node.path),
+                  },
+                  {
+                    label: "New folder",
+                    onClick: () => createNewFolder(node.path),
+                  },
                   {
                     label: "Delete folder",
                     danger: true,
@@ -292,7 +291,17 @@ export function NoteList() {
         >
           <FileText size={14} className="nk-tree-icon" aria-hidden />
           <span className="nk-tree-stack">
-            <span className="nk-tree-label">{title}</span>
+            <span className="nk-tree-label">
+              {n.encrypted && (
+                <Lock
+                  size={11}
+                  strokeWidth={2}
+                  aria-label="Encrypted"
+                  className="nk-tree-lock"
+                />
+              )}
+              {title}
+            </span>
             {preview && (
               <span className="nk-tree-sub" aria-hidden>
                 {preview}

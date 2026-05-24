@@ -16,8 +16,10 @@ export default defineConfig({
   dts: false,
   shims: false,
   // We want a usable single-file build; bundle workspace deps so a future
-  // `npm i -g` works without pulling pnpm symlinks.
-  noExternal: ["@notekit/api-client", "@notekit/core"],
+  // `npm i -g` (or `bun build --compile`) works without pulling pnpm
+  // symlinks. @notekit/mcp is here so `notekit mcp serve` can launch the
+  // MCP server in-process (no spawn) from the Bun-compiled binary.
+  noExternal: ["@notekit/api-client", "@notekit/core", "@notekit/mcp"],
   banner: {
     js: "#!/usr/bin/env node",
   },

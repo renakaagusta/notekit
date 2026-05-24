@@ -10,20 +10,40 @@ NoteKit is a notes and tickets application that stores everything in a real Git 
 
 ## Use it in your agent IDE
 
-NoteKit ships an MCP server with project-aware scoping: drop a one-line
-`.notekit` marker in a code repo and every notes/tickets tool the agent
-calls scopes to that project (with read-everywhere fallback to global).
+NoteKit ships a single self-contained `notekit` binary — no Node.js
+install, no npm account, no package manager required on the user side.
+It includes both the CLI and the MCP server, so one install covers every
+surface.
 
 ```bash
-# After `notekit auth login` and `notekit mcp doctor` show green:
-notekit mcp install cursor          # also: claude-code, codex, opencode,
-                                    # continue, zed, windsurf, claude-desktop
+# One-line install (macOS / Linux):
+curl -fsSL https://raw.githubusercontent.com/renakaagusta/notekit/main/scripts/install.sh | sh
+
+# Then wire it into any agent IDE:
+notekit auth login
+notekit mcp doctor              # verify your setup is green
+notekit mcp install cursor      # also: claude-code, codex, opencode,
+                                # continue, zed, windsurf, claude-desktop
 ```
 
 The installer writes the right config file in the right place for that
-IDE, then prints the copy-paste block + a one-click deeplink as a
-fallback. See [`apps/mcp/README.md`](apps/mcp/README.md) for the per-client
-recipes and [`docs/MCP_DISTRIBUTION.md`](docs/MCP_DISTRIBUTION.md) for the
+IDE — the entry points at the absolute path of your `notekit` binary,
+which then runs `notekit mcp serve` in-process. No `npx`, no cold-start
+download.
+
+### Project-aware scoping
+
+Drop a one-line `.notekit` marker in a code repo and every notes/tickets
+tool the agent calls scopes to that project (with read-everywhere
+fallback to global):
+
+```
+project: my-app
+```
+
+The MCP server resolves it by walking up from the IDE's cwd. See
+[`apps/mcp/README.md`](apps/mcp/README.md) for per-client recipes and
+[`docs/MCP_DISTRIBUTION.md`](docs/MCP_DISTRIBUTION.md) for the
 project-scoping model.
 
 ## Quick start

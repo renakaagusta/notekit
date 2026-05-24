@@ -7,6 +7,12 @@
  * from @notekit/api-client. CLI / desktop / MCP construct their own client
  * with bearer auth; the web app uses cookies via this module.
  *
+ * When the renderer is hosted inside the NoteKit Electron wrapper, the
+ * preload bridge exposes `window.notekit.keychain` plus `auth.startSignIn`.
+ * In that case we configure the client with bearer auth using a PAT pulled
+ * from the OS keychain — same model the CLI and MCP use — instead of
+ * relying on cookies that the user's external OAuth browser would set.
+ *
  * Migration goal (incremental): new code should import typed methods from
  * @notekit/api-client directly (`nk.vault.listVaults()` etc.) instead of
  * calling apiFetch by hand. The wrappers in this folder will keep working
@@ -27,6 +33,91 @@ function resolveApiUrl(): string {
 
 export const apiUrl: string = resolveApiUrl();
 
+// ── Desktop bearer-token wiring ──────────────────────────────────────────
+//
+// The preload bridge shape we care about. Typed minimally here so this file
+// stays browser-only and doesn't import Electron types.
+
+interface DesktopKeychainBridge {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+  delete(key: string): Promise<boolean>;
+}
+
+interface DesktopAuthBridge {
+  startSignIn(
+    provider: "github" | "google",
+  ): Promise<{ ok: boolean; error?: string }>;
+}
+
+interface DesktopBridge {
+  keychain?: DesktopKeychainBridge;
+  auth?: DesktopAuthBridge;
+}
+
+function getDesktopBridge(): DesktopBridge | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { notekit?: DesktopBridge };
+  if (!w.notekit) return null;
+  return w.notekit;
+}
+
+export const isDesktop: boolean = !!getDesktopBridge()?.keychain;
+
+let desktopToken: string | null = null;
+let desktopAuthLoadPromise: Promise<void> | null = null;
+
+/**
+ * Block-on-first-call so the very first apiFetch from the renderer has
+ * the keychain-resident PAT in hand. After this resolves, the bearer
+ * `getToken` closure picks up whatever's in `desktopToken` without further
+ * coordination.
+ */
+export function ensureDesktopAuthLoaded(): Promise<void> {
+  if (!isDesktop) return Promise.resolve();
+  if (desktopAuthLoadPromise) return desktopAuthLoadPromise;
+  const bridge = getDesktopBridge();
+  if (!bridge?.keychain) return Promise.resolve();
+  desktopAuthLoadPromise = (async () => {
+    try {
+      desktopToken = await bridge.keychain!.get("token");
+    } catch (err) {
+      console.warn("[api] failed to read desktop token from keychain", err);
+      desktopToken = null;
+    }
+  })();
+  return desktopAuthLoadPromise;
+}
+
+/**
+ * Drive the Electron sign-in flow. Resolves to true on success (the token
+ * is now in the OS keychain and the main process will reload the window),
+ * false otherwise. Web callers should use the cookie redirect instead.
+ */
+export async function startDesktopSignIn(
+  provider: "github" | "google",
+): Promise<boolean> {
+  const bridge = getDesktopBridge();
+  if (!bridge?.auth) return false;
+  const res = await bridge.auth.startSignIn(provider);
+  return res.ok;
+}
+
+/**
+ * Wipe the desktop bearer token. Called from the sign-out path so a
+ * subsequent reload comes up anonymous.
+ */
+export async function clearDesktopToken(): Promise<void> {
+  const bridge = getDesktopBridge();
+  if (!bridge?.keychain) return;
+  try {
+    await bridge.keychain.delete("token");
+  } finally {
+    desktopToken = null;
+    desktopAuthLoadPromise = null;
+  }
+}
+
 /**
  * The typed API client. New components should use this directly:
  *
@@ -38,7 +129,9 @@ export const apiUrl: string = resolveApiUrl();
  */
 export const nk: NoteKitApi = createNoteKitClient({
   baseUrl: apiUrl,
-  auth: { mode: "cookie" },
+  auth: isDesktop
+    ? { mode: "bearer", getToken: () => desktopToken ?? "" }
+    : { mode: "cookie" },
 });
 
 const client: NoteKitClient = nk.client;

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Allow cleartext (http://) traffic to localhost only.
+
+  Capacitor's `androidScheme: "https"` puts the WebView origin at
+  `https://localhost`, but our dev/E2E API runs as plain http on
+  `localhost:3001` (or 10.0.2.2:3001 from emu, reachable via `adb reverse`).
+  Without this exception Android 9+ blocks the fetch outright and the
+  app shows "Couldn't reach the API server" instead of the SignIn card.
+
+  Production builds talk to https://notekit-api.stackbase.id and ignore
+  this list entirely.
+-->
+<network-security-config>
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">localhost</domain>
+    <domain includeSubdomains="true">10.0.2.2</domain>
+    <domain includeSubdomains="true">127.0.0.1</domain>
+  </domain-config>
+</network-security-config>

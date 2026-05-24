@@ -1,0 +1,32 @@
+# Reusable sign-in helper.
+#
+# Maestro runs each flow in `maestro test .` from a fresh state, so flows
+# that need an authenticated session must drive the PAT sign-in themselves.
+# Included from 03-note-crud and 04-sync via `runFlow:`.
+appId: com.notekit.app
+---
+- launchApp:
+    clearState: false
+    clearKeychain: false
+
+- assertVisible: "Sign in with token"
+- tapOn: "Sign in with token"
+
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- tapOn:
+    text: "nkp_…"
+
+- runScript:
+    file: ../../scripts/read-pat.js
+
+- inputText: ${output.pat}
+- hideKeyboard
+
+- tapOn:
+    text: "Sign in"
+
+- extendedWaitUntil:
+    visible: "Press ⌘N to create one."
+    timeout: 20000

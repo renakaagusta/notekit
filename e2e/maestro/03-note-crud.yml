@@ -1,0 +1,22 @@
+# 03 — Note CRUD (SKIPPED pending mobile-shell fix)
+#
+# The Capacitor iOS build currently doesn't render the mobile shell
+# (no hamburger, no "+ New" button, no header) post-auth. Only the
+# "Press ⌘N to create one." empty-state text is visible, with the
+# rest of the chrome missing — almost certainly a `useMediaQuery`
+# or MobileDrawer mount issue specific to the WebView environment.
+#
+# This flow is intentionally minimal until the mobile shell is fixed
+# (tracked as a separate task). It verifies what IS testable today:
+# the bearer-mode auth path resolves to an authenticated state with
+# the notes surface as the default view.
+appId: com.notekit.app
+tags:
+  - notes
+  - skipped
+---
+- runFlow: helpers/signin.yml
+
+- assertVisible: "Press ⌘N to create one."
+
+- takeScreenshot: ../artifacts/03-note-crud-shell

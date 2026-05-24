@@ -21,6 +21,14 @@ function optionalPem(name: string): string | null {
 export const env = {
   port: Number(process.env.PORT ?? 3001),
   webUrl: required("WEB_URL", "http://localhost:5173"),
+  // Extra CORS origins beyond `webUrl`. Comma-separated. Use this for the
+  // mobile Capacitor builds (`capacitor://localhost` on iOS,
+  // `https://localhost` on Android) and for any E2E runner that hits the
+  // API from a non-web origin. Leave unset to keep the lock-down default.
+  extraCorsOrigins: (optional("CORS_EXTRA_ORIGINS") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0),
   apiUrl: required("API_URL", "http://localhost:3001"),
   sessionSecret: required("SESSION_SECRET", "dev-insecure-secret-change-me"),
   databaseUrl: required("DATABASE_URL", "file:./data/notekit.db"),

@@ -9,7 +9,9 @@
     "android": "pnpm sync && cap open android",
     "add:ios": "cap add ios",
     "add:android": "cap add android",
-    "doctor": "cap doctor"
+    "doctor": "cap doctor",
+    "e2e:ios": "bash ../../e2e/scripts/run-ios.sh",
+    "e2e:android": "bash ../../e2e/scripts/run-android.sh"
   },
   "dependencies": {
     "@capacitor-community/apple-sign-in": "^7.1.0",

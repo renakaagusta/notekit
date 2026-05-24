@@ -3183,6 +3183,53 @@ a.nk-commit-sha:hover {
   font-size: 10.5px;
 }
 
+/* ─── Sign in with token (mobile/native PAT path) ──────────────── */
+
+.nk-signin-btn-ghost {
+  background: transparent;
+  margin-top: var(--gap-3);
+  border-style: dashed;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.nk-signin-token-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  margin-top: var(--gap-3);
+}
+
+.nk-signin-token-input {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  outline: none;
+}
+
+.nk-signin-token-input:focus {
+  border-color: var(--accent);
+}
+
+.nk-signin-btn-link {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.nk-signin-btn-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 /* ─── Modal (vault picker, etc.) ───────────────────────────────── */
 
 .nk-modal-backdrop {

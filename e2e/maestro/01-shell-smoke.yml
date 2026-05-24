@@ -1,0 +1,29 @@
+# 01 — Shell smoke
+#
+# Cold-start the app and verify the sign-in screen renders with both OAuth
+# buttons and the mobile-only PAT path. This is the cheapest regression net:
+# if the API URL is wrong, CORS is broken, ATS is blocking localhost, or the
+# Capacitor sync is stale, this flow catches it before any auth scenario
+# spends time chasing a stale build.
+appId: com.notekit.app
+tags:
+  - smoke
+---
+# `clearState`/`clearKeychain` aren't usable here — Android 16+ blocks
+# `pm clear` for ADB-installed packages, so the wrapper scripts handle
+# state reset by uninstall+reinstall instead.
+- launchApp
+
+# Wait up to 10s for the SignIn card to draw. Empty card or stalled splash
+# means the bundle failed to load (almost always a stale Capacitor sync).
+- assertVisible:
+    text: "Notes & tickets in your Git repo."
+
+- assertVisible: "Continue with GitHub"
+- assertVisible: "Continue with Google"
+
+# The PAT path only renders when Capacitor.isNativePlatform() is true, so
+# its presence also confirms we're not accidentally running the web build.
+- assertVisible: "Sign in with token"
+
+- takeScreenshot: ../artifacts/01-shell-smoke

@@ -1,0 +1,17 @@
+# 04 — Sync round-trip (SKIPPED pending mobile-shell fix)
+#
+# Sync UI is unreachable until the mobile shell renders the hamburger
+# drawer that hosts the Sync surface entry. Until that's fixed (see
+# task: "Fix broken mobile shell rendering on Capacitor"), this flow
+# stays as a placeholder that asserts the authenticated state — the
+# same minimal smoke as 03.
+appId: com.notekit.app
+tags:
+  - sync
+  - skipped
+---
+- runFlow: helpers/signin.yml
+
+- assertVisible: "Press ⌘N to create one."
+
+- takeScreenshot: ../artifacts/04-sync-shell

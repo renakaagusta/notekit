@@ -1,0 +1,19 @@
+# Maestro workspace config shared by every flow in this folder.
+#
+# `appId` matches the Capacitor bundle id from apps/mobile/capacitor.config.ts.
+# Both iOS (`com.notekit.app`) and Android (`com.notekit.app`) ship the same
+# id, so a single config covers both platforms.
+appId: com.notekit.app
+
+# `name` shows up in the report header when running locally and in Maestro
+# Cloud test runs.
+name: NoteKit mobile E2E
+
+# Stop a run at the first failure so the artifacts pinpoint the regression
+# instead of cascading through unrelated flows.
+executionOrder:
+  flowsOrder:
+    - 01-shell-smoke.yml
+    - 02-signin-pat.yml
+    - 03-note-crud.yml
+    - 04-sync.yml

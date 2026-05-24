@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Apple, Github } from "lucide-react";
+import { Apple, Github, Key } from "lucide-react";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { NoteKitMark, NoteKitWordmark } from "./NoteKitLogo";
 
@@ -8,13 +8,26 @@ interface SignInProps {
   onSignIn(provider: "github" | "google" | "apple"): void;
 }
 
+/**
+ * On Capacitor native (iOS/Android), expose a PAT sign-in path alongside the
+ * OAuth buttons. OAuth in a Capacitor WebView is brittle (Google's WebView
+ * detection, captchas) and breaks Maestro E2E completely. Power users who
+ * already have a CLI/MCP token from the web app can paste it here; the API
+ * client then runs in bearer mode against the same backend.
+ */
+function isCapacitorNative(): boolean {
+  if (typeof window === "undefined") return false;
+  const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return cap?.isNativePlatform?.() === true;
+}
+
 export function SignIn({ providers, onSignIn }: SignInProps) {
   const [authError, setAuthError] = useState<string | null>(null);
+  const [tokenMode, setTokenMode] = useState(false);
+  const [tokenInput, setTokenInput] = useState("");
+  const [tokenError, setTokenError] = useState<string | null>(null);
+  const showTokenPath = isCapacitorNative();
   // Follow the OS appearance — no user preference exists pre-auth.
-  // Dropped the mobile PAT-mode state (tokenMode / tokenInput /
-  // showTokenPath / isCapacitorNative) since the components those
-  // depend on aren't on main yet — bring them over with the mobile
-  // shell commits if needed.
   const theme = useResolvedTheme();
 
   useEffect(() => {
@@ -104,6 +117,77 @@ export function SignIn({ providers, onSignIn }: SignInProps) {
                 or Apple.
               </p>
             )}
+          {showTokenPath && !tokenMode && (
+            <button
+              className="nk-signin-btn nk-signin-btn-ghost"
+              onClick={() => setTokenMode(true)}
+              data-testid="signin-use-token"
+            >
+              <Key size={18} aria-hidden />
+              Sign in with token
+            </button>
+          )}
+          {showTokenPath && tokenMode && (
+            <form
+              className="nk-signin-token-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const trimmed = tokenInput.trim();
+                if (!trimmed.startsWith("nkp_") && !trimmed.startsWith("nka_")) {
+                  setTokenError("Token must start with nkp_ or nka_");
+                  return;
+                }
+                try {
+                  localStorage.setItem("notekit:e2e-pat", trimmed);
+                } catch (err) {
+                  setTokenError(`Couldn't save token: ${(err as Error).message}`);
+                  return;
+                }
+                // Reload so the API client picks up the new auth mode at
+                // module-load. (The mode is captured at construction time.)
+                window.location.reload();
+              }}
+            >
+              <input
+                type="password"
+                className="nk-signin-token-input"
+                placeholder="nkp_…"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
+                value={tokenInput}
+                onChange={(e) => {
+                  setTokenInput(e.target.value);
+                  setTokenError(null);
+                }}
+                data-testid="signin-token-input"
+              />
+              {tokenError && (
+                <p className="nk-signin-error" role="alert">
+                  {tokenError}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="nk-signin-btn"
+                disabled={tokenInput.trim().length === 0}
+                data-testid="signin-token-submit"
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                className="nk-signin-btn-link"
+                onClick={() => {
+                  setTokenMode(false);
+                  setTokenInput("");
+                  setTokenError(null);
+                }}
+              >
+                Cancel
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

@@ -1,0 +1,45 @@
+# 02 — Sign in with PAT
+#
+# Drives the mobile-only PAT path. The token is read via runScript from
+# the E2E_PAT env var. After submit the app reloads, the API client picks
+# up bearer mode at module init, and the AuthGate flips from `anonymous`
+# to `authenticated`.
+appId: com.notekit.app
+tags:
+  - auth
+---
+- launchApp:
+    clearState: false
+    clearKeychain: false
+
+- assertVisible: "Sign in with token"
+- tapOn: "Sign in with token"
+
+# Wait for React state to commit + form to render.
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# The placeholder text "nkp_…" lets Maestro locate the input reliably
+# (Capacitor's WebView exposes placeholders as accessible text).
+- tapOn:
+    text: "nkp_…"
+
+# Pull the PAT through Maestro's JS sandbox to dodge a 2.1.0 quirk where
+# `${ENV_VAR}` inside `inputText` was passed through verbatim.
+- runScript:
+    file: ../scripts/read-pat.js
+
+- inputText: ${output.pat}
+- hideKeyboard
+
+- tapOn:
+    text: "Sign in"
+
+# Post-reload the bearer-mode client hits /auth/me with the PAT; AuthGate
+# flips to the App shell. On a clean account the notes list is empty and
+# shows the "Press ⌘N to create one." hint — that's our landmark.
+- extendedWaitUntil:
+    visible: "Press ⌘N to create one."
+    timeout: 20000
+
+- takeScreenshot: ../artifacts/02-signin-pat

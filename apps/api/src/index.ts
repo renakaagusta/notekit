@@ -25,10 +25,15 @@ app.use("*", secureHeaders({
 
 app.use("*", logger());
 
+// `webUrl` is the primary web origin; `extraCorsOrigins` lets ops add
+// Capacitor (`capacitor://localhost`, `https://localhost`) and E2E origins
+// without recompiling. The list is small and exact-match; we never reflect
+// arbitrary `Origin` headers.
+const allowedOrigins = [env.webUrl, ...env.extraCorsOrigins];
 app.use(
   "*",
   cors({
-    origin: [env.webUrl],
+    origin: allowedOrigins,
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],

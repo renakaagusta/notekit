@@ -120,6 +120,36 @@ export async function clearDesktopToken(): Promise<void> {
   }
 }
 
+// ── E2E (Capacitor native) PAT bootstrap ─────────────────────────────────
+//
+// Cookies in a Capacitor WebView aren't shared with notekit.stackbase.id
+// (different origin from `capacitor://`), so OAuth-in-webview would be the
+// only path to a session — and that's brittle for Maestro automation.
+//
+// As an escape hatch for E2E and for power users, the mobile client honors
+// a PAT stashed in localStorage under `notekit:e2e-pat`. Maestro injects it
+// via `runScript` before the app boots; future a PAT-paste UI could write
+// to the same key. Gated to native so the web build can't pick it up by
+// accident (which would replace cookies with a less-revocable bearer).
+const E2E_PAT_KEY = "notekit:e2e-pat";
+
+function isCapacitorNative(): boolean {
+  if (typeof window === "undefined") return false;
+  const cap = (window as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+  return cap?.isNativePlatform?.() === true;
+}
+
+function readMobilePat(): string {
+  if (!isCapacitorNative()) return "";
+  try {
+    return localStorage.getItem(E2E_PAT_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+const hasMobilePat = readMobilePat().length > 0;
+
 /**
  * The typed API client. New components should use this directly:
  *
@@ -133,7 +163,9 @@ export const nk: NoteKitApi = createNoteKitClient({
   baseUrl: apiUrl,
   auth: isDesktop
     ? { mode: "bearer", getToken: () => desktopToken ?? "" }
-    : { mode: "cookie" },
+    : hasMobilePat
+      ? { mode: "bearer", getToken: () => readMobilePat() }
+      : { mode: "cookie" },
 });
 
 const client: NoteKitClient = nk.client;

@@ -9,10 +9,10 @@ import {
   Link as LinkIcon,
   LogOut,
   Lock,
+  Menu,
   MoreHorizontal,
   Share2,
   Ticket,
-  X,
 } from "lucide-react";
 import type { SidebarView } from "./Sidebar";
 import { VaultSwitcher } from "./VaultSwitcher";
@@ -112,8 +112,13 @@ export function MobileDrawer({
             className="nk-iconbtn nk-mdrawer-close"
             onClick={onClose}
             aria-label="Close menu"
+            title="Close menu"
           >
-            <X size={18} aria-hidden />
+            {/* Hamburger here mirrors the trigger in the appbar — same
+                icon for "open" and "close" so the gesture is symmetric
+                and the user always knows that tapping the icon toggles
+                the drawer. */}
+            <Menu size={18} aria-hidden />
           </button>
         </header>
 

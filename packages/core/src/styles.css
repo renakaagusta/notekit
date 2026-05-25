@@ -5847,7 +5847,8 @@ a.nk-commit-sha:hover {
      query alone guarantees mobile width. */
   .nk-popover,
   .nk-ctx-menu,
-  .nk-tb-menu {
+  .nk-tb-menu,
+  .nk-vault-menu {
     position: fixed;
     top: auto;
     left: 0;
@@ -5876,7 +5877,8 @@ a.nk-commit-sha:hover {
   /* Drag-handle pill at the top of every sheet. */
   .nk-popover::before,
   .nk-ctx-menu::before,
-  .nk-tb-menu::before {
+  .nk-tb-menu::before,
+  .nk-vault-menu::before {
     content: "";
     display: block;
     width: 40px;
@@ -5884,6 +5886,35 @@ a.nk-commit-sha:hover {
     margin: 4px auto 12px;
     border-radius: 4px;
     background: var(--border);
+  }
+
+  /* The vault switcher trigger lives inside the drawer header (z-index
+     40), so its sheet has to render above the drawer. Matches the user
+     menu's escape-the-drawer override below. */
+  .nk-vault-menu {
+    z-index: 60;
+  }
+
+  /* Stack the vault row's action icons in a horizontal scroller so they
+     stay tappable at 44pt without overflowing the sheet. */
+  .nk-vault-menu .nk-vault-row {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .nk-vault-menu .nk-vault-row .nk-iconbtn {
+    width: 40px;
+    height: 40px;
+  }
+  .nk-vault-menu .nk-vault-menu-hd {
+    font-size: 11px;
+    padding: 4px 12px 8px;
+  }
+  .nk-vault-menu .nk-vault-list {
+    max-height: 50vh;
+    overflow-y: auto;
+  }
+  .nk-vault-menu .nk-vault-menu-ft {
+    padding-top: 8px;
   }
 
   /* Bigger touch targets for menu items inside the sheet. */

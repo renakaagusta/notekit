@@ -34,6 +34,17 @@ const config: CapacitorConfig = {
     PushNotifications: {
       presentationOptions: ["badge", "sound", "alert"],
     },
+    // Keyboard's default `resize: "native"` makes WKWebView resize +
+    // shift its frame up when the iOS keyboard appears, which yanks
+    // `body { padding-top: env(safe-area-inset-top) }` content up
+    // under the system status bar clock. `resize: "none"` keeps the
+    // WebView frame fixed and lets the keyboard overlay the bottom —
+    // the editor's `position: fixed; bottom: env(safe-area-inset-bottom)`
+    // toolbar takes care of riding above the keyboard via its own
+    // viewport tracking on focus.
+    Keyboard: {
+      resize: "none",
+    },
   },
 };
 

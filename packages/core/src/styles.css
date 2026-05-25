@@ -31,7 +31,18 @@
   --gap-6: 32px;
 }
 
-.nk[data-theme="dark"] {
+/* Theme tokens.
+ *
+ * Defined on the bare `[data-theme="..."]` selector (no `.nk` prefix) so
+ * setting `data-theme` on either the `.nk` wrapper OR the `<html>`
+ * element works. App.tsx mirrors `resolvedTheme` to both — the wrapper
+ * keeps in-app styling scoped, and the html mirror lets `body` (which
+ * lives above `.nk` in the cascade) paint its `padding-top` safe-area
+ * inset in the current theme's background instead of the hardcoded
+ * fallback. Adding a new theme = adding another `[data-theme="..."]`
+ * block here; no per-selector changes needed.
+ */
+[data-theme="dark"] {
   --bg: #0a0a0b;
   --surface: #111113;
   --surface-2: #17171a;
@@ -52,7 +63,7 @@
   color-scheme: dark;
 }
 
-.nk[data-theme="light"] {
+[data-theme="light"] {
   --bg: #fafafa;
   --surface: #ffffff;
   --surface-2: #f4f4f5;
@@ -100,7 +111,13 @@ body,
  */
 body {
   box-sizing: border-box;
-  padding-top: env(safe-area-inset-top, 0px);
+  /* Floor the top inset so the WKWebView keyboard-shrink can't collapse
+   * `env(safe-area-inset-top)` to 0 and slide the appbar up under the
+   * system status bar clock. 47px ≈ standard iPhone notch / Dynamic
+   * Island status-bar height. The inset area inherits `--bg` from the
+   * `<html data-theme="...">` mirror set in App.tsx, so it paints in
+   * the active theme's background (dark / light / future themes). */
+  padding-top: max(env(safe-area-inset-top, 0px), 47px);
 }
 
 body {
@@ -6089,8 +6106,11 @@ a.nk-commit-sha:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* Top inset is on body — see the safe-area block early in this file. */
-  padding: 12px 12px 8px;
+  /* The drawer is `position: fixed` (escapes body's safe-area padding),
+     so its header has to pad for the iOS notch / Android status bar
+     itself. Without this the vault switcher overlaps the Dynamic Island
+     and the close button hides behind the system clock. */
+  padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 8px;
   border-bottom: 1px solid var(--border-soft);
 }
 .nk-mdrawer-hd .nk-vault-switcher {

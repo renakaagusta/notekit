@@ -275,6 +275,19 @@ export function App({ user, onSignOut }: AppProps = {}) {
   // the app without a reload, same as the sign-in screen.
   const resolvedTheme = useResolvedTheme(activeSettings?.theme);
 
+  // Mirror the theme onto <html> so the body's safe-area inset (which
+  // lives above the .nk wrapper in the cascade) inherits `--bg` and
+  // paints in the active theme instead of the hardcoded dark fallback.
+  // Cleared on unmount so the SignIn route's locked-dark theme (set in
+  // AuthGate.tsx) takes over cleanly on sign-out.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    document.documentElement.dataset.theme = resolvedTheme;
+    return () => {
+      delete document.documentElement.dataset.theme;
+    };
+  }, [resolvedTheme]);
+
   async function onVaultPicked() {
     setVaultPhase("ready");
     // Populate the full vault list so the switcher is ready right away.

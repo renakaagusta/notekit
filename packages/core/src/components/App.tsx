@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, FileText, Menu, Plus, Search, X } from "lucide-react";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
+import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { MobileDrawer } from "./MobileDrawer";
 import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";
@@ -269,16 +270,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
     return () => stopVaultEventStream();
   }, []);
 
-  // Resolve `auto` theme to a concrete value using the OS preference.
-  const resolvedTheme =
-    activeSettings?.theme === "light"
-      ? "light"
-      : activeSettings?.theme === "dark"
-        ? "dark"
-        : typeof window !== "undefined" &&
-            window.matchMedia?.("(prefers-color-scheme: light)").matches
-          ? "light"
-          : "dark";
+  // Resolve `auto` (or unset) theme to a concrete value, falling back to
+  // the OS preference. Reactive — flipping the OS appearance updates
+  // the app without a reload, same as the sign-in screen.
+  const resolvedTheme = useResolvedTheme(activeSettings?.theme);
 
   async function onVaultPicked() {
     setVaultPhase("ready");

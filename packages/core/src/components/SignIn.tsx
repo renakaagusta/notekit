@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Apple, Github } from "lucide-react";
+import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { NoteKitMark, NoteKitWordmark } from "./NoteKitLogo";
 
 interface SignInProps {
@@ -9,6 +10,12 @@ interface SignInProps {
 
 export function SignIn({ providers, onSignIn }: SignInProps) {
   const [authError, setAuthError] = useState<string | null>(null);
+  // Follow the OS appearance — no user preference exists pre-auth.
+  // Dropped the mobile PAT-mode state (tokenMode / tokenInput /
+  // showTokenPath / isCapacitorNative) since the components those
+  // depend on aren't on main yet — bring them over with the mobile
+  // shell commits if needed.
+  const theme = useResolvedTheme();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -26,7 +33,7 @@ export function SignIn({ providers, onSignIn }: SignInProps) {
   }, []);
 
   return (
-    <div className="nk" data-dir="studio" data-theme="dark">
+    <div className="nk" data-dir="studio" data-theme={theme}>
       <div className="nk-signin">
         <div className="nk-signin-card">
           <div className="nk-signin-brand">

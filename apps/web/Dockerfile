@@ -22,6 +22,18 @@ ENV VITE_API_URL=$VITE_API_URL
 WORKDIR /app/apps/web
 RUN pnpm build
 
+# Verify the API URL we asked for actually made it into the bundle.
+# A stale buildx cache or a regression in api.ts (optional-chain access that
+# defeats Vite's static substitution) can both silently produce a bundle
+# baked with the localhost fallback — at which point prod users see a
+# permanent loading skeleton on the sign-in page. Fail the build instead
+# of shipping that.
+RUN grep -qF "$VITE_API_URL" dist/assets/index-*.js \
+  || (echo "ERROR: VITE_API_URL ($VITE_API_URL) not found in built bundle. \
+Likely causes: stale buildx cache (rm /tmp/.buildx-cache-web on the runner) \
+or api.ts uses indirect import.meta.env access that defeats Vite substitution." \
+  && exit 1)
+
 # Stage 3: Serve with nginx
 FROM nginx:1.27-alpine AS runner
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html

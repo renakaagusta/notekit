@@ -20,13 +20,15 @@
  */
 import { NoteKitClient, createNoteKitClient, type NoteKitApi } from "@notekit/api-client";
 
-interface ViteImportMeta {
-  env?: { VITE_API_URL?: string };
-}
-
 function resolveApiUrl(): string {
-  const meta = typeof import.meta !== "undefined" ? (import.meta as ViteImportMeta) : null;
-  const fromEnv = meta?.env?.VITE_API_URL;
+  // Direct static access — Vite's define-plugin only substitutes the literal
+  // `import.meta.env.VITE_API_URL` pattern at build time. Any indirection
+  // (optional chaining, parenthesized casts, dynamic property access) defeats
+  // the substitution and the prod bundle silently ships with the localhost
+  // fallback. Asserted in apps/web/Dockerfile post-build so a regression
+  // can't sneak past CI.
+  // @ts-expect-error — Vite replaces this at build time; types don't see it.
+  const fromEnv = import.meta.env.VITE_API_URL as string | undefined;
   if (typeof fromEnv === "string" && fromEnv.length > 0) return fromEnv;
   return "http://localhost:3001";
 }

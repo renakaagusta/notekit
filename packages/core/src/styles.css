@@ -299,7 +299,12 @@ body {
 .nk-nav {
   display: flex;
   gap: 1px;
-  padding: var(--gap-2) var(--gap-2) 0;
+  /* Bottom padding + border separates the nav row from the section
+   * header below. Without this they bleed together as one visual
+   * group, which obscures that "Notes / Tickets / More" is the
+   * surface switcher while "Notes (count)" is the content title. */
+  padding: var(--gap-2) var(--gap-2) var(--gap-2);
+  border-bottom: 1px solid var(--border-soft);
   overflow-x: auto;
   scrollbar-width: none;
 }

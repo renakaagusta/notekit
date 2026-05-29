@@ -563,12 +563,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
           {view === "links" && <LinksView />}
         </main>
 
-        <footer className="nk-statusbar">
-          {/* Clicking the sync indicator triggers a manual pull —
-           * useful when the user knows another device just edited a
-           * note and doesn't want to wait for the visibility-change
-           * auto-pull or refresh the whole page. Disabled while a sync
-           * is already in flight so we don't queue duplicate pulls. */}
+        {/* Sync status belongs to the sidebar column — it reads as the
+         * sidebar's footer. Clicking the sync indicator triggers a manual
+         * pull, useful when the user knows another device just edited a
+         * note and doesn't want to wait for the visibility-change
+         * auto-pull. Disabled while a sync is already in flight so we
+         * don't queue duplicate pulls. */}
+        <footer className="nk-statusbar nk-statusbar--sync">
           <button
             className="nk-statusbar-sync"
             type="button"
@@ -590,6 +591,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
             />
             {syncLabel(phase, lastSyncedAt, vaultPhase, vaultLabel)}
           </button>
+        </footer>
+        {/* Word/char count lives in the document column, flush with the
+         * editor — no top border so it reads as part of the page. */}
+        <footer className="nk-statusbar nk-statusbar--count">
           <span>
             {view === "notes" && note ? noteCounter(note.body) : ""}
           </span>

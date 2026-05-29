@@ -23,7 +23,6 @@ export { CardQuickActions } from "./CardQuickActions";
 export { SubtaskList } from "./SubtaskList";
 export { TicketDetail } from "./TicketDetail";
 export { ShortcutCheatsheet } from "./ShortcutCheatsheet";
-export { VaultImportDialog } from "./VaultImportDialog";
 export { VaultPicker } from "./VaultPicker";
 export { VaultSettingsDialog } from "./VaultSettingsDialog";
 export { VaultSwitcher } from "./VaultSwitcher";

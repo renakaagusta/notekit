@@ -1061,8 +1061,11 @@ a.nk-commit-sha:hover {
 }
 
 .nk-avatar {
-  width: 22px;
-  height: 22px;
+  /* 22 → 24px. The avatar is the only user-identifying element in the
+   * sidebar's user plate; +2px reads as "this is you" more confidently
+   * without crowding the name + plan chip beside it. */
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   flex-shrink: 0;
   object-fit: cover;

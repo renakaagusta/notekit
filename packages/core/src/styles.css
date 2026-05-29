@@ -93,6 +93,31 @@ body {
   font-feature-settings: "cv11", "ss01";
 }
 
+/* ─── Focus rings ───────────────────────────────────────────────────
+ *
+ * Custom :focus-visible rings on the interactive surfaces that the
+ * keyboard reaches via Tab — icon buttons, nav tabs, tree items,
+ * toolbar buttons, the new statusbar-sync button, and the vault
+ * trigger. Most of these had `outline: none` (or nothing) and gave
+ * keyboard users zero feedback when focused. WCAG 2.4.7 says no.
+ *
+ * Uses box-shadow instead of outline so the ring respects the
+ * element's border-radius (outline draws a rectangle that looks wrong
+ * around rounded pills). Inset offset of 1px keeps the ring inside
+ * the click target so it doesn't visually overflow into siblings.
+ */
+.nk .nk-iconbtn:focus-visible,
+.nk .nk-tb-btn:focus-visible,
+.nk .nk-nav button:focus-visible,
+.nk .nk-tree-item:focus-visible,
+.nk .nk-statusbar-sync:focus-visible,
+.nk .nk-vault-trigger:focus-visible,
+.nk .nk-empty-cta:focus-visible,
+.nk .nk-popover-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
 .nk {
   width: 100%;
   height: 100%;

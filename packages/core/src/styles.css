@@ -6495,3 +6495,63 @@ a.nk-commit-sha:hover {
   margin-left: auto;
   color: var(--muted);
 }
+
+/* ─── Print ──────────────────────────────────────────────────────────
+ *
+ * When the user prints a note (Cmd+P → print, not the search palette
+ * which lives in JS), hide everything except the active document. No
+ * sidebar, no toolbar, no status bar — just the note content as a
+ * clean printable page. Notion / Outline both do this.
+ *
+ * Override the editor's dark theme + colored caret + max-width so the
+ * printed page is black ink on white paper at a comfortable read
+ * width, regardless of the user's in-app theme preference. */
+@media print {
+  .nk-sidebar,
+  .nk-statusbar,
+  .nk-toolbar,
+  .nk-main-hd,
+  .nk-modal-backdrop {
+    display: none !important;
+  }
+
+  .nk-app {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .nk-main {
+    display: block !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  .nk-editor-wrap {
+    overflow: visible !important;
+  }
+
+  .nk-prose {
+    max-width: 100% !important;
+    padding: 0 !important;
+    color: #000000 !important;
+    caret-color: transparent !important;
+  }
+
+  /* Page-break hints — keep titles with the next block so a heading
+   * doesn't end up isolated at the bottom of a page. */
+  .nk-prose h1,
+  .nk-prose h2,
+  .nk-prose h3 {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  .nk-prose pre,
+  .nk-prose blockquote {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}

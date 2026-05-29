@@ -226,10 +226,12 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: var(--gap-3) var(--gap-3) var(--gap-2);
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  /* Drop the uppercase + letter-spacing — the section was the loudest
+   * thing in the sidebar despite being secondary. Lowercase + slightly
+   * larger reads as a calm group label, matching Notion / Linear /
+   * Outline's sidebar section style. */
   color: var(--muted);
 }
 

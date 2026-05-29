@@ -395,54 +395,61 @@ export function App({ user, onSignOut }: AppProps = {}) {
         />
 
         <main className="nk-main">
-          <header className="nk-main-hd">
-            {isMobile && view === "notes" && mobilePane === "detail" ? (
-              <button
-                className="nk-iconbtn nk-main-back"
-                onClick={exitMobileDetail}
-                aria-label="Back"
-                title="Back"
-              >
-                <ArrowLeft size={18} aria-hidden />
-              </button>
-            ) : isMobile ? (
-              <button
-                className="nk-iconbtn nk-main-menu"
-                onClick={() => setDrawerOpen(true)}
-                aria-label="Open menu"
-                title="Menu"
-              >
-                <Menu size={18} aria-hidden />
-              </button>
-            ) : null}
-            <div className="nk-crumbs">
-              <span className="last">{crumbLabel}</span>
-            </div>
-            {isMobile && mobilePane === "list" && (
-              <button
-                className="nk-iconbtn"
-                onClick={() => setSearchOpen(true)}
-                aria-label="Search"
-                title="Search"
-              >
-                <Search size={16} aria-hidden />
-              </button>
-            )}
-            {view === "notes" && (!isMobile || mobilePane === "list") && (
-              <button
-                className="nk-iconbtn"
-                title="New note (⌘N)"
-                onClick={() => {
-                  const folder = activeSettings?.defaultFolder ?? null;
-                  const created = upsert({ title: "Untitled", body: "", folder });
-                  setActive(created.id);
-                }}
-                aria-label="New note"
-              >
-                +
-              </button>
-            )}
-          </header>
+          {/* Hide the chrome row entirely on desktop when an editor is
+           * mounted — the editor's H1 already shows the title, and the
+           * "+" action is duplicated in the sidebar's section header.
+           * Mobile keeps the row (it carries the back / menu buttons that
+           * make the slide-over shell navigable). */}
+          {(isMobile || view !== "notes" || !editorBinding) && (
+            <header className="nk-main-hd">
+              {isMobile && view === "notes" && mobilePane === "detail" ? (
+                <button
+                  className="nk-iconbtn nk-main-back"
+                  onClick={exitMobileDetail}
+                  aria-label="Back"
+                  title="Back"
+                >
+                  <ArrowLeft size={18} aria-hidden />
+                </button>
+              ) : isMobile ? (
+                <button
+                  className="nk-iconbtn nk-main-menu"
+                  onClick={() => setDrawerOpen(true)}
+                  aria-label="Open menu"
+                  title="Menu"
+                >
+                  <Menu size={18} aria-hidden />
+                </button>
+              ) : null}
+              <div className="nk-crumbs">
+                <span className="last">{crumbLabel}</span>
+              </div>
+              {isMobile && mobilePane === "list" && (
+                <button
+                  className="nk-iconbtn"
+                  onClick={() => setSearchOpen(true)}
+                  aria-label="Search"
+                  title="Search"
+                >
+                  <Search size={16} aria-hidden />
+                </button>
+              )}
+              {view === "notes" && (!isMobile || mobilePane === "list") && (
+                <button
+                  className="nk-iconbtn"
+                  title="New note (⌘N)"
+                  onClick={() => {
+                    const folder = activeSettings?.defaultFolder ?? null;
+                    const created = upsert({ title: "Untitled", body: "", folder });
+                    setActive(created.id);
+                  }}
+                  aria-label="New note"
+                >
+                  +
+                </button>
+              )}
+            </header>
+          )}
           <EncryptedSkippedBanner />
           {view === "notes" && (
             <>
@@ -693,7 +700,10 @@ function syncLabel(
   if (phase === "pushing") return "Syncing…";
   if (phase === "error") return "Sync error";
   if (lastSyncedAt) {
-    return `Synced ${new Date(lastSyncedAt).toLocaleTimeString()} · ${vaultLabel}`;
+    // The vault label is now redundant — it shows in the sidebar header
+    // (switcher) and again as the section title. The status bar should
+    // just answer "when did we last sync?" in the fewest characters.
+    return `Synced ${new Date(lastSyncedAt).toLocaleTimeString()}`;
   }
   return vaultLabel;
 }

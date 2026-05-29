@@ -191,8 +191,12 @@ body {
   grid-template-columns: 240px 1fr;
   /* Two rows: content + status bar. Outline/Notion run the sidebar
    * floor-to-ceiling; the old 36px titlebar row was decorative chrome
-   * duplicating info already shown in the sidebar + breadcrumb. */
-  grid-template-rows: 1fr 24px;
+   * duplicating info already shown in the sidebar + breadcrumb.
+   *
+   * Status bar bumped 24 → 28px to give the iter 40 13.5px chrome text
+   * +4px more vertical breathing room. 24px was cramped after the
+   * font upsize. */
+  grid-template-rows: 1fr 28px;
   background: var(--bg);
   color: var(--text);
   overflow: hidden;

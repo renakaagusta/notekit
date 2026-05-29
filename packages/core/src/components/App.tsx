@@ -99,10 +99,24 @@ export function App({ user, onSignOut }: AppProps = {}) {
       const key = e.key.toLowerCase();
       // ⌘P alias for ⌘K — Notion and VS Code both use ⌘P for the
       // quick-open palette; surfacing the same shortcut makes the
-      // muscle memory portable.
-      if (key === "k" || key === "p") {
+      // muscle memory portable. ⌘⇧P (below) triggers print so the
+      // browser's default Cmd+P=print still has a path.
+      if (key === "p" && !e.shiftKey) {
         e.preventDefault();
         setSearchOpen((open) => !open);
+        return;
+      }
+      if (key === "k") {
+        e.preventDefault();
+        setSearchOpen((open) => !open);
+        return;
+      }
+      // ⌘⇧P → print active note. Pairs with iter 35's @media print
+      // rules to produce a clean printable page. Same split VS Code
+      // uses: ⌘P = quick open, ⌘⇧P = command palette / system action.
+      if (key === "p" && e.shiftKey) {
+        e.preventDefault();
+        if (typeof window !== "undefined") window.print();
         return;
       }
       if (key === "n") {

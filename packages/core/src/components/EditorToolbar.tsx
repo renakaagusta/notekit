@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Editor as TipTapEditor } from "@tiptap/react";
 import {
   ChevronDown as LucideChevronDown,
+  ExternalLink as LucideExternalLink,
   History as LucideHistory,
   Image as LucideImage,
   ListChecks,
@@ -76,7 +77,25 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
   );
   const toggleEncryptedAction = useNotesStore((s) => s.toggleEncrypted);
   const vaultId = useVaultStore((s) => s.activeId);
+  const vault = useVaultStore((s) => s.vault);
   const requestEncrypt = useE2eeOnboardingStore((s) => s.requestEncrypt);
+
+  // Compute the public Git URL for the active note. Returns null for
+  // providers we can't link to (managed Forgejo needs the FORGEJO_DOMAIN
+  // which we don't bubble to the frontend yet) or when the note is
+  // encrypted (the public URL would show ciphertext — confusing UX).
+  const repoUrl = (() => {
+    if (!vault || !activeNote || activeNote.encrypted) return null;
+    const branch = vault.branch || "main";
+    if (vault.provider === "gitlab") {
+      return `https://gitlab.com/${vault.owner}/${vault.repo}/-/blob/${branch}/${activeNote.path}`;
+    }
+    // Default + explicit github case: GitHub blob URL.
+    if (vault.provider === "github" || !vault.provider) {
+      return `https://github.com/${vault.owner}/${vault.repo}/blob/${branch}/${activeNote.path}`;
+    }
+    return null;
+  })();
 
   function handleToggleEncrypted() {
     if (!activeNote) return;
@@ -250,6 +269,19 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
 
       <div className="nk-toolbar-spacer" />
 
+      {repoUrl && (
+        <a
+          className="nk-tb-btn"
+          href={repoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Open in ${vault?.provider === "gitlab" ? "GitLab" : "GitHub"}`}
+          aria-label="Open in repo"
+        >
+          <ExternalLinkIcon />
+        </a>
+      )}
+
       {activeNoteId && activeNote && (
         <button
           className={
@@ -291,3 +323,4 @@ const RedoIcon = () => <Redo2 size={16} aria-hidden />;
 const HistoryIcon = () => <LucideHistory size={16} aria-hidden />;
 const LockIcon = () => <LucideLock size={16} aria-hidden />;
 const UnlockIcon = () => <LucideUnlock size={16} aria-hidden />;
+const ExternalLinkIcon = () => <LucideExternalLink size={16} aria-hidden />;

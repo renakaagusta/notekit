@@ -172,11 +172,20 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
     await switchTo(vault);
   }
 
+  // The trigger shows just the repo (or the user's custom label) so it
+  // fits the 240px sidebar without truncation. The full `owner/repo` is
+  // still surfaced — in the trigger's `title` tooltip and in every row
+  // of the switcher popover — so users who care about the owner can
+  // always reach it. Most users only ever have their own vaults, so the
+  // owner prefix was usually noise.
   const triggerLabel = activeVault?.label
     ? activeVault.label
     : activeVault
-      ? `${activeVault.owner}/${activeVault.repo}`
+      ? activeVault.repo
       : "No vault";
+  const triggerTooltip = activeVault
+    ? `${activeVault.owner}/${activeVault.repo} — switch vault`
+    : "Switch vault";
 
   return (
     <div className="nk-vault-switcher" ref={containerRef}>
@@ -185,7 +194,7 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title={`${triggerLabel} — switch vault`}
+        title={triggerTooltip}
       >
         <span className="nk-vault-mark" aria-hidden>
           <FolderGit2 size={12} />

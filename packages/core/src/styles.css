@@ -171,7 +171,12 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: var(--gap-3);
-  padding: 0 var(--gap-3);
+  /* Bumped 8px → 16px so the sync entry on the left and the word/char
+   * count on the right aren't pressed flush against the screen edges.
+   * Matches the .nk-main-hd padding scale (var(--gap-4)) for visual
+   * consistency between the top breadcrumb row and the bottom status
+   * row when both are present. */
+  padding: 0 var(--gap-4);
   border-top: 1px solid var(--border);
   background: var(--surface);
   font-size: 11px;

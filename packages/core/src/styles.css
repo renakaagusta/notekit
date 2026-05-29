@@ -168,7 +168,13 @@ body {
 /* ─── Sidebar ───────────────────────────────────────────────────── */
 
 .nk-sidebar {
-  background: var(--surface);
+  /* Sidebar is the recessed plane; the document area (--surface) is
+   * the elevated focus. This matches Notion / Outline / Linear where
+   * the workspace chrome sits on a slightly grayer ground and the page
+   * itself reads as a bright sheet of paper. The previous mapping
+   * (sidebar=white, main=gray) felt inverted because the document was
+   * the dimmer surface. */
+  background: var(--bg);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -964,7 +970,9 @@ a.nk-commit-sha:hover {
 /* ─── Main pane ─────────────────────────────────────────────────── */
 
 .nk-main {
-  background: var(--bg);
+  /* Elevated plane (paired with .nk-sidebar on --bg). See sidebar block
+   * above for the rationale. */
+  background: var(--surface);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -978,7 +986,9 @@ a.nk-commit-sha:hover {
   gap: var(--gap-3);
   padding: var(--gap-3) var(--gap-4);
   border-bottom: 1px solid var(--border-soft);
-  background: var(--bg);
+  /* Inherits .nk-main's --surface so the breadcrumb row stays on the
+   * elevated document plane instead of dropping back to --bg gray. */
+  background: transparent;
   min-height: 44px;
 }
 
@@ -1211,7 +1221,9 @@ a.nk-commit-sha:hover {
   flex: 1;
   overflow: hidden;
   display: flex;
-  background: var(--bg);
+  /* Inherits --surface from .nk-main; explicit transparent avoids a
+   * stale --bg override if any parent ever sets it. */
+  background: transparent;
 }
 
 .nk-editor {

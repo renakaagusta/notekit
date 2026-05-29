@@ -20,10 +20,13 @@ export const users = sqliteTable("users", {
 export const oauthAccounts = sqliteTable(
   "oauth_accounts",
   {
-    // "github" + "google" are sign-in providers.
+    // "github" + "google" + "apple" are sign-in providers.
     // "gitlab" is a storage-only connection — a PAT the user pastes so we
     // can sync their vault to gitlab.com. It never authenticates a session.
-    provider: text("provider", { enum: ["github", "google", "gitlab"] }).notNull(),
+    // SQLite stores the value as text; the enum is purely a TS hint, so
+    // adding a new option doesn't need a migration. Keep the comment in
+    // sync with what auth/upsert.ts accepts though.
+    provider: text("provider", { enum: ["github", "google", "apple", "gitlab"] }).notNull(),
     providerAccountId: text("provider_account_id").notNull(),
     userId: text("user_id")
       .notNull()

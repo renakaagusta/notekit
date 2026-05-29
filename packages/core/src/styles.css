@@ -3145,6 +3145,23 @@ a.nk-commit-sha:hover {
   cursor: not-allowed;
 }
 
+/* Apple HIG asks for a white-on-black or black-on-white Sign in with
+ * Apple button that visually leads the stack — making it look the same
+ * weight as Google/GitHub would violate the guideline. Use the active
+ * theme's foreground/background for contrast so it inverts naturally
+ * between light and dark without per-theme overrides. */
+.nk-signin-btn-apple {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.nk-signin-btn-apple:hover:not(:disabled) {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--accent);
+  opacity: 0.9;
+}
+
 .nk-signin-hint {
   margin-top: var(--gap-4);
   font-size: 11.5px;

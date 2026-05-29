@@ -7,6 +7,8 @@ import {
   isDesktop,
   startDesktopSignIn,
 } from "../lib/api";
+import { startNativeAppleSignIn } from "../lib/apple-signin";
+import { getNativePlatform } from "../lib/native";
 import { useAuthStore } from "../stores/authStore";
 import type { User } from "../types/user";
 
@@ -17,8 +19,10 @@ interface MeResponse {
 interface ProvidersResponse {
   github: boolean;
   google: boolean;
+  apple: boolean;
 }
 
+export type SignInProvider = "github" | "google" | "apple";
 export type AuthStatus = "loading" | "anonymous" | "authenticated" | "error";
 
 export function useAuth() {
@@ -71,8 +75,30 @@ export function useAuth() {
     if (user) setStatus("authenticated");
   }, [user]);
 
-  async function startSignIn(provider: "github" | "google") {
+  async function startSignIn(provider: SignInProvider) {
+    // Apple on iOS native: skip the web OAuth roundtrip and use the
+    // Authentication Services framework via the Capacitor plugin so the
+    // user gets the native Face ID / Touch ID sheet. The plugin hands us
+    // back an identity token which the server verifies the same way it
+    // verifies one from the form_post web callback.
+    if (provider === "apple" && getNativePlatform() === "ios") {
+      try {
+        await startNativeAppleSignIn();
+        window.location.reload();
+      } catch (err) {
+        console.error("[auth] apple native sign-in failed", err);
+      }
+      return;
+    }
+
     if (isDesktop) {
+      if (provider === "apple") {
+        // Desktop has no Apple-loopback flow yet — fall through to the
+        // web redirect so the user at least gets *some* path. Returning
+        // here so the desktop bearer-token flow above doesn't try.
+        window.location.href = `${apiUrl}/auth/apple`;
+        return;
+      }
       // Loopback PAT flow: opens the user's external browser, waits for
       // the callback, stores the token in the OS keychain, then the main
       // process reloads this window so the next mount of useAuth picks up

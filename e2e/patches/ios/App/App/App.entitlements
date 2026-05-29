@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  iOS app entitlements.
+
+  Sign in with Apple requires the `com.apple.developer.applesignin`
+  entitlement plus the matching capability on the App ID in Apple
+  Developer (Identifiers → your App ID → check "Sign in with Apple").
+  Without both, AuthenticationServices presents the native sheet but
+  Apple rejects the request server-side and the user sees an opaque
+  error.
+
+  This file ships in via `e2e/scripts/apply-patches.sh` after every
+  `cap sync`, but Xcode still needs the project's build settings to
+  reference it (CODE_SIGN_ENTITLEMENTS = App/App.entitlements) — see
+  e2e/README.md for the one-time Xcode + Apple Developer setup.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>com.apple.developer.applesignin</key>
+  <array>
+    <string>Default</string>
+  </array>
+</dict>
+</plist>

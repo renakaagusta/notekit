@@ -32,6 +32,29 @@ export const env = {
     clientId: optional("GOOGLE_CLIENT_ID"),
     clientSecret: optional("GOOGLE_CLIENT_SECRET"),
   },
+  // Sign in with Apple — distinct from the `apple` block below, which
+  // holds StoreKit / IAP / APNs credentials. They share the same Apple
+  // Developer account in practice but the keys and audiences are
+  // independent: this block is the "Sign in with Apple" Service ID +
+  // key pair; the lower block is the StoreKit / push side.
+  appleAuth: {
+    // The Service ID created in Apple Developer for the web OAuth flow
+    // (`com.notekit.app.web` style). For iOS native Sign in with Apple,
+    // the device sends an audience matching the App ID — `nativeAppId`
+    // configures which audience to accept on /auth/apple/native.
+    serviceId: optional("APPLE_AUTH_SERVICE_ID"),
+    nativeAppId: optional("APPLE_AUTH_NATIVE_APP_ID"),
+    // Apple Developer Team ID — 10-char string in the top-right of the
+    // developer console.
+    teamId: optional("APPLE_AUTH_TEAM_ID"),
+    // The Key ID for the .p8 private key generated in Apple Developer
+    // (Keys → Create → Sign in with Apple). Used as `kid` header on the
+    // client-secret JWT we sign per token request.
+    keyId: optional("APPLE_AUTH_KEY_ID"),
+    // Contents of the .p8 file — multi-line PEM. dotenv collapses `\n`
+    // escapes back to real newlines via optionalPem.
+    privateKey: optionalPem("APPLE_AUTH_PRIVATE_KEY"),
+  },
   telegram: {
     botToken: optional("TELEGRAM_BOT_TOKEN"),
     botUsername: optional("TELEGRAM_BOT_USERNAME"),
@@ -95,7 +118,16 @@ export const env = {
   isProd: process.env.NODE_ENV === "production",
 };
 
-export function providerConfigured(name: "github" | "google"): boolean {
+export function providerConfigured(name: "github" | "google" | "apple"): boolean {
+  if (name === "apple") {
+    const a = env.appleAuth;
+    // Service ID is what we list as a web OAuth provider; the rest is
+    // required to sign the per-request client-secret JWT. Native iOS
+    // only needs serviceId+teamId+keyId+privateKey too (it talks to
+    // the same /auth/apple/native endpoint with an audience-checked
+    // identity token), so the same gate applies.
+    return Boolean(a.serviceId && a.teamId && a.keyId && a.privateKey);
+  }
   const cfg = env[name];
   return Boolean(cfg.clientId && cfg.clientSecret);
 }

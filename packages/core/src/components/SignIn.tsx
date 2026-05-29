@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Github } from "lucide-react";
+import { Apple, Github } from "lucide-react";
 import { NoteKitMark, NoteKitWordmark } from "./NoteKitLogo";
 
 interface SignInProps {
-  providers: { github: boolean; google: boolean } | null;
-  onSignIn(provider: "github" | "google"): void;
+  providers: { github: boolean; google: boolean; apple: boolean } | null;
+  onSignIn(provider: "github" | "google" | "apple"): void;
 }
 
 export function SignIn({ providers, onSignIn }: SignInProps) {
@@ -42,6 +42,24 @@ export function SignIn({ providers, onSignIn }: SignInProps) {
             </div>
           )}
           <div className="nk-signin-buttons">
+            {/* Apple goes first per Apple HIG: when an app offers
+                third-party sign-in on iOS, Sign in with Apple must be
+                rendered at least as prominently as the others. Keeping
+                it on top of the stack satisfies that on every platform
+                without per-OS branching. */}
+            <button
+              className="nk-signin-btn nk-signin-btn-apple"
+              disabled={!providers?.apple}
+              onClick={() => onSignIn("apple")}
+              title={
+                !providers?.apple
+                  ? "Apple Sign In not configured on the server"
+                  : ""
+              }
+            >
+              <Apple size={18} aria-hidden />
+              Continue with Apple
+            </button>
             <button
               className="nk-signin-btn"
               disabled={!providers?.github}

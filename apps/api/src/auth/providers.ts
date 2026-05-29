@@ -1,6 +1,14 @@
 import { env } from "../env";
 
-export type ProviderName = "github" | "google";
+/**
+ * Sign-in OAuth providers. Apple is implemented in `./apple.ts` because
+ * its flow diverges enough (form_post callback, JWT-based client secret,
+ * id_token-only profile) that the shared `OAuthProvider` shape below
+ * doesn't fit it — but it still appears in this union so the rest of
+ * the auth pipeline (`upsertUserFromOAuth`, the schema enum, the
+ * provider-aware routes) treats it as a first-class provider.
+ */
+export type ProviderName = "github" | "google" | "apple";
 
 export interface OAuthProvider {
   name: ProviderName;
@@ -27,6 +35,14 @@ function require(value: string | null, msg: string): string {
 }
 
 export function getProvider(name: ProviderName): OAuthProvider {
+  if (name === "apple") {
+    // Apple lives in its own module — the generic OAuthProvider shape
+    // doesn't model its JWT client secret or form_post callback. Routes
+    // call into ./apple.ts directly; this branch exists only to keep
+    // type-narrowing on the union honest for callers that don't know
+    // to special-case Apple.
+    throw new Error("getProvider('apple') — use auth/apple.ts instead");
+  }
   const redirectUri = `${env.apiUrl}/auth/${name}/callback`;
 
   if (name === "github") {

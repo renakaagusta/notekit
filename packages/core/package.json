@@ -21,6 +21,7 @@
     "clean": "rm -rf .turbo dist *.tsbuildinfo"
   },
   "dependencies": {
+    "@capacitor-community/apple-sign-in": "^7.1.0",
     "@notekit/api-client": "workspace:*",
     "@scure/base": "^2.2.0",
     "@scure/bip39": "^2.2.0",

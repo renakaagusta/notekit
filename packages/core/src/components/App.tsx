@@ -520,7 +520,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
             {syncLabel(phase, lastSyncedAt, vaultPhase, vaultLabel)}
           </span>
           <span>
-            {view === "notes" && note ? `${note.body.length} chars` : ""}
+            {view === "notes" && note ? noteCounter(note.body) : ""}
           </span>
         </footer>
       </div>
@@ -686,6 +686,18 @@ export function App({ user, onSignOut }: AppProps = {}) {
       <FirstEncryptDialog />
     </div>
   );
+}
+
+// Word-then-chars in the status bar: writers care about word count
+// (NaNoWriMo targets, blog post lengths), but char count still helps
+// for tweet/caption-length writing. Both, formatted with thin-space
+// thousand separators so a 50,000-word draft doesn't read as "50000".
+function noteCounter(body: string): string {
+  const chars = body.length;
+  if (chars === 0) return "";
+  const words = body.trim().split(/\s+/).filter(Boolean).length;
+  const fmt = new Intl.NumberFormat();
+  return `${fmt.format(words)} ${words === 1 ? "word" : "words"} · ${fmt.format(chars)} ${chars === 1 ? "char" : "chars"}`;
 }
 
 function syncLabel(

@@ -1020,9 +1020,14 @@ a.nk-commit-sha:hover {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 6px 10px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  /* Match the editor's content column (.nk-prose max-width: 760px) so
+   * the toolbar visually belongs to the document instead of being a
+   * second full-width chrome strip below the breadcrumb. */
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 8px 64px 0;
+  background: transparent;
   flex-shrink: 0;
 }
 
@@ -3050,6 +3055,20 @@ a.nk-commit-sha:hover {
   right: 8px;
 }
 
+/* Sidebar "More" nav popover anchors below the More tab. The wrap div
+ * around the trigger button + popover keeps the click target self-
+ * contained so the outside-click handler in Sidebar.tsx can dismiss it
+ * without false-positive matches on the popover itself. */
+.nk-nav-more-wrap {
+  position: relative;
+}
+
+.nk-popover--nav-more {
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 140px;
+}
+
 /* ── Secrets panel ─────────────────────────────────────────── */
 .nk-secrets-panel {
   flex: 1;
@@ -3728,25 +3747,31 @@ a.nk-commit-sha:hover {
 
 .nk-vault-switcher {
   position: relative;
-  padding: var(--gap-2);
+  padding: var(--gap-3) var(--gap-2) var(--gap-2);
 }
 
+/* Notion/Outline treat the workspace title as the first thing the eye
+ * sees — bold, slightly larger, no border. Previously the trigger
+ * looked like a generic dropdown card stuck to the top of the sidebar,
+ * which competed visually with everything below it. */
 .nk-vault-trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  padding: 8px 10px;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  padding: 6px 10px;
+  background: transparent;
+  border: 0;
   border-radius: var(--r-md);
   color: var(--text);
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
   text-align: left;
   min-width: 0;
+  transition: background 120ms;
 }
 
 .nk-vault-trigger:hover {

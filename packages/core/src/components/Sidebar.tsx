@@ -2,13 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Bot,
+  Calendar as CalendarIcon,
   Clock,
   KeyRound,
+  Link2,
   LogOut,
   Menu,
   MoreHorizontal,
+  Network,
   Plus,
   Search,
+  Shield,
 } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
@@ -56,7 +60,9 @@ export function Sidebar({
   const upsertTicket = useTicketsStore((s) => s.upsert);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!userMenuOpen) return;
@@ -75,6 +81,26 @@ export function Sidebar({
       document.removeEventListener("keydown", onKey);
     };
   }, [userMenuOpen]);
+
+  // Same outside-click pattern for the More popover so the nav stays a
+  // single-active-element row at any time.
+  useEffect(() => {
+    if (!moreMenuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (!moreMenuRef.current) return;
+      if (moreMenuRef.current.contains(e.target as Node)) return;
+      setMoreMenuOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMoreMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDocClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [moreMenuOpen]);
 
   function onAdd() {
     if (view === "notes") {
@@ -100,6 +126,11 @@ export function Sidebar({
   return (
     <aside className="nk-sidebar">
       <VaultSwitcher />
+      {/* Primary tabs only — Notes and Tickets are the daily-use surfaces
+       * named in the product tagline ("Notes & tickets in your Git repo").
+       * The four secondary surfaces (Calendar, Graph, Secrets, Links)
+       * moved into a "More" popover to stop clipping at 240px width and
+       * to keep the chrome quiet for the 80% case. */}
       <div className="nk-nav">
         <button
           className={view === "notes" ? "active" : ""}
@@ -113,30 +144,73 @@ export function Sidebar({
         >
           Tickets
         </button>
-        <button
-          className={view === "calendar" ? "active" : ""}
-          onClick={() => onView("calendar")}
-        >
-          Calendar
-        </button>
-        <button
-          className={view === "graph" ? "active" : ""}
-          onClick={() => onView("graph")}
-        >
-          Graph
-        </button>
-        <button
-          className={view === "secrets" ? "active" : ""}
-          onClick={() => onView("secrets")}
-        >
-          Secrets
-        </button>
-        <button
-          className={view === "links" ? "active" : ""}
-          onClick={() => onView("links")}
-        >
-          Links
-        </button>
+        <div className="nk-nav-more-wrap" ref={moreMenuRef}>
+          <button
+            className={
+              view === "calendar" ||
+              view === "graph" ||
+              view === "secrets" ||
+              view === "links"
+                ? "active"
+                : ""
+            }
+            onClick={() => setMoreMenuOpen((v) => !v)}
+            title="More views"
+            aria-label="More views"
+            aria-haspopup="menu"
+            aria-expanded={moreMenuOpen}
+          >
+            More
+          </button>
+          {moreMenuOpen && (
+            <div className="nk-popover nk-popover--nav-more" role="menu">
+              <button
+                className="nk-popover-item"
+                role="menuitem"
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  onView("calendar");
+                }}
+              >
+                <CalendarIcon size={14} aria-hidden />
+                <span>Calendar</span>
+              </button>
+              <button
+                className="nk-popover-item"
+                role="menuitem"
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  onView("graph");
+                }}
+              >
+                <Network size={14} aria-hidden />
+                <span>Graph</span>
+              </button>
+              <button
+                className="nk-popover-item"
+                role="menuitem"
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  onView("links");
+                }}
+              >
+                <Link2 size={14} aria-hidden />
+                <span>Links</span>
+              </button>
+              <button
+                className="nk-popover-item"
+                role="menuitem"
+                onClick={() => {
+                  setMoreMenuOpen(false);
+                  onView("secrets");
+                }}
+              >
+                <Shield size={14} aria-hidden />
+                <span>Secrets</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="nk-sidebar-hd">

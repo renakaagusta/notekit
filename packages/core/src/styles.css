@@ -3834,6 +3834,23 @@ a.nk-commit-sha:hover {
   background: var(--hover);
 }
 
+/* Small accent-tinted square in front of the vault name — the
+ * workspace mark every Notion / Linear / Slack-style switcher has,
+ * giving the workspace a glanceable identity instead of leaving it as
+ * naked text. FolderGit2 chosen because the vault literally is a Git
+ * folder; semantically right. */
+.nk-vault-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  flex-shrink: 0;
+}
+
 .nk-vault-trigger-label {
   flex: 1;
   min-width: 0;

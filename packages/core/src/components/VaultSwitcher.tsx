@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   Download,
+  FolderGit2,
   Pencil,
   Settings,
   Trash2,
@@ -186,6 +187,9 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
         aria-expanded={open}
         title="Switch vault"
       >
+        <span className="nk-vault-mark" aria-hidden>
+          <FolderGit2 size={13} />
+        </span>
         <span className="nk-vault-trigger-label">{triggerLabel}</span>
         <ChevronDown size={12} className="nk-vault-trigger-caret" aria-hidden />
       </button>

@@ -270,6 +270,32 @@ export function App({ user, onSignOut }: AppProps = {}) {
     return () => stopVaultEventStream();
   }, []);
 
+  // Reflect the current note / view in the browser tab title — Notion,
+  // Outline, and basically every multi-doc tool do this so users can
+  // find the right tab in a sea of open tabs.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const base = "note/kit";
+    let label: string | null = null;
+    if (view === "notes") {
+      label = draftJournal?.date ?? noteHeading;
+    } else if (view === "tickets") {
+      label = "Tickets";
+    } else if (view === "calendar") {
+      label = "Calendar";
+    } else if (view === "graph") {
+      label = "Graph";
+    } else if (view === "secrets") {
+      label = "Secrets";
+    } else if (view === "links") {
+      label = "Links";
+    }
+    document.title = label ? `${label} · ${base}` : base;
+    return () => {
+      document.title = base;
+    };
+  }, [view, noteHeading, draftJournal]);
+
   // Resolve `auto` (or unset) theme to a concrete value, falling back to
   // the OS preference. Reactive — flipping the OS appearance updates
   // the app without a reload, same as the sign-in screen.

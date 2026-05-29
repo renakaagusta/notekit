@@ -1577,6 +1577,14 @@ a.nk-commit-sha:hover {
   float: left;
   height: 0;
   pointer-events: none;
+  /* Reset the title-block font properties (30px/700, tight tracking)
+   * that the first-child rule applies to the parent <p>. Without this
+   * override the placeholder "Start writing…" inherited those props
+   * and rendered as a giant bold gray title, dominating new notes. */
+  font-size: var(--editor-size);
+  font-weight: 400;
+  letter-spacing: normal;
+  line-height: var(--editor-leading);
 }
 
 /* ─── Graph view ────────────────────────────────────────────────── */

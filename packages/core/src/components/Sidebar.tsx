@@ -318,26 +318,37 @@ export function Sidebar({
 
       {user && (
         <div className="nk-userbar" ref={userMenuRef}>
-          {user.avatarUrl ? (
-            <img className="nk-avatar" src={user.avatarUrl} alt="" />
-          ) : (
-            <div className="nk-avatar nk-avatar--placeholder">
-              {(user.name ?? user.email).slice(0, 1).toUpperCase()}
-            </div>
-          )}
-          <div className="nk-userbar-meta">
-            <div className="nk-userbar-name">{user.name ?? user.email}</div>
-            <div className="nk-userbar-plan">{user.plan}</div>
-          </div>
+          {/* The whole userbar is one button so users can click the
+           * avatar or name to open the menu — previously only the
+           * tiny ⋯ at the right edge was the target, which was a
+           * real daily papercut (users naturally click the avatar).
+           * MoreHorizontal stays as a visual affordance hint inside
+           * the button. */}
           <button
-            className="nk-iconbtn"
+            type="button"
+            className="nk-userbar-trigger"
             onClick={() => setUserMenuOpen((v) => !v)}
             title="Account menu"
             aria-label="Account menu"
             aria-haspopup="menu"
             aria-expanded={userMenuOpen}
           >
-            <MoreHorizontal size={14} aria-hidden />
+            {user.avatarUrl ? (
+              <img className="nk-avatar" src={user.avatarUrl} alt="" />
+            ) : (
+              <div className="nk-avatar nk-avatar--placeholder">
+                {(user.name ?? user.email).slice(0, 1).toUpperCase()}
+              </div>
+            )}
+            <div className="nk-userbar-meta">
+              <div className="nk-userbar-name">{user.name ?? user.email}</div>
+              <div className="nk-userbar-plan">{user.plan}</div>
+            </div>
+            <MoreHorizontal
+              size={14}
+              aria-hidden
+              className="nk-userbar-chev"
+            />
           </button>
           {userMenuOpen && (
             <div className="nk-popover nk-popover--userbar" role="menu">

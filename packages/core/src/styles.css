@@ -112,6 +112,7 @@ body {
 .nk .nk-tree-item:focus-visible,
 .nk .nk-statusbar-sync:focus-visible,
 .nk .nk-vault-trigger:focus-visible,
+.nk .nk-userbar-trigger:focus-visible,
 .nk .nk-empty-cta:focus-visible,
 .nk .nk-popover-item:focus-visible {
   outline: none;
@@ -985,13 +986,38 @@ a.nk-commit-sha:hover {
 
 .nk-userbar {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: var(--gap-2);
-  padding: var(--gap-2) var(--gap-3);
+  /* The userbar is now a wrapper around a single button + an
+   * optionally-mounted popover. The button itself owns the flex
+   * layout (avatar + meta + chevron) so the whole row is clickable. */
+  display: block;
   border-top: 1px solid var(--border);
   background: var(--surface);
   margin-top: auto;
+}
+
+.nk-userbar-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--gap-2);
+  padding: var(--gap-2) var(--gap-3);
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms;
+}
+
+.nk-userbar-trigger:hover {
+  background: var(--hover);
+}
+
+.nk-userbar-chev {
+  color: var(--muted);
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .nk-avatar {

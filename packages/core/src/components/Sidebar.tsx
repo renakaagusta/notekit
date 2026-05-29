@@ -233,7 +233,7 @@ export function Sidebar({
             <button
               className="nk-iconbtn nk-sidebar-search"
               onClick={onOpenSearch}
-              title="Search"
+              title="Search (⌘K)"
               aria-label="Search"
             >
               <Search size={14} aria-hidden />

@@ -390,7 +390,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onOpenHistory={() => setHistoryOpen(true)}
           onOpenTokens={() => setTokensOpen(true)}
           onOpenNotifications={() => setNotificationsOpen(true)}
-          onOpenSearch={isMobile ? () => setSearchOpen(true) : undefined}
+          onOpenSearch={() => setSearchOpen(true)}
           onOpenMenu={isMobile ? () => setDrawerOpen(true) : undefined}
         />
 

@@ -312,10 +312,14 @@ body {
   flex: 0 0 auto;
   background: transparent;
   border: 0;
-  padding: 6px 8px;
+  padding: 6px 10px;
   border-radius: var(--r-md);
   font: inherit;
-  font-size: 10.5px;
+  /* 10.5 → 12px to restore proportional hierarchy with iter 40's
+   * 13.5px section header. Nav tabs (Notes / Tickets / More) are the
+   * higher-priority control — they switch surfaces — so they shouldn't
+   * read as smaller than the section label below. */
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
   cursor: pointer;

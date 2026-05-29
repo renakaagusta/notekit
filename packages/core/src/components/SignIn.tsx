@@ -94,12 +94,16 @@ export function SignIn({ providers, onSignIn }: SignInProps) {
               Continue with Google
             </button>
           </div>
-          {providers && !providers.github && !providers.google && (
-            <p className="nk-signin-hint">
-              No OAuth providers configured. See{" "}
-              <code>apps/api/.env.example</code> to set up GitHub and Google.
-            </p>
-          )}
+          {providers &&
+            !providers.github &&
+            !providers.google &&
+            !providers.apple && (
+              <p className="nk-signin-hint">
+                No sign-in providers configured. See{" "}
+                <code>apps/api/.env.example</code> to set up GitHub, Google,
+                or Apple.
+              </p>
+            )}
         </div>
       </div>
     </div>

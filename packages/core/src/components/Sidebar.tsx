@@ -258,7 +258,11 @@ export function Sidebar({
                 className="nk-iconbtn"
                 data-create-toggle={view === "notes" ? "" : undefined}
                 onClick={onAdd}
-                title={view === "notes" ? "New file or folder" : "New ticket"}
+                title={
+                  view === "notes"
+                    ? "New file or folder (⌘N for note)"
+                    : "New ticket"
+                }
                 aria-label="Add"
               >
                 <Plus size={14} aria-hidden />

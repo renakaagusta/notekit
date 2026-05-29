@@ -104,7 +104,10 @@ body {
   height: 100%;
   display: grid;
   grid-template-columns: 240px 1fr;
-  grid-template-rows: 36px 1fr 24px;
+  /* Two rows: content + status bar. Outline/Notion run the sidebar
+   * floor-to-ceiling; the old 36px titlebar row was decorative chrome
+   * duplicating info already shown in the sidebar + breadcrumb. */
+  grid-template-rows: 1fr 24px;
   background: var(--bg);
   color: var(--text);
   overflow: hidden;
@@ -121,34 +124,10 @@ body {
 }
 
 
-.nk-titlebar {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: var(--gap-3);
-  padding: 0 var(--gap-3);
-  border-bottom: 1px solid var(--border);
-  background: var(--surface);
-  font-size: 11.5px;
-  color: var(--text-2);
-  -webkit-app-region: drag;
-}
-
-.nk-titlebar-title {
-  font-weight: 500;
-  color: var(--text);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.nk-titlebar-mark {
-  color: var(--accent, var(--text));
-}
-
-.nk-titlebar-sub {
-  color: var(--muted);
-}
+/* .nk-titlebar removed 2026-05-29 — the global navbar duplicated info
+ * shown in the sidebar (wordmark + vault) and the breadcrumb (active
+ * section). Outline and Notion both let the sidebar run the full height
+ * of the window; we now do the same. */
 
 .nk-statusbar {
   grid-column: 1 / -1;
@@ -221,6 +200,7 @@ body {
   color: var(--text-2);
   cursor: pointer;
   white-space: nowrap;
+  transition: background 120ms, color 120ms;
 }
 
 .nk-nav button:hover {
@@ -279,6 +259,7 @@ body {
   line-height: 1.5;
   min-height: 26px;
   position: relative;
+  transition: background 120ms, color 120ms;
 }
 
 .nk-tree-item::before {
@@ -1018,6 +999,9 @@ a.nk-commit-sha:hover {
   font: inherit;
   font-size: 14px;
   line-height: 1;
+  /* Ease the hover instead of snapping — most of the "smoothness" complaint
+   * was about how UI elements changed state without any motion. */
+  transition: background 120ms, color 120ms;
 }
 
 .nk-iconbtn:hover {
@@ -1218,7 +1202,12 @@ a.nk-commit-sha:hover {
 .nk-prose {
   flex: 1;
   width: 100%;
-  padding: var(--gap-4) var(--gap-5) var(--gap-6);
+  /* Constrained measure + auto margins centers the editor like Notion /
+   * Outline. Previously the prose ran the full pane width, which felt
+   * uncomfortable to read above ~13" displays. */
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 56px 72px var(--gap-6);
   font-family: var(--editor-font);
   font-size: var(--editor-size);
   line-height: var(--editor-leading);
@@ -1234,6 +1223,22 @@ a.nk-commit-sha:hover {
 .nk-prose p {
   margin: 0;
   min-height: 1em;
+}
+
+/* Treat the very first block as the note's title — Notion/Outline both
+ * give the title a strong type hierarchy so the user knows where they
+ * are at a glance. Works whether the user wrote `# Heading` (h1) or
+ * just typed plain text (p). Subsequent blocks resume body size via the
+ * `+ *` reset above. */
+.nk-prose > h1:first-child,
+.nk-prose > p:first-child {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin-top: 0;
+  margin-bottom: 0.6em;
+  color: var(--text);
 }
 
 .nk-prose h1 {
@@ -2855,6 +2860,40 @@ a.nk-commit-sha:hover {
   flex-direction: column;
   text-align: center;
   height: 100%;
+  gap: 4px;
+}
+
+.nk-empty--center > p:first-child {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  margin: 0;
+}
+
+.nk-empty-cta {
+  margin-top: var(--gap-3);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 120ms,
+    border-color 120ms,
+    color 120ms;
+}
+
+.nk-empty-cta:hover {
+  background: var(--hover);
+  border-color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* ─── Sign-in card ──────────────────────────────────────────────── */

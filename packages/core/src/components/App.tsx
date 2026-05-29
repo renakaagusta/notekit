@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Menu, Search, X } from "lucide-react";
-import { NoteKitWordmark } from "./NoteKitLogo";
+import { ArrowLeft, Menu, Plus, Search, X } from "lucide-react";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { MobileDrawer } from "./MobileDrawer";
 import { useNotesStore } from "../stores/notesStore";
@@ -323,20 +322,6 @@ export function App({ user, onSignOut }: AppProps = {}) {
   }
 
   const vaultLabel = vault ? `${vault.owner}/${vault.repo}` : "Local vault";
-  const titlebarSub =
-    view === "tickets"
-      ? "Tickets"
-      : view === "graph"
-        ? "Graph"
-        : view === "calendar"
-          ? "Calendar"
-          : view === "secrets"
-            ? "Secrets"
-            : view === "links"
-              ? "Links"
-              : draftJournal
-                ? draftJournal.date
-                : noteHeading || vaultLabel;
 
   // Editor binding: journal draft takes precedence over the active note so that
   // ⌘+' on an unvisited day shows an in-memory buffer until first keystroke.
@@ -396,13 +381,6 @@ export function App({ user, onSignOut }: AppProps = {}) {
         data-mobile={isMobile ? "true" : undefined}
         data-mobile-pane={isMobile ? mobilePane : undefined}
       >
-        <header className="nk-titlebar">
-          <span className="nk-titlebar-title">
-            <NoteKitWordmark />
-          </span>
-          <span className="nk-titlebar-sub">{titlebarSub}</span>
-        </header>
-
         <Sidebar
           view={view}
           onView={setView}
@@ -438,8 +416,6 @@ export function App({ user, onSignOut }: AppProps = {}) {
               </button>
             ) : null}
             <div className="nk-crumbs">
-              <span>vault</span>
-              <span className="sep">/</span>
               <span className="last">{crumbLabel}</span>
             </div>
             {isMobile && mobilePane === "list" && (
@@ -486,7 +462,20 @@ export function App({ user, onSignOut }: AppProps = {}) {
                   />
                 ) : (
                   <div className="nk-empty nk-empty--center">
-                    <p>Pick a note, or press ⌘N for a new one.</p>
+                    <p>No note selected.</p>
+                    <p className="nk-empty-hint">
+                      Pick one from the sidebar, or create a new one.
+                    </p>
+                    <button
+                      className="nk-empty-cta"
+                      onClick={() => {
+                        const folder = activeSettings?.defaultFolder ?? null;
+                        const created = upsert({ title: "Untitled", body: "", folder });
+                        setActive(created.id);
+                      }}
+                    >
+                      <Plus size={14} aria-hidden /> New note
+                    </button>
                   </div>
                 )}
               </div>

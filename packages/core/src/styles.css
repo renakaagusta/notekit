@@ -237,8 +237,11 @@ body {
 }
 
 .nk-statusbar .dot {
-  width: 6px;
-  height: 6px;
+  /* 6 → 7px so the sync indicator scales proportionally with iter 40
+   * (chrome 13.5px), iter 42 (chip 11px), iter 45 (row 28px). At 6px
+   * it was the smallest element in a bar that's now 30% taller. */
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #22c55e;
   display: inline-block;

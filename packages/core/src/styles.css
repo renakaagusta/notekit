@@ -1244,13 +1244,10 @@ a.nk-commit-sha:hover {
   display: flex;
   align-items: center;
   gap: 2px;
-  /* Match the editor's content column (.nk-prose max-width: 760px +
-   * 72px horizontal padding) so the toolbar visually belongs to the
-   * document instead of being a second full-width chrome strip below
-   * the breadcrumb. */
-  max-width: 760px;
+  /* Toolbar fills the pane along with the prose below it (per iter 48
+   * user pref). Padding matches the prose's 72px so format actions on
+   * the left line up with the body text. */
   width: 100%;
-  margin: 0 auto;
   padding: 16px 72px 0;
   background: transparent;
   flex-shrink: 0;
@@ -1434,11 +1431,10 @@ a.nk-commit-sha:hover {
 .nk-prose {
   flex: 1;
   width: 100%;
-  /* Constrained measure + auto margins centers the editor like Notion /
-   * Outline. Previously the prose ran the full pane width, which felt
-   * uncomfortable to read above ~13" displays. */
-  max-width: 760px;
-  margin: 0 auto;
+  /* Editor content fills the main pane edge-to-edge (per user request
+   * 2026-05-29). Previously constrained to 760px for Notion-style
+   * reading comfort, but on wide displays the empty space on either
+   * side felt like a layout bug rather than intentional design. */
   /* Top padding is intentionally small (16px) so the toolbar above
    * connects visually to the title block — without it the toolbar sits
    * 80px above the title in dead vertical space, reading as a

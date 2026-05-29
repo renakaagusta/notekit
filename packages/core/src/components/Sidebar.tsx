@@ -59,6 +59,11 @@ export function Sidebar({
   onOpenMenu,
 }: SidebarProps) {
   const upsertTicket = useTicketsStore((s) => s.upsert);
+  // Counts for the section header badge. Subscribes to the count
+  // (cheap primitive equality) rather than the array (would re-render
+  // every keystroke). The all() selector already exists in both stores.
+  const notesCount = useNotesStore((s) => s.all().length);
+  const ticketsCount = useTicketsStore((s) => s.all().length);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -227,7 +232,15 @@ export function Sidebar({
             <Menu size={16} aria-hidden />
           </button>
         )}
-        <span>{heading}</span>
+        <span>
+          {heading}
+          {view === "notes" && notesCount > 0 && (
+            <span className="nk-sidebar-count">{notesCount}</span>
+          )}
+          {view === "tickets" && ticketsCount > 0 && (
+            <span className="nk-sidebar-count">{ticketsCount}</span>
+          )}
+        </span>
         <span className="nk-sidebar-hd-actions nk-tree-add-wrap">
           {onOpenSearch && (
             <button

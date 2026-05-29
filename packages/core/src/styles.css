@@ -284,6 +284,22 @@ body {
   gap: 2px;
 }
 
+/* Small count badge next to "Notes" / "Tickets" section headings — at-
+ * a-glance total. Notion / Linear / Slack all show counts this way.
+ * Sits inline with the heading text, muted so it doesn't compete. */
+.nk-sidebar-count {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--hover);
+  border-radius: var(--r-sm);
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+
 .nk-tree {
   list-style: none;
   margin: 0;

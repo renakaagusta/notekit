@@ -8,6 +8,7 @@ import {
   Lock as LucideLock,
   Redo2,
   Table as LucideTable,
+  Type as LucideType,
   Undo2,
   Unlock as LucideUnlock,
 } from "lucide-react";
@@ -156,7 +157,7 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
           aria-expanded={aaOpen}
           onClick={() => setAaOpen((x) => !x)}
         >
-          <span className="nk-tb-aa">Aa</span>
+          <LucideType size={16} aria-hidden />
         </button>
         {aaOpen && (
           <div className="nk-tb-menu">

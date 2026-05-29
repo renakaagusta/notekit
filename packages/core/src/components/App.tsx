@@ -513,7 +513,18 @@ export function App({ user, onSignOut }: AppProps = {}) {
         </main>
 
         <footer className="nk-statusbar">
-          <span>
+          {/* Clicking the sync indicator triggers a manual pull —
+           * useful when the user knows another device just edited a
+           * note and doesn't want to wait for the visibility-change
+           * auto-pull or refresh the whole page. Disabled while a sync
+           * is already in flight so we don't queue duplicate pulls. */}
+          <button
+            className="nk-statusbar-sync"
+            type="button"
+            title="Pull from remote"
+            disabled={phase === "fetching" || phase === "pushing"}
+            onClick={() => void refreshSync()}
+          >
             <span
               className={
                 "dot" +
@@ -527,7 +538,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
               }
             />
             {syncLabel(phase, lastSyncedAt, vaultPhase, vaultLabel)}
-          </span>
+          </button>
           <span>
             {view === "notes" && note ? noteCounter(note.body) : ""}
           </span>

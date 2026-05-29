@@ -171,6 +171,34 @@ body {
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }
 
+/* Sync status is a clickable button that triggers a manual pull;
+ * needs to render as transparent inheriting the status bar's styling
+ * (not a default button chrome) and show a hover affordance so users
+ * discover the click target. */
+.nk-statusbar-sync {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 2px 6px;
+  margin: 0 -6px;
+  border-radius: var(--r-sm);
+  display: inline-flex;
+  align-items: center;
+  transition: background 120ms;
+}
+
+.nk-statusbar-sync:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-statusbar-sync:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
 /* ─── Sidebar ───────────────────────────────────────────────────── */
 
 .nk-sidebar {

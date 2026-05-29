@@ -1022,13 +1022,14 @@ a.nk-commit-sha:hover {
   display: flex;
   align-items: center;
   gap: 2px;
-  /* Match the editor's content column (.nk-prose max-width: 760px) so
-   * the toolbar visually belongs to the document instead of being a
-   * second full-width chrome strip below the breadcrumb. */
+  /* Match the editor's content column (.nk-prose max-width: 760px +
+   * 72px horizontal padding) so the toolbar visually belongs to the
+   * document instead of being a second full-width chrome strip below
+   * the breadcrumb. */
   max-width: 760px;
   width: 100%;
   margin: 0 auto;
-  padding: 8px 64px 0;
+  padding: 16px 72px 0;
   background: transparent;
   flex-shrink: 0;
 }
@@ -1214,7 +1215,11 @@ a.nk-commit-sha:hover {
    * uncomfortable to read above ~13" displays. */
   max-width: 760px;
   margin: 0 auto;
-  padding: 56px 72px var(--gap-6);
+  /* Top padding is intentionally small (16px) so the toolbar above
+   * connects visually to the title block — without it the toolbar sits
+   * 80px above the title in dead vertical space, reading as a
+   * disconnected UI strip. */
+  padding: 16px 72px var(--gap-6);
   font-family: var(--editor-font);
   font-size: var(--editor-size);
   line-height: var(--editor-leading);

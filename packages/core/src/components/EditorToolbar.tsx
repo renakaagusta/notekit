@@ -151,8 +151,8 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
       <div className="nk-toolbar-group" ref={aaRef}>
         <button
           className="nk-tb-btn"
-          title="Text style"
-          aria-label="Text style"
+          title="Heading & text style"
+          aria-label="Heading & text style"
           aria-expanded={aaOpen}
           onClick={() => setAaOpen((x) => !x)}
         >

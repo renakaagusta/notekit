@@ -125,13 +125,20 @@ body,
  */
 body {
   box-sizing: border-box;
-  /* Floor the top inset so the WKWebView keyboard-shrink can't collapse
-   * `env(safe-area-inset-top)` to 0 and slide the appbar up under the
-   * system status bar clock. 47px ≈ standard iPhone notch / Dynamic
-   * Island status-bar height. The inset area inherits `--bg` from the
-   * `<html data-theme="...">` mirror set in App.tsx, so it paints in
-   * the active theme's background (dark / light / future themes). */
-  padding-top: max(env(safe-area-inset-top, 0px), 47px);
+  /* Default: just the safe-area inset (0 on desktop). */
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Floor the top inset at 47px on mobile/Capacitor so the iOS WKWebView
+ * keyboard-shrink can't collapse env(safe-area-inset-top) to 0 and
+ * slide the appbar up under the system status bar clock. 47px ≈
+ * standard iPhone notch / Dynamic Island status-bar height. Scoped to
+ * the mobile breakpoint so desktop browsers (where env() is 0 anyway)
+ * don't end up with a 47px empty strip at the top. */
+@media (max-width: 720px) {
+  body {
+    padding-top: max(env(safe-area-inset-top, 0px), 47px);
+  }
 }
 
 body {

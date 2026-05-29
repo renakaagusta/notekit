@@ -97,7 +97,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
       const key = e.key.toLowerCase();
-      if (key === "k") {
+      // ⌘P alias for ⌘K — Notion and VS Code both use ⌘P for the
+      // quick-open palette; surfacing the same shortcut makes the
+      // muscle memory portable.
+      if (key === "k" || key === "p") {
         e.preventDefault();
         setSearchOpen((open) => !open);
         return;

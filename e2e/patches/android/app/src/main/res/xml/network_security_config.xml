@@ -8,7 +8,7 @@
   Without this exception Android 9+ blocks the fetch outright and the
   app shows "Couldn't reach the API server" instead of the SignIn card.
 
-  Production builds talk to https://notekit-api.stackbase.id and ignore
+  Production builds talk to https://api.notekit.online and ignore
   this list entirely.
 -->
 <network-security-config>

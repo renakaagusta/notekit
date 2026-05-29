@@ -122,7 +122,7 @@ export async function clearDesktopToken(): Promise<void> {
 
 // ── E2E (Capacitor native) PAT bootstrap ─────────────────────────────────
 //
-// Cookies in a Capacitor WebView aren't shared with notekit.stackbase.id
+// Cookies in a Capacitor WebView aren't shared with notekit.online
 // (different origin from `capacitor://`), so OAuth-in-webview would be the
 // only path to a session — and that's brittle for Maestro automation.
 //

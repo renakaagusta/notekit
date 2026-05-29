@@ -88,7 +88,7 @@ prod data. To run against the deployed API:
    `CORS_EXTRA_ORIGINS=capacitor://localhost,https://localhost` in the
    environment and redeploy. Without this the WebView's fetch calls get
    rejected by CORS preflight (the only allowed origin is `WEB_URL`).
-2. **In `e2e/.env`**, set `E2E_API_URL=https://notekit-api.stackbase.id`.
+2. **In `e2e/.env`**, set `E2E_API_URL=https://api.notekit.online`.
 3. **Mint a PAT** against prod (Settings → Personal access tokens) and
    put it in `E2E_PAT`.
 4. Re-run `bash e2e/scripts/run-ios.sh` (or `run-android.sh`). The flow

@@ -33,7 +33,7 @@ jobs:
           tags: notekit-web:latest
           load: true
           build-args: |
-            VITE_API_URL=https://notekit-api.stackbase.id
+            VITE_API_URL=https://api.notekit.online
           cache-from: type=local,src=/tmp/.buildx-cache-web
           cache-to: type=local,dest=/tmp/.buildx-cache-web-new,mode=max
 

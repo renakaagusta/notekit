@@ -959,7 +959,12 @@ a.nk-commit-sha:hover {
   /* Render the plan as an inline chip rather than a second-line subtitle
    * so it reads as metadata ("this user is on the Free plan") instead of
    * a tagline. Lets us style paid plans differently later (accent fill
-   * for Plus) without restructuring the user bar. */
+   * for Plus) without restructuring the user bar.
+   *
+   * --hover bg (6% overlay) reads against the userbar's --surface plate
+   * far better than --surface-2 did, which was nearly invisible white-
+   * on-white in light mode. Stronger --border (not --border-soft) gives
+   * the chip a defined edge so it doesn't dissolve into the plate. */
   display: inline-block;
   margin-top: 2px;
   padding: 1px 6px;
@@ -967,8 +972,8 @@ a.nk-commit-sha:hover {
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--text-2);
-  background: var(--surface-2, var(--hover));
-  border: 1px solid var(--border-soft);
+  background: var(--hover);
+  border: 1px solid var(--border);
   border-radius: var(--r-sm);
   text-transform: capitalize;
 }

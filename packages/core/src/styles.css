@@ -226,21 +226,35 @@ body {
  * of the window; we now do the same. */
 
 .nk-statusbar {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--gap-3);
-  /* Bumped 8px → 16px so the sync entry on the left and the word/char
-   * count on the right aren't pressed flush against the screen edges.
-   * Matches the .nk-main-hd padding scale (var(--gap-4)) for visual
-   * consistency between the top breadcrumb row and the bottom status
-   * row when both are present. */
+  /* 16px so the entries aren't pressed flush against the edges. Matches
+   * the .nk-main-hd padding scale (var(--gap-4)) for visual consistency
+   * between the top breadcrumb row and the bottom status row. */
   padding: 0 var(--gap-4);
-  border-top: 1px solid var(--border);
-  background: var(--surface);
   font-size: 11px;
   color: var(--text-2);
+}
+
+/* Sync status — the sidebar's footer. Sits in column 1, carries the
+ * sidebar's ground + right divider so it reads as one piece with it. */
+.nk-statusbar--sync {
+  grid-column: 1;
+  grid-row: 2;
+  justify-content: flex-start;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+/* Word/char count — part of the document column. Shares the editor's
+ * surface and has NO top border so it reads as part of the page. */
+.nk-statusbar--count {
+  grid-column: 2;
+  grid-row: 2;
+  justify-content: flex-end;
+  background: var(--surface);
 }
 
 .nk-statusbar .dot {
@@ -323,12 +337,12 @@ body {
    * surface switcher while "Notes (count)" is the content title. */
   padding: var(--gap-2) var(--gap-2) var(--gap-2);
   border-bottom: 1px solid var(--border-soft);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.nk-nav::-webkit-scrollbar {
-  display: none;
+  /* overflow MUST stay visible: the "More" popover is an absolutely
+   * positioned child that drops below this row. overflow-x:auto would
+   * (per spec) make the cross axis clip too, cutting off the dropdown.
+   * Only three short tabs live here now, so no horizontal scroll is
+   * needed. */
+  overflow: visible;
 }
 
 .nk-nav button {
@@ -3604,6 +3618,10 @@ a.nk-commit-sha:hover {
 
 .nk-modal-tabs button {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 6px 10px;
   font-size: 11.5px;
   background: transparent;
@@ -3611,6 +3629,13 @@ a.nk-commit-sha:hover {
   border: 1px solid transparent;
   border-radius: var(--r-sm);
   cursor: pointer;
+}
+
+/* Sub-tabs live inside the modal body (existing vs new). */
+.nk-modal-tabs--sub {
+  padding: 0;
+  margin-bottom: 12px;
+  border-bottom: none;
 }
 
 .nk-modal-tabs button:hover {
@@ -3627,6 +3652,60 @@ a.nk-commit-sha:hover {
 .nk-modal-body {
   padding: 12px 16px 16px;
   overflow-y: auto;
+}
+
+/* Collapsible subsection (vault settings hub) */
+.nk-collapse {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
+  margin-bottom: 8px;
+  background: var(--surface-2);
+}
+.nk-collapse:last-child {
+  margin-bottom: 0;
+}
+.nk-collapse-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+  list-style: none;
+}
+.nk-collapse-hd::-webkit-details-marker {
+  display: none;
+}
+.nk-collapse-hd:hover {
+  background: var(--hover);
+  border-radius: var(--r-md);
+}
+.nk-collapse-caret {
+  color: var(--muted);
+  transition: transform 0.15s ease;
+  flex: 0 0 auto;
+}
+.nk-collapse[open] > .nk-collapse-hd .nk-collapse-caret {
+  transform: rotate(90deg);
+}
+.nk-collapse[open] > .nk-collapse-hd {
+  border-bottom: 1px solid var(--border-soft);
+  border-radius: var(--r-md) var(--r-md) 0 0;
+}
+.nk-collapse-body {
+  padding: 12px;
+}
+.nk-collapse--danger {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.nk-collapse--danger .nk-collapse-hd {
+  color: #f87171;
+}
+.nk-collapse--danger[open] > .nk-collapse-hd {
+  border-bottom-color: rgba(239, 68, 68, 0.3);
 }
 
 .nk-modal-error {
@@ -4325,9 +4404,7 @@ a.nk-commit-sha:hover {
 
 .nk-modal-tab-icon {
   display: inline-flex;
-  margin-right: 6px;
-  font-size: 12px;
-  color: var(--muted);
+  flex: 0 0 auto;
 }
 
 .nk-chip--soft {

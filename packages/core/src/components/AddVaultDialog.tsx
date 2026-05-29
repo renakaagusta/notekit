@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Diamond, GitBranch, Github, Plus, X } from "lucide-react";
+import { X } from "lucide-react";
 import * as vaultApi from "../lib/vault-api";
 import { SkeletonRepoList } from "./Skeleton";
+import { GithubIcon, GitlabIcon, NotekitIcon } from "./BrandIcons";
 import type { VaultRef, VaultRepo } from "../lib/vault-api";
 
-type Mode = "list" | "create" | "gitlab" | "notekit";
+type Provider = "github" | "gitlab" | "notekit";
+type SubMode = "list" | "create";
 type NotekitStep = "idle" | "provisioning" | "ready";
 type GitlabStep = "idle" | "checking" | "needs-connect" | "ready";
 
@@ -14,7 +16,8 @@ interface AddVaultDialogProps {
 }
 
 export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
-  const [mode, setMode] = useState<Mode>("list");
+  const [provider, setProvider] = useState<Provider>("github");
+  const [githubMode, setGithubMode] = useState<SubMode>("list");
   const [repos, setRepos] = useState<VaultRepo[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,7 +59,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
 
   // Provision Forgejo account when switching to notekit tab.
   useEffect(() => {
-    if (mode !== "notekit" || notekitStep !== "idle") return;
+    if (provider !== "notekit" || notekitStep !== "idle") return;
     let cancelled = false;
     setNotekitStep("provisioning");
     setLoadErr(null);
@@ -80,7 +83,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
     return () => {
       cancelled = true;
     };
-  }, [mode, notekitStep]);
+  }, [provider, notekitStep]);
 
   async function pick(repo: VaultRepo) {
     setBusy(true);
@@ -121,7 +124,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
 
   // Check GitLab connection state when entering the tab.
   useEffect(() => {
-    if (mode !== "gitlab" || gitlabStep !== "idle") return;
+    if (provider !== "gitlab" || gitlabStep !== "idle") return;
     let cancelled = false;
     setGitlabStep("checking");
     setLoadErr(null);
@@ -149,7 +152,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
     return () => {
       cancelled = true;
     };
-  }, [mode, gitlabStep]);
+  }, [provider, gitlabStep]);
 
   async function connectGitlab() {
     if (!gitlabPat.trim()) return;
@@ -264,103 +267,116 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
 
         <div className="nk-modal-tabs">
           <button
-            className={mode === "list" ? "active" : ""}
-            onClick={() => setMode("list")}
+            className={provider === "github" ? "active" : ""}
+            onClick={() => setProvider("github")}
+            title="GitHub"
           >
-            <Github size={14} className="nk-modal-tab-icon" aria-hidden />
-            GitHub · existing
+            <GithubIcon size={14} className="nk-modal-tab-icon" />
+            GitHub
           </button>
           <button
-            className={mode === "create" ? "active" : ""}
-            onClick={() => setMode("create")}
-          >
-            <Plus size={14} className="nk-modal-tab-icon" aria-hidden />
-            GitHub · new
-          </button>
-          <button
-            className={mode === "gitlab" ? "active" : ""}
-            onClick={() => setMode("gitlab")}
+            className={provider === "gitlab" ? "active" : ""}
+            onClick={() => setProvider("gitlab")}
             title="GitLab (bring your own)"
           >
-            <GitBranch size={14} className="nk-modal-tab-icon" aria-hidden />
+            <GitlabIcon size={14} className="nk-modal-tab-icon" />
             GitLab
           </button>
           <button
-            className={mode === "notekit" ? "active" : ""}
-            onClick={() => setMode("notekit")}
+            className={provider === "notekit" ? "active" : ""}
+            onClick={() => setProvider("notekit")}
             title="NoteKit-hosted Git via Forgejo"
           >
-            <Diamond size={14} className="nk-modal-tab-icon" aria-hidden />
+            <NotekitIcon size={14} className="nk-modal-tab-icon" />
             NoteKit Git
           </button>
         </div>
 
         {loadErr && <div className="nk-modal-error">{loadErr}</div>}
 
-        {mode === "list" && (
+        {provider === "github" && (
           <div className="nk-modal-body">
-            {!repos && !loadErr && <SkeletonRepoList count={5} />}
-            {repos && repos.length === 0 && (
-              <p className="nk-empty-hint">
-                No repos found. Create a new one instead.
-              </p>
+            <div className="nk-modal-tabs nk-modal-tabs--sub">
+              <button
+                className={githubMode === "list" ? "active" : ""}
+                onClick={() => setGithubMode("list")}
+              >
+                Existing repo
+              </button>
+              <button
+                className={githubMode === "create" ? "active" : ""}
+                onClick={() => setGithubMode("create")}
+              >
+                Create new repo
+              </button>
+            </div>
+
+            {githubMode === "list" && (
+              <>
+                {!repos && !loadErr && <SkeletonRepoList count={5} />}
+                {repos && repos.length === 0 && (
+                  <p className="nk-empty-hint">
+                    No repos found. Create a new one instead.
+                  </p>
+                )}
+                {repos && repos.length > 0 && (
+                  <ul className="nk-repo-list">
+                    {repos.map((r) => (
+                      <li key={r.id}>
+                        <button
+                          className="nk-repo-row"
+                          onClick={() => pick(r)}
+                          disabled={busy}
+                        >
+                          <div className="nk-repo-row-main">
+                            <span className="nk-repo-name">{r.fullName}</span>
+                            {r.private && <span className="nk-chip">private</span>}
+                          </div>
+                          {r.description && (
+                            <div className="nk-repo-desc">{r.description}</div>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
-            {repos && repos.length > 0 && (
-              <ul className="nk-repo-list">
-                {repos.map((r) => (
-                  <li key={r.id}>
-                    <button
-                      className="nk-repo-row"
-                      onClick={() => pick(r)}
-                      disabled={busy}
-                    >
-                      <div className="nk-repo-row-main">
-                        <span className="nk-repo-name">{r.fullName}</span>
-                        {r.private && <span className="nk-chip">private</span>}
-                      </div>
-                      {r.description && (
-                        <div className="nk-repo-desc">{r.description}</div>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
+
+            {githubMode === "create" && (
+              <>
+                <label className="nk-field">
+                  <span>Repo name</span>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    disabled={busy}
+                    placeholder="notekit-vault"
+                  />
+                </label>
+                <label className="nk-field nk-field--row">
+                  <input
+                    type="checkbox"
+                    checked={newPrivate}
+                    onChange={(e) => setNewPrivate(e.target.checked)}
+                    disabled={busy}
+                  />
+                  <span>Make repo private (recommended)</span>
+                </label>
+                <button
+                  className="nk-signin-btn"
+                  onClick={createAndPick}
+                  disabled={busy || !newName.trim()}
+                >
+                  {busy ? "Creating…" : "Create and use this repo"}
+                </button>
+              </>
             )}
           </div>
         )}
 
-        {mode === "create" && (
-          <div className="nk-modal-body">
-            <label className="nk-field">
-              <span>Repo name</span>
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                disabled={busy}
-                placeholder="notekit-vault"
-              />
-            </label>
-            <label className="nk-field nk-field--row">
-              <input
-                type="checkbox"
-                checked={newPrivate}
-                onChange={(e) => setNewPrivate(e.target.checked)}
-                disabled={busy}
-              />
-              <span>Make repo private (recommended)</span>
-            </label>
-            <button
-              className="nk-signin-btn"
-              onClick={createAndPick}
-              disabled={busy || !newName.trim()}
-            >
-              {busy ? "Creating…" : "Create and use this repo"}
-            </button>
-          </div>
-        )}
-
-        {mode === "gitlab" && (
+        {provider === "gitlab" && (
           <div className="nk-modal-body">
             {gitlabStep === "checking" && (
               <p className="nk-empty-hint">Checking GitLab connection…</p>
@@ -410,18 +426,16 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
                 >
                   Connected as <code>{gitlabLogin}</code> on gitlab.com.
                 </p>
-                <div className="nk-modal-tabs" style={{ marginBottom: 12 }}>
+                <div className="nk-modal-tabs nk-modal-tabs--sub">
                   <button
                     className={gitlabMode === "list" ? "active" : ""}
                     onClick={() => setGitlabMode("list")}
-                    style={{ fontSize: 13 }}
                   >
                     Existing project
                   </button>
                   <button
                     className={gitlabMode === "create" ? "active" : ""}
                     onClick={() => setGitlabMode("create")}
-                    style={{ fontSize: 13 }}
                   >
                     Create new project
                   </button>
@@ -494,7 +508,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
           </div>
         )}
 
-        {mode === "notekit" && (
+        {provider === "notekit" && (
           <div className="nk-modal-body">
             {notekitStep === "provisioning" && (
               <p className="nk-empty-hint">Setting up your NoteKit Git account…</p>
@@ -502,18 +516,16 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
 
             {notekitStep === "ready" && (
               <>
-                <div className="nk-modal-tabs" style={{ marginBottom: 12 }}>
+                <div className="nk-modal-tabs nk-modal-tabs--sub">
                   <button
                     className={notekitMode === "list" ? "active" : ""}
                     onClick={() => setNotekitMode("list")}
-                    style={{ fontSize: 13 }}
                   >
                     Existing repo
                   </button>
                   <button
                     className={notekitMode === "create" ? "active" : ""}
                     onClick={() => setNotekitMode("create")}
-                    style={{ fontSize: 13 }}
                   >
                     Create new repo
                   </button>

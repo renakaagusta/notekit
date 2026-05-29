@@ -3,7 +3,7 @@ import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
-import { CalendarDays, CheckSquare, Lock } from "lucide-react";
+import { CalendarDays, CheckSquare, KanbanSquare, Lock } from "lucide-react";
 import { BoardToolbar } from "./BoardToolbar";
 import { CardQuickActions } from "./CardQuickActions";
 import { SubtaskList } from "./SubtaskList";
@@ -305,13 +305,26 @@ export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
   if (all.length === 0) {
     return (
       <div className="nk-empty nk-empty--center">
+        {/* Quiet illustration so the empty page has a focal point —
+         * sitting at ~40% opacity so it reads as decoration, not a
+         * primary element. Notion / Linear / Slack all illustrate
+         * their empty states; we use the lucide KanbanSquare since
+         * the page IS a kanban board (To do / In progress / Done). */}
+        <KanbanSquare
+          size={40}
+          aria-hidden
+          style={{
+            color: "var(--muted)",
+            opacity: 0.5,
+            marginBottom: 16,
+          }}
+        />
         <p>No tickets yet.</p>
         <p className="nk-empty-hint">
           Click <kbd>+</kbd> in the sidebar to create one.
         </p>
         <button
-          className="nk-signin-btn"
-          style={{ marginTop: 16, maxWidth: 220 }}
+          className="nk-empty-cta"
           onClick={() => upsert({ title: "New ticket", status: "todo" })}
         >
           + Create your first ticket

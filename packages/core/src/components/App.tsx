@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Menu, Plus, Search, X } from "lucide-react";
+import { ArrowLeft, FileText, Menu, Plus, Search, X } from "lucide-react";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { MobileDrawer } from "./MobileDrawer";
 import { useNotesStore } from "../stores/notesStore";
@@ -469,6 +469,15 @@ export function App({ user, onSignOut }: AppProps = {}) {
                   />
                 ) : (
                   <div className="nk-empty nk-empty--center">
+                    <FileText
+                      size={40}
+                      aria-hidden
+                      style={{
+                        color: "var(--muted)",
+                        opacity: 0.5,
+                        marginBottom: 16,
+                      }}
+                    />
                     <p>No note selected.</p>
                     <p className="nk-empty-hint">
                       Pick one from the sidebar, or create a new one.

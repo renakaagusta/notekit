@@ -36,7 +36,11 @@
   --text: #e4e4e7;
   --text-2: #a1a1aa;
   --muted: #6b6b73;
-  --hover: rgba(255, 255, 255, 0.04);
+  /* Bumped from 0.04 → 0.06: 4% on a near-black surface was almost
+   * invisible — hover on sidebar items and icon buttons gave no felt
+   * feedback. 6% reads as a clear "yes, this is interactive" without
+   * crossing into pressed-state territory. */
+  --hover: rgba(255, 255, 255, 0.06);
   --selected: rgba(255, 255, 255, 0.06);
   --accent: #f59e0b;
   --accent-soft: rgba(245, 158, 11, 0.14);
@@ -53,7 +57,9 @@
   --text: #18181b;
   --text-2: #52525b;
   --muted: #a1a1aa;
-  --hover: rgba(0, 0, 0, 0.04);
+  /* Bumped 0.04 → 0.06 to match the dark theme's hover confidence. See
+   * the dark-theme block above for why. */
+  --hover: rgba(0, 0, 0, 0.06);
   --selected: rgba(0, 0, 0, 0.06);
   --accent: #b45309;
   --accent-soft: rgba(180, 83, 9, 0.12);

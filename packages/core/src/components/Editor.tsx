@@ -44,7 +44,10 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       Image,
       Link.configure({ openOnClick: false, autolink: true }),
       Wikilink,
-      Placeholder.configure({ placeholder: "Start writing…" }),
+      // The first line of the body becomes the note title (via
+      // noteTitle()), so cue users to type a meaningful title first
+      // rather than a generic "write anything" prompt.
+      Placeholder.configure({ placeholder: "Start with a title…" }),
       Markdown.configure({
         html: false,
         tightLists: true,

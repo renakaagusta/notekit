@@ -172,17 +172,24 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
     await switchTo(vault);
   }
 
-  // The trigger shows just the repo (or the user's custom label) so it
+  // The trigger shows just the repo (or a truly custom label) so it
   // fits the 240px sidebar without truncation. The full `owner/repo` is
   // still surfaced — in the trigger's `title` tooltip and in every row
   // of the switcher popover — so users who care about the owner can
-  // always reach it. Most users only ever have their own vaults, so the
-  // owner prefix was usually noise.
-  const triggerLabel = activeVault?.label
-    ? activeVault.label
-    : activeVault
-      ? activeVault.repo
-      : "No vault";
+  // always reach it.
+  //
+  // Server-side, `vault.label` defaults to the synthetic `owner/repo`
+  // string at create time, so we need to detect that case and trim it;
+  // a label that's anything OTHER than `owner/repo` is treated as a
+  // real user-customized name and respected as-is.
+  const triggerLabel = (() => {
+    if (!activeVault) return "No vault";
+    const synthetic = `${activeVault.owner}/${activeVault.repo}`;
+    if (!activeVault.label || activeVault.label === synthetic) {
+      return activeVault.repo;
+    }
+    return activeVault.label;
+  })();
   const triggerTooltip = activeVault
     ? `${activeVault.owner}/${activeVault.repo} — switch vault`
     : "Switch vault";

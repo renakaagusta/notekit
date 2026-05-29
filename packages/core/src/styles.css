@@ -12,7 +12,11 @@
 
   --ui-size: 12.5px;
   --editor-size: 14.5px;
-  --editor-leading: 1.6;
+  /* Bumped from 1.6 → 1.7 (≈1.5px more breathing room per line on
+   * a 14.5px body) so 200+-word notes read more comfortably. Notion
+   * uses ~1.7 for the same reason. Short notes are visually
+   * unchanged; only sustained reading benefits. */
+  --editor-leading: 1.7;
   --measure: 680px;
 
   --r-sm: 4px;

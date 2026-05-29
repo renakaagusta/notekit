@@ -3087,6 +3087,20 @@ a.nk-commit-sha:hover {
   position: relative;
 }
 
+/* Inline chevron next to the More label tells the user the button
+ * opens a popover instead of switching view directly. Same visual
+ * affordance Notion / Linear use on every menu trigger. */
+.nk-nav-more {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 3px;
+}
+
+.nk-nav-more svg {
+  opacity: 0.6;
+  margin-top: 1px;
+}
+
 .nk-popover--nav-more {
   top: calc(100% + 4px);
   left: 0;

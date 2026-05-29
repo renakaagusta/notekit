@@ -3,6 +3,7 @@ import {
   Bell,
   Bot,
   Calendar as CalendarIcon,
+  ChevronDown,
   Clock,
   KeyRound,
   Link2,
@@ -147,12 +148,13 @@ export function Sidebar({
         <div className="nk-nav-more-wrap" ref={moreMenuRef}>
           <button
             className={
-              view === "calendar" ||
+              "nk-nav-more " +
+              (view === "calendar" ||
               view === "graph" ||
               view === "secrets" ||
               view === "links"
                 ? "active"
-                : ""
+                : "")
             }
             onClick={() => setMoreMenuOpen((v) => !v)}
             title="More views"
@@ -161,6 +163,7 @@ export function Sidebar({
             aria-expanded={moreMenuOpen}
           >
             More
+            <ChevronDown size={11} aria-hidden />
           </button>
           {moreMenuOpen && (
             <div className="nk-popover nk-popover--nav-more" role="menu">

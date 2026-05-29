@@ -3814,9 +3814,11 @@ a.nk-commit-sha:hover {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  /* Tightened 8 → 6 to give the label more horizontal room once the
+   * workspace mark started sitting in the trigger. */
+  gap: 6px;
   width: 100%;
-  padding: 6px 10px;
+  padding: 6px 8px;
   background: transparent;
   border: 0;
   border-radius: var(--r-md);
@@ -3838,13 +3840,17 @@ a.nk-commit-sha:hover {
  * workspace mark every Notion / Linear / Slack-style switcher has,
  * giving the workspace a glanceable identity instead of leaving it as
  * naked text. FolderGit2 chosen because the vault literally is a Git
- * folder; semantically right. */
+ * folder; semantically right.
+ *
+ * Sized 18px (down from initial 20px) to keep the trigger from eating
+ * label width on a 240px sidebar — the original `renakaagusta/notekit-
+ * vault-2` label was truncating to `notekit-v…` at 20px. */
 .nk-vault-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: var(--r-sm);
   background: var(--accent-soft);
   color: var(--accent-text);

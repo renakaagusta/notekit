@@ -29,9 +29,13 @@
   --editor-leading: 1.7;
   --measure: 680px;
 
-  --r-sm: 4px;
-  --r-md: 5px;
-  --r-lg: 7px;
+  /* Border-radius scale bumped one notch (4/5/7 → 5/6/8) for a softer,
+   * more contemporary feel. Notion uses 6 for icon buttons / popover
+   * items; Linear uses 8. Affects every interactive surface, popover,
+   * dropdown, sign-in buttons, sidebar items, etc. */
+  --r-sm: 5px;
+  --r-md: 6px;
+  --r-lg: 8px;
 
   --gap-1: 4px;
   --gap-2: 8px;

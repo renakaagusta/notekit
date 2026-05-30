@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   Bell,
   Bot,
@@ -11,6 +11,7 @@ import {
   Menu,
   MoreHorizontal,
   Network,
+  PanelLeft,
   Plus,
   Search,
   Shield,
@@ -66,7 +67,14 @@ interface SidebarProps {
    * that opens the global mobile drawer (vault picker + all surfaces).
    */
   onOpenMenu?: () => void;
+  /**
+   * When provided (desktop only), the brand row renders a collapse button
+   * that hides the whole sidebar.
+   */
+  onCollapse?: () => void;
 }
+
+const NAV_HEIGHT_KEY = "nk:sidebar-nav-h";
 
 export function Sidebar({
   view,
@@ -79,6 +87,7 @@ export function Sidebar({
   onOpenNotifications,
   onOpenSearch,
   onOpenMenu,
+  onCollapse,
 }: SidebarProps) {
   const upsertTicket = useTicketsStore((s) => s.upsert);
   // Counts for the section header badge. Subscribes to the count
@@ -93,6 +102,50 @@ export function Sidebar({
   // presence to anchor the create menu to the right "+" for the breakpoint:
   // the vertical nav row on desktop, the section-header button on mobile.
   const mobileShell = !!onOpenMenu;
+
+  // Draggable splitter between the surface nav and the list below it. null
+  // = natural (content) height; a number pins it and the nav scrolls. The
+  // list (flex:1) takes whatever's left.
+  const asideRef = useRef<HTMLElement>(null);
+  const navRef = useRef<HTMLDivElement>(null);
+  const [navHeight, setNavHeight] = useState<number | null>(() => {
+    const saved = Number(localStorage.getItem(NAV_HEIGHT_KEY));
+    return Number.isFinite(saved) && saved > 0 ? saved : null;
+  });
+
+  function onResizeStart(e: ReactPointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    const pointerId = e.pointerId;
+    const handle = e.currentTarget;
+    const navTop = navRef.current?.getBoundingClientRect().top ?? 0;
+    const asideRect = asideRef.current?.getBoundingClientRect();
+    // Reserve room for the footer cluster + a minimum list height so the
+    // nav can never swallow the whole sidebar.
+    const maxBottom = asideRect ? asideRect.bottom - 220 : navTop + 480;
+    handle.setPointerCapture(pointerId);
+
+    function onMove(ev: PointerEvent) {
+      const next = Math.max(96, Math.min(ev.clientY - navTop, maxBottom - navTop));
+      setNavHeight(next);
+    }
+    function onUp() {
+      handle.releasePointerCapture(pointerId);
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      setNavHeight((h) => {
+        if (h != null) localStorage.setItem(NAV_HEIGHT_KEY, String(Math.round(h)));
+        return h;
+      });
+    }
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+  }
+
+  // Double-click the splitter to reset back to the natural height.
+  function onResizeReset() {
+    setNavHeight(null);
+    localStorage.removeItem(NAV_HEIGHT_KEY);
+  }
 
   useEffect(() => {
     if (!userMenuOpen) return;
@@ -145,18 +198,34 @@ export function Sidebar({
               : "Calendar";
 
   return (
-    <aside className="nk-sidebar">
+    <aside className="nk-sidebar" ref={asideRef}>
       {/* Brand anchors the top-left as the app identity. The vault switcher
        * (a control, not chrome) moved to the footer next to the account,
        * forming a coherent workspace+account cluster. */}
       <div className="nk-brand">
         <NotekitIcon size={18} className="nk-brand-mark" />
         <span className="nk-brand-word">NoteKit</span>
+        {onCollapse && (
+          <button
+            className="nk-iconbtn nk-brand-collapse"
+            onClick={onCollapse}
+            title="Hide sidebar"
+            aria-label="Hide sidebar"
+          >
+            <PanelLeft size={15} aria-hidden />
+          </button>
+        )}
       </div>
       {/* Flat vertical nav — every surface one click away. Notes/Tickets
        * carry a count + a contextual "+"; the rest are destination views.
        * Hidden on mobile (the drawer takes over) via the .nk-nav rule. */}
-      <nav className="nk-nav" aria-label="Surfaces">
+      <nav
+        className="nk-nav"
+        aria-label="Surfaces"
+        ref={navRef}
+        style={navHeight != null ? { height: navHeight } : undefined}
+        data-resized={navHeight != null ? "" : undefined}
+      >
         {NAV.map(({ view: v, label, Icon }) => {
           const active = view === v;
           const count =
@@ -199,6 +268,19 @@ export function Sidebar({
           );
         })}
       </nav>
+
+      {/* Drag to resize the nav block vs the list below; double-click to
+       * reset. Hidden on mobile (the nav is hidden there). */}
+      <div
+        className="nk-nav-resizer"
+        role="separator"
+        aria-orientation="horizontal"
+        aria-label="Resize navigation"
+        onPointerDown={onResizeStart}
+        onDoubleClick={onResizeReset}
+      >
+        <span className="nk-nav-resizer-grip" aria-hidden />
+      </div>
 
       <div className="nk-sidebar-hd">
         {onOpenMenu && (

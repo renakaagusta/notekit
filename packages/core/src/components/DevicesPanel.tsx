@@ -76,7 +76,7 @@ export function DevicesPanel() {
   }
 
   return (
-    <div className="nk-side-panel">
+    <div className="nk-devices-panel">
       {error && <div className="nk-error-text">{error}</div>}
 
       <section className="nk-ai-section">

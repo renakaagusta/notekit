@@ -236,6 +236,15 @@ body {
   grid-template-columns: 0 1fr;
 }
 
+/* Devices/recovery panel rendered inside the wide account modal — unlike
+ * .nk-side-panel it must fill the modal width, not dock at a fixed 320px. */
+.nk-devices-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  width: 100%;
+}
+
 .nk-side-panel {
   width: 320px;
   background: var(--surface);

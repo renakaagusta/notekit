@@ -58,6 +58,11 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   }, []);
 
   // Provision Forgejo account when switching to notekit tab.
+  // Deps are [provider] ONLY — deliberately not notekitStep. Including the
+  // step would re-run this effect the instant we setNotekitStep below, and
+  // that re-run's cleanup flips `cancelled` true, swallowing the in-flight
+  // provision response and stranding the UI on "Setting up…". The step is
+  // still read here as a one-shot guard (fresh closure each provider change).
   useEffect(() => {
     if (provider !== "notekit" || notekitStep !== "idle") return;
     let cancelled = false;
@@ -83,7 +88,8 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
     return () => {
       cancelled = true;
     };
-  }, [provider, notekitStep]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider]);
 
   async function pick(repo: VaultRepo) {
     setBusy(true);
@@ -123,6 +129,9 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   }
 
   // Check GitLab connection state when entering the tab.
+  // Deps are [provider] ONLY — same reasoning as the notekit effect above:
+  // listing gitlabStep would self-cancel the in-flight status check the
+  // moment we setGitlabStep("checking"), stranding the UI on "Checking…".
   useEffect(() => {
     if (provider !== "gitlab" || gitlabStep !== "idle") return;
     let cancelled = false;
@@ -152,7 +161,8 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
     return () => {
       cancelled = true;
     };
-  }, [provider, gitlabStep]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider]);
 
   async function connectGitlab() {
     if (!gitlabPat.trim()) return;

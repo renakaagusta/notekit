@@ -413,8 +413,14 @@ export function App({ user, onSignOut }: AppProps = {}) {
         })()
       : null;
 
-  const crumbLabel =
-    view === "notes"
+  // Secrets and Links render their own title header (with actions), so the
+  // breadcrumb would just repeat it. Blank the crumb for them and drop the
+  // breadcrumb row on desktop (it still appears on mobile / when collapsed
+  // to carry the menu / expand buttons — but without the duplicate title).
+  const viewOwnsTitle = view === "secrets" || view === "links";
+  const crumbLabel = viewOwnsTitle
+    ? ""
+    : view === "notes"
       ? draftJournal
         ? draftJournal.date
         : (noteHeading ?? "—")
@@ -422,11 +428,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
         ? "Tickets"
         : view === "graph"
           ? "Graph"
-          : view === "secrets"
-            ? "Secrets"
-            : view === "links"
-              ? "Links"
-              : "Calendar";
+          : "Calendar";
 
   function exitMobileDetail() {
     setActive(null);
@@ -473,7 +475,9 @@ export function App({ user, onSignOut }: AppProps = {}) {
            * "+" action is duplicated in the sidebar's section header.
            * Mobile keeps the row (it carries the back / menu buttons that
            * make the slide-over shell navigable). */}
-          {(isMobile || view !== "notes" || !editorBinding || sidebarCollapsed) && (
+          {(isMobile ||
+            sidebarCollapsed ||
+            (!viewOwnsTitle && (view !== "notes" || !editorBinding))) && (
             <header className="nk-main-hd">
               {!isMobile && sidebarCollapsed && (
                 <button

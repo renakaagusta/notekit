@@ -42,6 +42,7 @@ import { CalendarView } from "./CalendarView";
 import { HistoryView } from "./HistoryView";
 import { AgentsView } from "./AgentsView";
 import { AccessTokensView } from "./AccessTokensView";
+import { DevicesPanel } from "./DevicesPanel";
 import { NotificationsInbox } from "./NotificationsInbox";
 import { NotificationSettings } from "./NotificationSettings";
 import { VaultPicker } from "./VaultPicker";
@@ -86,6 +87,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const [view, setView] = useState<MainView>("notes");
   const [agentsOpen, setAgentsOpen] = useState(false);
   const [tokensOpen, setTokensOpen] = useState(false);
+  const [devicesOpen, setDevicesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -463,6 +465,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onOpenAgents={() => setAgentsOpen(true)}
           onOpenHistory={() => setHistoryOpen(true)}
           onOpenTokens={() => setTokensOpen(true)}
+          onOpenDevices={() => setDevicesOpen(true)}
           onOpenNotifications={() => setNotificationsOpen(true)}
           onOpenSearch={() => setSearchOpen(true)}
           onOpenMenu={isMobile ? () => setDrawerOpen(true) : undefined}
@@ -650,6 +653,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onOpenAgents={() => setAgentsOpen(true)}
           onOpenHistory={() => setHistoryOpen(true)}
           onOpenTokens={() => setTokensOpen(true)}
+          onOpenDevices={() => setDevicesOpen(true)}
           onOpenNotifications={() => setNotificationsOpen(true)}
         />
       )}
@@ -731,6 +735,35 @@ export function App({ user, onSignOut }: AppProps = {}) {
               <X size={16} aria-hidden />
             </button>
             <AccessTokensView />
+          </div>
+        </div>
+      )}
+      {devicesOpen && (
+        <div
+          className="nk-modal-backdrop"
+          onClick={() => setDevicesOpen(false)}
+        >
+          <div
+            className="nk-modal nk-modal--wide"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <header className="nk-modal-hd">
+              <h2>Devices</h2>
+              <p className="nk-modal-sub">
+                Devices paired to your encrypted vault. Pair a new one with a
+                6-digit code, or unlock it with your recovery phrase — verify
+                the emoji fingerprint matches on both screens before approving.
+              </p>
+            </header>
+            <button
+              className="nk-modal-close nk-iconbtn"
+              onClick={() => setDevicesOpen(false)}
+              title="Close"
+              aria-label="Close"
+            >
+              <X size={16} aria-hidden />
+            </button>
+            <DevicesPanel />
           </div>
         </div>
       )}

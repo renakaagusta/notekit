@@ -9,6 +9,7 @@ import {
   Link2,
   LogOut,
   Menu,
+  MonitorSmartphone,
   MoreHorizontal,
   Network,
   PanelLeft,
@@ -56,6 +57,7 @@ interface SidebarProps {
   onOpenAgents?: () => void;
   onOpenHistory?: () => void;
   onOpenTokens?: () => void;
+  onOpenDevices?: () => void;
   onOpenNotifications?: () => void;
   /**
    * When provided, the section header renders a search icon next to the
@@ -84,6 +86,7 @@ export function Sidebar({
   onOpenAgents,
   onOpenHistory,
   onOpenTokens,
+  onOpenDevices,
   onOpenNotifications,
   onOpenSearch,
   onOpenMenu,
@@ -469,6 +472,19 @@ export function Sidebar({
                 >
                   <KeyRound size={14} aria-hidden />
                   <span>API tokens</span>
+                </button>
+              )}
+              {onOpenDevices && (
+                <button
+                  className="nk-popover-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setUserMenuOpen(false);
+                    onOpenDevices();
+                  }}
+                >
+                  <MonitorSmartphone size={14} aria-hidden />
+                  <span>Devices</span>
                 </button>
               )}
               {onSignOut && (

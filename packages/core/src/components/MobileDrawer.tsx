@@ -10,6 +10,7 @@ import {
   LogOut,
   Lock,
   Menu,
+  MonitorSmartphone,
   MoreHorizontal,
   Share2,
   Ticket,
@@ -30,6 +31,7 @@ interface MobileDrawerProps {
   onOpenAgents?: () => void;
   onOpenHistory?: () => void;
   onOpenTokens?: () => void;
+  onOpenDevices?: () => void;
   onOpenNotifications?: () => void;
 }
 
@@ -51,6 +53,7 @@ export function MobileDrawer({
   onOpenAgents,
   onOpenHistory,
   onOpenTokens,
+  onOpenDevices,
   onOpenNotifications,
 }: MobileDrawerProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -282,6 +285,20 @@ export function MobileDrawer({
                   >
                     <KeyRound size={14} aria-hidden />
                     <span>API tokens</span>
+                  </button>
+                )}
+                {onOpenDevices && (
+                  <button
+                    className="nk-popover-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setUserMenuOpen(false);
+                      onClose();
+                      onOpenDevices();
+                    }}
+                  >
+                    <MonitorSmartphone size={14} aria-hidden />
+                    <span>Devices</span>
                   </button>
                 )}
                 {onSignOut && (

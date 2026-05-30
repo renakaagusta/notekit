@@ -4060,6 +4060,11 @@ a.nk-commit-sha:hover {
 .nk-vault-setup,
 .nk-vault-pair {
   padding: 20px 22px;
+  /* Scroll inside the card when content exceeds the modal's max-height
+   * (80vh). Without this, overflow:visible lets tall content — e.g. the
+   * "Use recovery phrase instead" button — spill below the card onto the
+   * backdrop on short screens like the iPhone 8. */
+  overflow-y: auto;
 }
 
 .nk-vault-setup h2,

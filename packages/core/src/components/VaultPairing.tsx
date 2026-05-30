@@ -113,7 +113,7 @@ export function VaultPairNewDevice() {
       } catch {
         // ignore transient errors during polling
       }
-    }, 3500);
+    }, 2000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };

@@ -237,11 +237,18 @@ export function App({ user, onSignOut }: AppProps = {}) {
           // Bind persistence BEFORE startSync so any saved state for this
           // vault is rehydrated before the subscribe baselines are taken.
           await bindVaultPersistence(status.vault);
+          // bootstrapCrypto only does a handful of small server-API reads
+          // (recovery.json + device records) and is independent of the
+          // content sync. Kick it off in parallel with startSync so the
+          // pairing / setup dialog appears right away instead of waiting
+          // for the entire vault to pull — the long delay users hit when
+          // a fresh device needs to pair after sign-in.
+          const cryptoReady = bootstrapCrypto();
           await startSync();
           // Open the real-time event stream so edits from other devices
           // arrive via push instead of waiting for the next focus-pull.
           startVaultEventStream();
-          await bootstrapCrypto();
+          await cryptoReady;
         } else {
           setVaultPhase("needs-pick");
         }
@@ -363,9 +370,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
     // saved state is rehydrated and future writes route to the right slot.
     const pickedVault = useVaultStore.getState().vault;
     if (pickedVault) await bindVaultPersistence(pickedVault);
+    // Run crypto bootstrap in parallel with the content sync — it only
+    // needs a few small server-API reads, so the pairing / setup dialog
+    // shouldn't wait for the full vault pull. (See the mount effect above.)
+    const cryptoReady = bootstrapCrypto();
     await startSync();
     startVaultEventStream();
-    await bootstrapCrypto();
+    await cryptoReady;
   }
 
   function onSearchSelect(hit: SearchHit) {

@@ -9,8 +9,13 @@ import { generateIdentity, identityToRecipient } from "age-encryption";
 import { nanoid } from "nanoid";
 
 const DB_NAME = "notekit-crypto";
-const DB_VERSION = 1;
+// v2 added the "recovery" store (see recovery-store.ts). Both files open the
+// same DB, so they must agree on the version and each create any missing store
+// in onupgradeneeded — otherwise whichever opens at the lower version throws
+// VersionError.
+const DB_VERSION = 2;
 const STORE = "device";
+const RECOVERY_STORE = "recovery";
 const KEY = "self";
 
 export interface DeviceIdentity {
@@ -28,6 +33,9 @@ function openDB(): Promise<IDBDatabase> {
       const db = req.result;
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE);
+      }
+      if (!db.objectStoreNames.contains(RECOVERY_STORE)) {
+        db.createObjectStore(RECOVERY_STORE);
       }
     };
     req.onsuccess = () => resolve(req.result);

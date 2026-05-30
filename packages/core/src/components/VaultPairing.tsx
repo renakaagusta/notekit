@@ -7,6 +7,43 @@ import {
 } from "../lib/vault-api";
 import { addDevice, listDevices, readRecovery } from "../lib/secrets-vault";
 import { recoveryFromMnemonic } from "../lib/crypto/recovery";
+import { importRecovery } from "../lib/crypto/recovery-store";
+import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
+
+/**
+ * Derive the human-comparable pairing fingerprint for a pubkey. Both the new
+ * device (from its own trusted local key) and the approving device (from the
+ * server-relayed key) render this; matching them rules out a key swap by a
+ * compromised server.
+ */
+function useFingerprint(pubkey: string | null | undefined): string | null {
+  const [fp, setFp] = useState<string | null>(null);
+  useEffect(() => {
+    if (!pubkey) {
+      setFp(null);
+      return;
+    }
+    let cancelled = false;
+    void deriveFingerprint(pubkey).then((slots) => {
+      if (!cancelled) setFp(formatFingerprint(slots));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pubkey]);
+  return fp;
+}
+
+function PairingFingerprint({ value }: { value: string | null }) {
+  return (
+    <div className="nk-pair-fingerprint">
+      <span className="nk-muted">Verify this matches on both devices</span>
+      <strong className="nk-pair-fp-value" aria-live="polite">
+        {value ?? "…"}
+      </strong>
+    </div>
+  );
+}
 
 function randomCode(): string {
   // 6-digit pairing code from a cryptographically secure source, with
@@ -35,6 +72,8 @@ export function VaultPairNewDevice() {
   const [recoveryInput, setRecoveryInput] = useState("");
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+
+  const fingerprint = useFingerprint(device?.recipient);
 
   const pollRef = useRef<number | null>(null);
 
@@ -110,6 +149,10 @@ export function VaultPairNewDevice() {
           createdAt: new Date().toISOString(),
         },
       );
+      // The user just typed the phrase, so they already hold a backup. Keep a
+      // local copy on this device (marked backed-up) so the backup sheet works
+      // here too and the nudge stays quiet.
+      await importRecovery(recoveryInput).catch(() => {});
       setPhase("ready");
     } catch (e) {
       setRecoveryError((e as Error).message);
@@ -133,6 +176,13 @@ export function VaultPairNewDevice() {
         <p className="nk-muted">
           On your other device: AI rail → <em>Pair new device</em>.
           Waiting for approval…
+        </p>
+
+        <PairingFingerprint value={fingerprint} />
+        <p className="nk-muted nk-pair-fp-hint">
+          Before approving, check the emoji code above matches the one shown on
+          your other device. If they differ, cancel — someone may be
+          intercepting the pairing.
         </p>
 
         <div className="nk-divider" />
@@ -207,6 +257,10 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Derived from the server-relayed pubkey. The human compares it against the
+  // new device's screen to detect a swapped key.
+  const fingerprint = useFingerprint(info?.pubkey);
 
   async function onFetch() {
     setBusy(true);
@@ -296,6 +350,12 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
                 </code>
               </div>
             </div>
+            <PairingFingerprint value={fingerprint} />
+            <p className="nk-muted nk-pair-fp-hint">
+              Only approve if this emoji code matches what's shown on the new
+              device. A mismatch means the key was tampered with in transit —
+              cancel and try again.
+            </p>
             {error && <p className="nk-error-text">{error}</p>}
             <div className="nk-modal-actions">
               <button

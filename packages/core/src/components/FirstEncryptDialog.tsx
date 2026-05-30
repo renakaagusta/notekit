@@ -11,6 +11,7 @@
 import { useEffect, useState } from "react";
 import { Lock, X } from "lucide-react";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
+import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 
 const KIND_LABEL: Record<"note" | "ticket" | "link", string> = {
   note: "note",
@@ -22,7 +23,15 @@ export function FirstEncryptDialog() {
   const pending = useE2eeOnboardingStore((s) => s.pending);
   const confirm = useE2eeOnboardingStore((s) => s.confirm);
   const cancel = useE2eeOnboardingStore((s) => s.cancel);
+  const armBackupNudge = useRecoveryBackupStore((s) => s.arm);
   const [acknowledged, setAcknowledged] = useState(false);
+
+  // The user is about to create their first encrypted item — from here the
+  // recovery key actually protects something, so arm the backup nudge.
+  function onConfirm() {
+    armBackupNudge();
+    confirm();
+  }
 
   // Reset the checkbox each time the dialog reopens. Otherwise an old
   // accept-state would carry across vaults.
@@ -109,7 +118,7 @@ export function FirstEncryptDialog() {
             type="button"
             className="nk-btn nk-btn--primary"
             disabled={!acknowledged}
-            onClick={confirm}
+            onClick={onConfirm}
           >
             Encrypt {kind}
           </button>

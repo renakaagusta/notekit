@@ -6179,9 +6179,19 @@ a.nk-commit-sha:hover {
     text-transform: none;
     color: var(--text);
   }
+  /* Touch-sized + full-contrast header controls. The default desktop
+     icon size (14–16px in --text-2) read as faint specks on the phone
+     appbar; force a 20px glyph in --text so the hamburger / search /
+     add are unmistakable. The explicit svg sizing also guards against
+     WKWebView ignoring lucide's width/height attributes. */
   .nk-app[data-mobile="true"] .nk-sidebar-hd .nk-iconbtn {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
+    color: var(--text);
+  }
+  .nk-app[data-mobile="true"] .nk-sidebar-hd .nk-iconbtn svg {
+    width: 20px;
+    height: 20px;
   }
 
   /* Folder tree fills the rest of the list pane, with taller hit areas. */
@@ -6381,8 +6391,8 @@ a.nk-commit-sha:hover {
     flex-shrink: 0;
   }
   .nk-app[data-mobile="true"] .nk-sidebar-menu {
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     margin-right: 4px;
   }
   .nk-app[data-mobile="true"] .nk-crumbs {
@@ -6523,18 +6533,30 @@ a.nk-commit-sha:hover {
   padding: calc(12px + env(safe-area-inset-top, 0px)) 12px 8px;
   border-bottom: 1px solid var(--border-soft);
 }
-.nk-mdrawer-hd .nk-vault-switcher {
+.nk-mdrawer-brand {
   flex: 1;
   min-width: 0;
-  padding: 0;
-}
-.nk-mdrawer-hd .nk-vault-trigger {
-  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 .nk-mdrawer-close {
   width: 32px;
   height: 32px;
   flex-shrink: 0;
+}
+
+/* Foot cluster — pinned to the bottom of the drawer, holds the vault
+   switcher + sync + account, mirroring the desktop sidebar footer. */
+.nk-mdrawer-foot {
+  margin-top: auto;
+}
+.nk-mdrawer-foot .nk-vault-switcher {
+  border-top: 1px solid var(--border-soft);
 }
 
 .nk-mdrawer-sync {
@@ -6544,7 +6566,7 @@ a.nk-commit-sha:hover {
   padding: 10px 14px;
   font-size: 12px;
   color: var(--muted);
-  border-bottom: 1px solid var(--border-soft);
+  border-top: 1px solid var(--border-soft);
 }
 .nk-mdrawer-sync-dot {
   width: 8px;
@@ -6622,7 +6644,6 @@ a.nk-commit-sha:hover {
   gap: 12px;
   padding: 14px;
   border-top: 1px solid var(--border-soft);
-  margin-top: auto; /* pin to the bottom of the drawer regardless of nav length */
 }
 .nk-mdrawer-user .nk-avatar {
   width: 36px;

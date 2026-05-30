@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { SidebarView } from "./Sidebar";
 import { VaultSwitcher } from "./VaultSwitcher";
+import { NotekitIcon } from "./BrandIcons";
 import type { User } from "../types/user";
 
 interface MobileDrawerProps {
@@ -109,8 +110,14 @@ export function MobileDrawer({
         aria-label="Navigation"
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Brand anchors the top exactly like the desktop sidebar — app
+            identity first, the vault switcher + account cluster at the
+            foot. Keeps the two shells visually consistent. */}
         <header className="nk-mdrawer-hd">
-          <VaultSwitcher />
+          <div className="nk-mdrawer-brand">
+            <NotekitIcon size={18} className="nk-brand-mark" />
+            <span className="nk-brand-word">NoteKit</span>
+          </div>
           <button
             className="nk-iconbtn nk-mdrawer-close"
             onClick={onClose}
@@ -124,17 +131,6 @@ export function MobileDrawer({
             <Menu size={18} aria-hidden />
           </button>
         </header>
-
-        {syncStatus && (
-          <div
-            className="nk-mdrawer-sync"
-            data-tone={syncTone ?? "idle"}
-            aria-live="polite"
-          >
-            <span className="nk-mdrawer-sync-dot" aria-hidden />
-            <span className="nk-mdrawer-sync-text">{syncStatus}</span>
-          </div>
-        )}
 
         <nav className="nk-mdrawer-section" aria-label="Surfaces">
           <ul className="nk-mdrawer-list">
@@ -195,7 +191,23 @@ export function MobileDrawer({
           </ul>
         </nav>
 
-        {user && (
+        {/* Foot cluster pinned to the bottom — vault switcher, sync status,
+            then account. Mirrors the desktop sidebar footer ordering. */}
+        <div className="nk-mdrawer-foot">
+          <VaultSwitcher />
+
+          {syncStatus && (
+            <div
+              className="nk-mdrawer-sync"
+              data-tone={syncTone ?? "idle"}
+              aria-live="polite"
+            >
+              <span className="nk-mdrawer-sync-dot" aria-hidden />
+              <span className="nk-mdrawer-sync-text">{syncStatus}</span>
+            </div>
+          )}
+
+          {user && (
           <div className="nk-mdrawer-user" ref={userRef}>
             {user.avatarUrl ? (
               <img
@@ -318,7 +330,8 @@ export function MobileDrawer({
               </div>
             )}
           </div>
-        )}
+          )}
+        </div>
       </aside>
     </div>
   );

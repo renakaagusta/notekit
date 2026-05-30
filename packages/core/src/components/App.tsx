@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, FileText, Menu, Plus, Search, X } from "lucide-react";
+import {
+  ArrowLeft,
+  FileText,
+  Menu,
+  PanelLeft,
+  Plus,
+  Search,
+  X,
+} from "lucide-react";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { MobileDrawer } from "./MobileDrawer";
@@ -82,6 +90,14 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Desktop sidebar collapse. Persisted so it survives reloads. Ignored on
+  // mobile, where the drawer is the navigation surface.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(
+    () => localStorage.getItem("nk:sidebar-collapsed") === "1",
+  );
+  useEffect(() => {
+    localStorage.setItem("nk:sidebar-collapsed", sidebarCollapsed ? "1" : "0");
+  }, [sidebarCollapsed]);
   // On phone, list and detail are separate full-screen panes. `mobilePane`
   // tracks which one is on top — opening a note flips it to "detail", the
   // back-arrow in the editor header flips it back. Ignored on desktop where
@@ -433,6 +449,9 @@ export function App({ user, onSignOut }: AppProps = {}) {
         className="nk-app"
         data-mobile={isMobile ? "true" : undefined}
         data-mobile-pane={isMobile ? mobilePane : undefined}
+        data-sidebar-collapsed={
+          !isMobile && sidebarCollapsed ? "true" : undefined
+        }
       >
         <Sidebar
           view={view}
@@ -445,6 +464,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onOpenNotifications={() => setNotificationsOpen(true)}
           onOpenSearch={() => setSearchOpen(true)}
           onOpenMenu={isMobile ? () => setDrawerOpen(true) : undefined}
+          onCollapse={isMobile ? undefined : () => setSidebarCollapsed(true)}
         />
 
         <main className="nk-main">
@@ -453,8 +473,18 @@ export function App({ user, onSignOut }: AppProps = {}) {
            * "+" action is duplicated in the sidebar's section header.
            * Mobile keeps the row (it carries the back / menu buttons that
            * make the slide-over shell navigable). */}
-          {(isMobile || view !== "notes" || !editorBinding) && (
+          {(isMobile || view !== "notes" || !editorBinding || sidebarCollapsed) && (
             <header className="nk-main-hd">
+              {!isMobile && sidebarCollapsed && (
+                <button
+                  className="nk-iconbtn nk-main-expand"
+                  onClick={() => setSidebarCollapsed(false)}
+                  aria-label="Show sidebar"
+                  title="Show sidebar"
+                >
+                  <PanelLeft size={16} aria-hidden />
+                </button>
+              )}
               {isMobile && view === "notes" && mobilePane === "detail" ? (
                 <button
                   className="nk-iconbtn nk-main-back"

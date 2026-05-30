@@ -20,6 +20,11 @@ MOBILE="$REPO_ROOT/apps/mobile"
   echo "→ patching iOS Info.plist (ATS exception for localhost)"
   cp "$PATCHES/ios/App/App/Info.plist" "$MOBILE/ios/App/App/Info.plist"
 
+  if [[ -f "$PATCHES/ios/App/App/App.entitlements" ]]; then
+    echo "→ patching iOS App.entitlements (Sign in with Apple)"
+    cp "$PATCHES/ios/App/App/App.entitlements" "$MOBILE/ios/App/App/App.entitlements"
+  fi
+
   echo "→ patching iOS app icon (monochrome AppIcon.appiconset)"
   ICONSET="App/App/Assets.xcassets/AppIcon.appiconset"
   mkdir -p "$MOBILE/ios/$ICONSET"

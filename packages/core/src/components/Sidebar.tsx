@@ -3,8 +3,8 @@ import {
   Bell,
   Bot,
   Calendar as CalendarIcon,
-  ChevronDown,
   Clock,
+  FileText,
   KeyRound,
   Link2,
   LogOut,
@@ -14,6 +14,7 @@ import {
   Plus,
   Search,
   Shield,
+  SquareKanban,
 } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
@@ -24,6 +25,26 @@ import { TicketSidebarList } from "./TicketSidebarList";
 import { VaultSwitcher } from "./VaultSwitcher";
 
 export type SidebarView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
+
+/**
+ * Primary nav, rendered as a flat vertical list (Notion / Linear / Orca
+ * style) so every surface is one click away — no "More" dropdown to clip
+ * at 240px. Notes and Tickets are the browsing surfaces (they show a list
+ * below) and carry a count badge + a contextual "+"; the rest are
+ * destination views that take over the main pane.
+ */
+const NAV: {
+  view: SidebarView;
+  label: string;
+  Icon: typeof FileText;
+}[] = [
+  { view: "notes", label: "Notes", Icon: FileText },
+  { view: "tickets", label: "Tickets", Icon: SquareKanban },
+  { view: "calendar", label: "Calendar", Icon: CalendarIcon },
+  { view: "graph", label: "Graph", Icon: Network },
+  { view: "links", label: "Links", Icon: Link2 },
+  { view: "secrets", label: "Secrets", Icon: Shield },
+];
 
 interface SidebarProps {
   view: SidebarView;
@@ -66,9 +87,11 @@ export function Sidebar({
   const ticketsCount = useTicketsStore((s) => s.all().length);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const moreMenuRef = useRef<HTMLDivElement>(null);
+  // The mobile shell passes onOpenMenu (hamburger → drawer). We use its
+  // presence to anchor the create menu to the right "+" for the breakpoint:
+  // the vertical nav row on desktop, the section-header button on mobile.
+  const mobileShell = !!onOpenMenu;
 
   useEffect(() => {
     if (!userMenuOpen) return;
@@ -88,30 +111,21 @@ export function Sidebar({
     };
   }, [userMenuOpen]);
 
-  // Same outside-click pattern for the More popover so the nav stays a
-  // single-active-element row at any time.
-  useEffect(() => {
-    if (!moreMenuOpen) return;
-    function onDocClick(e: MouseEvent) {
-      if (!moreMenuRef.current) return;
-      if (moreMenuRef.current.contains(e.target as Node)) return;
-      setMoreMenuOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setMoreMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [moreMenuOpen]);
-
   function onAdd() {
     if (view === "notes") {
       setCreateMenuOpen((v) => !v);
     } else if (view === "tickets") {
+      upsertTicket({ title: "New ticket", status: "todo" });
+    }
+  }
+
+  // The "+" on a nav row both switches to that surface and starts a create.
+  function onNavAdd(target: "notes" | "tickets") {
+    if (target === "notes") {
+      if (view !== "notes") onView("notes");
+      setCreateMenuOpen((v) => !v);
+    } else {
+      if (view !== "tickets") onView("tickets");
       upsertTicket({ title: "New ticket", status: "todo" });
     }
   }
@@ -132,94 +146,52 @@ export function Sidebar({
   return (
     <aside className="nk-sidebar">
       <VaultSwitcher />
-      {/* Primary tabs only — Notes and Tickets are the daily-use surfaces
-       * named in the product tagline ("Notes & tickets in your Git repo").
-       * The four secondary surfaces (Calendar, Graph, Secrets, Links)
-       * moved into a "More" popover to stop clipping at 240px width and
-       * to keep the chrome quiet for the 80% case. */}
-      <div className="nk-nav">
-        <button
-          className={view === "notes" ? "active" : ""}
-          onClick={() => onView("notes")}
-        >
-          Notes
-        </button>
-        <button
-          className={view === "tickets" ? "active" : ""}
-          onClick={() => onView("tickets")}
-        >
-          Tickets
-        </button>
-        <div className="nk-nav-more-wrap" ref={moreMenuRef}>
-          <button
-            className={
-              "nk-nav-more " +
-              (view === "calendar" ||
-              view === "graph" ||
-              view === "secrets" ||
-              view === "links"
-                ? "active"
-                : "")
-            }
-            onClick={() => setMoreMenuOpen((v) => !v)}
-            title="More views"
-            aria-label="More views"
-            aria-haspopup="menu"
-            aria-expanded={moreMenuOpen}
-          >
-            More
-            <ChevronDown size={11} aria-hidden />
-          </button>
-          {moreMenuOpen && (
-            <div className="nk-popover nk-popover--nav-more" role="menu">
+      {/* Flat vertical nav — every surface one click away. Notes/Tickets
+       * carry a count + a contextual "+"; the rest are destination views.
+       * Hidden on mobile (the drawer takes over) via the .nk-nav rule. */}
+      <nav className="nk-nav" aria-label="Surfaces">
+        {NAV.map(({ view: v, label, Icon }) => {
+          const active = view === v;
+          const count =
+            v === "notes" ? notesCount : v === "tickets" ? ticketsCount : 0;
+          const canAdd = v === "notes" || v === "tickets";
+          return (
+            <div
+              key={v}
+              className={"nk-navitem-row" + (active ? " active" : "")}
+            >
               <button
-                className="nk-popover-item"
-                role="menuitem"
-                onClick={() => {
-                  setMoreMenuOpen(false);
-                  onView("calendar");
-                }}
+                className="nk-navitem"
+                onClick={() => onView(v)}
+                aria-current={active ? "page" : undefined}
               >
-                <CalendarIcon size={14} aria-hidden />
-                <span>Calendar</span>
+                <Icon size={15} className="nk-navitem-icon" aria-hidden />
+                <span className="nk-navitem-label">{label}</span>
+                {count > 0 && <span className="nk-sidebar-count">{count}</span>}
               </button>
-              <button
-                className="nk-popover-item"
-                role="menuitem"
-                onClick={() => {
-                  setMoreMenuOpen(false);
-                  onView("graph");
-                }}
-              >
-                <Network size={14} aria-hidden />
-                <span>Graph</span>
-              </button>
-              <button
-                className="nk-popover-item"
-                role="menuitem"
-                onClick={() => {
-                  setMoreMenuOpen(false);
-                  onView("links");
-                }}
-              >
-                <Link2 size={14} aria-hidden />
-                <span>Links</span>
-              </button>
-              <button
-                className="nk-popover-item"
-                role="menuitem"
-                onClick={() => {
-                  setMoreMenuOpen(false);
-                  onView("secrets");
-                }}
-              >
-                <Shield size={14} aria-hidden />
-                <span>Secrets</span>
-              </button>
+              {canAdd && (
+                <button
+                  className="nk-iconbtn nk-navitem-add"
+                  data-create-toggle={v === "notes" ? "" : undefined}
+                  onClick={() => onNavAdd(v)}
+                  title={
+                    v === "notes" ? "New file or folder (⌘N)" : "New ticket"
+                  }
+                  aria-label={v === "notes" ? "New note" : "New ticket"}
+                >
+                  <Plus size={14} aria-hidden />
+                </button>
+              )}
+              {v === "notes" && !mobileShell && createMenuOpen && (
+                <CreateMenu
+                  parent={null}
+                  onClose={() => setCreateMenuOpen(false)}
+                />
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          );
+        })}
+      </nav>
 
       <div className="nk-sidebar-hd">
         {onOpenMenu && (
@@ -267,7 +239,7 @@ export function Sidebar({
               >
                 <Plus size={14} aria-hidden />
               </button>
-              {view === "notes" && createMenuOpen && (
+              {view === "notes" && mobileShell && createMenuOpen && (
                 <CreateMenu
                   parent={null}
                   onClose={() => setCreateMenuOpen(false)}

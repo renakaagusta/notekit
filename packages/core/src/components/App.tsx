@@ -25,6 +25,8 @@ import { Editor, type EditorHandle } from "./Editor";
 import { EditorToolbar } from "./EditorToolbar";
 import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { FirstEncryptDialog } from "./FirstEncryptDialog";
+import { RecoveryBackupNudge } from "./RecoveryBackupNudge";
+import { RecoveryBackupSheet } from "./RecoveryBackupSheet";
 import { Sidebar } from "./Sidebar";
 import { TicketsBoard } from "./TicketsBoard";
 import { GraphView } from "./GraphView";
@@ -501,6 +503,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
               )}
             </header>
           )}
+          <RecoveryBackupNudge />
           <EncryptedSkippedBanner />
           {view === "notes" && (
             <>
@@ -760,6 +763,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
       )}
 
       <FirstEncryptDialog />
+      <RecoveryBackupSheet />
     </div>
   );
 }

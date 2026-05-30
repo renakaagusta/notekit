@@ -10,6 +10,7 @@ import {
 } from "../lib/secrets-vault";
 import { askAI, type AIProvider } from "../lib/ai-client";
 import { VaultApproveDevice } from "./VaultPairing";
+import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 
 const KNOWN_PROVIDERS: { id: AIProvider; label: string; placeholder: string }[] = [
   { id: "openai", label: "OpenAI", placeholder: "sk-…" },
@@ -19,6 +20,7 @@ const KNOWN_PROVIDERS: { id: AIProvider; label: string; placeholder: string }[] 
 export function AIVaultPanel() {
   const phase = useCryptoStore((s) => s.phase);
   const device = useCryptoStore((s) => s.device);
+  const openBackupSheet = useRecoveryBackupStore((s) => s.openSheet);
 
   const [names, setNames] = useState<string[]>([]);
   const [devices, setDevices] = useState<DeviceRecord[]>([]);
@@ -254,6 +256,19 @@ export function AIVaultPanel() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="nk-ai-section">
+        <header className="nk-ai-section-hd">
+          <h3>Recovery key</h3>
+          <button className="nk-btn" onClick={openBackupSheet}>
+            Back up recovery phrase
+          </button>
+        </header>
+        <p className="nk-muted">
+          Your 24-word recovery phrase unlocks the vault if you lose every
+          paired device. Keep a copy somewhere safe and offline.
+        </p>
       </section>
 
       {showApprove && (

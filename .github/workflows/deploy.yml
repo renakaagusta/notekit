@@ -76,6 +76,11 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
           APPLE_SHARED_SECRET: ${{ secrets.APPLE_SHARED_SECRET }}
+          APPLE_AUTH_SERVICE_ID: ${{ secrets.APPLE_AUTH_SERVICE_ID }}
+          APPLE_AUTH_NATIVE_APP_ID: ${{ secrets.APPLE_AUTH_NATIVE_APP_ID }}
+          APPLE_AUTH_TEAM_ID: ${{ secrets.APPLE_AUTH_TEAM_ID }}
+          APPLE_AUTH_KEY_ID: ${{ secrets.APPLE_AUTH_KEY_ID }}
+          APPLE_AUTH_PRIVATE_KEY: ${{ secrets.APPLE_AUTH_PRIVATE_KEY }}
           GOOGLE_PLAY_PACKAGE_NAME: ${{ secrets.GOOGLE_PLAY_PACKAGE_NAME }}
           GOOGLE_PLAY_CLIENT_EMAIL: ${{ secrets.GOOGLE_PLAY_CLIENT_EMAIL }}
           GOOGLE_PLAY_PRIVATE_KEY: ${{ secrets.GOOGLE_PLAY_PRIVATE_KEY }}

@@ -20,9 +20,12 @@ import { VaultSettingsDialog } from "./VaultSettingsDialog";
 interface VaultSwitcherProps {
   /** Optional callback fired after a successful switch (e.g. close any drawer). */
   onSwitched?(vault: VaultRef): void;
+  /** Extra class on the root — e.g. "nk-vault-switcher--footer" to open the
+   *  menu upward when the switcher sits at the bottom of the sidebar. */
+  className?: string;
 }
 
-export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
+export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
   const vaults = useVaultStore((s) => s.vaults);
   const activeId = useVaultStore((s) => s.activeId);
   const activeVault = useVaultStore((s) => s.vault);
@@ -180,7 +183,10 @@ export function VaultSwitcher({ onSwitched }: VaultSwitcherProps) {
     : "Switch vault";
 
   return (
-    <div className="nk-vault-switcher" ref={containerRef}>
+    <div
+      className={"nk-vault-switcher" + (className ? ` ${className}` : "")}
+      ref={containerRef}
+    >
       <button
         className="nk-vault-trigger"
         onClick={() => setOpen((v) => !v)}

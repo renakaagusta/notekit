@@ -23,6 +23,7 @@ import { CreateMenu } from "./CreateMenu";
 import { NoteList } from "./NoteList";
 import { TicketSidebarList } from "./TicketSidebarList";
 import { VaultSwitcher } from "./VaultSwitcher";
+import { NotekitIcon } from "./BrandIcons";
 
 export type SidebarView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
 
@@ -145,7 +146,13 @@ export function Sidebar({
 
   return (
     <aside className="nk-sidebar">
-      <VaultSwitcher />
+      {/* Brand anchors the top-left as the app identity. The vault switcher
+       * (a control, not chrome) moved to the footer next to the account,
+       * forming a coherent workspace+account cluster. */}
+      <div className="nk-brand">
+        <NotekitIcon size={18} className="nk-brand-mark" />
+        <span className="nk-brand-word">NoteKit</span>
+      </div>
       {/* Flat vertical nav — every surface one click away. Notes/Tickets
        * carry a count + a contextual "+"; the rest are destination views.
        * Hidden on mobile (the drawer takes over) via the .nk-nav rule. */}
@@ -291,6 +298,8 @@ export function Sidebar({
           </p>
         </div>
       )}
+
+      <VaultSwitcher className="nk-vault-switcher--footer" />
 
       {user && (
         <div className="nk-userbar" ref={userMenuRef}>

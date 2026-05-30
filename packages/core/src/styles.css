@@ -328,6 +328,46 @@ body {
   min-width: 0;
 }
 
+/* App identity anchor — top-left, where the eye lands first. The vault
+ * switcher (a control) lives in the footer instead. */
+.nk-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 14px 10px;
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.nk-brand-mark {
+  flex: 0 0 auto;
+  border-radius: var(--r-sm);
+}
+
+.nk-brand-word {
+  line-height: 1;
+}
+
+/* Footer placement: bottom-anchored, sits just above the account row,
+ * and its menu opens UPWARD so it never spills below the viewport. */
+.nk-vault-switcher--footer {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+}
+
+.nk-vault-switcher--footer .nk-vault-menu {
+  top: auto;
+  bottom: calc(100% - 4px);
+}
+
+/* The switcher already absorbs the free space; the account row just
+ * stacks beneath it, so cancel its own bottom-anchoring here. */
+.nk-vault-switcher--footer + .nk-userbar {
+  margin-top: 0;
+}
+
 /* Flat vertical nav (Notion / Linear / Orca style). Stacked icon+label
  * rows so every surface is visible — no horizontal "More" dropdown to
  * clip at 240px. */
@@ -5915,7 +5955,11 @@ a.nk-commit-sha:hover {
     background: var(--bg);
   }
   /* Vault switcher and user chip live in the drawer on mobile, so hide the
-     copies that the desktop sidebar renders inline. */
+     copies that the desktop sidebar renders inline. The brand row is
+     redundant too — the section header is the mobile screen title. */
+  .nk-app[data-mobile="true"] .nk-brand {
+    display: none;
+  }
   .nk-app[data-mobile="true"] .nk-sidebar > .nk-vault-switcher {
     display: none;
   }

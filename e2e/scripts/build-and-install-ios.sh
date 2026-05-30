@@ -12,8 +12,8 @@ REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 API_URL="${E2E_API_URL:-http://localhost:3001}"
-echo "→ building web with VITE_API_URL=$API_URL"
-VITE_API_URL="$API_URL" pnpm --filter @notekit/web build
+echo "→ building web with VITE_API_URL=$API_URL (VITE_DEBUG=true for the PAT sign-in path)"
+VITE_DEBUG=true VITE_API_URL="$API_URL" pnpm --filter @notekit/web build
 
 echo "→ cap copy ios"
 (cd apps/mobile && pnpm exec cap copy ios)

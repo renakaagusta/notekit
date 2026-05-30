@@ -21,12 +21,30 @@ function isCapacitorNative(): boolean {
   return cap?.isNativePlatform?.() === true;
 }
 
+/**
+ * Whether this is a debug/E2E build. The PAT path is a developer/testing
+ * backdoor, so it must never ship in the production App Store / Play build.
+ * True in the Vite dev server, or when a build sets `VITE_DEBUG=true`
+ * (the E2E scripts do). A plain production `vite build` leaves it undefined,
+ * so the token path is hidden for real users. Literal access — Vite only
+ * statically replaces `import.meta.env.VITE_*` when referenced directly.
+ */
+function isDebugBuild(): boolean {
+  // Direct literal access so Vite statically substitutes these at build time;
+  // types don't see import.meta.env (same pattern as resolveApiUrl in api.ts).
+  // @ts-expect-error — Vite replaces import.meta.env.DEV at build time.
+  const dev = import.meta.env.DEV === true;
+  // @ts-expect-error — Vite replaces import.meta.env.VITE_DEBUG at build time.
+  const debugFlag = import.meta.env.VITE_DEBUG as string | undefined;
+  return dev || debugFlag === "true";
+}
+
 export function SignIn({ providers, onSignIn }: SignInProps) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [tokenMode, setTokenMode] = useState(false);
   const [tokenInput, setTokenInput] = useState("");
   const [tokenError, setTokenError] = useState<string | null>(null);
-  const showTokenPath = isCapacitorNative();
+  const showTokenPath = isCapacitorNative() && isDebugBuild();
   // Follow the OS appearance — no user preference exists pre-auth.
   const theme = useResolvedTheme();
 

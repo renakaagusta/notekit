@@ -39,12 +39,29 @@ interface AppleSignInPlugin {
   authorize(options: AppleSignInOptions): Promise<AppleSignInResponseWrapper>;
 }
 
-async function loadPlugin(): Promise<AppleSignInPlugin | null> {
+interface CapacitorGlobal {
+  registerPlugin?: (name: string) => unknown;
+  Plugins?: Record<string, unknown>;
+}
+
+/**
+ * Bind to the native SignInWithApple plugin via the global Capacitor runtime.
+ *
+ * We deliberately do NOT `import("@capacitor-community/apple-sign-in")` — that
+ * dynamic import hangs forever under the `capacitor://localhost` scheme on
+ * iOS 16 (the module-script chunk never resolves), so the sign-in silently
+ * stalls. `Capacitor.registerPlugin(name)` returns a proxy that bridges to the
+ * already-registered native plugin by name, no package JS required.
+ */
+function loadPlugin(): AppleSignInPlugin | null {
+  const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
+  if (!cap) return null;
   try {
-    const mod = (await import("@capacitor-community/apple-sign-in")) as {
-      SignInWithApple?: AppleSignInPlugin;
-    };
-    return mod.SignInWithApple ?? null;
+    if (cap.registerPlugin) {
+      return cap.registerPlugin("SignInWithApple") as unknown as AppleSignInPlugin;
+    }
+    const direct = cap.Plugins?.SignInWithApple;
+    return (direct as AppleSignInPlugin | undefined) ?? null;
   } catch (err) {
     console.warn("[auth/apple] plugin not available", err);
     return null;
@@ -64,7 +81,7 @@ async function loadPlugin(): Promise<AppleSignInPlugin | null> {
  * check on `/auth/apple/native` will fail.
  */
 export async function startNativeAppleSignIn(appBundleId = "com.notekit.app"): Promise<void> {
-  const plugin = await loadPlugin();
+  const plugin = loadPlugin();
   if (!plugin) throw new Error("apple_plugin_unavailable");
 
   const state = randomBase64Url(24);
@@ -95,6 +112,19 @@ export async function startNativeAppleSignIn(appBundleId = "com.notekit.app"): P
   if (!apiRes.ok) {
     const text = await apiRes.text();
     throw new Error(`apple_native_exchange_failed: ${apiRes.status} ${text}`);
+  }
+
+  // Native can't use the SameSite=Lax session cookie cross-origin, so the
+  // server also returns a bearer PAT. Stash it where the api-client looks
+  // for the mobile bearer token; the caller then reloads so the client
+  // re-initializes in bearer mode and the session sticks.
+  const data = (await apiRes.json().catch(() => null)) as { token?: string } | null;
+  if (data?.token) {
+    try {
+      localStorage.setItem("notekit:e2e-pat", data.token);
+    } catch {
+      /* storage blocked — fall back to the cookie attempt */
+    }
   }
 }
 

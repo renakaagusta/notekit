@@ -19,6 +19,12 @@ MOBILE="$REPO_ROOT/apps/mobile"
 [[ -d "$MOBILE/ios" ]] && {
   echo "→ patching iOS Info.plist (ATS exception for localhost)"
   cp "$PATCHES/ios/App/App/Info.plist" "$MOBILE/ios/App/App/Info.plist"
+
+  echo "→ patching iOS app icon (monochrome AppIcon.appiconset)"
+  ICONSET="App/App/Assets.xcassets/AppIcon.appiconset"
+  mkdir -p "$MOBILE/ios/$ICONSET"
+  cp "$PATCHES/ios/$ICONSET"/*.png "$MOBILE/ios/$ICONSET"/
+  cp "$PATCHES/ios/$ICONSET/Contents.json" "$MOBILE/ios/$ICONSET/Contents.json"
 }
 
 [[ -d "$MOBILE/android" ]] && {
@@ -28,6 +34,17 @@ MOBILE="$REPO_ROOT/apps/mobile"
   mkdir -p "$MOBILE/android/app/src/main/res/xml"
   cp "$PATCHES/android/app/src/main/res/xml/network_security_config.xml" \
      "$MOBILE/android/app/src/main/res/xml/network_security_config.xml"
+
+  echo "→ patching Android launcher icons (monochrome mipmaps + adaptive bg)"
+  RES="app/src/main/res"
+  for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+    mkdir -p "$MOBILE/android/$RES/mipmap-$d"
+    cp "$PATCHES/android/$RES/mipmap-$d"/*.png \
+       "$MOBILE/android/$RES/mipmap-$d"/
+  done
+  mkdir -p "$MOBILE/android/$RES/values"
+  cp "$PATCHES/android/$RES/values/ic_launcher_background.xml" \
+     "$MOBILE/android/$RES/values/ic_launcher_background.xml"
 }
 
 echo "✓ patches applied"

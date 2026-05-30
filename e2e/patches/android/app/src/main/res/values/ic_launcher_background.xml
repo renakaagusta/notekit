@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the dark zinc-900 bg baked into ic_launcher_foreground so the
+         adaptive-icon mask doesn't reveal a different colour at the corners. -->
+    <color name="ic_launcher_background">#18181B</color>
+</resources>

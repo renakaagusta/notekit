@@ -76,7 +76,7 @@ export function NotekitIcon({ size = 16, className }: IconProps) {
         y1="50"
         x2="42"
         y2="14"
-        stroke="#f59e0b"
+        stroke="#fafafa"
         strokeWidth="8.32"
         strokeLinecap="round"
       />

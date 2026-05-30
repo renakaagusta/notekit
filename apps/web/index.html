@@ -11,8 +11,16 @@
          in the user's OS theme — light desktops no longer see a flash of
          pure black before the app mounts and resolves theme. -->
     <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#18181b" />
     <title>note/kit</title>
+    <!-- SVG favicon is the theme-aware mark (prefers-color-scheme stroke).
+         ICO is the 16/32/48 legacy fallback for tabs without SVG support.
+         apple-touch-icon ships the dark-bg mark for iOS "Add to Home Screen".
+         The webmanifest registers the maskable/any PWA icons + theme colour. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
   </head>
   <body>
     <div id="root"></div>

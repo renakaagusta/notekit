@@ -1,4 +1,6 @@
-/** Rounded-square with amber diagonal slash — used as favicon and inline mark. */
+/** Rounded-square with a diagonal slash — used as favicon and inline mark.
+ * Monochrome: the slash follows the neutral accent (near-black on light,
+ * near-white on dark); the outline follows currentColor. */
 export function NoteKitMark({ size = 24, className }: { size?: number; className?: string }) {
   return (
     <svg
@@ -16,13 +18,14 @@ export function NoteKitMark({ size = 24, className }: { size?: number; className
       />
       <line
         x1="10.5" y1="26" x2="21.5" y2="6"
-        stroke="var(--accent,#f5a623)" strokeWidth="6.5" strokeLinecap="round"
+        stroke="var(--accent,#18181b)" strokeWidth="6.5" strokeLinecap="round"
       />
     </svg>
   );
 }
 
-/** "note/kit" wordmark with the slash rendered in the accent colour. */
+/** "note/kit" wordmark. Monochrome: the slash is a quiet gray separator so it
+ * still reads as a divider without the old amber pop. */
 export function NoteKitWordmark({ className }: { className?: string }) {
   return (
     <span
@@ -30,7 +33,7 @@ export function NoteKitWordmark({ className }: { className?: string }) {
       style={{ fontWeight: 700, letterSpacing: "-0.025em", lineHeight: 1 }}
     >
       note
-      <span style={{ color: "var(--accent,#f5a623)" }}>/</span>
+      <span style={{ color: "var(--muted,#a1a1aa)" }}>/</span>
       kit
     </span>
   );

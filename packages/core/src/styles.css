@@ -377,18 +377,19 @@ body {
   line-height: 1;
 }
 
-/* Collapse control sits at the trailing edge of the brand row; quiet
- * until the row is hovered so the brand stays clean at rest. */
+/* Collapse control sits at the trailing edge of the brand row. Quiet but
+ * always visible at rest so it's discoverable; brightens on hover/focus. */
 .nk-brand-collapse {
   margin-left: auto;
   color: var(--muted);
-  opacity: 0;
-  transition: opacity 120ms;
+  opacity: 0.6;
+  transition: opacity 120ms, color 120ms;
 }
 
 .nk-brand:hover .nk-brand-collapse,
 .nk-brand-collapse:focus-visible {
   opacity: 1;
+  color: var(--text-2);
 }
 
 /* Expand control, shown in the document header when the sidebar is hidden. */

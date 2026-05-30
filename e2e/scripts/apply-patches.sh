@@ -23,6 +23,10 @@ MOBILE="$REPO_ROOT/apps/mobile"
   echo "→ patching iOS app icon (monochrome AppIcon.appiconset)"
   ICONSET="App/App/Assets.xcassets/AppIcon.appiconset"
   mkdir -p "$MOBILE/ios/$ICONSET"
+  # Wipe the old (Capacitor default) entries before overlaying — a smaller
+  # incoming set would otherwise leave stale PNGs the new Contents.json no
+  # longer references, which Xcode warns on.
+  rm -f "$MOBILE/ios/$ICONSET"/*.png "$MOBILE/ios/$ICONSET/Contents.json"
   cp "$PATCHES/ios/$ICONSET"/*.png "$MOBILE/ios/$ICONSET"/
   cp "$PATCHES/ios/$ICONSET/Contents.json" "$MOBILE/ios/$ICONSET/Contents.json"
 }

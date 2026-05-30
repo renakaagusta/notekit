@@ -1,4 +1,33 @@
 services:
+  # Marketing/landing page on the apex (notekit.online + www). Also the
+  # natural home of the wildcard cert request (main=notekit.online,
+  # sans=*.notekit.online) which covers every other router below.
+  notekit-landing:
+    image: notekit-landing:latest
+    container_name: notekit-landing
+    restart: unless-stopped
+    networks:
+      - infrastructure
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=infrastructure"
+      - "traefik.http.services.notekit-landing.loadbalancer.server.port=80"
+      - "traefik.http.middlewares.notekit-compress.compress=true"
+      - "traefik.http.routers.notekit-landing.rule=Host(`${ROOT_DOMAIN}`) || Host(`www.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.notekit-landing.entrypoints=websecure"
+      - "traefik.http.routers.notekit-landing.tls.certresolver=cloudflare"
+      - "traefik.http.routers.notekit-landing.tls.domains[0].main=${ROOT_DOMAIN}"
+      - "traefik.http.routers.notekit-landing.tls.domains[0].sans=*.${ROOT_DOMAIN}"
+      - "traefik.http.routers.notekit-landing.service=notekit-landing"
+      - "traefik.http.routers.notekit-landing.middlewares=notekit-compress"
+      - "traefik.http.routers.notekit-landing.priority=10"
+
   notekit-web:
     image: notekit-web:latest
     container_name: notekit-web
@@ -15,12 +44,9 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=infrastructure"
       - "traefik.http.services.notekit-web.loadbalancer.server.port=80"
-      - "traefik.http.middlewares.notekit-compress.compress=true"
       - "traefik.http.routers.notekit-web.rule=Host(`${WEB_DOMAIN}`)"
       - "traefik.http.routers.notekit-web.entrypoints=websecure"
       - "traefik.http.routers.notekit-web.tls.certresolver=cloudflare"
-      - "traefik.http.routers.notekit-web.tls.domains[0].main=${ROOT_DOMAIN}"
-      - "traefik.http.routers.notekit-web.tls.domains[0].sans=*.${ROOT_DOMAIN}"
       - "traefik.http.routers.notekit-web.service=notekit-web"
       - "traefik.http.routers.notekit-web.middlewares=notekit-compress"
       - "traefik.http.routers.notekit-web.priority=10"

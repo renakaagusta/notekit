@@ -37,11 +37,22 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache-web
           cache-to: type=local,dest=/tmp/.buildx-cache-web-new,mode=max
 
+      - name: Build landing image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/landing/Dockerfile
+          tags: notekit-landing:latest
+          load: true
+          cache-from: type=local,src=/tmp/.buildx-cache-landing
+          cache-to: type=local,dest=/tmp/.buildx-cache-landing-new,mode=max
+
       - name: Rotate build cache
         run: |
-          rm -rf /tmp/.buildx-cache-api /tmp/.buildx-cache-web
+          rm -rf /tmp/.buildx-cache-api /tmp/.buildx-cache-web /tmp/.buildx-cache-landing
           mv /tmp/.buildx-cache-api-new /tmp/.buildx-cache-api || true
           mv /tmp/.buildx-cache-web-new /tmp/.buildx-cache-web || true
+          mv /tmp/.buildx-cache-landing-new /tmp/.buildx-cache-landing || true
 
       - name: Deploy
         env:

@@ -4,7 +4,8 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "sync": "pnpm --filter @notekit/web build && cap sync",
+    "sync": "pnpm --filter @notekit/web build && cap sync && pnpm firebase:config",
+    "firebase:config": "test -d android/app && cp -f android-config/google-services.json android/app/google-services.json || true",
     "ios": "pnpm sync && cap open ios",
     "android": "pnpm sync && cap open android",
     "add:ios": "cap add ios",

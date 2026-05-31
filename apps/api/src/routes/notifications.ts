@@ -155,7 +155,8 @@ notificationRoutes.get("/prefs", async (c) => {
       telegram: { linked: Boolean(link) },
       webPush: { configured: Boolean(env.vapid.publicKey) },
       mobilePush: {
-        ios: Boolean(env.apns.keyP8),
+        // Both platforms deliver via FCM now, so a single credential gates both.
+        ios: Boolean(env.fcm.privateKey),
         android: Boolean(env.fcm.privateKey),
       },
     },

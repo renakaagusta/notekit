@@ -24,6 +24,7 @@ import type { User } from "../types/user";
 import { CreateMenu } from "./CreateMenu";
 import { NoteList } from "./NoteList";
 import { TicketSidebarList } from "./TicketSidebarList";
+import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { VaultSwitcher } from "./VaultSwitcher";
 import { NotekitIcon } from "./BrandIcons";
 
@@ -341,6 +342,13 @@ export function Sidebar({
           )}
         </span>
       </div>
+
+      {/* On mobile the list pane (this sidebar) is shown while <main> — where
+          the desktop banner lives — is display:none, so an undecryptable-notes
+          warning there would be invisible. Surface it here so a device that
+          can't read encrypted notes gets the "pair this device" hint instead
+          of a silently-empty list. Desktop keeps the banner in <main>. */}
+      {mobileShell && <EncryptedSkippedBanner />}
 
       {view === "notes" && <NoteList />}
       {view === "tickets" && <TicketSidebarList />}

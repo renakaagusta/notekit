@@ -21,7 +21,11 @@ import {
   getVaultSettings,
   listVaults,
 } from "../lib/vault-api";
-import { refresh as refreshSync, start as startSync } from "../lib/sync";
+import {
+  refresh as refreshSync,
+  start as startSync,
+  pull as pullSync,
+} from "../lib/sync";
 import { bindVaultPersistence } from "../lib/vault-persistence";
 import {
   startVaultEventStream,
@@ -55,6 +59,24 @@ import { isValidYMD, journalYMDFromPath, shiftYMD, todayYMD } from "../lib/journ
 import type { SearchHit } from "../lib/search";
 
 type MainView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
+
+/**
+ * The initial content pull (startSync) can finish before bootstrapCrypto has
+ * loaded this device's age identity — sync.ts reads `device.identity` at pull
+ * time, so a race leaves every encrypted note/ticket/link skipped, and pull()
+ * does a replaceAll so they're dropped from the local cache too. Once crypto is
+ * ready we re-pull so those items decrypt and hydrate, instead of staying
+ * invisible until the next focus/visibility refresh (which on a freshly-opened
+ * mobile WebView may never fire). No-op when nothing was skipped or the device
+ * still has no identity (genuinely unpaired — that path shows the pair dialog).
+ */
+async function rehydrateEncryptedIfSkipped(): Promise<void> {
+  const skipped = useSyncStore.getState().encryptedSkipped;
+  const total = skipped.notes + skipped.tickets + skipped.links;
+  if (total === 0) return;
+  if (!useCryptoStore.getState().device?.identity) return;
+  await pullSync();
+}
 
 interface AppProps {
   user?: User | null;
@@ -249,6 +271,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           // arrive via push instead of waiting for the next focus-pull.
           startVaultEventStream();
           await cryptoReady;
+          await rehydrateEncryptedIfSkipped();
         } else {
           setVaultPhase("needs-pick");
         }
@@ -377,6 +400,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
     await startSync();
     startVaultEventStream();
     await cryptoReady;
+    await rehydrateEncryptedIfSkipped();
   }
 
   function onSearchSelect(hit: SearchHit) {

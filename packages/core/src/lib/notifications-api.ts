@@ -74,6 +74,21 @@ export async function unlinkTelegram(): Promise<void> {
   await apiFetch(`/notifications/telegram`, { method: "DELETE" });
 }
 
+/**
+ * Alert the user that a new device joined their encrypted vault. Best-effort:
+ * pairing already succeeded by the time this is called, so a failure here must
+ * never surface as a pairing error.
+ */
+export async function notifyDevicePaired(
+  deviceId: string,
+  deviceName: string,
+): Promise<void> {
+  await apiFetch(`/notifications/device-paired`, {
+    method: "POST",
+    body: JSON.stringify({ deviceId, deviceName }),
+  });
+}
+
 export interface Entitlement {
   plus: boolean;
   plusUntil: string | null;

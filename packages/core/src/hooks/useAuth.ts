@@ -8,7 +8,8 @@ import {
   startDesktopSignIn,
 } from "../lib/api";
 import { startNativeAppleSignIn } from "../lib/apple-signin";
-import { getNativePlatform } from "../lib/native";
+import { startNativeOAuth, initNativeAuthDeepLink } from "../lib/native-oauth";
+import { getNativePlatform, isNativePlatform } from "../lib/native";
 import { useAuthStore } from "../stores/authStore";
 import type { User } from "../types/user";
 
@@ -32,6 +33,13 @@ export function useAuth() {
 
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [providers, setProviders] = useState<ProvidersResponse | null>(null);
+
+  // Register the native OAuth deep-link listener once so a callback that
+  // reopens the app (notekit://auth-callback?token=…) gets captured. No-op
+  // off native.
+  useEffect(() => {
+    initNativeAuthDeepLink();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +95,22 @@ export function useAuth() {
         window.location.reload();
       } catch (err) {
         console.error("[auth] apple native sign-in failed", err);
+      }
+      return;
+    }
+
+    // GitHub / Google on native iOS or Android: the web cookie redirect
+    // can't reach the app's WebView, so run the deep-link PAT flow — open
+    // the OAuth start in an in-app browser; the appUrlOpen listener
+    // (initNativeAuthDeepLink) captures the returned token and reloads.
+    if (
+      (provider === "github" || provider === "google") &&
+      isNativePlatform()
+    ) {
+      try {
+        await startNativeOAuth(provider);
+      } catch (err) {
+        console.error("[auth] native oauth failed", err);
       }
       return;
     }

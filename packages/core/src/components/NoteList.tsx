@@ -53,7 +53,7 @@ function buildTree(notes: Note[], extraFolders: string[]): FolderNode {
   return root;
 }
 
-export function NoteList() {
+export function NoteList({ mobileShell = false }: { mobileShell?: boolean }) {
   const all = useNotesStore((s) => s.all());
   const folders = useNotesStore((s) => s.folders);
   const activeNoteId = useNotesStore((s) => s.activeNoteId);
@@ -163,9 +163,11 @@ export function NoteList() {
   const isEmpty = all.length === 0 && folders.length === 0;
   if (isEmpty) {
     return (
-      <div className="nk-empty">
+      <div className="nk-empty nk-empty--center">
         <p>No notes yet.</p>
-        <p className="nk-empty-hint">Press ⌘N to create one.</p>
+        <p className="nk-empty-hint">
+          {mobileShell ? "Tap + to create one." : "Press ⌘N to create one."}
+        </p>
       </div>
     );
   }

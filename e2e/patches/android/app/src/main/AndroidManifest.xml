@@ -23,6 +23,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Native OAuth (Google/GitHub) callback. The server redirects to
+                 notekit://auth-callback?token=… and Capacitor's appUrlOpen
+                 picks it up. Scheme must match NATIVE_AUTH_SCHEME in the API
+                 and native-oauth.ts. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="notekit" android:host="auth-callback" />
+            </intent-filter>
+
         </activity>
 
         <provider

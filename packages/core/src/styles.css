@@ -6171,13 +6171,28 @@ a.nk-commit-sha:hover {
      `padding-top: env(safe-area-inset-top)` rule near the top of this
      file — so this header only needs its own visual padding.) */
   .nk-app[data-mobile="true"] .nk-sidebar-hd {
-    display: flex;
+    /* Three-slot grid so the title is centered against the viewport, not
+       against the unequal icon groups. `space-between` (the desktop rule)
+       balances the *gaps*, which pushes "Notes" ~18px left because the
+       right side has two icons (search + add) and the left has one
+       (hamburger). Matched 1fr side columns center the title for real. */
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
     padding: 6px 16px 8px;
     font-size: 22px;
     font-weight: 600;
     letter-spacing: -0.01em;
     text-transform: none;
     color: var(--text);
+  }
+  /* Title cell (the unclassed middle <span>) centers its text; the action
+     group sits at the right edge of its 1fr column. */
+  .nk-app[data-mobile="true"] .nk-sidebar-hd > span:not(.nk-sidebar-hd-actions) {
+    text-align: center;
+  }
+  .nk-app[data-mobile="true"] .nk-sidebar-hd-actions {
+    justify-content: flex-end;
   }
   /* Touch-sized + full-contrast header controls. The default desktop
      icon size (14–16px in --text-2) read as faint specks on the phone

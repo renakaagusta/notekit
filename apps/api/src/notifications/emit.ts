@@ -15,7 +15,7 @@ import { sendTelegram } from "./channels/telegram";
 import { sendWebPush } from "./channels/webpush";
 import { sendMobilePush } from "./channels/mobilepush";
 
-export type AgentEventType = "file.write" | "file.delete";
+export type AgentEventType = "file.write" | "file.delete" | "device.paired";
 
 export interface AgentEventInput {
   userId: string;
@@ -26,6 +26,10 @@ export interface AgentEventInput {
 }
 
 function summaryFor(input: AgentEventInput): string {
+  if (input.eventType === "device.paired") {
+    const name = (input.extra?.deviceName as string | undefined) || "A new device";
+    return `${name} was paired with your account`;
+  }
   const verb = input.eventType === "file.delete" ? "deleted" : "updated";
   return `${input.agentSlug} ${verb} ${input.resourcePath}`;
 }

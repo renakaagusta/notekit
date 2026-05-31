@@ -9,6 +9,7 @@ import { addDevice, listDevices, readRecovery } from "../lib/secrets-vault";
 import { recoveryFromMnemonic } from "../lib/crypto/recovery";
 import { importRecovery } from "../lib/crypto/recovery-store";
 import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
+import { notifyDevicePaired } from "../lib/notifications-api";
 
 /**
  * Derive the human-comparable pairing fingerprint for a pubkey. Both the new
@@ -153,6 +154,9 @@ export function VaultPairNewDevice() {
       // local copy on this device (marked backed-up) so the backup sheet works
       // here too and the nudge stays quiet.
       await importRecovery(recoveryInput).catch(() => {});
+      // Security alert across the user's channels. Best-effort — pairing
+      // already succeeded, so a notify failure must not block unlock.
+      await notifyDevicePaired(device.deviceId, device.name).catch(() => {});
       setPhase("ready");
     } catch (e) {
       setRecoveryError((e as Error).message);
@@ -294,6 +298,9 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
         signer,
       );
       await clearPair(code.trim()).catch(() => {});
+      // Security alert across the user's channels. Best-effort — the device is
+      // already paired, so a notify failure must not block closing the dialog.
+      await notifyDevicePaired(info.deviceId, info.deviceName).catch(() => {});
       onClose();
     } catch (e) {
       setError((e as Error).message);

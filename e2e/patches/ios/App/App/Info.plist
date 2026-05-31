@@ -46,6 +46,23 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<!--
+	  Custom URL scheme for native OAuth (Google/GitHub) callbacks. The
+	  server redirects to notekit://auth-callback?token=… and iOS hands that
+	  back to the app via @capacitor/app's appUrlOpen. Must match
+	  NATIVE_AUTH_SCHEME in apps/api auth.ts and native-oauth.ts.
+	-->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.notekit.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>notekit</string>
+			</array>
+		</dict>
+	</array>
+	<!--
 	  ATS exception for local API + Maestro E2E. limitsNavigationsToAppBoundDomains
 	  in capacitor.config.ts already keeps WebView navigations on-brand; this
 	  allows the XHR/fetch calls our SPA makes to http://localhost during dev

@@ -33,6 +33,36 @@ if (!env.isProd) {
   });
 }
 
+const DevicePairedBody = z.object({
+  deviceId: z.string().min(1).max(128),
+  deviceName: z.string().min(1).max(200),
+});
+
+/**
+ * POST /notifications/device-paired — alert the user that a new E2EE device
+ * joined their vault. Pairing itself is a client-side Git-vault commit the
+ * server never sees, so the approving device pings this after addDevice()
+ * succeeds. This is a security signal: an unexpected one means someone else
+ * got a code (or the recovery phrase) approved.
+ */
+notificationRoutes.post("/device-paired", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const parsed = await parseBody(c, DevicePairedBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
+  emitAgentEvent({
+    userId: user.id,
+    agentSlug: "security",
+    eventType: "device.paired",
+    resourcePath: `.notekit/devices/${parsed.data.deviceId}.json`,
+    extra: {
+      deviceId: parsed.data.deviceId,
+      deviceName: parsed.data.deviceName,
+    },
+  });
+  return c.json({ ok: true });
+});
+
 /**
  * GET /notifications?limit=50&before=<id> — paginated inbox, newest first.
  */

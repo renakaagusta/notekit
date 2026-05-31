@@ -350,7 +350,7 @@ export function Sidebar({
           of a silently-empty list. Desktop keeps the banner in <main>. */}
       {mobileShell && <EncryptedSkippedBanner />}
 
-      {view === "notes" && <NoteList />}
+      {view === "notes" && <NoteList mobileShell={mobileShell} />}
       {view === "tickets" && <TicketSidebarList />}
       {view === "graph" && (
         <div className="nk-empty">

@@ -303,6 +303,34 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, [activeVaultId, setActiveSettings]);
 
+  // When crypto becomes `ready` after the initial mount — i.e. the user
+  // just finished pairing this device — items skipped by the pre-pairing
+  // pull won't appear until something re-pulls. Re-hydrate on the
+  // transition. The approving device re-encrypts existing items *after*
+  // writing the new device record, and the new device flips to `ready` as
+  // soon as it sees that record, so the first re-pull can race the
+  // re-encryption commit — retry a few times until nothing's left skipped.
+  useEffect(() => {
+    if (cryptoPhase !== "ready") return;
+    let cancelled = false;
+    let tries = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const attempt = async () => {
+      if (cancelled) return;
+      await rehydrateEncryptedIfSkipped();
+      const s = useSyncStore.getState().encryptedSkipped;
+      tries += 1;
+      if (!cancelled && s.notes + s.tickets + s.links > 0 && tries < 4) {
+        timer = setTimeout(attempt, 2500);
+      }
+    };
+    timer = setTimeout(attempt, 1500);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [cryptoPhase]);
+
   // Pull from the remote on tab visibility / window focus so a device that
   // was backgrounded catches up on edits made elsewhere. refreshSync() is a
   // no-op if the engine hasn't started or local writes are still queued, so

@@ -505,6 +505,160 @@ async function reencryptAllItems(
   }
 }
 
+// ─── Per-item sharing ────────────────────────────────────────────────────────
+
+export const SHARES_PREFIX = ".notekit/shares/";
+
+/** A single grant: one invitee an item has been shared with. */
+export interface ShareGrant {
+  /** Invitee's account email (how they were looked up in the directory). */
+  email: string;
+  /** Invitee's recovery signing key — kept so the grant can be re-verified. */
+  signingKey: string;
+  /** Invitee's verified device recipients the item is sealed to. */
+  recipients: string[];
+  grantedAt: string;
+}
+
+/**
+ * The shared-recipients record for one item, committed to
+ * `.notekit/shares/{kind}-{id}.json`. This is the **persistent source of
+ * truth** for an item's extra recipients — sync consults it on every re-seal
+ * via {@link recipientsForItem}, so editing a shared note doesn't silently
+ * drop the people it was shared with. Recipients are public keys, so the
+ * manifest is cleartext (it does leak *which* items are shared with whom).
+ */
+export interface ShareManifest {
+  version: 1;
+  kind: EncryptedItemKind;
+  id: string;
+  shares: ShareGrant[];
+}
+
+function sharePath(kind: EncryptedItemKind, id: string): string {
+  return `${SHARES_PREFIX}${kind}-${id}.json`;
+}
+
+function itemPrefix(kind: EncryptedItemKind): string {
+  return kind === "note" ? "notes/" : kind === "ticket" ? "tickets/" : "links/";
+}
+
+export async function readShareManifest(
+  kind: EncryptedItemKind,
+  id: string,
+): Promise<ShareManifest | null> {
+  const file = await backend.readFile(sharePath(kind, id));
+  if (file.sha) shaCache.set(file.path, file.sha);
+  if (typeof file.content !== "string" || !file.content) return null;
+  try {
+    return JSON.parse(file.content) as ShareManifest;
+  } catch {
+    return null;
+  }
+}
+
+async function writeShareManifest(m: ShareManifest, message: string): Promise<void> {
+  const path = sharePath(m.kind, m.id);
+  const result = await backend.writeFile(
+    path,
+    JSON.stringify(m, null, 2),
+    message,
+    shaCache.get(path),
+  );
+  shaCache.set(path, result.sha);
+}
+
+/** Recipients an item is shared with, beyond the vault's own devices. */
+export async function extraRecipientsForItem(
+  kind: EncryptedItemKind,
+  id: string,
+): Promise<string[]> {
+  const m = await readShareManifest(kind, id);
+  if (!m) return [];
+  const set = new Set<string>();
+  for (const g of m.shares) for (const r of g.recipients) set.add(r);
+  return Array.from(set);
+}
+
+/**
+ * Full recipient set for sealing a specific item: the vault's own recipients
+ * plus anyone the item is shared with. Sync uses this (not the bare
+ * {@link collectVaultRecipients}) so shared items keep their invitees.
+ */
+export async function recipientsForItem(
+  kind: EncryptedItemKind,
+  id: string,
+  device: DeviceIdentity,
+): Promise<string[]> {
+  const [base, extra] = await Promise.all([
+    collectVaultRecipients(device),
+    extraRecipientsForItem(kind, id),
+  ]);
+  return Array.from(new Set([...base, ...extra]));
+}
+
+/** Re-seal a single encrypted item to a new recipient set. */
+async function reencryptItem(
+  kind: EncryptedItemKind,
+  id: string,
+  signer: DeviceIdentity,
+  recipients: string[],
+  message: string,
+): Promise<boolean> {
+  const { entries } = await backend.listFiles(itemPrefix(kind));
+  for (const e of entries) {
+    if (classifyEncryptedPath(e.path) !== kind) continue;
+    const file = await backend.readFile(e.path);
+    if (!file.sha || typeof file.content !== "string" || !file.content) continue;
+    const env = parseEncryptedEnvelope(file.content);
+    if (!env || env.fm.id !== id) continue;
+    const payload = await decryptItemPayload<unknown>(env.ciphertext, signer.identity);
+    const armored = await encryptItemPayload(payload, recipients);
+    const headerEnd = file.content.indexOf("-----BEGIN AGE ENCRYPTED FILE-----");
+    const header = headerEnd >= 0 ? file.content.slice(0, headerEnd) : "---\n---\n";
+    const result = await backend.writeFile(e.path, `${header}${armored}\n`, message, file.sha);
+    shaCache.set(e.path, result.sha);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Share an item with an already-verified invitee: record the grant in the
+ * item's share manifest and re-encrypt the item to include their recipients.
+ * The caller must have verified the invitee's keys (via
+ * `directory.fetchVerifiedKeys`) — this function trusts the passed recipients.
+ *
+ * Repo *read* access is a separate concern handled by the collaborator-invite
+ * flow; this only manages the E2EE recipient set.
+ */
+export async function shareItemWith(
+  kind: EncryptedItemKind,
+  id: string,
+  grant: { email: string; signingKey: string; recipients: string[] },
+  signer: DeviceIdentity,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const existing =
+    (await readShareManifest(kind, id)) ??
+    ({ version: 1, kind, id, shares: [] } as ShareManifest);
+  // Replace any prior grant to the same email (re-share with refreshed keys).
+  const shares = existing.shares.filter((s) => s.email !== grant.email);
+  shares.push({ ...grant, grantedAt: now });
+  await writeShareManifest(
+    { version: 1, kind, id, shares },
+    `Share ${kind} "${id}" with ${grant.email}`,
+  );
+  const recipients = await recipientsForItem(kind, id, signer);
+  await reencryptItem(
+    kind,
+    id,
+    signer,
+    recipients,
+    `Re-encrypt ${kind} "${id}" for share with ${grant.email}`,
+  );
+}
+
 // ─── Vault index ─────────────────────────────────────────────────────────────
 
 async function readVaultsIndex(): Promise<VaultsIndex> {

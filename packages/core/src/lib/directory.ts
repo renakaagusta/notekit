@@ -15,8 +15,11 @@ import {
   deviceRecordTrusted,
   listDevices,
   readRecovery,
+  shareItemWith,
   type SignedDeviceFields,
 } from "./secrets-vault";
+import { useCryptoStore } from "../stores/cryptoStore";
+import type { EncryptedItemKind } from "./crypto/item-crypto";
 
 interface DirectoryDevice {
   deviceId: string;
@@ -105,6 +108,56 @@ export async function fetchVerifiedKeys(
   }
 
   return { email: res.email, signingKey: res.signingKey, recipients, rejected };
+}
+
+export interface ShareResult {
+  /** false when the invitee has no account / published no verifiable keys. */
+  shared: boolean;
+  /** Number of the invitee's verified device recipients the item now seals to. */
+  recipients: number;
+  /** Records the directory returned that failed verification (ignored). */
+  rejected: number;
+  reason?: "not_found" | "no_verified_keys" | "no_identity";
+}
+
+/**
+ * Share an item with another user by email: look them up, verify their keys,
+ * and (only if at least one verified recipient remains) record the grant and
+ * re-encrypt the item to include them. Repo read access is granted separately
+ * via the collaborator invite.
+ */
+export async function shareItem(
+  kind: EncryptedItemKind,
+  id: string,
+  email: string,
+): Promise<ShareResult> {
+  const verified = await fetchVerifiedKeys(email);
+  if (!verified) {
+    return { shared: false, recipients: 0, rejected: 0, reason: "not_found" };
+  }
+  if (verified.recipients.length === 0) {
+    return {
+      shared: false,
+      recipients: 0,
+      rejected: verified.rejected,
+      reason: "no_verified_keys",
+    };
+  }
+  const device = useCryptoStore.getState().device;
+  if (!device) {
+    return { shared: false, recipients: 0, rejected: verified.rejected, reason: "no_identity" };
+  }
+  await shareItemWith(
+    kind,
+    id,
+    {
+      email: verified.email,
+      signingKey: verified.signingKey,
+      recipients: verified.recipients,
+    },
+    device,
+  );
+  return { shared: true, recipients: verified.recipients.length, rejected: verified.rejected };
 }
 
 export function isNotFound(e: unknown): boolean {

@@ -3,11 +3,14 @@ import {
   CONFIG_PATH,
   DEVICES_PREFIX,
   RECOVERY_PATH,
+  SHARES_PREFIX,
   collectVaultRecipients,
   configureSecretsBackend,
+  extraRecipientsForItem,
   initVault,
   readRecovery,
   readVaultConfig,
+  recipientsForItem,
   type SecretsBackend,
 } from "./secrets-vault";
 import type { DeviceIdentity } from "./crypto/device-key";
@@ -170,6 +173,44 @@ describe("signed recipient records (key-substitution defence)", () => {
     );
     const recipients = await collectVaultRecipients(device);
     expect(recipients).toContain("age1otherpubkey"); // accepted, no enforcement
+  });
+
+  it("merges share-manifest recipients into an item's recipient set", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    await initVault({ device, recoveryRecipient: "age1recovery", encryption: "off" });
+
+    files.set(
+      `${SHARES_PREFIX}note-n1.json`,
+      JSON.stringify({
+        version: 1,
+        kind: "note",
+        id: "n1",
+        shares: [
+          {
+            email: "b@example.com",
+            signingKey: "Kb",
+            recipients: ["age1invitee1", "age1invitee2"],
+            grantedAt: "2026-06-01T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+
+    expect(await extraRecipientsForItem("note", "n1")).toEqual([
+      "age1invitee1",
+      "age1invitee2",
+    ]);
+
+    const shared = await recipientsForItem("note", "n1", device);
+    expect(shared).toContain(device.recipient); // vault's own
+    expect(shared).toContain("age1recovery");
+    expect(shared).toContain("age1invitee1"); // ← invitee persists
+    expect(shared).toContain("age1invitee2");
+
+    // An item with no manifest gets only the vault's recipients.
+    const unshared = await recipientsForItem("note", "n2", device);
+    expect(unshared).not.toContain("age1invitee1");
   });
 
   it("throws when the recovery record's self-signature is invalid (tampered root)", async () => {

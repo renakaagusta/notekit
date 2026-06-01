@@ -49,7 +49,7 @@ export function GitlabIcon({ size = 16, className }: IconProps) {
   );
 }
 
-/** NoteKit app icon (rounded square + amber slash). */
+/** NoteKit app icon (rounded square + monochrome slash). */
 export function NotekitIcon({ size = 16, className }: IconProps) {
   return (
     <svg
@@ -61,16 +61,6 @@ export function NotekitIcon({ size = 16, className }: IconProps) {
       aria-hidden
     >
       <rect x="0" y="0" width="64" height="64" rx="14.08" fill="#18181b" />
-      <rect
-        x="6"
-        y="6"
-        width="52"
-        height="52"
-        rx="12"
-        fill="none"
-        stroke="#e4e4e7"
-        strokeWidth="2.56"
-      />
       <line
         x1="22"
         y1="50"

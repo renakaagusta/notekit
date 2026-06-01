@@ -84,6 +84,7 @@ export const DEVICES_PREFIX = ".notekit/devices/";
 export const RECOVERY_PATH = ".notekit/recovery.json";
 export const SECRETS_PREFIX = ".notekit/secrets/";
 export const VAULTS_INDEX_PATH = ".notekit/secrets/_vaults.json";
+export const CONFIG_PATH = ".notekit/config.json";
 
 /** Slug for the unnamed root-level vault. Empty string by design. */
 export const DEFAULT_VAULT_SLUG = "";
@@ -105,6 +106,22 @@ export interface DeviceRecord {
 export interface RecoveryRecord {
   recipient: string;
   createdAt: string;
+}
+
+/**
+ * Vault-level encryption policy, fixed at creation ("born-E2EE"). We never
+ * flip a cleartext vault to `required` in place — git history would retain the
+ * plaintext forever (see docs/architecture/e2ee-everywhere-and-sharing.md §4).
+ *
+ *   - `required` — every item (note/ticket/link/journal) is sealed; the
+ *     per-item plaintext escape hatch is hidden. The default for new vaults.
+ *   - `off`      — legacy per-item opt-in (the historical behaviour). Also the
+ *     fallback when `.notekit/config.json` is absent, so an older vault keeps
+ *     working unchanged rather than suddenly sealing everything.
+ */
+export interface VaultConfig {
+  version: 1;
+  encryption: "required" | "off";
 }
 
 export interface SecretEntry {
@@ -189,6 +206,36 @@ export async function readRecovery(): Promise<RecoveryRecord | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Read the vault encryption policy. Absent or malformed config → `off`
+ * (legacy opt-in), so an older vault is never silently switched to sealing.
+ */
+export async function readVaultConfig(): Promise<VaultConfig> {
+  const fallback: VaultConfig = { version: 1, encryption: "off" };
+  const file = await backend.readFile(CONFIG_PATH);
+  if (file.sha) shaCache.set(file.path, file.sha);
+  if (typeof file.content !== "string" || !file.content) return fallback;
+  try {
+    const parsed = JSON.parse(file.content) as Partial<VaultConfig>;
+    return {
+      version: 1,
+      encryption: parsed.encryption === "required" ? "required" : "off",
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+async function writeVaultConfig(config: VaultConfig, message: string) {
+  const result = await backend.writeFile(
+    CONFIG_PATH,
+    JSON.stringify(config, null, 2),
+    message,
+    shaCache.get(CONFIG_PATH),
+  );
+  shaCache.set(CONFIG_PATH, result.sha);
 }
 
 async function collectRecipients(device: DeviceIdentity): Promise<string[]> {
@@ -439,10 +486,23 @@ export async function isVaultInitialized(): Promise<boolean> {
 export interface InitVaultArgs {
   device: DeviceIdentity;
   recoveryRecipient: string;
+  /**
+   * Encryption policy to stamp on the vault at birth. Defaults to `required`
+   * (E2EE-everywhere) — the policy is fixed here and never changed in place.
+   */
+  encryption?: "required" | "off";
 }
 
-export async function initVault({ device, recoveryRecipient }: InitVaultArgs): Promise<void> {
+export async function initVault({
+  device,
+  recoveryRecipient,
+  encryption = "required",
+}: InitVaultArgs): Promise<void> {
   const now = new Date().toISOString();
+  await writeVaultConfig(
+    { version: 1, encryption },
+    `Initialize crypto vault: set encryption policy "${encryption}"`,
+  );
   await writeRecoveryRecord(
     { recipient: recoveryRecipient, createdAt: now },
     "Initialize crypto vault: set recovery key",

@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import { useLinksStore } from "../stores/linksStore";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { detectPlatform, platformLabel } from "../lib/link-platform";
@@ -86,6 +87,8 @@ export function LinksView() {
   const remove = useLinksStore((s) => s.remove);
   const toggleEncrypted = useLinksStore((s) => s.toggleEncrypted);
   const setFolder = useLinksStore((s) => s.setFolder);
+  // Born-E2EE vault: every link is sealed, no per-item toggle.
+  const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
   const createFolder = useLinksStore((s) => s.createFolder);
   const removeFolder = useLinksStore((s) => s.removeFolder);
   const vaultId = useVaultStore((s) => s.activeId);
@@ -375,26 +378,28 @@ export function LinksView() {
           >
             <ExternalLink size={13} aria-hidden />
           </a>
-          <button
-            className="nk-iconbtn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleToggleEncrypted(link);
-            }}
-            title={
-              link.encrypted
-                ? "Decrypt this link and store it as plain markdown"
-                : "End-to-end encrypt this link"
-            }
-            aria-label={link.encrypted ? "Decrypt link" : "Encrypt link"}
-            aria-pressed={!!link.encrypted}
-          >
-            {link.encrypted ? (
-              <Unlock size={13} aria-hidden />
-            ) : (
-              <Lock size={13} aria-hidden />
-            )}
-          </button>
+          {!encryptionRequired && (
+            <button
+              className="nk-iconbtn"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleEncrypted(link);
+              }}
+              title={
+                link.encrypted
+                  ? "Decrypt this link and store it as plain markdown"
+                  : "End-to-end encrypt this link"
+              }
+              aria-label={link.encrypted ? "Decrypt link" : "Encrypt link"}
+              aria-pressed={!!link.encrypted}
+            >
+              {link.encrypted ? (
+                <Unlock size={13} aria-hidden />
+              ) : (
+                <Lock size={13} aria-hidden />
+              )}
+            </button>
+          )}
           <span className="nk-tree-ctx-wrap">
             <button
               className="nk-iconbtn"

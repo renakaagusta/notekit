@@ -723,18 +723,25 @@ export function App({ user, onSignOut }: AppProps = {}) {
       {vaultPhase === "needs-pick" && (
         <VaultPicker onPicked={onVaultPicked} />
       )}
-      {view === "secrets" && vaultPhase === "ready" && cryptoPhase === "needs-setup" && (
+      {/*
+       * First-run setup is hoisted out of the Secrets-tab gate (it used to
+       * require `view === "secrets"`). With E2EE-everywhere a fresh device
+       * must initialize the vault — write `recovery.json` + register itself —
+       * before *any* item can be sealed, so gating setup behind a tab the
+       * user might never open left the vault uninitialized and every item
+       * silently unsealed. `VaultSetup` is a brief, silent step, safe to run
+       * from any view.
+       */}
+      {vaultPhase === "ready" && cryptoPhase === "needs-setup" && (
         <VaultSetup />
       )}
       {/*
-       * Pair-this-device modal is hoisted out of the Secrets-tab gate so
-       * users discover it from any view. E2EE on notes/tickets/links also
-       * needs the device to be registered (`collectVaultRecipients` only
-       * picks up devices that landed in `.notekit/devices/`), so blocking
-       * it behind a tab navigation would leave new devices encrypting to
-       * themselves only — readable on this device but not by other paired
-       * devices. The modal is dismissable via the recovery-phrase escape
-       * hatch if the user really wants to skip.
+       * Pair-this-device modal is likewise discoverable from any view. E2EE on
+       * notes/tickets/links needs the device registered (`collectVaultRecipients`
+       * only picks up devices in `.notekit/devices/`), so blocking it behind a
+       * tab would leave new devices encrypting to themselves only — readable
+       * here but not by other paired devices. Dismissable via the recovery-
+       * phrase escape hatch.
        */}
       {vaultPhase === "ready" && cryptoPhase === "needs-pair" && (
         <VaultPairNewDevice />

@@ -9,6 +9,7 @@ import {
   journalPathFor,
   journalYMDFromPath,
 } from "../lib/journal";
+import { useCryptoStore } from "./cryptoStore";
 
 interface JournalDraft {
   /** YMD date the draft represents, e.g. "2026-05-16" */
@@ -84,8 +85,13 @@ export const useNotesStore = create<NotesState>()(
         existing?.path ??
         notePathFor({ id, body: input.body, folder, title: input.title });
       // `encrypted` is sticky once set — a sync-down hydration shouldn't
-      // accidentally flip a locally-encrypted note back to plaintext.
-      const encrypted = input.encrypted ?? existing?.encrypted ?? false;
+      // accidentally flip a locally-encrypted note back to plaintext. New
+      // items in a born-E2EE vault default to encrypted (hydration uses
+      // replaceAll, not upsert, so this only affects locally-created notes).
+      const encrypted =
+        input.encrypted ??
+        existing?.encrypted ??
+        useCryptoStore.getState().encryptionRequired;
       const note: Note = {
         id,
         path,

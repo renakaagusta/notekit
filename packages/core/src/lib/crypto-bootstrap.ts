@@ -12,6 +12,7 @@ import {
   isVaultInitialized,
   listDevices,
   readRecovery,
+  readVaultConfig,
 } from "./secrets-vault";
 
 export async function bootstrapCrypto(): Promise<void> {
@@ -19,7 +20,11 @@ export async function bootstrapCrypto(): Promise<void> {
   store.setPhase("checking");
   try {
     const existing = await loadDeviceIdentity();
-    const vaultReady = await isVaultInitialized();
+    const [vaultReady, config] = await Promise.all([
+      isVaultInitialized(),
+      readVaultConfig(),
+    ]);
+    store.setEncryptionRequired(config.encryption === "required");
 
     if (!vaultReady) {
       // Either a brand-new vault or someone needs to set up crypto.

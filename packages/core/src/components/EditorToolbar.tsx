@@ -26,6 +26,7 @@ import {
 } from "../lib/editor-commands";
 import { useNotesStore } from "../stores/notesStore";
 import { useVaultStore } from "../stores/vaultStore";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { noteTitle } from "../lib/note-display";
 
@@ -79,6 +80,8 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
   const vaultId = useVaultStore((s) => s.activeId);
   const vault = useVaultStore((s) => s.vault);
   const requestEncrypt = useE2eeOnboardingStore((s) => s.requestEncrypt);
+  // Born-E2EE vaults seal everything, so there's nothing to toggle — hide it.
+  const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
 
   // Compute the public Git URL for the active note. Returns null for
   // providers we can't link to (managed Forgejo needs the FORGEJO_DOMAIN
@@ -282,7 +285,7 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
         </a>
       )}
 
-      {activeNoteId && activeNote && (
+      {activeNoteId && activeNote && !encryptionRequired && (
         <button
           className={
             "nk-tb-btn" + (activeNote.encrypted ? " is-encrypted" : "")

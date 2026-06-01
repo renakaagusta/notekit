@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import type { SavedLink } from "../types/link";
 import { linkPathFor, sanitizeFolderPath } from "../lib/file-paths";
 import { detectPlatform } from "../lib/link-platform";
+import { useCryptoStore } from "./cryptoStore";
 
 interface LinksState {
   links: Record<string, SavedLink>;
@@ -75,7 +76,10 @@ export const useLinksStore = create<LinksState>()(
           folder,
           createdAt: existing?.createdAt ?? timestamp,
           updatedAt: timestamp,
-          encrypted: input.encrypted ?? existing?.encrypted ?? false,
+          encrypted:
+            input.encrypted ??
+            existing?.encrypted ??
+            useCryptoStore.getState().encryptionRequired,
         };
         set((state) => {
           state.links[id] = link;

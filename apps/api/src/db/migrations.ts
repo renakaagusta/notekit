@@ -226,6 +226,37 @@ const MIGRATIONS: Migration[] = [
       db.exec(`DROP TABLE IF EXISTS agent_avatars`);
     },
   },
+  {
+    id: "011_user_key_directory",
+    up: (db) => {
+      // Public-key directory for cross-user E2EE sharing. To encrypt a note to
+      // another user we need their device pubkeys, but those live in *their*
+      // git vault which we can't read. So each user publishes their PUBLIC keys
+      // here (public keys only — content stays zero-knowledge) for others to
+      // look up. The server never verifies the signatures (it can't — it holds
+      // no recovery key); the consuming client verifies each device record's
+      // `sig` against the published `signing_key` and the signing key itself
+      // via an out-of-band safety number. See e2ee-everywhere-and-sharing §3.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS user_signing_keys (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          signing_key TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS user_directory_devices (
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          device_id TEXT NOT NULL,
+          recipient TEXT NOT NULL,
+          added_at TEXT NOT NULL,
+          sig TEXT,
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (user_id, device_id)
+        );
+      `);
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

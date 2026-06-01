@@ -271,6 +271,44 @@ export const googleIapPurchases = sqliteTable("google_iap_purchases", {
     .$defaultFn(() => new Date()),
 });
 
+/**
+ * Public-key directory for cross-user E2EE sharing. Each user publishes their
+ * recovery signing key + device pubkeys here so others can encrypt to them
+ * (their keys live in their own git vault, unreadable to anyone else). PUBLIC
+ * keys only — content stays zero-knowledge. The server stores; it never
+ * verifies signatures (the consuming client does, against `signingKey` + a
+ * safety number). See docs/architecture/e2ee-everywhere-and-sharing.md §3.
+ */
+export const userSigningKeys = sqliteTable("user_signing_keys", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** Base64 Ed25519 recovery signing public key — the user's trust root. */
+  signingKey: text("signing_key").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const userDirectoryDevices = sqliteTable(
+  "user_directory_devices",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    deviceId: text("device_id").notNull(),
+    /** age recipient (public key) the inviter encrypts shared items to. */
+    recipient: text("recipient").notNull(),
+    addedAt: text("added_at").notNull(),
+    /** Recovery signature over the device record; verified client-side. */
+    sig: text("sig"),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.deviceId] })],
+);
+
 export type DbForgejoAccount = typeof forgejoAccounts.$inferSelect;
 export type DbUser = typeof users.$inferSelect;
 export type NewDbUser = typeof users.$inferInsert;
@@ -289,3 +327,5 @@ export type DbWebPushSubscription = typeof webPushSubscriptions.$inferSelect;
 export type DbMobilePushToken = typeof mobilePushTokens.$inferSelect;
 export type DbAppleIapReceipt = typeof appleIapReceipts.$inferSelect;
 export type DbGoogleIapPurchase = typeof googleIapPurchases.$inferSelect;
+export type DbUserSigningKey = typeof userSigningKeys.$inferSelect;
+export type DbUserDirectoryDevice = typeof userDirectoryDevices.$inferSelect;

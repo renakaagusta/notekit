@@ -4,6 +4,7 @@
  * already good to go.
  */
 import { useCryptoStore } from "../stores/cryptoStore";
+import { useVaultStore } from "../stores/vaultStore";
 import {
   loadDeviceIdentity,
   createDeviceIdentity,
@@ -14,6 +15,30 @@ import {
   readRecovery,
   readVaultConfig,
 } from "./secrets-vault";
+import { loadStoredRecovery } from "./crypto/recovery-store";
+import { recoverySigningFromMnemonic } from "./crypto/recovery";
+import { toB64 } from "./crypto/signing";
+import { verifySigningKeyTrust } from "./crypto/trust-store";
+
+/**
+ * Pin/verify the vault's recovery signing key against this client's TOFU pin
+ * (and the local mnemonic, when held). Catches downgrade and key-substitution
+ * attacks that signed-mode enforcement alone can't (it could be bypassed by
+ * stripping the signing key). No-op for legacy never-signed vaults.
+ */
+async function verifyRecoveryTrust(
+  recovery: Awaited<ReturnType<typeof readRecovery>>,
+): Promise<void> {
+  const vaultId = useVaultStore.getState().activeId;
+  if (!vaultId) return; // no active vault → nothing to pin against
+  let expected: string | null = null;
+  const stored = await loadStoredRecovery();
+  if (stored?.mnemonic) {
+    const sk = await recoverySigningFromMnemonic(stored.mnemonic);
+    expected = toB64(sk.publicKey);
+  }
+  verifySigningKeyTrust(vaultId, recovery?.signingKey ?? null, expected);
+}
 
 export async function bootstrapCrypto(): Promise<void> {
   const store = useCryptoStore.getState();
@@ -33,6 +58,13 @@ export async function bootstrapCrypto(): Promise<void> {
       return;
     }
 
+    // Verify the vault's signing root against our TOFU pin (and our mnemonic
+    // if we hold one) before trusting any device records or pairing. A
+    // downgrade/substitution throws here and surfaces as a crypto error rather
+    // than silently letting an injected key through.
+    const recovery = await readRecovery();
+    await verifyRecoveryTrust(recovery);
+
     if (!existing) {
       // Vault already initialized elsewhere — must pair this device.
       const fresh = await createDeviceIdentity();
@@ -48,8 +80,6 @@ export async function bootstrapCrypto(): Promise<void> {
       store.setPhase("needs-pair");
       return;
     }
-    // Sanity: recovery record should exist; if not, surface it but don't block.
-    await readRecovery();
     store.setDevice(existing);
     store.setPhase("ready");
   } catch (e) {

@@ -12,11 +12,13 @@
  */
 import { apiFetch } from "./api";
 import {
+  createPassphraseShare,
   deviceRecordTrusted,
   listDevices,
   readRecovery,
   shareItemWith,
   unshareItemWith,
+  type PassphraseShare,
   type SignedDeviceFields,
 } from "./secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
@@ -204,6 +206,20 @@ export async function shareItem(
     device,
   );
   return { shared: true, recipients: verified.recipients.length, rejected: verified.rejected };
+}
+
+/**
+ * Create a passphrase-encrypted snapshot of an item to share with someone who
+ * has no NoteKit account (phase 5). Returns the passphrase + armored blob to
+ * deliver out-of-band, or null if the item isn't found / no identity.
+ */
+export async function createShareLink(
+  kind: EncryptedItemKind,
+  id: string,
+): Promise<PassphraseShare | null> {
+  const device = useCryptoStore.getState().device;
+  if (!device) return null;
+  return createPassphraseShare(kind, id, device);
 }
 
 /**

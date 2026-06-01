@@ -17,7 +17,12 @@
  * slug — its secrets sit directly under `secrets/`.
  */
 import * as defaultVaultApi from "./vault-api";
-import { encryptSecrets, decryptSecrets } from "./crypto/vault-crypto";
+import {
+  encryptSecrets,
+  decryptSecrets,
+  encryptToPassphrase,
+  generateSharePassphrase,
+} from "./crypto/vault-crypto";
 import {
   classifyEncryptedPath,
   encryptItemPayload,
@@ -657,6 +662,40 @@ export async function shareItemWith(
     recipients,
     `Re-encrypt ${kind} "${id}" for share with ${grant.email}`,
   );
+}
+
+export interface PassphraseShare {
+  /** The generated passphrase — deliver out-of-band, never via the same channel. */
+  passphrase: string;
+  /** ASCII-armored age file the recipient decrypts with the passphrase. */
+  armored: string;
+}
+
+/**
+ * Produce a passphrase-encrypted copy of an item for someone with no NoteKit
+ * account. Decrypts the item with this device, then re-encrypts the payload to
+ * a freshly generated passphrase (age scrypt). The recipient decrypts with any
+ * age client; the server never sees plaintext. Returns null if the item isn't
+ * found. This is a point-in-time snapshot — it does not update on edits.
+ */
+export async function createPassphraseShare(
+  kind: EncryptedItemKind,
+  id: string,
+  signer: DeviceIdentity,
+): Promise<PassphraseShare | null> {
+  const { entries } = await backend.listFiles(itemPrefix(kind));
+  for (const e of entries) {
+    if (classifyEncryptedPath(e.path) !== kind) continue;
+    const file = await backend.readFile(e.path);
+    if (typeof file.content !== "string" || !file.content) continue;
+    const env = parseEncryptedEnvelope(file.content);
+    if (!env || env.fm.id !== id) continue;
+    const payload = await decryptItemPayload<unknown>(env.ciphertext, signer.identity);
+    const passphrase = generateSharePassphrase();
+    const armored = await encryptToPassphrase(JSON.stringify(payload), passphrase);
+    return { passphrase, armored };
+  }
+  return null;
 }
 
 /** Who an item is currently shared with (empty if never shared). */

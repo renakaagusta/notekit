@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useCryptoStore } from "../stores/cryptoStore";
 import {
+  deviceRecordTrusted,
   listDevices,
+  readRecovery,
   removeDevice,
   type DeviceRecord,
 } from "../lib/secrets-vault";
@@ -25,6 +27,9 @@ export function DevicesPanel() {
 
   const [devices, setDevices] = useState<DeviceRecord[] | null>(null);
   const [safetyNumber, setSafetyNumber] = useState<string | null>(null);
+  // Recovery signing key (signed-mode vaults) used to flag any device record
+  // whose signature doesn't verify — a possible injected recipient.
+  const [signingKey, setSigningKey] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showApprove, setShowApprove] = useState(false);
@@ -35,6 +40,7 @@ export function DevicesPanel() {
     try {
       setDevices(await listDevices());
       setSafetyNumber(await mySafetyNumber());
+      setSigningKey((await readRecovery())?.signingKey ?? null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -100,6 +106,11 @@ export function DevicesPanel() {
                   <strong>{d.name}</strong>
                   {d.deviceId === device?.deviceId && (
                     <span className="nk-pill">this device</span>
+                  )}
+                  {signingKey && !deviceRecordTrusted(d, signingKey) && (
+                    <span className="nk-pill nk-pill--warn" title="This device record isn't signed by your recovery key — it may have been injected. Revoke it if you don't recognise it.">
+                      unverified
+                    </span>
                   )}
                   <div className="nk-muted">
                     Added {new Date(d.addedAt).toLocaleDateString()}

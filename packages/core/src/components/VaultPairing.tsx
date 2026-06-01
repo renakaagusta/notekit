@@ -268,6 +268,10 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Signed-mode vaults require the recovery key to sign the new device record.
+  // The origin device holds it locally; a secondary device must type the phrase.
+  const [needsPhrase, setNeedsPhrase] = useState(false);
+  const [phraseInput, setPhraseInput] = useState("");
 
   // Derived from the server-relayed pubkey. The human compares it against the
   // new device's screen to detect a swapped key.
@@ -297,13 +301,28 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     setError(null);
     try {
       // Sign the new device record with the recovery key. The origin device
-      // holds the mnemonic locally, so approval stays one-click there; a
-      // secondary device without it will get a clear "needs recovery phrase"
-      // error from addDevice (signed-mode vaults only).
+      // holds the mnemonic locally (one-click); a secondary device in a
+      // signed-mode vault must type the recovery phrase to obtain the key.
       const stored = await loadStoredRecovery();
-      const recoverySigning = stored
+      let recoverySigning = stored
         ? await recoverySigningFromMnemonic(stored.mnemonic)
         : undefined;
+      if (!recoverySigning) {
+        const recovery = await readRecovery();
+        if (recovery?.signingKey) {
+          if (!phraseInput.trim()) {
+            setNeedsPhrase(true);
+            setError("This vault requires your recovery phrase to approve a device on this device.");
+            setBusy(false);
+            return;
+          }
+          const { recipient } = await recoveryFromMnemonic(phraseInput);
+          if (recipient !== recovery.recipient) {
+            throw new Error("That recovery phrase doesn't match this vault.");
+          }
+          recoverySigning = await recoverySigningFromMnemonic(phraseInput);
+        }
+      }
       await addDevice(
         {
           deviceId: info.deviceId,
@@ -379,6 +398,17 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
               device. A mismatch means the key was tampered with in transit —
               cancel and try again.
             </p>
+            {needsPhrase && (
+              <input
+                className="nk-input"
+                type="password"
+                placeholder="Your 24-word recovery phrase"
+                value={phraseInput}
+                onChange={(e) => setPhraseInput(e.target.value)}
+                disabled={busy}
+                autoComplete="off"
+              />
+            )}
             {error && <p className="nk-error-text">{error}</p>}
             <div className="nk-modal-actions">
               <button

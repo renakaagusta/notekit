@@ -4217,6 +4217,80 @@ a.nk-commit-sha:hover {
   margin: 0 0 6px;
 }
 
+/* ── Share dialog ───────────────────────────────────────────────────────── */
+.nk-share-dialog {
+  max-width: 460px;
+}
+
+.nk-share-list {
+  margin-bottom: 12px;
+}
+
+.nk-share-list .nk-muted {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px;
+}
+
+.nk-share-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  margin-bottom: 6px;
+}
+
+.nk-share-row code {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  word-break: break-all;
+}
+
+.nk-share-add {
+  display: flex;
+  gap: 8px;
+}
+
+.nk-share-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.nk-safety-number {
+  font-size: 17px;
+  letter-spacing: 1px;
+  text-align: center;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  margin: 6px 0 10px;
+}
+
+.nk-share-linkbtn {
+  margin-top: 12px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.nk-share-link {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
 /* ─── Recovery backup nudge + sheet ──────────────────────────────── */
 
 .nk-backup-nudge {

@@ -37,6 +37,7 @@ import { Editor, type EditorHandle } from "./Editor";
 import { EditorToolbar } from "./EditorToolbar";
 import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { FirstEncryptDialog } from "./FirstEncryptDialog";
+import { ShareDialog } from "./ShareDialog";
 import { RecoveryBackupNudge } from "./RecoveryBackupNudge";
 import { RecoveryBackupSheet } from "./RecoveryBackupSheet";
 import { Sidebar } from "./Sidebar";
@@ -900,6 +901,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
       )}
 
       <FirstEncryptDialog />
+      <ShareDialog />
       <RecoveryBackupSheet />
     </div>
   );

@@ -8,6 +8,7 @@ import {
   ListChecks,
   Lock as LucideLock,
   Redo2,
+  Share2 as LucideShare,
   Table as LucideTable,
   Type as LucideType,
   Undo2,
@@ -27,6 +28,7 @@ import {
 import { useNotesStore } from "../stores/notesStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useCryptoStore } from "../stores/cryptoStore";
+import { useShareStore } from "../stores/shareStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { noteTitle } from "../lib/note-display";
 
@@ -82,6 +84,7 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
   const requestEncrypt = useE2eeOnboardingStore((s) => s.requestEncrypt);
   // Born-E2EE vaults seal everything, so there's nothing to toggle — hide it.
   const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
+  const openShare = useShareStore((s) => s.open);
 
   // Compute the public Git URL for the active note. Returns null for
   // providers we can't link to (managed Forgejo needs the FORGEJO_DOMAIN
@@ -305,6 +308,19 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
         </button>
       )}
 
+      {activeNoteId && activeNote && (encryptionRequired || activeNote.encrypted) && (
+        <button
+          className="nk-tb-btn"
+          title="Share this note"
+          aria-label="Share note"
+          onClick={() =>
+            openShare({ kind: "note", id: activeNote.id, title: noteTitle(activeNote) })
+          }
+        >
+          <ShareIcon />
+        </button>
+      )}
+
       <button
         className="nk-tb-btn"
         title="Note history"
@@ -327,3 +343,4 @@ const HistoryIcon = () => <LucideHistory size={16} aria-hidden />;
 const LockIcon = () => <LucideLock size={16} aria-hidden />;
 const UnlockIcon = () => <LucideUnlock size={16} aria-hidden />;
 const ExternalLinkIcon = () => <LucideExternalLink size={16} aria-hidden />;
+const ShareIcon = () => <LucideShare size={16} aria-hidden />;

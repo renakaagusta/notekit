@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
 import { CalendarDays, CheckSquare, KanbanSquare, Lock } from "lucide-react";
@@ -81,6 +82,8 @@ export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
   const setStatus = useTicketsStore((s) => s.setStatus);
   const remove = useTicketsStore((s) => s.remove);
   const toggleEncrypted = useTicketsStore((s) => s.toggleEncrypted);
+  // Lock chip is redundant when the whole vault is born-E2EE.
+  const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
   const vaultId = useVaultStore((s) => s.activeId);
   const requestEncrypt = useE2eeOnboardingStore((s) => s.requestEncrypt);
 
@@ -438,7 +441,7 @@ export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
                     <span className={`nk-chip ${PRIORITY_CLASS[t.priority]}`}>
                       {PRIORITY_LABEL[t.priority]}
                     </span>
-                    {t.encrypted && (
+                    {t.encrypted && !encryptionRequired && (
                       <span
                         className="nk-chip nk-card-encrypted"
                         title="End-to-end encrypted — body and title are only readable on your devices"

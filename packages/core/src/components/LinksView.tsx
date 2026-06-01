@@ -342,7 +342,7 @@ export function LinksView() {
                 {platformLabel(link.platform)}
               </span>
             )}
-            {link.encrypted && (
+            {link.encrypted && !encryptionRequired && (
               <Lock
                 size={12}
                 strokeWidth={2}

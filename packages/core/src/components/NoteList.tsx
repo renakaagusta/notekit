@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, FileText, Folder, Lock, MoreHorizontal } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { noteTitle, notePreview } from "../lib/note-display";
 import { journalYMDFromPath } from "../lib/journal";
 import type { Note } from "../types/note";
@@ -63,6 +64,10 @@ export function NoteList({ mobileShell = false }: { mobileShell?: boolean }) {
   const removeFolder = useNotesStore((s) => s.removeFolder);
   const upsert = useNotesStore((s) => s.upsert);
   const createFolder = useNotesStore((s) => s.createFolder);
+  // In a born-E2EE vault every note is encrypted, so the per-note lock badge
+  // is redundant noise — only show it in legacy/mixed vaults where it actually
+  // distinguishes encrypted from plaintext.
+  const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
 
   // Inlined from the old CreateMenu popover — both actions are now items in
   // the folder's "more options" menu, so the standalone "+" button is gone.
@@ -294,7 +299,7 @@ export function NoteList({ mobileShell = false }: { mobileShell?: boolean }) {
           <FileText size={14} className="nk-tree-icon" aria-hidden />
           <span className="nk-tree-stack">
             <span className="nk-tree-label">
-              {n.encrypted && (
+              {n.encrypted && !encryptionRequired && (
                 <Lock
                   size={11}
                   strokeWidth={2}

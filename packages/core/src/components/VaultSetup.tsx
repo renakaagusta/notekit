@@ -22,6 +22,7 @@ export function VaultSetup() {
   const setPhase = useCryptoStore((s) => s.setPhase);
   const setDevice = useCryptoStore((s) => s.setDevice);
   const setError = useCryptoStore((s) => s.setError);
+  const setEncryptionRequired = useCryptoStore((s) => s.setEncryptionRequired);
   const refreshBackup = useRecoveryBackupStore((s) => s.refresh);
 
   const [failed, setFailed] = useState<string | null>(null);
@@ -53,6 +54,11 @@ export function VaultSetup() {
         recoverySigning,
       });
       setDevice(device);
+      // initVault stamps `encryption: required`; reflect that in the live store
+      // immediately. Without this, bootstrap's earlier read (of the then-absent
+      // config) leaves the flag false for this first session, so items created
+      // before a reload would be written as plaintext. (born-E2EE default.)
+      setEncryptionRequired(true);
       await refreshBackup();
       setPhase("ready");
     } catch (e) {

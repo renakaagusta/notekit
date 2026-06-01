@@ -6,6 +6,7 @@ import {
   createAndStoreRecovery,
   loadStoredRecovery,
 } from "../lib/crypto/recovery-store";
+import { recoverySigningFromMnemonic } from "../lib/crypto/recovery";
 import { initVault } from "../lib/secrets-vault";
 
 /**
@@ -42,7 +43,15 @@ export function VaultSetup() {
       // present (e.g. a half-finished prior run); otherwise mint a fresh one.
       const recovery =
         (await loadStoredRecovery()) ?? (await createAndStoreRecovery());
-      await initVault({ device, recoveryRecipient: recovery.recipient });
+      // Born-signed: derive the recovery signing key from the mnemonic this
+      // device holds, so the vault's records are signed from the start and
+      // injected recipients can be rejected (device-key-resilience §5).
+      const recoverySigning = await recoverySigningFromMnemonic(recovery.mnemonic);
+      await initVault({
+        device,
+        recoveryRecipient: recovery.recipient,
+        recoverySigning,
+      });
       setDevice(device);
       await refreshBackup();
       setPhase("ready");

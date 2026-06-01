@@ -1,13 +1,20 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   CONFIG_PATH,
+  DEVICES_PREFIX,
   RECOVERY_PATH,
+  collectVaultRecipients,
   configureSecretsBackend,
   initVault,
+  readRecovery,
   readVaultConfig,
   type SecretsBackend,
 } from "./secrets-vault";
 import type { DeviceIdentity } from "./crypto/device-key";
+import { recoverySigningFromMnemonic } from "./crypto/recovery";
+
+const PHRASE =
+  "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
 
 /** Minimal in-memory vault so config logic is testable without the network. */
 function memoryBackend(seed: Record<string, string> = {}) {
@@ -93,5 +100,89 @@ describe("vault encryption policy (born-E2EE)", () => {
     });
     configureSecretsBackend(backend);
     expect((await readVaultConfig()).encryption).toBe("off");
+  });
+});
+
+describe("signed recipient records (key-substitution defence)", () => {
+  it("born-signed init writes a signing key + self-signed recovery + signed device", async () => {
+    const { backend } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+
+    await initVault({
+      device,
+      recoveryRecipient: "age1recovery",
+      recoverySigning,
+    });
+
+    const recovery = await readRecovery(); // throws if self-sig is invalid
+    expect(recovery?.signingKey).toBeTruthy();
+    expect(recovery?.sig).toBeTruthy();
+  });
+
+  it("drops an injected (unsigned) device record from the recipient set", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    await initVault({ device, recoveryRecipient: "age1recovery", recoverySigning });
+
+    // Attacker injects their own pubkey as a "device" — no valid signature.
+    files.set(
+      `${DEVICES_PREFIX}attacker.json`,
+      JSON.stringify({
+        deviceId: "attacker",
+        name: "Totally Legit",
+        recipient: "age1ATTACKERpubkey",
+        addedAt: "2026-06-01T00:00:00.000Z",
+      }),
+    );
+
+    // A reader other than the bootstrap device, so we test the dropped path
+    // (collectVaultRecipients always trusts the *current* device).
+    const reader: DeviceIdentity = {
+      deviceId: "reader",
+      name: "Reader",
+      identity: "AGE-SECRET-KEY-1READER",
+      recipient: "age1readerpubkey",
+      createdAt: "2026-06-01T00:00:00.000Z",
+    };
+    const recipients = await collectVaultRecipients(reader);
+
+    expect(recipients).toContain(device.recipient); // legit signed device
+    expect(recipients).toContain("age1recovery"); // recovery root
+    expect(recipients).toContain(reader.recipient); // current device, always
+    expect(recipients).not.toContain("age1ATTACKERpubkey"); // ← rejected
+  });
+
+  it("legacy (unsigned) vaults still accept every device record", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    // No recoverySigning → recovery.json has no signing key → legacy mode.
+    await initVault({ device, recoveryRecipient: "age1recovery", encryption: "off" });
+    files.set(
+      `${DEVICES_PREFIX}other.json`,
+      JSON.stringify({
+        deviceId: "other",
+        name: "Another device",
+        recipient: "age1otherpubkey",
+        addedAt: "2026-06-01T00:00:00.000Z",
+      }),
+    );
+    const recipients = await collectVaultRecipients(device);
+    expect(recipients).toContain("age1otherpubkey"); // accepted, no enforcement
+  });
+
+  it("throws when the recovery record's self-signature is invalid (tampered root)", async () => {
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    const { backend } = memoryBackend({
+      [RECOVERY_PATH]: JSON.stringify({
+        recipient: "age1recovery",
+        createdAt: "2026-06-01T00:00:00.000Z",
+        signingKey: Buffer.from(recoverySigning.publicKey).toString("base64"),
+        sig: "AAAA", // bogus signature
+      }),
+    });
+    configureSecretsBackend(backend);
+    await expect(readRecovery()).rejects.toThrow(/tamper/i);
   });
 });

@@ -6,8 +6,11 @@ import {
   clearPair,
 } from "../lib/vault-api";
 import { addDevice, listDevices, readRecovery } from "../lib/secrets-vault";
-import { recoveryFromMnemonic } from "../lib/crypto/recovery";
-import { importRecovery } from "../lib/crypto/recovery-store";
+import {
+  recoveryFromMnemonic,
+  recoverySigningFromMnemonic,
+} from "../lib/crypto/recovery";
+import { importRecovery, loadStoredRecovery } from "../lib/crypto/recovery-store";
 import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
 import { notifyDevicePaired } from "../lib/notifications-api";
 
@@ -134,8 +137,11 @@ export function VaultPairNewDevice() {
         throw new Error("This phrase doesn't match the vault's recovery key.");
       }
       // Use a temporary signer composed of the recovery identity to write the
-      // device record and re-encrypt secrets to include this device.
+      // device record and re-encrypt secrets to include this device. The same
+      // phrase also yields the recovery signing key, so the new device record
+      // is signed (required for signed-mode vaults).
       const { identity } = await recoveryFromMnemonic(recoveryInput);
+      const recoverySigning = await recoverySigningFromMnemonic(recoveryInput);
       await addDevice(
         {
           deviceId: device.deviceId,
@@ -149,6 +155,7 @@ export function VaultPairNewDevice() {
           recipient,
           createdAt: new Date().toISOString(),
         },
+        recoverySigning,
       );
       // The user just typed the phrase, so they already hold a backup. Keep a
       // local copy on this device (marked backed-up) so the backup sheet works
@@ -289,6 +296,14 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     setBusy(true);
     setError(null);
     try {
+      // Sign the new device record with the recovery key. The origin device
+      // holds the mnemonic locally, so approval stays one-click there; a
+      // secondary device without it will get a clear "needs recovery phrase"
+      // error from addDevice (signed-mode vaults only).
+      const stored = await loadStoredRecovery();
+      const recoverySigning = stored
+        ? await recoverySigningFromMnemonic(stored.mnemonic)
+        : undefined;
       await addDevice(
         {
           deviceId: info.deviceId,
@@ -296,6 +311,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
           recipient: info.pubkey,
         },
         signer,
+        recoverySigning,
       );
       await clearPair(code.trim()).catch(() => {});
       // Security alert across the user's channels. Best-effort — the device is

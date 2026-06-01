@@ -26,6 +26,15 @@ import {
   type EncryptedItemKind,
 } from "./crypto/item-crypto";
 import type { DeviceIdentity } from "./crypto/device-key";
+import type { RecoverySigningKey } from "./crypto/recovery";
+import {
+  deviceSigningPayload,
+  recoverySigningPayload,
+  sign,
+  verify,
+  toB64,
+  fromB64,
+} from "./crypto/signing";
 import type { NoteKitApi } from "@notekit/api-client";
 
 /**
@@ -101,11 +110,42 @@ export interface DeviceRecord {
   name: string;
   recipient: string;
   addedAt: string;
+  /**
+   * Ed25519 signature (base64) by the vault's recovery signing key over the
+   * deviceId↔recipient↔addedAt binding. Present in "signed mode" vaults; its
+   * absence/invalidity causes the record to be dropped from the recipient set
+   * so an injected key never becomes a reader (device-key-resilience §5).
+   */
+  sig?: string;
 }
 
 export interface RecoveryRecord {
   recipient: string;
   createdAt: string;
+  /**
+   * Base64 Ed25519 public key — the vault's root of trust. When present the
+   * vault is in "signed mode": every device record must carry a valid `sig`
+   * from this key. Derived from the recovery mnemonic (see `recovery.ts`).
+   */
+  signingKey?: string;
+  /** Self-signature binding {recipient, signingKey, createdAt} to the root. */
+  sig?: string;
+}
+
+/**
+ * Verify a device record against the vault's recovery signing key. A record
+ * with no/invalid signature is untrusted and must not enter a recipient set.
+ */
+export function deviceRecordTrusted(
+  d: DeviceRecord,
+  recoverySigningKeyB64: string,
+): boolean {
+  if (!d.sig) return false;
+  return verify(
+    deviceSigningPayload({ deviceId: d.deviceId, recipient: d.recipient, addedAt: d.addedAt }),
+    d.sig,
+    fromB64(recoverySigningKeyB64),
+  );
 }
 
 /**
@@ -201,11 +241,34 @@ export async function readRecovery(): Promise<RecoveryRecord | null> {
   const file = await backend.readFile(RECOVERY_PATH);
   if (file.sha) shaCache.set(file.path, file.sha);
   if (typeof file.content !== "string") return null;
+  let rec: RecoveryRecord;
   try {
-    return JSON.parse(file.content) as RecoveryRecord;
+    rec = JSON.parse(file.content) as RecoveryRecord;
   } catch {
     return null;
   }
+  // Signed mode: the recovery record self-binds its age recipient to its
+  // signing key. A present-but-invalid self-signature means the root was
+  // tampered with — refuse to treat it as the trust anchor.
+  if (rec.signingKey) {
+    const ok =
+      !!rec.sig &&
+      verify(
+        recoverySigningPayload({
+          recipient: rec.recipient,
+          signingKey: rec.signingKey,
+          createdAt: rec.createdAt,
+        }),
+        rec.sig,
+        fromB64(rec.signingKey),
+      );
+    if (!ok) {
+      throw new Error(
+        "Recovery record signature is invalid — the vault's trust root may have been tampered with.",
+      );
+    }
+  }
+  return rec;
 }
 
 /**
@@ -257,8 +320,23 @@ export async function collectVaultRecipients(
   device: DeviceIdentity,
 ): Promise<string[]> {
   const [devices, recovery] = await Promise.all([listDevices(), readRecovery()]);
+  // Signed mode (recovery.json carries a signing key): only devices whose
+  // record carries a valid recovery signature may join the recipient set, so
+  // a maliciously injected device pubkey never becomes a reader. Legacy vaults
+  // (no signing key) accept every record, as before.
+  const signingKey = recovery?.signingKey;
   const recipients = new Set<string>();
-  for (const d of devices) recipients.add(d.recipient);
+  for (const d of devices) {
+    if (signingKey && !deviceRecordTrusted(d, signingKey)) {
+      console.warn(
+        `[crypto] dropping untrusted device record "${d.deviceId}" — missing/invalid signature`,
+      );
+      continue;
+    }
+    recipients.add(d.recipient);
+  }
+  // The current device is always trusted locally (it's us), even mid-pair
+  // before our own signed record has landed.
   recipients.add(device.recipient);
   if (recovery) recipients.add(recovery.recipient);
   return Array.from(recipients);
@@ -289,6 +367,49 @@ async function writeRecoveryRecord(record: RecoveryRecord, message: string) {
     shaCache.get(RECOVERY_PATH),
   );
   shaCache.set(RECOVERY_PATH, result.sha);
+}
+
+/**
+ * Build a device record, signing it with the recovery key when one is supplied
+ * (born-signed vaults). Without a signing key the record is unsigned (legacy
+ * vaults) — `collectVaultRecipients` only enforces signatures when the vault's
+ * recovery.json advertises a signing key.
+ */
+function buildDeviceRecord(
+  fields: { deviceId: string; name: string; recipient: string; addedAt: string },
+  signing?: RecoverySigningKey,
+): DeviceRecord {
+  if (!signing) return { ...fields };
+  return {
+    ...fields,
+    sig: sign(
+      deviceSigningPayload({
+        deviceId: fields.deviceId,
+        recipient: fields.recipient,
+        addedAt: fields.addedAt,
+      }),
+      signing.privateKey,
+    ),
+  };
+}
+
+/** Build a recovery record, self-signed when a signing key is supplied. */
+function buildRecoveryRecord(
+  recipient: string,
+  createdAt: string,
+  signing?: RecoverySigningKey,
+): RecoveryRecord {
+  if (!signing) return { recipient, createdAt };
+  const signingKey = toB64(signing.publicKey);
+  return {
+    recipient,
+    createdAt,
+    signingKey,
+    sig: sign(
+      recoverySigningPayload({ recipient, signingKey, createdAt }),
+      signing.privateKey,
+    ),
+  };
 }
 
 /** Re-encrypt every existing secret (across all vaults) for an updated recipient list. */
@@ -491,12 +612,19 @@ export interface InitVaultArgs {
    * (E2EE-everywhere) — the policy is fixed here and never changed in place.
    */
   encryption?: "required" | "off";
+  /**
+   * Recovery signing key (Ed25519) to make this a "signed mode" vault: the
+   * recovery record advertises its public signing key and the bootstrap device
+   * record is signed by it. Omit only to create a legacy unsigned vault.
+   */
+  recoverySigning?: RecoverySigningKey;
 }
 
 export async function initVault({
   device,
   recoveryRecipient,
   encryption = "required",
+  recoverySigning,
 }: InitVaultArgs): Promise<void> {
   const now = new Date().toISOString();
   await writeVaultConfig(
@@ -504,11 +632,14 @@ export async function initVault({
     `Initialize crypto vault: set encryption policy "${encryption}"`,
   );
   await writeRecoveryRecord(
-    { recipient: recoveryRecipient, createdAt: now },
+    buildRecoveryRecord(recoveryRecipient, now, recoverySigning),
     "Initialize crypto vault: set recovery key",
   );
   await writeDeviceRecord(
-    { deviceId: device.deviceId, name: device.name, recipient: device.recipient, addedAt: now },
+    buildDeviceRecord(
+      { deviceId: device.deviceId, name: device.name, recipient: device.recipient, addedAt: now },
+      recoverySigning,
+    ),
     `Initialize crypto vault: register device "${device.name}"`,
   );
 }
@@ -646,10 +777,24 @@ export async function moveSecret(
 export async function addDevice(
   newDevice: { deviceId: string; name: string; recipient: string },
   signer: DeviceIdentity,
+  recoverySigning?: RecoverySigningKey,
 ): Promise<void> {
   const now = new Date().toISOString();
+  // In a signed-mode vault the new record must carry a recovery signature, or
+  // `collectVaultRecipients` would just drop it again. Approving therefore
+  // requires the recovery signing key (held by the origin device, or supplied
+  // by entering the recovery phrase on a secondary device).
+  const recovery = await readRecovery();
+  if (recovery?.signingKey && !recoverySigning) {
+    throw new Error(
+      "This vault requires the recovery phrase to approve a new device (it signs the device record).",
+    );
+  }
   await writeDeviceRecord(
-    { deviceId: newDevice.deviceId, name: newDevice.name, recipient: newDevice.recipient, addedAt: now },
+    buildDeviceRecord(
+      { deviceId: newDevice.deviceId, name: newDevice.name, recipient: newDevice.recipient, addedAt: now },
+      recoverySigning,
+    ),
     `Add device "${newDevice.name}"`,
   );
   const recipients = await collectRecipients(signer);

@@ -7,6 +7,7 @@ import {
 } from "../lib/secrets-vault";
 import { VaultApproveDevice } from "./VaultPairing";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
+import { SkeletonDeviceList } from "./Skeleton";
 
 /**
  * Devices & recovery management, opened from the account menu.
@@ -21,7 +22,7 @@ export function DevicesPanel() {
   const device = useCryptoStore((s) => s.device);
   const openBackupSheet = useRecoveryBackupStore((s) => s.openSheet);
 
-  const [devices, setDevices] = useState<DeviceRecord[]>([]);
+  const [devices, setDevices] = useState<DeviceRecord[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showApprove, setShowApprove] = useState(false);
@@ -86,30 +87,34 @@ export function DevicesPanel() {
             Pair new device
           </button>
         </header>
-        <ul className="nk-device-list">
-          {devices.map((d) => (
-            <li key={d.deviceId} className="nk-device-item">
-              <div>
-                <strong>{d.name}</strong>
-                {d.deviceId === device?.deviceId && (
-                  <span className="nk-pill">this device</span>
-                )}
-                <div className="nk-muted">
-                  Added {new Date(d.addedAt).toLocaleDateString()}
+        {devices === null ? (
+          <SkeletonDeviceList />
+        ) : (
+          <ul className="nk-device-list">
+            {devices.map((d) => (
+              <li key={d.deviceId} className="nk-device-item">
+                <div>
+                  <strong>{d.name}</strong>
+                  {d.deviceId === device?.deviceId && (
+                    <span className="nk-pill">this device</span>
+                  )}
+                  <div className="nk-muted">
+                    Added {new Date(d.addedAt).toLocaleDateString()}
+                  </div>
                 </div>
-              </div>
-              {d.deviceId !== device?.deviceId && (
-                <button
-                  className="nk-btn nk-btn--danger"
-                  onClick={() => onRevokeDevice(d.deviceId, d.name)}
-                  disabled={busy}
-                >
-                  Revoke
-                </button>
-              )}
-            </li>
-          ))}
-        </ul>
+                {d.deviceId !== device?.deviceId && (
+                  <button
+                    className="nk-btn nk-btn--danger"
+                    onClick={() => onRevokeDevice(d.deviceId, d.name)}
+                    disabled={busy}
+                  >
+                    Revoke
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="nk-ai-section">

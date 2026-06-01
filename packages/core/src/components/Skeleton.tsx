@@ -66,6 +66,22 @@ export function SkeletonRepoList({ count = 5 }: CountProps) {
   );
 }
 
+export function SkeletonDeviceList({ count = 3 }: CountProps) {
+  return (
+    <ul className="nk-device-list" aria-busy="true" aria-label="Loading">
+      {Array.from({ length: count }).map((_, i) => (
+        <li key={i} className="nk-device-item">
+          <div className="nk-skel-col">
+            <Skeleton width={`${45 + ((i * 9) % 30)}%`} height={13} />
+            <Skeleton width={`${30 + ((i * 7) % 20)}%`} height={10} />
+          </div>
+          <Skeleton width={52} height={24} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export function SkeletonLines({ count = 3 }: CountProps) {
   return (
     <div className="nk-skel-block" aria-busy="true" aria-label="Loading">

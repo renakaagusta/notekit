@@ -27,6 +27,7 @@ import {
   pull as pullSync,
 } from "../lib/sync";
 import { bindVaultPersistence } from "../lib/vault-persistence";
+import { publishMyKeys } from "../lib/directory";
 import {
   startVaultEventStream,
   stopVaultEventStream,
@@ -313,6 +314,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
   // re-encryption commit — retry a few times until nothing's left skipped.
   useEffect(() => {
     if (cryptoPhase !== "ready") return;
+    // Publish our public keys to the directory so others can share with us.
+    // Done here (not only in bootstrap) so the first-run path — which finishes
+    // via VaultSetup, not bootstrap's ready branch — also publishes.
+    void publishMyKeys().catch(() => {});
     let cancelled = false;
     let tries = 0;
     let timer: ReturnType<typeof setTimeout>;

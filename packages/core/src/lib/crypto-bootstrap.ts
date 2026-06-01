@@ -19,7 +19,6 @@ import { loadStoredRecovery } from "./crypto/recovery-store";
 import { recoverySigningFromMnemonic } from "./crypto/recovery";
 import { toB64 } from "./crypto/signing";
 import { verifySigningKeyTrust } from "./crypto/trust-store";
-import { publishMyKeys } from "./directory";
 
 /**
  * Pin/verify the vault's recovery signing key against this client's TOFU pin
@@ -83,10 +82,9 @@ export async function bootstrapCrypto(): Promise<void> {
     }
     store.setDevice(existing);
     store.setPhase("ready");
-    // Best-effort: publish our public keys to the directory so other users can
-    // share with us. Public keys only; failures are non-fatal (sharing just
-    // won't find us until a later run).
-    void publishMyKeys().catch(() => {});
+    // (Publishing our public keys to the directory happens in App's
+    // crypto-ready effect, which fires for both this path and the first-run
+    // VaultSetup path.)
   } catch (e) {
     store.setError((e as Error).message);
   }

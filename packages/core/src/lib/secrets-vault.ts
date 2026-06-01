@@ -132,12 +132,23 @@ export interface RecoveryRecord {
   sig?: string;
 }
 
+/** The fields of a device record that the recovery signature covers. */
+export type SignedDeviceFields = {
+  deviceId: string;
+  recipient: string;
+  addedAt: string;
+  sig?: string;
+};
+
 /**
  * Verify a device record against the vault's recovery signing key. A record
  * with no/invalid signature is untrusted and must not enter a recipient set.
+ * Accepts any object carrying the signed fields (a vault `DeviceRecord` or a
+ * directory entry fetched for another user), so the same check guards both
+ * local recipients and cross-user sharing.
  */
 export function deviceRecordTrusted(
-  d: DeviceRecord,
+  d: SignedDeviceFields,
   recoverySigningKeyB64: string,
 ): boolean {
   if (!d.sig) return false;

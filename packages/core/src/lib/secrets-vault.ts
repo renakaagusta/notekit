@@ -659,6 +659,46 @@ export async function shareItemWith(
   );
 }
 
+/** Who an item is currently shared with (empty if never shared). */
+export async function listItemShares(
+  kind: EncryptedItemKind,
+  id: string,
+): Promise<ShareGrant[]> {
+  return (await readShareManifest(kind, id))?.shares ?? [];
+}
+
+/**
+ * Revoke an invitee from an item: drop their grant and re-encrypt the item to
+ * the reduced set. **Forward-only** — Git can't claw back history, so the
+ * revoked user can still decrypt versions they already pulled. New versions
+ * exclude them. Returns false if they weren't shared with. Callers should
+ * surface the forward-only caveat in the UI.
+ */
+export async function unshareItemWith(
+  kind: EncryptedItemKind,
+  id: string,
+  email: string,
+  signer: DeviceIdentity,
+): Promise<boolean> {
+  const manifest = await readShareManifest(kind, id);
+  if (!manifest) return false;
+  const shares = manifest.shares.filter((s) => s.email !== email);
+  if (shares.length === manifest.shares.length) return false; // not shared with them
+  await writeShareManifest(
+    { version: 1, kind, id, shares },
+    `Revoke ${email} from ${kind} "${id}"`,
+  );
+  const recipients = await recipientsForItem(kind, id, signer);
+  await reencryptItem(
+    kind,
+    id,
+    signer,
+    recipients,
+    `Re-encrypt ${kind} "${id}" after revoking ${email}`,
+  );
+  return true;
+}
+
 // ─── Vault index ─────────────────────────────────────────────────────────────
 
 async function readVaultsIndex(): Promise<VaultsIndex> {

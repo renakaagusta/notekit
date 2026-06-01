@@ -16,10 +16,12 @@ import {
   listDevices,
   readRecovery,
   shareItemWith,
+  unshareItemWith,
   type SignedDeviceFields,
 } from "./secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import type { EncryptedItemKind } from "./crypto/item-crypto";
+import { deriveFingerprint, formatFingerprint } from "./crypto/fingerprint";
 
 interface DirectoryDevice {
   deviceId: string;
@@ -110,6 +112,50 @@ export async function fetchVerifiedKeys(
   return { email: res.email, signingKey: res.signingKey, recipients, rejected };
 }
 
+export interface SharePreview {
+  email: string;
+  signingKey: string;
+  /** Verified device recipients the item would be sealed to. */
+  recipientCount: number;
+  /** Directory entries that failed signature verification (ignored). */
+  rejected: number;
+  /**
+   * Emoji safety number of the invitee's signing key. The user compares it,
+   * out-of-band, against what the invitee sees as their own safety number
+   * ({@link mySafetyNumber}) — defeating a server that substitutes the key.
+   */
+  safetyNumber: string;
+}
+
+/**
+ * Look up + verify an invitee and return a preview (incl. their safety number)
+ * WITHOUT sharing yet, so the UI/agent can prompt for out-of-band verification
+ * before committing. Returns null if the user published nothing.
+ */
+export async function previewShare(email: string): Promise<SharePreview | null> {
+  const verified = await fetchVerifiedKeys(email);
+  if (!verified) return null;
+  const slots = await deriveFingerprint(verified.signingKey);
+  return {
+    email: verified.email,
+    signingKey: verified.signingKey,
+    recipientCount: verified.recipients.length,
+    rejected: verified.rejected,
+    safetyNumber: formatFingerprint(slots),
+  };
+}
+
+/**
+ * This vault's own safety number — the fingerprint of our recovery signing key.
+ * Show it so a collaborator can confirm they're sharing with the real you.
+ * Returns null for a legacy (unsigned) vault.
+ */
+export async function mySafetyNumber(): Promise<string | null> {
+  const recovery = await readRecovery();
+  if (!recovery?.signingKey) return null;
+  return formatFingerprint(await deriveFingerprint(recovery.signingKey));
+}
+
 export interface ShareResult {
   /** false when the invitee has no account / published no verifiable keys. */
   shared: boolean;
@@ -158,6 +204,20 @@ export async function shareItem(
     device,
   );
   return { shared: true, recipients: verified.recipients.length, rejected: verified.rejected };
+}
+
+/**
+ * Revoke an invitee from an item (forward-only — see {@link unshareItemWith}).
+ * Returns false if they weren't shared with or this device has no identity.
+ */
+export async function unshareItem(
+  kind: EncryptedItemKind,
+  id: string,
+  email: string,
+): Promise<boolean> {
+  const device = useCryptoStore.getState().device;
+  if (!device) return false;
+  return unshareItemWith(kind, id, email, device);
 }
 
 export function isNotFound(e: unknown): boolean {

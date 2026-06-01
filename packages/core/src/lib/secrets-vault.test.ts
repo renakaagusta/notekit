@@ -11,6 +11,7 @@ import {
   readRecovery,
   readVaultConfig,
   recipientsForItem,
+  unshareItemWith,
   type SecretsBackend,
 } from "./secrets-vault";
 import type { DeviceIdentity } from "./crypto/device-key";
@@ -211,6 +212,34 @@ describe("signed recipient records (key-substitution defence)", () => {
     // An item with no manifest gets only the vault's recipients.
     const unshared = await recipientsForItem("note", "n2", device);
     expect(unshared).not.toContain("age1invitee1");
+  });
+
+  it("unshareItemWith drops a grant (forward-only) and leaves others intact", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    await initVault({ device, recoveryRecipient: "age1recovery", encryption: "off" });
+    files.set(
+      `${SHARES_PREFIX}note-n1.json`,
+      JSON.stringify({
+        version: 1,
+        kind: "note",
+        id: "n1",
+        shares: [
+          { email: "b@x.com", signingKey: "Kb", recipients: ["age1b"], grantedAt: "t" },
+          { email: "c@x.com", signingKey: "Kc", recipients: ["age1c"], grantedAt: "t" },
+        ],
+      }),
+    );
+
+    const removed = await unshareItemWith("note", "n1", "b@x.com", device);
+    expect(removed).toBe(true);
+
+    const recips = await recipientsForItem("note", "n1", device);
+    expect(recips).not.toContain("age1b"); // revoked
+    expect(recips).toContain("age1c"); // other invitee kept
+
+    // Revoking someone who wasn't shared with is a no-op.
+    expect(await unshareItemWith("note", "n1", "stranger@x.com", device)).toBe(false);
   });
 
   it("throws when the recovery record's self-signature is invalid (tampered root)", async () => {

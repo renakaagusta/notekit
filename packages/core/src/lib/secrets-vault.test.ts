@@ -47,6 +47,7 @@ const device: DeviceIdentity = {
   name: "Test device",
   identity: "AGE-SECRET-KEY-1TEST",
   recipient: "age1testdevicerecipient",
+  createdAt: "2026-06-01T00:00:00.000Z",
 };
 
 describe("vault encryption policy (born-E2EE)", () => {

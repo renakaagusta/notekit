@@ -4228,6 +4228,25 @@ a.nk-commit-sha:hover {
   max-width: 460px;
 }
 
+/* Lock icon inline to the LEFT of the title (header isn't flex by default). */
+.nk-share-dialog .nk-modal-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nk-share-dialog .nk-modal-hd h2 {
+  margin: 0;
+  /* leave room for the absolutely-positioned close button */
+  padding-right: 24px;
+}
+
+/* The passphrase value and its copy button share a row; let the code shrink. */
+.nk-share-link .nk-share-row code {
+  flex: 1;
+  min-width: 0;
+}
+
 .nk-share-list {
   margin-bottom: 12px;
 }

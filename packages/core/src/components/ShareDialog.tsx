@@ -199,9 +199,8 @@ export function ShareDialog() {
               </div>
               <button
                 type="button"
-                className="nk-iconbtn"
-                title="Copy encrypted file"
-                aria-label="Copy encrypted file"
+                className="nk-btn nk-share-linkbtn"
+                title="Copy the encrypted file to share"
                 onClick={() => void navigator.clipboard?.writeText(link.armored)}
               >
                 <Copy size={13} aria-hidden /> Copy encrypted file

@@ -5,11 +5,13 @@ import {
   Folder,
   Lock,
   MoreHorizontal,
+  Share2,
   Unlock,
   X,
 } from "lucide-react";
 import { useLinksStore } from "../stores/linksStore";
 import { useCryptoStore } from "../stores/cryptoStore";
+import { useShareStore } from "../stores/shareStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { detectPlatform, platformLabel } from "../lib/link-platform";
@@ -89,6 +91,7 @@ export function LinksView() {
   const setFolder = useLinksStore((s) => s.setFolder);
   // Born-E2EE vault: every link is sealed, no per-item toggle.
   const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
+  const openShare = useShareStore((s) => s.open);
   const createFolder = useLinksStore((s) => s.createFolder);
   const removeFolder = useLinksStore((s) => s.removeFolder);
   const vaultId = useVaultStore((s) => s.activeId);
@@ -398,6 +401,19 @@ export function LinksView() {
               ) : (
                 <Lock size={13} aria-hidden />
               )}
+            </button>
+          )}
+          {(encryptionRequired || link.encrypted) && (
+            <button
+              className="nk-iconbtn"
+              onClick={(e) => {
+                e.stopPropagation();
+                openShare({ kind: "link", id: link.id, title: link.title || link.url });
+              }}
+              title="Share this link"
+              aria-label="Share link"
+            >
+              <Share2 size={13} aria-hidden />
             </button>
           )}
           <span className="nk-tree-ctx-wrap">

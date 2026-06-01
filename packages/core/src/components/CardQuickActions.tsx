@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Lock, MoreHorizontal, Unlock } from "lucide-react";
+import { Lock, MoreHorizontal, Share2, Unlock } from "lucide-react";
 import type { Ticket, TicketPriority } from "../types/ticket";
 import { useCryptoStore } from "../stores/cryptoStore";
+import { useShareStore } from "../stores/shareStore";
 
 const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
   { value: "urgent", label: "P0 · Urgent" },
@@ -29,6 +30,7 @@ export function CardQuickActions({
   const wrapRef = useRef<HTMLDivElement>(null);
   // Born-E2EE vault: nothing to toggle, every ticket is sealed.
   const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
+  const openShare = useShareStore((s) => s.open);
 
   useEffect(() => {
     if (!open) return;
@@ -147,6 +149,21 @@ export function CardQuickActions({
                   <Lock size={14} aria-hidden /> Encrypt ticket
                 </>
               )}
+            </button>
+          )}
+
+          {(encryptionRequired || ticket.encrypted) && (
+            <button
+              type="button"
+              className="nk-qa-action"
+              role="menuitem"
+              title="Share this ticket"
+              onClick={() => {
+                setOpen(false);
+                openShare({ kind: "ticket", id: ticket.id, title: ticket.title });
+              }}
+            >
+              <Share2 size={14} aria-hidden /> Share ticket
             </button>
           )}
 

@@ -7,6 +7,7 @@ import {
 } from "../lib/secrets-vault";
 import { VaultApproveDevice } from "./VaultPairing";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
+import { mySafetyNumber } from "../lib/directory";
 import { SkeletonDeviceList } from "./Skeleton";
 
 /**
@@ -23,6 +24,7 @@ export function DevicesPanel() {
   const openBackupSheet = useRecoveryBackupStore((s) => s.openSheet);
 
   const [devices, setDevices] = useState<DeviceRecord[] | null>(null);
+  const [safetyNumber, setSafetyNumber] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showApprove, setShowApprove] = useState(false);
@@ -32,6 +34,7 @@ export function DevicesPanel() {
     setBusy(true);
     try {
       setDevices(await listDevices());
+      setSafetyNumber(await mySafetyNumber());
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -129,6 +132,20 @@ export function DevicesPanel() {
           paired device. Keep a copy somewhere safe and offline.
         </p>
       </section>
+
+      {safetyNumber && (
+        <section className="nk-ai-section">
+          <header className="nk-ai-section-hd">
+            <h3>Your safety number</h3>
+          </header>
+          <p className="nk-safety-number">{safetyNumber}</p>
+          <p className="nk-muted">
+            When someone shares an encrypted item with you, they'll see this same
+            safety number. Read it to them (or compare in person) to confirm no one
+            has substituted your key.
+          </p>
+        </section>
+      )}
 
       {showApprove && (
         <VaultApproveDevice onClose={() => setShowApprove(false)} />

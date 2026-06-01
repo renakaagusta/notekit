@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useMembersStore } from "../stores/membersStore";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { noteTitle } from "../lib/note-display";
 import { resolveAssignee } from "../lib/members";
 import type { Note } from "../types/note";
@@ -134,6 +135,8 @@ const DEFAULT_FILTER: FilterState = {
 export function GraphView() {
   const notes = useNotesStore((s) => s.all());
   const tickets = useTicketsStore((s) => s.all());
+  // No encrypted-vs-plaintext distinction when the whole vault is born-E2EE.
+  const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
   const setActiveNote = useNotesStore((s) => s.setActive);
   const membersStatus = useMembersStore((s) => s.status);
   const memberList = useMembersStore((s) => s.members);
@@ -245,7 +248,7 @@ export function GraphView() {
                 className={
                   `nk-graph-node nk-graph-node--${n.kind}` +
                   (n.degree >= 2 ? " hub" : "") +
-                  (n.encrypted ? " encrypted" : "") +
+                  (n.encrypted && !encryptionRequired ? " encrypted" : "") +
                   (n.kind === "member" && n.memberKind === "agent" ? " agent" : "")
                 }
                 r={r}
@@ -311,7 +314,10 @@ function nodeRadius(n: GraphNode): number {
 }
 
 function labelFor(n: GraphNode): string {
-  const lock = n.encrypted ? "🔒 " : "";
+  // Redundant in a born-E2EE vault (everything's encrypted). Stable per
+  // session, so a non-reactive getState() read is fine here.
+  const lock =
+    n.encrypted && !useCryptoStore.getState().encryptionRequired ? "🔒 " : "";
   const agentTag = n.kind === "member" && n.memberKind === "agent" ? "🤖 " : "";
   const text = n.label.length > 26 ? n.label.slice(0, 25) + "…" : n.label;
   return `${lock}${agentTag}${text}`;

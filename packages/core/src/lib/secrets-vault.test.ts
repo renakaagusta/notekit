@@ -2,20 +2,27 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   CONFIG_PATH,
   DEVICES_PREFIX,
+  MEMBERS_PREFIX,
   RECOVERY_PATH,
   SHARES_PREFIX,
   collectVaultRecipients,
   configureSecretsBackend,
+  deviceRecordTrustedByMember,
   extraRecipientsForItem,
   initVault,
   readRecovery,
   readVaultConfig,
   recipientsForItem,
   unshareItemWith,
+  type MemberRegistry,
   type SecretsBackend,
 } from "./secrets-vault";
 import type { DeviceIdentity } from "./crypto/device-key";
-import { recoverySigningFromMnemonic } from "./crypto/recovery";
+import {
+  generateRecoveryMnemonic,
+  recoverySigningFromMnemonic,
+} from "./crypto/recovery";
+import { deviceSigningPayload, sign, toB64 } from "./crypto/signing";
 
 const PHRASE =
   "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
@@ -254,5 +261,74 @@ describe("signed recipient records (key-substitution defence)", () => {
     });
     configureSecretsBackend(backend);
     await expect(readRecovery()).rejects.toThrow(/tamper/i);
+  });
+});
+
+describe("first-class membership (attribution)", () => {
+  // Build a signed device record owned by a member.
+  function signedDevice(
+    member: { privateKey: Uint8Array },
+    deviceId: string,
+    recipient: string,
+    owner: string,
+  ) {
+    const addedAt = "2026-06-03T00:00:00.000Z";
+    return {
+      deviceId,
+      name: deviceId,
+      recipient,
+      addedAt,
+      owner,
+      sig: sign(deviceSigningPayload({ deviceId, recipient, addedAt, owner }), member.privateKey),
+    };
+  }
+
+  it("verifies a device against its claimed member's key, rejects mismatch", async () => {
+    const a = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    const attacker = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    const members: MemberRegistry = new Map([
+      ["A", { memberId: "A", signingKey: toB64(a.publicKey), role: "owner", addedAt: "t" }],
+    ]);
+
+    const good = signedDevice(a, "devA", "age1A", "A");
+    expect(deviceRecordTrustedByMember(good, members)).toBe(true);
+
+    // Same owner claim, but signed by someone else → rejected (unforgeable).
+    const forged = signedDevice(attacker, "evil", "age1ATTACKER", "A");
+    expect(deviceRecordTrustedByMember(forged, members)).toBe(false);
+
+    // Unknown member → rejected.
+    const unknown = signedDevice(a, "devX", "age1X", "ghost");
+    expect(deviceRecordTrustedByMember(unknown, members)).toBe(false);
+  });
+
+  it("collectVaultRecipients (member-mode) unions members' devices, drops forgeries", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const a = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    const bb = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    const attacker = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+
+    // Member registry: owner A + member B.
+    files.set(`${MEMBERS_PREFIX}A.json`, JSON.stringify({ memberId: "A", signingKey: toB64(a.publicKey), role: "owner", addedAt: "t" }));
+    files.set(`${MEMBERS_PREFIX}B.json`, JSON.stringify({ memberId: "B", signingKey: toB64(bb.publicKey), role: "member", addedAt: "t" }));
+    // Recovery so the owner's recovery recipient is in the set too.
+    files.set(RECOVERY_PATH, JSON.stringify({ recipient: "age1recovery", createdAt: "t" }));
+    // Devices: A's (owned by A), B's (owned by B), and a forged one claiming B.
+    files.set(`${DEVICES_PREFIX}devA.json`, JSON.stringify(signedDevice(a, "devA", "age1A", "A")));
+    files.set(`${DEVICES_PREFIX}devB.json`, JSON.stringify(signedDevice(bb, "devB", "age1B", "B")));
+    files.set(`${DEVICES_PREFIX}forged.json`, JSON.stringify(signedDevice(attacker, "forged", "age1ATTACKER", "B")));
+
+    const reader: DeviceIdentity = {
+      deviceId: "reader", name: "Reader", identity: "AGE-SECRET-KEY-1R",
+      recipient: "age1reader", createdAt: "t",
+    };
+    const recipients = await collectVaultRecipients(reader);
+
+    expect(recipients).toContain("age1A"); // owner A's device
+    expect(recipients).toContain("age1B"); // member B's device
+    expect(recipients).toContain("age1recovery");
+    expect(recipients).toContain("age1reader"); // current device, always
+    expect(recipients).not.toContain("age1ATTACKER"); // forged owner claim dropped
   });
 });

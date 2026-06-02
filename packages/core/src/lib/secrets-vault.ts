@@ -99,6 +99,7 @@ export const RECOVERY_PATH = ".notekit/recovery.json";
 export const SECRETS_PREFIX = ".notekit/secrets/";
 export const VAULTS_INDEX_PATH = ".notekit/secrets/_vaults.json";
 export const CONFIG_PATH = ".notekit/config.json";
+export const MEMBERS_PREFIX = ".notekit/members/";
 
 /** Slug for the unnamed root-level vault. Empty string by design. */
 export const DEFAULT_VAULT_SLUG = "";
@@ -116,12 +117,58 @@ export interface DeviceRecord {
   recipient: string;
   addedAt: string;
   /**
-   * Ed25519 signature (base64) by the vault's recovery signing key over the
-   * deviceId↔recipient↔addedAt binding. Present in "signed mode" vaults; its
-   * absence/invalidity causes the record to be dropped from the recipient set
-   * so an injected key never becomes a reader (device-key-resilience §5).
+   * The member this device belongs to (first-class membership). In a
+   * member-mode vault the record is signed by *this member's* signing key, and
+   * the field is verified against the member registry — so a key can't be
+   * reattributed to a different member. Absent in single-user vaults.
+   */
+  owner?: string;
+  /**
+   * Ed25519 signature (base64) over the device binding. In single-user vaults
+   * it's by the recovery signing key; in member-mode by the owner-member's key.
+   * Its absence/invalidity drops the record from the recipient set so an
+   * injected key never becomes a reader (device-key-resilience §5).
    */
   sig?: string;
+}
+
+/**
+ * A vault member's trust record (first-class membership). Stored at
+ * `.notekit/members/<memberId>.json`, signed by an *owner* signing key so only
+ * an owner can admit a member. The member's `signingKey` is their root of trust:
+ * their device records are signed by it. See
+ * docs/architecture/first-class-membership.md.
+ */
+export interface MemberRecord {
+  memberId: string;
+  displayName?: string;
+  email?: string;
+  /** Base64 Ed25519 signing key — this member's trust root. */
+  signingKey: string;
+  role: "owner" | "member";
+  addedAt: string;
+  /** memberId of the owner who admitted them. */
+  addedBy?: string;
+  /** Signature by an owner signing key (self-signed for the owner record). */
+  sig?: string;
+}
+
+export type MemberRegistry = Map<string, MemberRecord>;
+
+/**
+ * Verify a device record against the member who claims to own it: looks the
+ * member up in the registry and checks the signature against *their* signing
+ * key. A record naming an unknown member, or signed by a different key, is
+ * untrusted — this is what makes attribution unforgeable.
+ */
+export function deviceRecordTrustedByMember(
+  d: SignedDeviceFields,
+  members: MemberRegistry,
+): boolean {
+  if (!d.sig || !d.owner) return false;
+  const member = members.get(d.owner);
+  if (!member) return false;
+  return deviceRecordTrusted(d, member.signingKey);
 }
 
 export interface RecoveryRecord {
@@ -137,30 +184,37 @@ export interface RecoveryRecord {
   sig?: string;
 }
 
-/** The fields of a device record that the recovery signature covers. */
+/** The fields of a device record that the signature covers. */
 export type SignedDeviceFields = {
   deviceId: string;
   recipient: string;
   addedAt: string;
+  /** Member this device belongs to (first-class membership). */
+  owner?: string;
   sig?: string;
 };
 
 /**
- * Verify a device record against the vault's recovery signing key. A record
- * with no/invalid signature is untrusted and must not enter a recipient set.
- * Accepts any object carrying the signed fields (a vault `DeviceRecord` or a
- * directory entry fetched for another user), so the same check guards both
- * local recipients and cross-user sharing.
+ * Verify a device record's signature against a given signing key. A record with
+ * no/invalid signature is untrusted and must not enter a recipient set. When the
+ * record carries an `owner`, that field is bound into the signed payload so it
+ * can't be reattributed. Accepts any object with the signed fields (a vault
+ * `DeviceRecord`, or a directory entry fetched for another user).
  */
 export function deviceRecordTrusted(
   d: SignedDeviceFields,
-  recoverySigningKeyB64: string,
+  signingKeyB64: string,
 ): boolean {
   if (!d.sig) return false;
   return verify(
-    deviceSigningPayload({ deviceId: d.deviceId, recipient: d.recipient, addedAt: d.addedAt }),
+    deviceSigningPayload({
+      deviceId: d.deviceId,
+      recipient: d.recipient,
+      addedAt: d.addedAt,
+      owner: d.owner,
+    }),
     d.sig,
-    fromB64(recoverySigningKeyB64),
+    fromB64(signingKeyB64),
   );
 }
 
@@ -253,6 +307,40 @@ export async function listDevices(): Promise<DeviceRecord[]> {
   return devices;
 }
 
+/** Read the member registry, keyed by memberId. Empty for single-user vaults. */
+export async function readMembers(): Promise<MemberRegistry> {
+  const map: MemberRegistry = new Map();
+  const { entries } = await backend.listFiles(MEMBERS_PREFIX);
+  for (const e of entries) {
+    if (!e.path.endsWith(".json")) continue;
+    const file = await backend.readFile(e.path);
+    if (file.sha) shaCache.set(file.path, file.sha);
+    if (typeof file.content !== "string") continue;
+    try {
+      const m = JSON.parse(file.content) as MemberRecord;
+      if (m.memberId && m.signingKey) map.set(m.memberId, m);
+    } catch {
+      // ignore malformed
+    }
+  }
+  return map;
+}
+
+function memberPath(memberId: string): string {
+  return `${MEMBERS_PREFIX}${memberId}.json`;
+}
+
+async function writeMemberRecord(record: MemberRecord, message: string): Promise<void> {
+  const path = memberPath(record.memberId);
+  const result = await backend.writeFile(
+    path,
+    JSON.stringify(record, null, 2),
+    message,
+    shaCache.get(path),
+  );
+  shaCache.set(path, result.sha);
+}
+
 export async function readRecovery(): Promise<RecoveryRecord | null> {
   const file = await backend.readFile(RECOVERY_PATH);
   if (file.sha) shaCache.set(file.path, file.sha);
@@ -335,15 +423,30 @@ async function collectRecipients(device: DeviceIdentity): Promise<string[]> {
 export async function collectVaultRecipients(
   device: DeviceIdentity,
 ): Promise<string[]> {
-  const [devices, recovery] = await Promise.all([listDevices(), readRecovery()]);
-  // Signed mode (recovery.json carries a signing key): only devices whose
-  // record carries a valid recovery signature may join the recipient set, so
-  // a maliciously injected device pubkey never becomes a reader. Legacy vaults
-  // (no signing key) accept every record, as before.
+  const [devices, recovery, members] = await Promise.all([
+    listDevices(),
+    readRecovery(),
+    readMembers(),
+  ]);
+  // Three modes, in order of strength:
+  //  - member-mode  (members/* present): each device must be validly signed by
+  //    ITS claimed member's key → unforgeable per-member attribution.
+  //  - signed-mode  (recovery.json has a signing key): each device must be
+  //    signed by the single recovery key.
+  //  - legacy       (neither): accept every record, as before.
+  // A maliciously injected device pubkey is dropped in the first two.
+  const memberMode = members.size > 0;
   const signingKey = recovery?.signingKey;
   const recipients = new Set<string>();
   for (const d of devices) {
-    if (signingKey && !deviceRecordTrusted(d, signingKey)) {
+    if (memberMode) {
+      if (!deviceRecordTrustedByMember(d, members)) {
+        console.warn(
+          `[crypto] dropping device "${d.deviceId}" — not validly signed by its member "${d.owner ?? "?"}"`,
+        );
+        continue;
+      }
+    } else if (signingKey && !deviceRecordTrusted(d, signingKey)) {
       console.warn(
         `[crypto] dropping untrusted device record "${d.deviceId}" — missing/invalid signature`,
       );

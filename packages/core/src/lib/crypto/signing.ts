@@ -35,8 +35,17 @@ export function deviceSigningPayload(fields: {
   deviceId: string;
   recipient: string;
   addedAt: string;
+  /**
+   * The member this device belongs to (first-class membership). When present,
+   * it's bound into the signature (v2 payload) so the `owner` field can't be
+   * swapped to attribute the key to a different member. Absent → legacy v1
+   * payload, so existing single-user device records still verify.
+   */
+  owner?: string;
 }): Uint8Array {
-  const canonical = `nk-device-v1\n${fields.deviceId}\n${fields.recipient}\n${fields.addedAt}`;
+  const canonical = fields.owner
+    ? `nk-device-v2\n${fields.deviceId}\n${fields.recipient}\n${fields.addedAt}\n${fields.owner}`
+    : `nk-device-v1\n${fields.deviceId}\n${fields.recipient}\n${fields.addedAt}`;
   return new TextEncoder().encode(canonical);
 }
 
@@ -47,6 +56,20 @@ export function recoverySigningPayload(fields: {
   createdAt: string;
 }): Uint8Array {
   const canonical = `nk-recovery-v1\n${fields.recipient}\n${fields.signingKey}\n${fields.createdAt}`;
+  return new TextEncoder().encode(canonical);
+}
+
+/**
+ * Canonical bytes for a member record's signature — signed by an *owner* signing
+ * key, so only an owner can admit a member and the admission is tamper-evident.
+ */
+export function memberSigningPayload(fields: {
+  memberId: string;
+  signingKey: string;
+  role: string;
+  addedAt: string;
+}): Uint8Array {
+  const canonical = `nk-member-v1\n${fields.memberId}\n${fields.signingKey}\n${fields.role}\n${fields.addedAt}`;
   return new TextEncoder().encode(canonical);
 }
 

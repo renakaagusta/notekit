@@ -8,6 +8,7 @@ import {
 } from "../lib/crypto/recovery-store";
 import { recoverySigningFromMnemonic } from "../lib/crypto/recovery";
 import { initVault } from "../lib/secrets-vault";
+import { useAuthStore } from "../stores/authStore";
 
 /**
  * Silent vault setup. No 24-word wall: we generate the recovery key, stash it
@@ -48,10 +49,17 @@ export function VaultSetup() {
       // device holds, so the vault's records are signed from the start and
       // injected recipients can be rejected (device-key-resilience §5).
       const recoverySigning = await recoverySigningFromMnemonic(recovery.mnemonic);
+      // Born-with-membership: stamp the owner as member #0 (keyed by account
+      // email, matching how the directory looks members up).
+      const account = useAuthStore.getState().user;
+      const owner = account?.email
+        ? { memberId: account.email, displayName: account.name ?? undefined, email: account.email }
+        : undefined;
       await initVault({
         device,
         recoveryRecipient: recovery.recipient,
         recoverySigning,
+        owner,
       });
       setDevice(device);
       // initVault stamps `encryption: required`; reflect that in the live store

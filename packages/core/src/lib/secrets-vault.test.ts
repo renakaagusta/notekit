@@ -10,6 +10,7 @@ import {
   deviceRecordTrustedByMember,
   extraRecipientsForItem,
   initVault,
+  readMembers,
   readRecovery,
   readVaultConfig,
   recipientsForItem,
@@ -330,5 +331,35 @@ describe("first-class membership (attribution)", () => {
     expect(recipients).toContain("age1recovery");
     expect(recipients).toContain("age1reader"); // current device, always
     expect(recipients).not.toContain("age1ATTACKER"); // forged owner claim dropped
+  });
+});
+
+describe("born-with-membership init", () => {
+  it("writes the owner member record + attributes the bootstrap device", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+
+    await initVault({
+      device,
+      recoveryRecipient: "age1recovery",
+      recoverySigning,
+      owner: { memberId: "a@example.com", displayName: "Owner A", email: "a@example.com" },
+    });
+
+    // Owner member record exists with role owner.
+    expect(files.has(`${MEMBERS_PREFIX}a@example.com.json`)).toBe(true);
+    const members = await readMembers();
+    expect(members.get("a@example.com")?.role).toBe("owner");
+
+    // Vault is now member-mode; the bootstrap device verifies via the owner
+    // member's key, so a *different* reader still sees it in the recipient set.
+    const reader: DeviceIdentity = {
+      deviceId: "reader", name: "Reader", identity: "AGE-SECRET-KEY-1R",
+      recipient: "age1reader2", createdAt: "t",
+    };
+    const recips = await collectVaultRecipients(reader);
+    expect(recips).toContain(device.recipient); // owner's bootstrap device (member-verified)
+    expect(recips).toContain("age1recovery");
   });
 });

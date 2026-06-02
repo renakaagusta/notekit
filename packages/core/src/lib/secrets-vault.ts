@@ -34,6 +34,7 @@ import type { DeviceIdentity } from "./crypto/device-key";
 import type { RecoverySigningKey } from "./crypto/recovery";
 import {
   deviceSigningPayload,
+  memberSigningPayload,
   recoverySigningPayload,
   sign,
   verify,
@@ -497,17 +498,48 @@ async function writeRecoveryRecord(record: RecoveryRecord, message: string) {
 function buildDeviceRecord(
   fields: { deviceId: string; name: string; recipient: string; addedAt: string },
   signing?: RecoverySigningKey,
+  owner?: string,
 ): DeviceRecord {
-  if (!signing) return { ...fields };
+  const base: DeviceRecord = owner ? { ...fields, owner } : { ...fields };
+  if (!signing) return base;
   return {
-    ...fields,
+    ...base,
     sig: sign(
       deviceSigningPayload({
         deviceId: fields.deviceId,
         recipient: fields.recipient,
         addedAt: fields.addedAt,
+        owner,
       }),
       signing.privateKey,
+    ),
+  };
+}
+
+/** Build a member record, self/owner-signed when a signing key is supplied. */
+function buildMemberRecord(
+  fields: {
+    memberId: string;
+    displayName?: string;
+    email?: string;
+    signingKey: string;
+    role: "owner" | "member";
+    addedAt: string;
+    addedBy?: string;
+  },
+  ownerSigning?: RecoverySigningKey,
+): MemberRecord {
+  if (!ownerSigning) return { ...fields };
+  return {
+    ...fields,
+    sig: sign(
+      memberSigningPayload({
+        memberId: fields.memberId,
+        signingKey: fields.signingKey,
+        role: fields.role,
+        addedAt: fields.addedAt,
+      }),
+      ownerSigning.privateKey,
     ),
   };
 }
@@ -965,6 +997,13 @@ export interface InitVaultArgs {
    * record is signed by it. Omit only to create a legacy unsigned vault.
    */
   recoverySigning?: RecoverySigningKey;
+  /**
+   * The vault owner's account identity — when provided (with `recoverySigning`),
+   * the vault is "born with membership": the owner is written as the first
+   * member (`.notekit/members/<memberId>.json`, role `owner`) and the bootstrap
+   * device is attributed to them. Omit for a plain single-user vault.
+   */
+  owner?: { memberId: string; displayName?: string; email?: string };
 }
 
 export async function initVault({
@@ -972,6 +1011,7 @@ export async function initVault({
   recoveryRecipient,
   encryption = "required",
   recoverySigning,
+  owner,
 }: InitVaultArgs): Promise<void> {
   const now = new Date().toISOString();
   await writeVaultConfig(
@@ -982,10 +1022,30 @@ export async function initVault({
     buildRecoveryRecord(recoveryRecipient, now, recoverySigning),
     "Initialize crypto vault: set recovery key",
   );
+  // Born-with-membership: record the owner as member #0, signing key = the
+  // recovery signing key. Their devices are attributed to them.
+  if (owner && recoverySigning) {
+    await writeMemberRecord(
+      buildMemberRecord(
+        {
+          memberId: owner.memberId,
+          displayName: owner.displayName,
+          email: owner.email,
+          signingKey: toB64(recoverySigning.publicKey),
+          role: "owner",
+          addedAt: now,
+          addedBy: owner.memberId,
+        },
+        recoverySigning,
+      ),
+      `Initialize crypto vault: register owner "${owner.memberId}"`,
+    );
+  }
   await writeDeviceRecord(
     buildDeviceRecord(
       { deviceId: device.deviceId, name: device.name, recipient: device.recipient, addedAt: now },
       recoverySigning,
+      owner?.memberId,
     ),
     `Initialize crypto vault: register device "${device.name}"`,
   );
@@ -1137,10 +1197,22 @@ export async function addDevice(
       "This vault requires the recovery phrase to approve a new device (it signs the device record).",
     );
   }
+  // In a member-mode vault, attribute the new device to the member whose
+  // signing key is approving it (so it's owned by the right person, not just
+  // "a device"). Falls back to no owner for plain signed/legacy vaults.
+  let owner: string | undefined;
+  if (recoverySigning) {
+    const members = await readMembers();
+    const signerKeyB64 = toB64(recoverySigning.publicKey);
+    for (const m of members.values()) {
+      if (m.signingKey === signerKeyB64) { owner = m.memberId; break; }
+    }
+  }
   await writeDeviceRecord(
     buildDeviceRecord(
       { deviceId: newDevice.deviceId, name: newDevice.name, recipient: newDevice.recipient, addedAt: now },
       recoverySigning,
+      owner,
     ),
     `Add device "${newDevice.name}"`,
   );

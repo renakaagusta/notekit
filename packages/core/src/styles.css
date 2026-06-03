@@ -4310,6 +4310,44 @@ a.nk-commit-sha:hover {
   gap: 6px;
 }
 
+/* ─── Add-member flow (first-class membership) ────────────────────── */
+
+.nk-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.nk-field-row .nk-input {
+  flex: 1;
+}
+
+.nk-member-preview {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.nk-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nk-checkbox-row input {
+  margin-top: 2px;
+}
+
+.nk-success-text {
+  color: var(--ok, #2e7d32);
+  font-size: 14px;
+  margin: 6px 0;
+}
+
 .nk-share-link {
   margin-top: 12px;
   border-top: 1px solid var(--border);

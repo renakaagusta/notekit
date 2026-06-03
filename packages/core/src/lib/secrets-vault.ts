@@ -1273,6 +1273,213 @@ export async function removeDevice(
 }
 
 /**
+ * Membership upkeep. A device record copied from another member is the
+ * member's own self-signed record — its `sig` is by *their* key, so we must
+ * copy it verbatim (never re-sign) for it to keep verifying.
+ */
+export type ForeignDeviceRecord = {
+  deviceId: string;
+  name?: string;
+  recipient: string;
+  addedAt: string;
+  owner?: string;
+  sig?: string;
+};
+
+/**
+ * One-time migration from signed-mode to member-mode: register the vault owner
+ * as a member and attribute their existing devices to them. Idempotent.
+ *
+ * Required before admitting any other member — once `members/*` exists,
+ * `collectVaultRecipients` switches to member-mode and drops every device that
+ * isn't validly signed by *its* member. The owner's pre-membership devices
+ * carry a recovery signature but no `owner`, so without this they'd be dropped
+ * and the owner would lock themselves out by admitting someone. New vaults are
+ * born with membership (see `initVault`), so this only fires for vaults created
+ * on `feat/e2ee-everywhere` before Pt 2a.
+ */
+export async function ensureOwnerMember(
+  owner: { memberId: string; displayName?: string; email?: string },
+  ownerSigning: RecoverySigningKey,
+): Promise<void> {
+  const ownerKeyB64 = toB64(ownerSigning.publicKey);
+  const members = await readMembers();
+  if (!members.has(owner.memberId)) {
+    const recovery = await readRecovery();
+    const now = new Date().toISOString();
+    await writeMemberRecord(
+      buildMemberRecord(
+        {
+          memberId: owner.memberId,
+          displayName: owner.displayName,
+          email: owner.email,
+          signingKey: ownerKeyB64,
+          role: "owner",
+          addedAt: recovery?.createdAt ?? now,
+          addedBy: owner.memberId,
+        },
+        ownerSigning,
+      ),
+      `Register owner "${owner.memberId}" as vault member`,
+    );
+  }
+  // Re-stamp the owner's own devices with their `owner` so they survive
+  // member-mode enforcement. Only devices already validly signed by the owner
+  // (= recovery) key are touched; anything else is left for member-mode to
+  // drop, which is the correct security outcome.
+  const devices = await listDevices();
+  for (const d of devices) {
+    if (d.owner) continue;
+    if (!deviceRecordTrusted(d, ownerKeyB64)) continue;
+    await writeDeviceRecord(
+      buildDeviceRecord(
+        { deviceId: d.deviceId, name: d.name, recipient: d.recipient, addedAt: d.addedAt },
+        ownerSigning,
+        owner.memberId,
+      ),
+      `Attribute device "${d.name}" to owner "${owner.memberId}"`,
+    );
+  }
+}
+
+/**
+ * Admit a member into the vault (first-class membership, Pt 2b). The owner has
+ * already verified the member's signing key out-of-band (safety number); this
+ * writes the owner-signed member record, copies the member's self-signed device
+ * records into the vault, and re-encrypts everything to the widened set.
+ *
+ * The owner only *vouches* for the member's signing key (the member record is
+ * owner-signed). The device records stay signed by the **member's** key — the
+ * owner relays them verbatim and can't forge them. A record whose signature
+ * doesn't verify against the member's key is skipped (defense in depth — the
+ * directory already verified before handing them over).
+ *
+ * Call {@link ensureOwnerMember} first so the owner's own devices survive the
+ * switch to member-mode.
+ */
+export async function addMember(
+  member: {
+    memberId: string;
+    displayName?: string;
+    email?: string;
+    signingKey: string;
+  },
+  deviceRecords: ForeignDeviceRecord[],
+  signer: DeviceIdentity,
+  ownerSigning: RecoverySigningKey,
+): Promise<{ devicesAdded: number; devicesSkipped: number }> {
+  const now = new Date().toISOString();
+  // Attribute the admission to whichever member's signing key is the owner key.
+  const members = await readMembers();
+  const ownerKeyB64 = toB64(ownerSigning.publicKey);
+  let addedBy: string | undefined;
+  for (const m of members.values()) {
+    if (m.signingKey === ownerKeyB64) { addedBy = m.memberId; break; }
+  }
+  await writeMemberRecord(
+    buildMemberRecord(
+      {
+        memberId: member.memberId,
+        displayName: member.displayName,
+        email: member.email,
+        signingKey: member.signingKey,
+        role: "member",
+        addedAt: now,
+        addedBy,
+      },
+      ownerSigning,
+    ),
+    `Add member "${member.memberId}"`,
+  );
+  let devicesAdded = 0;
+  let devicesSkipped = 0;
+  for (const d of deviceRecords) {
+    const record: DeviceRecord = {
+      deviceId: d.deviceId,
+      name: d.name ?? member.displayName ?? member.memberId,
+      recipient: d.recipient,
+      addedAt: d.addedAt,
+      owner: member.memberId,
+      sig: d.sig,
+    };
+    // The record must verify against the member's key with `owner` bound in.
+    if (!record.owner || record.owner !== member.memberId || !deviceRecordTrusted(record, member.signingKey)) {
+      devicesSkipped++;
+      console.warn(
+        `[member] skipping device "${d.deviceId}" for "${member.memberId}" — signature doesn't verify against their key`,
+      );
+      continue;
+    }
+    await writeDeviceRecord(record, `Add device "${record.name}" for member "${member.memberId}"`);
+    devicesAdded++;
+  }
+  const recipients = await collectRecipients(signer);
+  await reEncryptAll(
+    signer,
+    recipients,
+    (r) => {
+      const label = r.vault ? `${r.vault}/${r.name}` : r.name;
+      return `Re-encrypt secret "${label}" for member "${member.memberId}"`;
+    },
+  );
+  await reencryptAllItems(
+    signer,
+    recipients,
+    (kind, id) => `Re-encrypt ${kind} "${id}" for member "${member.memberId}"`,
+  );
+  return { devicesAdded, devicesSkipped };
+}
+
+/**
+ * Remove a member and all their devices, then re-encrypt to the reduced set.
+ * Forward-only: git history a member already pulled stays readable to them
+ * (see {@link removeDevice}). The owner member can't be removed this way.
+ */
+export async function removeMember(
+  memberId: string,
+  signer: DeviceIdentity,
+): Promise<void> {
+  const members = await readMembers();
+  const member = members.get(memberId);
+  if (member?.role === "owner") {
+    throw new Error("The vault owner can't be removed.");
+  }
+  // Drop the member's device records first so they leave the recipient set.
+  const devices = await listDevices();
+  for (const d of devices) {
+    if (d.owner !== memberId) continue;
+    const path = devicePath(d.deviceId);
+    await ensureSha(path);
+    const sha = shaCache.get(path);
+    if (!sha) continue;
+    await backend.deleteFile(path, sha, `Remove device "${d.name}" of member "${memberId}"`);
+    shaCache.delete(path);
+  }
+  // Then the member record itself.
+  const memPath = memberPath(memberId);
+  await ensureSha(memPath);
+  const memSha = shaCache.get(memPath);
+  if (memSha) {
+    await backend.deleteFile(memPath, memSha, `Remove member "${memberId}"`);
+    shaCache.delete(memPath);
+  }
+  const recipients = await collectRecipients(signer);
+  await reEncryptAll(
+    signer,
+    recipients,
+    (r) => {
+      const label = r.vault ? `${r.vault}/${r.name}` : r.name;
+      return `Re-encrypt secret "${label}" after removing member "${memberId}"`;
+    },
+  );
+  await reencryptAllItems(
+    signer,
+    recipients,
+    (kind, id) => `Re-encrypt ${kind} "${id}" after removing member "${memberId}"`,
+  );
+}
+
+/**
  * Restore a secret to the value it held at a given commit SHA.
  * Fetches the encrypted file at that commit, decrypts it with the current
  * device key, then re-encrypts and writes it as the new HEAD version.

@@ -5,12 +5,16 @@ import {
   MEMBERS_PREFIX,
   RECOVERY_PATH,
   SHARES_PREFIX,
+  addMember,
   collectVaultRecipients,
   configureSecretsBackend,
   deviceRecordTrustedByMember,
+  ensureOwnerMember,
   extraRecipientsForItem,
   initVault,
+  listDevices,
   readMembers,
+  removeMember,
   readRecovery,
   readVaultConfig,
   recipientsForItem,
@@ -361,5 +365,163 @@ describe("born-with-membership init", () => {
     const recips = await collectVaultRecipients(reader);
     expect(recips).toContain(device.recipient); // owner's bootstrap device (member-verified)
     expect(recips).toContain("age1recovery");
+  });
+});
+
+describe("member admission (Pt 2b)", () => {
+  // A self-signed, owner-tagged device record as it arrives from the directory
+  // (signed by the member's OWN key — the owner relays it verbatim).
+  function foreignDevice(
+    member: { privateKey: Uint8Array },
+    deviceId: string,
+    recipient: string,
+    owner: string,
+  ) {
+    const addedAt = "2026-06-03T00:00:00.000Z";
+    return {
+      deviceId,
+      name: deviceId,
+      recipient,
+      addedAt,
+      owner,
+      sig: sign(deviceSigningPayload({ deviceId, recipient, addedAt, owner }), member.privateKey),
+    };
+  }
+
+  it("admits a member: copies their device, B becomes a recipient", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const ownerSigning = await recoverySigningFromMnemonic(PHRASE);
+    await initVault({
+      device,
+      recoveryRecipient: "age1recovery",
+      recoverySigning: ownerSigning,
+      owner: { memberId: "a@example.com", displayName: "Owner A", email: "a@example.com" },
+    });
+
+    const b = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    const bDevice = foreignDevice(b, "devB", "age1B", "b@example.com");
+    const res = await addMember(
+      { memberId: "b@example.com", email: "b@example.com", signingKey: toB64(b.publicKey) },
+      [bDevice],
+      device,
+      ownerSigning,
+    );
+
+    expect(res.devicesAdded).toBe(1);
+    expect(res.devicesSkipped).toBe(0);
+    expect((await readMembers()).get("b@example.com")?.role).toBe("member");
+    expect(files.has(`${MEMBERS_PREFIX}b@example.com.json`)).toBe(true);
+
+    const reader: DeviceIdentity = {
+      deviceId: "reader", name: "Reader", identity: "AGE-SECRET-KEY-1R",
+      recipient: "age1reader", createdAt: "t",
+    };
+    const recips = await collectVaultRecipients(reader);
+    expect(recips).toContain("age1B"); // B's verified device
+    expect(recips).toContain(device.recipient); // owner still in (member-mode)
+  });
+
+  it("skips a forged device that doesn't verify against the member's key", async () => {
+    const { backend } = memoryBackend();
+    configureSecretsBackend(backend);
+    const ownerSigning = await recoverySigningFromMnemonic(PHRASE);
+    await initVault({
+      device,
+      recoveryRecipient: "age1recovery",
+      recoverySigning: ownerSigning,
+      owner: { memberId: "a@example.com", email: "a@example.com" },
+    });
+
+    const b = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    const attacker = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    // Claims owner b@example.com but signed by the attacker's key.
+    const forged = foreignDevice(attacker, "evil", "age1EVIL", "b@example.com");
+    const res = await addMember(
+      { memberId: "b@example.com", email: "b@example.com", signingKey: toB64(b.publicKey) },
+      [forged],
+      device,
+      ownerSigning,
+    );
+
+    expect(res.devicesAdded).toBe(0);
+    expect(res.devicesSkipped).toBe(1);
+    const reader: DeviceIdentity = {
+      deviceId: "reader", name: "Reader", identity: "AGE-SECRET-KEY-1R",
+      recipient: "age1reader", createdAt: "t",
+    };
+    expect(await collectVaultRecipients(reader)).not.toContain("age1EVIL");
+  });
+
+  it("removeMember drops the member and their devices from the set", async () => {
+    const { backend } = memoryBackend();
+    configureSecretsBackend(backend);
+    const ownerSigning = await recoverySigningFromMnemonic(PHRASE);
+    await initVault({
+      device,
+      recoveryRecipient: "age1recovery",
+      recoverySigning: ownerSigning,
+      owner: { memberId: "a@example.com", email: "a@example.com" },
+    });
+    const b = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    await addMember(
+      { memberId: "b@example.com", email: "b@example.com", signingKey: toB64(b.publicKey) },
+      [foreignDevice(b, "devB", "age1B", "b@example.com")],
+      device,
+      ownerSigning,
+    );
+
+    await removeMember("b@example.com", device);
+
+    expect((await readMembers()).has("b@example.com")).toBe(false);
+    const reader: DeviceIdentity = {
+      deviceId: "reader", name: "Reader", identity: "AGE-SECRET-KEY-1R",
+      recipient: "age1reader", createdAt: "t",
+    };
+    const recips = await collectVaultRecipients(reader);
+    expect(recips).not.toContain("age1B");
+    expect(recips).toContain(device.recipient); // owner unaffected
+  });
+
+  it("refuses to remove the owner member", async () => {
+    const { backend } = memoryBackend();
+    configureSecretsBackend(backend);
+    const ownerSigning = await recoverySigningFromMnemonic(PHRASE);
+    await initVault({
+      device,
+      recoveryRecipient: "age1recovery",
+      recoverySigning: ownerSigning,
+      owner: { memberId: "a@example.com", email: "a@example.com" },
+    });
+    await expect(removeMember("a@example.com", device)).rejects.toThrow(/owner/i);
+  });
+
+  it("ensureOwnerMember migrates a signed-mode vault into member-mode without locking the owner out", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const ownerSigning = await recoverySigningFromMnemonic(PHRASE);
+    // Pre-membership signed-mode vault: recoverySigning but NO owner.
+    await initVault({
+      device,
+      recoveryRecipient: "age1recovery",
+      recoverySigning: ownerSigning,
+    });
+    expect(files.has(`${MEMBERS_PREFIX}a@example.com.json`)).toBe(false);
+    // Bootstrap device has a recovery sig but no `owner` yet.
+    expect((await listDevices()).every((d) => !d.owner)).toBe(true);
+
+    await ensureOwnerMember(
+      { memberId: "a@example.com", displayName: "Owner A", email: "a@example.com" },
+      ownerSigning,
+    );
+
+    // Now member-mode, and the owner's device is attributed + still readable.
+    expect((await readMembers()).get("a@example.com")?.role).toBe("owner");
+    expect((await listDevices()).find((d) => d.deviceId === device.deviceId)?.owner).toBe("a@example.com");
+    const reader: DeviceIdentity = {
+      deviceId: "reader", name: "Reader", identity: "AGE-SECRET-KEY-1R",
+      recipient: "age1reader", createdAt: "t",
+    };
+    expect(await collectVaultRecipients(reader)).toContain(device.recipient);
   });
 });

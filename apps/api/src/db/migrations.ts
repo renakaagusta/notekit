@@ -257,6 +257,27 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    id: "012_directory_devices_name_owner",
+    up: (db) => {
+      // First-class membership (docs/architecture/first-class-membership.md):
+      // a directory device record now carries a human `name` (shown when an
+      // owner admits the member) and the `owner` member it belongs to. The
+      // owner field is bound into the signature, so when an owner copies the
+      // record into their vault to admit the member it still verifies against
+      // the member's signing key. Both are nullable for back-compat with
+      // pre-membership published records.
+      const cols = db
+        .prepare(`PRAGMA table_info(user_directory_devices)`)
+        .all() as { name: string }[];
+      if (!cols.some((c) => c.name === "name")) {
+        db.exec(`ALTER TABLE user_directory_devices ADD COLUMN name TEXT`);
+      }
+      if (!cols.some((c) => c.name === "owner")) {
+        db.exec(`ALTER TABLE user_directory_devices ADD COLUMN owner TEXT`);
+      }
+    },
+  },
 ];
 
 export function runMigrations(db: Database.Database): void {

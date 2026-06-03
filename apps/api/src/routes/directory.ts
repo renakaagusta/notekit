@@ -31,8 +31,10 @@ const PublishBody = z.object({
     .array(
       z.object({
         deviceId: z.string().min(1).max(128),
+        name: z.string().max(128).optional(),
         recipient: z.string().min(1).max(256),
         addedAt: z.string().min(1).max(64),
+        owner: z.string().max(256).optional(),
         sig: z.string().max(256).optional(),
       }),
     )
@@ -65,8 +67,10 @@ directoryRoutes.put("/keys", async (c) => {
       devices.map((d) => ({
         userId: user.id,
         deviceId: d.deviceId,
+        name: d.name ?? null,
         recipient: d.recipient,
         addedAt: d.addedAt,
+        owner: d.owner ?? null,
         sig: d.sig ?? null,
         updatedAt: now,
       })),
@@ -104,8 +108,10 @@ directoryRoutes.get("/keys", async (c) => {
     signingKey: signing.signingKey,
     devices: devices.map((d) => ({
       deviceId: d.deviceId,
+      name: d.name,
       recipient: d.recipient,
       addedAt: d.addedAt,
+      owner: d.owner,
       sig: d.sig,
     })),
   });

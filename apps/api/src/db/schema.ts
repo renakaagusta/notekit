@@ -297,10 +297,18 @@ export const userDirectoryDevices = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     deviceId: text("device_id").notNull(),
+    /** Human label for the device, shown when an owner admits the member. */
+    name: text("name"),
     /** age recipient (public key) the inviter encrypts shared items to. */
     recipient: text("recipient").notNull(),
     addedAt: text("added_at").notNull(),
-    /** Recovery signature over the device record; verified client-side. */
+    /**
+     * The member this device belongs to (first-class membership). Bound into
+     * the signature, so an owner who admits this member copies the record
+     * verbatim and it still verifies against the member's signing key.
+     */
+    owner: text("owner"),
+    /** Member/recovery signature over the device record; verified client-side. */
     sig: text("sig"),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" })
       .notNull()

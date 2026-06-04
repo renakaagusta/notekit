@@ -63,6 +63,15 @@ export interface SecretsBackend {
     sha?: string,
   ): Promise<{ path: string; sha: string }>;
   deleteFile(path: string, sha: string, message?: string): Promise<{ ok: true }>;
+  /**
+   * Commit many files in ONE commit (issue #13). Optional — backends that don't
+   * implement it fall back to per-file {@link writeFile}. Used by the vault
+   * re-encrypt paths to avoid N commits (and GitHub's secondary rate limit).
+   */
+  commitFiles?(
+    files: { path: string; content: string }[],
+    message?: string,
+  ): Promise<{ commitSha: string }>;
 }
 
 let backend: SecretsBackend = {
@@ -71,6 +80,7 @@ let backend: SecretsBackend = {
   readFileAtRef: defaultVaultApi.readFileAtRef,
   writeFile: defaultVaultApi.writeFile,
   deleteFile: defaultVaultApi.deleteFile,
+  commitFiles: defaultVaultApi.commitFiles,
 };
 
 /** Override the backend that the secrets module uses for vault file I/O. */
@@ -563,6 +573,33 @@ function buildRecoveryRecord(
   };
 }
 
+/** One file in a batched commit (issue #13); `message` is used only in the
+ * per-file fallback when the backend can't batch. */
+type BatchFile = { path: string; content: string; message?: string };
+
+/**
+ * Write many files in a SINGLE commit when the backend supports it (issue #13),
+ * else fall back to per-file writes. Collapsing N commits into one is what
+ * keeps a vault re-encrypt under GitHub's secondary rate limit. After a batch
+ * commit the per-file blob shas are unknown, so their shaCache entries are
+ * cleared — the next write to one of them re-reads the current sha.
+ */
+async function commitMany(files: BatchFile[], batchMessage: string): Promise<void> {
+  if (files.length === 0) return;
+  if (backend.commitFiles) {
+    await backend.commitFiles(
+      files.map((f) => ({ path: f.path, content: f.content })),
+      batchMessage,
+    );
+    for (const f of files) shaCache.delete(f.path);
+    return;
+  }
+  for (const f of files) {
+    const result = await backend.writeFile(f.path, f.content, f.message ?? batchMessage, shaCache.get(f.path));
+    shaCache.set(f.path, result.sha);
+  }
+}
+
 /** Re-encrypt every existing secret (across all vaults) for an updated recipient list. */
 async function reEncryptAll(
   signer: DeviceIdentity,
@@ -570,6 +607,7 @@ async function reEncryptAll(
   commitMessage: (ref: SecretRef) => string,
 ): Promise<void> {
   const { entries } = await backend.listFiles(SECRETS_PREFIX);
+  const batch: BatchFile[] = [];
   for (const e of entries) {
     const ref = parseSecretPath(e.path);
     if (!ref) continue;
@@ -578,9 +616,9 @@ async function reEncryptAll(
     shaCache.set(e.path, file.sha);
     const json = await decryptSecrets(file.content, signer.identity);
     const armored = await encryptSecrets(json, recipients);
-    const result = await backend.writeFile(e.path, armored, commitMessage(ref), file.sha);
-    shaCache.set(e.path, result.sha);
+    batch.push({ path: e.path, content: armored, message: commitMessage(ref) });
   }
+  await commitMany(batch, "Re-encrypt secrets for updated recipients");
 }
 
 /**
@@ -604,6 +642,7 @@ async function reencryptAllItems(
     { prefix: "tickets/", kind: "ticket" },
     { prefix: "links/", kind: "link" },
   ];
+  const batch: BatchFile[] = [];
   for (const { prefix } of prefixes) {
     let entries: { path: string; sha: string }[] = [];
     try {
@@ -631,18 +670,13 @@ async function reencryptAllItems(
         const headerEnd = file.content.indexOf("-----BEGIN AGE ENCRYPTED FILE-----");
         const header = headerEnd >= 0 ? file.content.slice(0, headerEnd) : "---\n---\n";
         const next = `${header}${armored}\n`;
-        const result = await backend.writeFile(
-          e.path,
-          next,
-          commitMessage(kind, env.fm.id),
-          file.sha,
-        );
-        shaCache.set(e.path, result.sha);
+        batch.push({ path: e.path, content: next, message: commitMessage(kind, env.fm.id) });
       } catch (err) {
         console.warn(`[items-rewrap] ${e.path} rewrap failed`, err);
       }
     }
   }
+  await commitMany(batch, "Re-encrypt items for updated recipients");
 }
 
 /** A stable signature of a recipient set, order-independent. */
@@ -671,8 +705,10 @@ export async function reEncryptVaultIfMembersChanged(
   const signature = recipientSignature(recipients);
   if (signature === previousSignature) return { changed: false, signature };
 
-  // Secrets: skip-tolerant (reEncryptAll throws on undecryptable; here we don't).
+  // Secrets: skip-tolerant (reEncryptAll throws on undecryptable; here we don't),
+  // collected into one batched commit (issue #13).
   const { entries } = await backend.listFiles(SECRETS_PREFIX);
+  const batch: BatchFile[] = [];
   for (const e of entries) {
     const ref = parseSecretPath(e.path);
     if (!ref) continue;
@@ -683,13 +719,13 @@ export async function reEncryptVaultIfMembersChanged(
       const json = await decryptSecrets(file.content, signer.identity);
       const armored = await encryptSecrets(json, recipients);
       const label = ref.vault ? `${ref.vault}/${ref.name}` : ref.name;
-      const result = await backend.writeFile(e.path, armored, `Re-encrypt secret "${label}" for current members`, file.sha);
-      shaCache.set(e.path, result.sha);
+      batch.push({ path: e.path, content: armored, message: `Re-encrypt secret "${label}" for current members` });
     } catch {
       // can't decrypt or transient — skip; an authorized device re-seals it.
     }
   }
-  // Items: reencryptAllItems is already skip-tolerant per file.
+  await commitMany(batch, "Re-encrypt secrets for current members");
+  // Items: reencryptAllItems is already skip-tolerant per file and now batched.
   await reencryptAllItems(
     signer,
     recipients,

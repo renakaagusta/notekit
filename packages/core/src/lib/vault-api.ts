@@ -232,6 +232,17 @@ export function writeFile(
   });
 }
 
+/** Commit many files in one commit (issue #13) — batched vault re-encrypt. */
+export function commitFiles(
+  files: { path: string; content: string }[],
+  message?: string,
+): Promise<{ commitSha: string }> {
+  return apiFetch("/vault/files", {
+    method: "PUT",
+    body: JSON.stringify({ files, message }),
+  });
+}
+
 export function deleteFile(path: string, sha: string, message?: string) {
   return apiFetch<{ ok: true }>("/vault/file", {
     method: "DELETE",

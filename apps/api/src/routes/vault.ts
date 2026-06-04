@@ -137,6 +137,13 @@ function ghErr(c: Context, err: unknown) {
       const inner = parsed.errors?.[0]?.message;
       message = inner ?? parsed.message ?? message;
     } catch {}
+    // Surface rate limits as a typed, retryable error (issue #13). GitHub's
+    // secondary limit is a 403 whose body mentions "rate limit"; the primary
+    // limit is 429. Either way the client should back off and retry, not treat
+    // it as a hard failure.
+    if (err.status === 429 || (err.status === 403 && /rate limit/i.test(err.body))) {
+      return c.json({ error: "rate_limited", status: err.status, message }, 429);
+    }
     // Pass 4xx back to the client so the UI can show the actual message.
     // Wrap 5xx as 502 since GitHub being down is our problem, not the client's.
     const status = err.status >= 400 && err.status < 500 ? err.status : 502;
@@ -867,6 +874,67 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
       sha: result.sha,
     });
     return c.json({ path: body.path, sha: result.sha, actor: "user" });
+  } catch (err) {
+    return ghErr(c, err);
+  }
+});
+
+/**
+ * PUT /vault/files — commit MANY files in a SINGLE commit (issue #13).
+ * body: { files: [{ path, content }], message? }
+ *
+ * The batched alternative to N × PUT /vault/file, which is N commits and trips
+ * GitHub's secondary rate limit. Used by the vault re-encrypt paths. Authored
+ * as the user (no agent attribution needed for a bulk re-seal).
+ */
+vaultRoutes.put("/files", writeLimit, async (c) => {
+  const { userId } = await requirePrincipal(c);
+  if (!userId) return c.json({ error: "unauthorized" }, 401);
+  const vault = await resolveVault(userId);
+  if (!vault) return c.json({ error: "no_vault_configured" }, 409);
+  const token = await getVaultToken(userId, vault.provider);
+  if (!token) return c.json({ error: "no_git_token" }, 400);
+  const body = (await c.req.json().catch(() => null)) as {
+    files?: { path?: string; content?: string }[];
+    message?: string;
+  } | null;
+  const files = (body?.files ?? []).filter(
+    (f): f is { path: string; content: string } =>
+      !!f && typeof f.path === "string" && typeof f.content === "string",
+  );
+  if (files.length === 0) return c.json({ error: "files_required" }, 400);
+
+  if (vault.provider === "notekit") {
+    await refreshUsedBytesIfStale(userId);
+    const guard = await checkWriteAllowed(userId, vault.provider);
+    if (!guard.ok) {
+      return c.json(
+        { error: guard.reason, quotaBytes: guard.state.quotaBytes, usedBytes: guard.state.usedBytes },
+        413,
+      );
+    }
+  }
+
+  if (!env.isProd && isDevToken(token)) {
+    for (const f of files) {
+      publishVaultEvent(vault.id, { type: "write", path: f.path, sha: "dev_sha_000" });
+    }
+    return c.json({ commitSha: "dev_sha_000", count: files.length });
+  }
+
+  try {
+    const result = await gitOps(vault.provider).commitFiles(
+      token,
+      vault.owner,
+      vault.repo,
+      vault.branch,
+      files,
+      body?.message ?? `notekit: update ${files.length} files`,
+    );
+    for (const f of files) {
+      publishVaultEvent(vault.id, { type: "write", path: f.path, sha: result.commitSha });
+    }
+    return c.json({ commitSha: result.commitSha, count: files.length });
   } catch (err) {
     return ghErr(c, err);
   }

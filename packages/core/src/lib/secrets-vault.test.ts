@@ -4,6 +4,7 @@ import {
   DEVICES_PREFIX,
   MEMBERS_PREFIX,
   RECOVERY_PATH,
+  SECRETS_PREFIX,
   SHARES_PREFIX,
   addMember,
   collectVaultRecipients,
@@ -30,6 +31,8 @@ import {
   recoverySigningFromMnemonic,
 } from "./crypto/recovery";
 import { deviceSigningPayload, sign, toB64 } from "./crypto/signing";
+import { generateIdentity, identityToRecipient } from "age-encryption";
+import { encryptSecrets } from "./crypto/vault-crypto";
 
 const PHRASE =
   "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
@@ -646,5 +649,54 @@ describe("member recipient reconcile — phase 2 (#14)", () => {
     const after = await reEncryptVaultIfMembersChanged(reader, before);
     expect(after.changed).toBe(true); // set grew → reconcile fires
     expect(after.signature).toContain("age1bdev2");
+  });
+});
+
+describe("batched re-encrypt commits — #13", () => {
+  it("uses the backend's commitFiles (one commit) instead of per-file writes", async () => {
+    const idStr = await generateIdentity();
+    const recipient = await identityToRecipient(idStr);
+    const signer: DeviceIdentity = {
+      deviceId: "sg", name: "Signer", identity: idStr, recipient, createdAt: "t",
+    };
+    // sanity: the signer can decrypt what we seed
+    const { decryptSecrets } = await import("./crypto/vault-crypto");
+    const probe = await encryptSecrets(JSON.stringify({ v: 9 }), [recipient]);
+    expect(JSON.parse(await decryptSecrets(probe, idStr)).v).toBe(9);
+
+    const { backend, files } = memoryBackend();
+    let commitFilesCalls = 0;
+    let batchedCount = 0;
+    let writeFileCalls = 0;
+    const baseWrite = backend.writeFile;
+    backend.writeFile = async (...a: Parameters<typeof baseWrite>) => {
+      writeFileCalls++;
+      return baseWrite(...a);
+    };
+    backend.commitFiles = async (fs, _msg) => {
+      commitFilesCalls++;
+      batchedCount += fs.length;
+      for (const f of fs) files.set(f.path, f.content);
+      return { commitSha: "batch-sha" };
+    };
+    configureSecretsBackend(backend);
+
+    const a = await recoverySigningFromMnemonic(PHRASE);
+    // Recovery recipient must be a REAL age recipient — reEncryptVaultIfMembersChanged
+    // actually encrypts to the set, so a placeholder would throw.
+    const recoveryRecipient = await identityToRecipient(await generateIdentity());
+    files.set(`${MEMBERS_PREFIX}a@x.com.json`, JSON.stringify({ memberId: "a@x.com", signingKey: toB64(a.publicKey), role: "owner", addedAt: "t" }));
+    files.set(RECOVERY_PATH, JSON.stringify({ recipient: recoveryRecipient, createdAt: "t" }));
+    // Two secrets, encrypted to the signer so it can decrypt + re-seal them.
+    files.set(`${SECRETS_PREFIX}k1.age`, await encryptSecrets(JSON.stringify({ v: 1 }), [recipient]));
+    files.set(`${SECRETS_PREFIX}k2.age`, await encryptSecrets(JSON.stringify({ v: 2 }), [recipient]));
+
+    const res = await reEncryptVaultIfMembersChanged(signer, null);
+    expect(res.changed).toBe(true);
+    expect({ commitFilesCalls, batchedCount, writeFileCalls }).toEqual({
+      commitFilesCalls: 1,
+      batchedCount: 2,
+      writeFileCalls: 0,
+    });
   });
 });

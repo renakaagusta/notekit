@@ -224,6 +224,80 @@ export async function writeFileAs(
   return { sha: blob.sha };
 }
 
+/**
+ * Commit MANY files in a single commit via the Git Data (Trees) API — the
+ * batched alternative to N × {@link writeFile} (which is N commits and trips
+ * GitHub's secondary rate limit). Roughly 5 API calls regardless of file
+ * count: get ref → get commit → create one tree (content inlined, no per-blob
+ * POST) → create one commit → fast-forward the ref. Author/committer default
+ * to the token's user. See issue #13.
+ */
+export async function commitFiles(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  files: { path: string; content: string }[],
+  message: string,
+  author?: GitAuthor,
+  committer?: GitAuthor,
+): Promise<{ commitSha: string }> {
+  if (files.length === 0) return { commitSha: "" };
+
+  const refRes = await fetch(
+    `${GH}/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
+    { headers: headers(token) },
+  );
+  if (!refRes.ok) throw new GhError(refRes.status, await refRes.text());
+  const parentSha = ((await refRes.json()) as { object: { sha: string } }).object.sha;
+
+  const commitRes = await fetch(`${GH}/repos/${owner}/${repo}/git/commits/${parentSha}`, {
+    headers: headers(token),
+  });
+  if (!commitRes.ok) throw new GhError(commitRes.status, await commitRes.text());
+  const baseTreeSha = ((await commitRes.json()) as { tree: { sha: string } }).tree.sha;
+
+  // Inline file content into the tree entries — GitHub creates the blobs,
+  // so there's no per-file blob POST.
+  const treeRes = await fetch(`${GH}/repos/${owner}/${repo}/git/trees`, {
+    method: "POST",
+    headers: headers(token, true),
+    body: JSON.stringify({
+      base_tree: baseTreeSha,
+      tree: files.map((f) => ({ path: f.path, mode: "100644", type: "blob", content: f.content })),
+    }),
+  });
+  if (!treeRes.ok) throw new GhError(treeRes.status, await treeRes.text());
+  const treeSha = ((await treeRes.json()) as { sha: string }).sha;
+
+  const nowIso = new Date().toISOString();
+  const newCommitRes = await fetch(`${GH}/repos/${owner}/${repo}/git/commits`, {
+    method: "POST",
+    headers: headers(token, true),
+    body: JSON.stringify({
+      message,
+      tree: treeSha,
+      parents: [parentSha],
+      ...(author ? { author: { ...author, date: nowIso } } : {}),
+      ...(committer ? { committer: { ...committer, date: nowIso } } : {}),
+    }),
+  });
+  if (!newCommitRes.ok) throw new GhError(newCommitRes.status, await newCommitRes.text());
+  const newCommitSha = ((await newCommitRes.json()) as { sha: string }).sha;
+
+  const updateRes = await fetch(
+    `${GH}/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
+    {
+      method: "PATCH",
+      headers: headers(token, true),
+      body: JSON.stringify({ sha: newCommitSha, force: false }),
+    },
+  );
+  if (!updateRes.ok) throw new GhError(updateRes.status, await updateRes.text());
+
+  return { commitSha: newCommitSha };
+}
+
 export async function deleteFile(
   token: string,
   owner: string,

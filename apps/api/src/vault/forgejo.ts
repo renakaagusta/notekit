@@ -250,6 +250,80 @@ export async function writeFileAs(
   return { sha: blob.sha };
 }
 
+/**
+ * Commit MANY files in one commit (issue #13). Forgejo/Gitea's tree API takes
+ * blob SHAs (not inline content like GitHub), so we POST one blob per file,
+ * then build a single tree + single commit + ref update: N+3 calls with ONE
+ * commit, vs N commits for N × {@link writeFile}. Author/committer optional.
+ */
+export async function commitFiles(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  files: { path: string; content: string }[],
+  message: string,
+  author?: GitAuthor,
+  committer?: GitAuthor,
+): Promise<{ commitSha: string }> {
+  if (files.length === 0) return { commitSha: "" };
+  const api = `${baseUrl()}/api/v1/repos/${owner}/${repo}`;
+
+  const refRes = await fetch(`${api}/git/refs/heads/${encodeURIComponent(branch)}`, {
+    headers: headers(token),
+  });
+  if (!refRes.ok) throw new GhError(refRes.status, await refRes.text());
+  const parentSha = ((await refRes.json()) as { object: { sha: string } }).object.sha;
+
+  const commitRes = await fetch(`${api}/git/commits/${parentSha}`, { headers: headers(token) });
+  if (!commitRes.ok) throw new GhError(commitRes.status, await commitRes.text());
+  const baseTreeSha = ((await commitRes.json()) as { tree: { sha: string } }).tree.sha;
+
+  const tree: { path: string; mode: string; type: string; sha: string }[] = [];
+  for (const f of files) {
+    const blobRes = await fetch(`${api}/git/blobs`, {
+      method: "POST",
+      headers: headers(token, true),
+      body: JSON.stringify({ content: Buffer.from(f.content, "utf-8").toString("base64"), encoding: "base64" }),
+    });
+    if (!blobRes.ok) throw new GhError(blobRes.status, await blobRes.text());
+    const blobSha = ((await blobRes.json()) as { sha: string }).sha;
+    tree.push({ path: f.path, mode: "100644", type: "blob", sha: blobSha });
+  }
+
+  const treeRes = await fetch(`${api}/git/trees`, {
+    method: "POST",
+    headers: headers(token, true),
+    body: JSON.stringify({ base_tree: baseTreeSha, tree }),
+  });
+  if (!treeRes.ok) throw new GhError(treeRes.status, await treeRes.text());
+  const treeSha = ((await treeRes.json()) as { sha: string }).sha;
+
+  const nowIso = new Date().toISOString();
+  const newCommitRes = await fetch(`${api}/git/commits`, {
+    method: "POST",
+    headers: headers(token, true),
+    body: JSON.stringify({
+      message,
+      tree: treeSha,
+      parents: [parentSha],
+      ...(author ? { author: { ...author, date: nowIso } } : {}),
+      ...(committer ? { committer: { ...committer, date: nowIso } } : {}),
+    }),
+  });
+  if (!newCommitRes.ok) throw new GhError(newCommitRes.status, await newCommitRes.text());
+  const newCommitSha = ((await newCommitRes.json()) as { sha: string }).sha;
+
+  const updateRes = await fetch(`${api}/git/refs/heads/${encodeURIComponent(branch)}`, {
+    method: "PATCH",
+    headers: headers(token, true),
+    body: JSON.stringify({ sha: newCommitSha, force: false }),
+  });
+  if (!updateRes.ok) throw new GhError(updateRes.status, await updateRes.text());
+
+  return { commitSha: newCommitSha };
+}
+
 export async function deleteFile(
   token: string,
   owner: string,

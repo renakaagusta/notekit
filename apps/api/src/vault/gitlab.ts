@@ -278,6 +278,45 @@ export async function writeFileAs(
   return { sha: fetched?.sha ?? "" };
 }
 
+/**
+ * Commit MANY files in one commit (issue #13) via GitLab's native multi-file
+ * commits API — a single request with one `actions` array, vs N commits for
+ * N × {@link writeFile}. All files are `update` actions (the re-encrypt use
+ * case re-seals existing files). `committer` is informational on GitLab and
+ * isn't separately settable, so it's ignored.
+ */
+export async function commitFiles(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  files: { path: string; content: string }[],
+  message: string,
+  author?: GitAuthor,
+  _committer?: GitAuthor,
+): Promise<{ commitSha: string }> {
+  if (files.length === 0) return { commitSha: "" };
+  const url = `${GL}/projects/${projectId(owner, repo)}/repository/commits`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: headers(token, true),
+    body: JSON.stringify({
+      branch,
+      commit_message: message,
+      actions: files.map((f) => ({
+        action: "update",
+        file_path: f.path,
+        content: Buffer.from(f.content, "utf-8").toString("base64"),
+        encoding: "base64",
+      })),
+      ...(author ? { author_name: author.name, author_email: author.email } : {}),
+    }),
+  });
+  if (!res.ok) throw new GhError(res.status, await res.text());
+  const commit = (await res.json()) as { id: string };
+  return { commitSha: commit.id };
+}
+
 export async function deleteFile(
   token: string,
   owner: string,

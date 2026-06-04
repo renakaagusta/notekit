@@ -41,7 +41,7 @@ export interface StoredRecovery {
   backedUpVia?: BackupMethod;
 }
 
-export type BackupMethod = "download" | "copy" | "reveal" | "manual";
+export type BackupMethod = "download" | "copy" | "share" | "reveal" | "manual";
 
 function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {

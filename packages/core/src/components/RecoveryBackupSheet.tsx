@@ -10,9 +10,39 @@
  * vault backed up and silences the nudge.
  */
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Copy, Download, Check, ShieldAlert, X } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Copy,
+  Download,
+  Share2,
+  Check,
+  ShieldAlert,
+  X,
+} from "lucide-react";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 import type { StoredRecovery } from "../lib/crypto/recovery-store";
+
+const RECOVERY_FILE_NAME = "notekit-recovery-phrase.txt";
+
+/** The exact bytes we hand off on download or share. */
+function recoveryFileBody(recovery: StoredRecovery): string {
+  return (
+    `NoteKit recovery phrase\n` +
+    `Created: ${recovery.createdAt}\n\n` +
+    recovery.mnemonic +
+    `\n\nKeep this secret. Anyone with these 24 words can read your encrypted notes.\n` +
+    `Store it offline or in a password manager — never anywhere that syncs unencrypted.\n`
+  );
+}
+
+/** True when the platform can present a native share sheet for a text file. */
+function canShareRecovery(): boolean {
+  if (typeof navigator === "undefined" || !navigator.share) return false;
+  // Some browsers expose `share` but not file sharing; we fall back to text
+  // there, so the button is still useful as long as `share` exists.
+  return true;
+}
 
 export function RecoveryBackupSheet() {
   const open = useRecoveryBackupStore((s) => s.sheetOpen);
@@ -78,22 +108,46 @@ export function RecoveryBackupSheet() {
 
   function onDownload() {
     if (!recovery) return;
-    const body =
-      `NoteKit recovery phrase\n` +
-      `Created: ${recovery.createdAt}\n\n` +
-      recovery.mnemonic +
-      `\n\nKeep this secret. Anyone with these 24 words can read your encrypted notes.\n` +
-      `Store it offline or in a password manager — never anywhere that syncs unencrypted.\n`;
-    const blob = new Blob([body], { type: "text/plain" });
+    const blob = new Blob([recoveryFileBody(recovery)], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "notekit-recovery-phrase.txt";
+    a.download = RECOVERY_FILE_NAME;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
     void completeBackup("download");
+  }
+
+  // Hand the phrase to the OS share sheet so the user can route it wherever
+  // they keep secrets — iCloud Drive / Files, a password manager, email. We
+  // never pick the destination or upload it ourselves: the master key only
+  // leaves the device by the user's explicit choice. Prefer a file attachment
+  // (lands cleanly in Drive/Files/mail); fall back to text where file share
+  // isn't supported, and to a plain download where there's no share sheet.
+  async function onShare() {
+    if (!recovery) return;
+    const body = recoveryFileBody(recovery);
+    const nav = navigator as Navigator & {
+      canShare?: (data?: ShareData) => boolean;
+    };
+    try {
+      const file = new File([body], RECOVERY_FILE_NAME, { type: "text/plain" });
+      if (nav.canShare?.({ files: [file] })) {
+        await nav.share({ files: [file], title: "NoteKit recovery phrase" });
+      } else {
+        await nav.share({ title: "NoteKit recovery phrase", text: body });
+      }
+      await completeBackup("share");
+    } catch (err) {
+      // The user dismissing the share sheet throws AbortError — that's not a
+      // backup, so leave the nudge armed and stay silent.
+      if ((err as Error)?.name === "AbortError") return;
+      // Anything else (share unsupported mid-flight, file rejected): degrade
+      // to a download so the user still gets their phrase out.
+      onDownload();
+    }
   }
 
   function onReveal() {
@@ -204,6 +258,11 @@ export function RecoveryBackupSheet() {
                     </>
                   )}
                 </button>
+                {canShareRecovery() && (
+                  <button type="button" className="nk-btn" onClick={onShare}>
+                    <Share2 size={14} aria-hidden /> Share
+                  </button>
+                )}
                 <button type="button" className="nk-btn" onClick={onDownload}>
                   <Download size={14} aria-hidden /> Download file
                 </button>

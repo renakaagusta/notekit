@@ -10,6 +10,7 @@ import {
   configureSecretsBackend,
   deviceRecordTrustedByMember,
   ensureOwnerMember,
+  ensureSelfRegistered,
   extraRecipientsForItem,
   initVault,
   listDevices,
@@ -523,5 +524,78 @@ describe("member admission (Pt 2b)", () => {
       recipient: "age1reader", createdAt: "t",
     };
     expect(await collectVaultRecipients(reader)).toContain(device.recipient);
+  });
+});
+
+describe("member device auto-register (Pt 3 / issue #14)", () => {
+  // Seed a member-mode vault: owner A + member B (B's signing key trusted),
+  // with B's first device present. Returns B's signing key for new-device tests.
+  async function seedMemberVault() {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const a = await recoverySigningFromMnemonic(PHRASE);
+    const b = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    files.set(`${MEMBERS_PREFIX}a@x.com.json`, JSON.stringify({ memberId: "a@x.com", signingKey: toB64(a.publicKey), role: "owner", addedAt: "t" }));
+    files.set(`${MEMBERS_PREFIX}b@x.com.json`, JSON.stringify({ memberId: "b@x.com", signingKey: toB64(b.publicKey), role: "member", addedAt: "t" }));
+    files.set(RECOVERY_PATH, JSON.stringify({ recipient: "age1recovery", createdAt: "t" }));
+    // B's first device, signed by B.
+    const addedAt = "2026-06-04T00:00:00.000Z";
+    files.set(`${DEVICES_PREFIX}bdev1.json`, JSON.stringify({
+      deviceId: "bdev1", name: "B phone", recipient: "age1bdev1", addedAt, owner: "b@x.com",
+      sig: sign(deviceSigningPayload({ deviceId: "bdev1", recipient: "age1bdev1", addedAt, owner: "b@x.com" }), b.privateKey),
+    }));
+    return { files, a, b };
+  }
+
+  it("a member's new device self-registers and joins the recipient set", async () => {
+    const { b } = await seedMemberVault();
+    const newDevice: DeviceIdentity = {
+      deviceId: "bdev2", name: "B laptop", identity: "AGE-SECRET-KEY-1B2",
+      recipient: "age1bdev2", createdAt: "t",
+    };
+    const res = await ensureSelfRegistered({ memberId: "b@x.com" }, newDevice, b);
+    expect(res.registered).toBe(true);
+
+    const devices = await listDevices();
+    const rec = devices.find((d) => d.deviceId === "bdev2");
+    expect(rec?.owner).toBe("b@x.com");
+    expect(deviceRecordTrustedByMember(rec!, await readMembers())).toBe(true);
+
+    // Joins the recipient set so FUTURE writes seal to it.
+    const recips = await collectVaultRecipients(newDevice);
+    expect(recips).toContain("age1bdev2");
+  });
+
+  it("refuses to self-register a device whose key isn't the member's", async () => {
+    await seedMemberVault();
+    const attacker = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    const newDevice: DeviceIdentity = {
+      deviceId: "evil", name: "Evil", identity: "AGE-SECRET-KEY-1E",
+      recipient: "age1evil", createdAt: "t",
+    };
+    const res = await ensureSelfRegistered({ memberId: "b@x.com" }, newDevice, attacker);
+    expect(res.registered).toBe(false);
+    expect(res.reason).toBe("signing_key_mismatch");
+    expect((await listDevices()).some((d) => d.deviceId === "evil")).toBe(false);
+  });
+
+  it("is a no-op for a non-member account", async () => {
+    const { b } = await seedMemberVault();
+    const dev: DeviceIdentity = {
+      deviceId: "cdev", name: "C", identity: "AGE-SECRET-KEY-1C", recipient: "age1c", createdAt: "t",
+    };
+    const res = await ensureSelfRegistered({ memberId: "c@x.com" }, dev, b);
+    expect(res.registered).toBe(false);
+    expect(res.reason).toBe("not_a_member");
+  });
+
+  it("is idempotent — already-registered device isn't rewritten", async () => {
+    const { b } = await seedMemberVault();
+    const existing: DeviceIdentity = {
+      deviceId: "bdev1", name: "B phone", identity: "AGE-SECRET-KEY-1B1", recipient: "age1bdev1", createdAt: "t",
+    };
+    const res = await ensureSelfRegistered({ memberId: "b@x.com" }, existing, b);
+    expect(res.registered).toBe(false);
+    expect(res.reason).toBe("already_registered");
   });
 });

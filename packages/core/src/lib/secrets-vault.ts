@@ -1342,6 +1342,69 @@ export async function ensureOwnerMember(
   }
 }
 
+/** Outcome of {@link ensureSelfRegistered}. */
+export type SelfRegisterResult = {
+  registered: boolean;
+  reason?:
+    | "not_member_mode"
+    | "not_a_member"
+    | "signing_key_mismatch"
+    | "already_registered";
+};
+
+/**
+ * Member device auto-register (membership Pt 3, issue #14). When a member's
+ * *new* device opens a vault it belongs to, it writes its own device record —
+ * signed by the member's signing key, `owner=<me>` — so it joins the recipient
+ * set for future writes without the owner re-admitting it.
+ *
+ * Phase 1 only: this writes the record but does NOT re-encrypt existing items,
+ * because a brand-new device can't decrypt them yet (it isn't a recipient, and
+ * the member's recovery key isn't this vault's recovery recipient). Historical
+ * items get re-sealed by an already-authorized device on its next sync.
+ *
+ * No safety-number re-check is needed: the member's signing key is already
+ * trusted in `members/<me>.json` (verified once at admission), and the record
+ * is signed by that key — so `deviceRecordTrustedByMember` accepts it.
+ *
+ * Requires the caller's member signing key (from their stored recovery
+ * mnemonic). A device paired by approval-code only — without the mnemonic —
+ * can't self-sign and should stay `needs-pair` instead.
+ */
+export async function ensureSelfRegistered(
+  account: { memberId: string },
+  device: DeviceIdentity,
+  signing: RecoverySigningKey,
+): Promise<SelfRegisterResult> {
+  const members = await readMembers();
+  if (members.size === 0) return { registered: false, reason: "not_member_mode" };
+  const me = members.get(account.memberId);
+  if (!me) return { registered: false, reason: "not_a_member" };
+  // Only self-register if we actually hold this member's signing key — the
+  // record must verify against `members/<me>.json` or it'd be dropped.
+  if (me.signingKey !== toB64(signing.publicKey)) {
+    return { registered: false, reason: "signing_key_mismatch" };
+  }
+  const devices = await listDevices();
+  if (devices.some((d) => d.deviceId === device.deviceId)) {
+    return { registered: false, reason: "already_registered" };
+  }
+  await writeDeviceRecord(
+    buildDeviceRecord(
+      {
+        deviceId: device.deviceId,
+        name: device.name,
+        recipient: device.recipient,
+        addedAt: new Date().toISOString(),
+      },
+      signing,
+      account.memberId,
+    ),
+    `Self-register device "${device.name}" for member "${account.memberId}"`,
+  );
+  return { registered: true };
+}
+
 /**
  * Admit a member into the vault (first-class membership, Pt 2b). The owner has
  * already verified the member's signing key out-of-band (safety number); this

@@ -10,15 +10,35 @@ import {
   createDeviceIdentity,
 } from "./crypto/device-key";
 import {
+  ensureSelfRegistered,
   isVaultInitialized,
   listDevices,
   readRecovery,
   readVaultConfig,
 } from "./secrets-vault";
+import { useAuthStore } from "../stores/authStore";
 import { loadStoredRecovery } from "./crypto/recovery-store";
 import { recoverySigningFromMnemonic } from "./crypto/recovery";
 import { toB64 } from "./crypto/signing";
 import { verifySigningKeyTrust } from "./crypto/trust-store";
+import type { DeviceIdentity } from "./crypto/device-key";
+
+/**
+ * Member device auto-register (issue #14): if this is a member's device that
+ * holds the member signing key (its stored recovery mnemonic), write its own
+ * device record into a member vault it's missing from — so it joins without the
+ * owner re-admitting it. Returns true if it registered (caller → `ready`).
+ * No-op (false) when we're not signed in, hold no mnemonic, or aren't a member.
+ */
+async function tryMemberSelfRegister(device: DeviceIdentity): Promise<boolean> {
+  const email = useAuthStore.getState().user?.email;
+  if (!email) return false;
+  const stored = await loadStoredRecovery();
+  if (!stored?.mnemonic) return false;
+  const signing = await recoverySigningFromMnemonic(stored.mnemonic);
+  const res = await ensureSelfRegistered({ memberId: email }, device, signing);
+  return res.registered;
+}
 
 /**
  * Pin/verify the vault's recovery signing key against this client's TOFU pin
@@ -66,9 +86,15 @@ export async function bootstrapCrypto(): Promise<void> {
     await verifyRecoveryTrust(recovery);
 
     if (!existing) {
-      // Vault already initialized elsewhere — must pair this device.
+      // Vault already initialized elsewhere — must pair this device, unless
+      // we're a member holding our member signing key, in which case we
+      // self-register (issue #14) and skip pairing entirely.
       const fresh = await createDeviceIdentity();
       store.setDevice(fresh);
+      if (await tryMemberSelfRegister(fresh)) {
+        store.setPhase("ready");
+        return;
+      }
       store.setPhase("needs-pair");
       return;
     }
@@ -77,6 +103,11 @@ export async function bootstrapCrypto(): Promise<void> {
     const known = devices.some((d) => d.deviceId === existing.deviceId);
     if (!known) {
       store.setDevice(existing);
+      // A member's existing device that isn't in *this* vault yet self-joins.
+      if (await tryMemberSelfRegister(existing)) {
+        store.setPhase("ready");
+        return;
+      }
       store.setPhase("needs-pair");
       return;
     }

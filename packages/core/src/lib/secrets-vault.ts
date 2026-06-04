@@ -645,6 +645,59 @@ async function reencryptAllItems(
   }
 }
 
+/** A stable signature of a recipient set, order-independent. */
+function recipientSignature(recipients: string[]): string {
+  return [...recipients].sort().join(",");
+}
+
+/**
+ * Phase 2 of member device auto-register (#14): re-seal the vault to its
+ * *current* recipient set, but ONLY when that set has changed since
+ * `previousSignature` (so it doesn't churn on every boot). Skip-tolerant — a
+ * device that can't decrypt an item (e.g. the just-self-registered newcomer)
+ * silently skips it, making this a safe no-op there; an already-authorized
+ * device re-seals everything, which is what pulls history into a new member
+ * device's reach.
+ *
+ * Returns the current signature so the caller can persist it. (Uses the same
+ * per-file re-encrypt as {@link addMember}/{@link addDevice}; issue #13 will
+ * batch all of these into a single commit.)
+ */
+export async function reEncryptVaultIfMembersChanged(
+  signer: DeviceIdentity,
+  previousSignature: string | null,
+): Promise<{ changed: boolean; signature: string }> {
+  const recipients = await collectVaultRecipients(signer);
+  const signature = recipientSignature(recipients);
+  if (signature === previousSignature) return { changed: false, signature };
+
+  // Secrets: skip-tolerant (reEncryptAll throws on undecryptable; here we don't).
+  const { entries } = await backend.listFiles(SECRETS_PREFIX);
+  for (const e of entries) {
+    const ref = parseSecretPath(e.path);
+    if (!ref) continue;
+    try {
+      const file = await backend.readFile(e.path);
+      if (!file.sha || typeof file.content !== "string" || !file.content) continue;
+      shaCache.set(e.path, file.sha);
+      const json = await decryptSecrets(file.content, signer.identity);
+      const armored = await encryptSecrets(json, recipients);
+      const label = ref.vault ? `${ref.vault}/${ref.name}` : ref.name;
+      const result = await backend.writeFile(e.path, armored, `Re-encrypt secret "${label}" for current members`, file.sha);
+      shaCache.set(e.path, result.sha);
+    } catch {
+      // can't decrypt or transient — skip; an authorized device re-seals it.
+    }
+  }
+  // Items: reencryptAllItems is already skip-tolerant per file.
+  await reencryptAllItems(
+    signer,
+    recipients,
+    (kind, id) => `Re-encrypt ${kind} "${id}" for current members`,
+  );
+  return { changed: true, signature };
+}
+
 // ─── Per-item sharing ────────────────────────────────────────────────────────
 
 export const SHARES_PREFIX = ".notekit/shares/";

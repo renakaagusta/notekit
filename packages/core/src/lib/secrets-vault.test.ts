@@ -11,6 +11,7 @@ import {
   deviceRecordTrustedByMember,
   ensureOwnerMember,
   ensureSelfRegistered,
+  reEncryptVaultIfMembersChanged,
   extraRecipientsForItem,
   initVault,
   listDevices,
@@ -597,5 +598,53 @@ describe("member device auto-register (Pt 3 / issue #14)", () => {
     const res = await ensureSelfRegistered({ memberId: "b@x.com" }, existing, b);
     expect(res.registered).toBe(false);
     expect(res.reason).toBe("already_registered");
+  });
+});
+
+describe("member recipient reconcile — phase 2 (#14)", () => {
+  async function seedMemberVault() {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const a = await recoverySigningFromMnemonic(PHRASE);
+    const b = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    files.set(`${MEMBERS_PREFIX}a@x.com.json`, JSON.stringify({ memberId: "a@x.com", signingKey: toB64(a.publicKey), role: "owner", addedAt: "t" }));
+    files.set(`${MEMBERS_PREFIX}b@x.com.json`, JSON.stringify({ memberId: "b@x.com", signingKey: toB64(b.publicKey), role: "member", addedAt: "t" }));
+    files.set(RECOVERY_PATH, JSON.stringify({ recipient: "age1recovery", createdAt: "t" }));
+    const addedAt = "2026-06-04T00:00:00.000Z";
+    files.set(`${DEVICES_PREFIX}bdev1.json`, JSON.stringify({
+      deviceId: "bdev1", name: "B phone", recipient: "age1bdev1", addedAt, owner: "b@x.com",
+      sig: sign(deviceSigningPayload({ deviceId: "bdev1", recipient: "age1bdev1", addedAt, owner: "b@x.com" }), b.privateKey),
+    }));
+    return { b };
+  }
+
+  const reader: DeviceIdentity = {
+    deviceId: "bdev1", name: "B phone", identity: "AGE-SECRET-KEY-1B1", recipient: "age1bdev1", createdAt: "t",
+  };
+
+  it("no-ops when the recipient set is unchanged, runs when it changed", async () => {
+    await seedMemberVault();
+    const first = await reEncryptVaultIfMembersChanged(reader, null);
+    expect(first.changed).toBe(true); // null → differs
+    expect(first.signature).toContain("age1bdev1");
+
+    const again = await reEncryptVaultIfMembersChanged(reader, first.signature);
+    expect(again.changed).toBe(false); // same set → skip
+    expect(again.signature).toBe(first.signature);
+  });
+
+  it("detects the set change when a new member device self-registers (phase 1 → phase 2)", async () => {
+    const { b } = await seedMemberVault();
+    const before = (await reEncryptVaultIfMembersChanged(reader, null)).signature;
+
+    await ensureSelfRegistered(
+      { memberId: "b@x.com" },
+      { deviceId: "bdev2", name: "B laptop", identity: "AGE-SECRET-KEY-1B2", recipient: "age1bdev2", createdAt: "t" },
+      b,
+    );
+
+    const after = await reEncryptVaultIfMembersChanged(reader, before);
+    expect(after.changed).toBe(true); // set grew → reconcile fires
+    expect(after.signature).toContain("age1bdev2");
   });
 });

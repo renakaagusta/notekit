@@ -13,8 +13,10 @@ import {
   ensureSelfRegistered,
   isVaultInitialized,
   listDevices,
+  readMembers,
   readRecovery,
   readVaultConfig,
+  reEncryptVaultIfMembersChanged,
 } from "./secrets-vault";
 import { useAuthStore } from "../stores/authStore";
 import { loadStoredRecovery } from "./crypto/recovery-store";
@@ -38,6 +40,28 @@ async function tryMemberSelfRegister(device: DeviceIdentity): Promise<boolean> {
   const signing = await recoverySigningFromMnemonic(stored.mnemonic);
   const res = await ensureSelfRegistered({ memberId: email }, device, signing);
   return res.registered;
+}
+
+/**
+ * Phase 2 of member auto-register (#14), fire-and-forget after `ready`: when a
+ * member vault's recipient set has changed (e.g. a new member device joined),
+ * an already-authorized device re-seals history to include it. No-ops on a
+ * device that can't decrypt (the newcomer skips everything). Tracked per-vault
+ * in localStorage so it runs only when the set actually changes.
+ */
+async function reconcileMemberRecipients(device: DeviceIdentity): Promise<void> {
+  try {
+    const vaultId = useVaultStore.getState().activeId;
+    if (!vaultId) return;
+    if ((await readMembers()).size === 0) return; // not a member vault
+    const key = `nk:reenc-sig:${vaultId}`;
+    const hasLS = typeof localStorage !== "undefined";
+    const prev = hasLS ? localStorage.getItem(key) : null;
+    const { changed, signature } = await reEncryptVaultIfMembersChanged(device, prev);
+    if (changed && hasLS) localStorage.setItem(key, signature);
+  } catch (e) {
+    console.warn("[crypto] member recipient reconcile failed", e);
+  }
 }
 
 /**
@@ -93,6 +117,7 @@ export async function bootstrapCrypto(): Promise<void> {
       store.setDevice(fresh);
       if (await tryMemberSelfRegister(fresh)) {
         store.setPhase("ready");
+        void reconcileMemberRecipients(fresh);
         return;
       }
       store.setPhase("needs-pair");
@@ -106,6 +131,7 @@ export async function bootstrapCrypto(): Promise<void> {
       // A member's existing device that isn't in *this* vault yet self-joins.
       if (await tryMemberSelfRegister(existing)) {
         store.setPhase("ready");
+        void reconcileMemberRecipients(existing);
         return;
       }
       store.setPhase("needs-pair");
@@ -113,6 +139,8 @@ export async function bootstrapCrypto(): Promise<void> {
     }
     store.setDevice(existing);
     store.setPhase("ready");
+    // Phase 2 (#14): re-seal history if a new member device joined the set.
+    void reconcileMemberRecipients(existing);
     // (Publishing our public keys to the directory happens in App's
     // crypto-ready effect, which fires for both this path and the first-run
     // VaultSetup path.)

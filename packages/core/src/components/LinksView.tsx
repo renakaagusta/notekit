@@ -15,7 +15,7 @@ import { useShareStore } from "../stores/shareStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { detectPlatform, platformLabel } from "../lib/link-platform";
-import { MediaViewer } from "./MediaViewer";
+import { MediaViewer, MediaThumb } from "./MediaViewer";
 import type { SavedLink } from "../types/link";
 
 function isMedia(link: SavedLink): boolean {
@@ -340,13 +340,7 @@ export function LinksView() {
         }}
       >
         {link.kind === "image" && link.url && (
-          <img
-            className="nk-link-thumb"
-            src={link.url}
-            alt=""
-            loading="lazy"
-            onClick={() => setViewing(link)}
-          />
+          <MediaThumb url={link.url} onClick={() => setViewing(link)} />
         )}
         <div
           className={`nk-link-card-main${

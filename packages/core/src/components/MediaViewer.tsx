@@ -1,6 +1,27 @@
 import { useEffect } from "react";
 import { ExternalLink, X } from "lucide-react";
+import { useMediaSrc } from "../lib/useMediaSrc";
 import type { LinkKind } from "../types/link";
+
+/** Cache-resolved image thumbnail for media cards (#27/#28). */
+export function MediaThumb({
+  url,
+  onClick,
+}: {
+  url: string;
+  onClick?: () => void;
+}) {
+  const src = useMediaSrc(url) ?? url;
+  return (
+    <img
+      className="nk-link-thumb"
+      src={src}
+      alt=""
+      loading="lazy"
+      onClick={onClick}
+    />
+  );
+}
 
 interface MediaViewerProps {
   url: string;
@@ -22,6 +43,9 @@ interface MediaViewerProps {
  * adds the fetch-and-strip-referrer path on native runtimes.
  */
 export function MediaViewer({ url, kind, title, onClose }: MediaViewerProps) {
+  // Cache-resolved src: cached object URL once available, raw URL until then.
+  const src = useMediaSrc(url) ?? url;
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -62,14 +86,14 @@ export function MediaViewer({ url, kind, title, onClose }: MediaViewerProps) {
         </div>
         <div className="nk-media-body">
           {kind === "image" ? (
-            <img className="nk-media-image" src={url} alt={title} />
+            <img className="nk-media-image" src={src} alt={title} />
           ) : (
             // First-cut PDF render via the platform viewer; #28 swaps this
             // for pdf.js fed from the byte cache for consistent rendering
             // across web / iOS / Android / Electron.
             <object
               className="nk-media-pdf"
-              data={url}
+              data={src}
               type="application/pdf"
               aria-label={title}
             >

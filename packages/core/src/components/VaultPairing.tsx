@@ -63,6 +63,59 @@ function randomCode(): string {
   return (buf[0]! % 1_000_000).toString().padStart(6, "0");
 }
 
+function RecoveryPhraseDialog({
+  busy,
+  error,
+  value,
+  onChange,
+  onCancel,
+  onSubmit,
+}: {
+  busy: boolean;
+  error: string | null;
+  value: string;
+  onChange: (v: string) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="nk-modal-backdrop nk-recovery-backdrop">
+      <div className="nk-modal nk-recovery-dialog">
+        <h2>Enter recovery phrase</h2>
+        <p>
+          Type your 24-word phrase, separated by spaces. Capitalisation and
+          extra spaces are ignored.
+        </p>
+        <textarea
+          className="nk-textarea nk-recovery-input"
+          rows={6}
+          placeholder="word1 word2 word3 …"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={busy}
+          autoFocus
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+        />
+        {error && <p className="nk-error-text">{error}</p>}
+        <div className="nk-modal-actions">
+          <button className="nk-btn" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="nk-btn nk-btn--primary"
+            onClick={onSubmit}
+            disabled={busy || !value.trim()}
+          >
+            {busy ? "Unlocking…" : "Unlock"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Shown on a NEW device after vault was already set up elsewhere.
  * Posts an announcement and polls for the device record to appear in the vault.
@@ -256,50 +309,27 @@ export function VaultPairNewDevice() {
           </>
         )}
 
-        {!recoveryOpen ? (
-          <button
-            className="nk-btn"
-            onClick={() => setRecoveryOpen(true)}
-          >
-            Use recovery phrase instead
-          </button>
-        ) : (
-          <>
-            <h3>Recover from phrase</h3>
-            <p className="nk-muted">
-              Enter your 24-word recovery phrase to unlock without another
-              device.
-            </p>
-            <textarea
-              className="nk-textarea"
-              rows={3}
-              placeholder="word word word …"
-              value={recoveryInput}
-              onChange={(e) => setRecoveryInput(e.target.value)}
-              disabled={recoveryBusy}
-            />
-            {recoveryError && (
-              <p className="nk-error-text">{recoveryError}</p>
-            )}
-            <div className="nk-modal-actions">
-              <button
-                className="nk-btn"
-                onClick={() => setRecoveryOpen(false)}
-                disabled={recoveryBusy}
-              >
-                Cancel
-              </button>
-              <button
-                className="nk-btn nk-btn--primary"
-                onClick={onUseRecovery}
-                disabled={recoveryBusy || !recoveryInput.trim()}
-              >
-                {recoveryBusy ? "Unlocking…" : "Unlock"}
-              </button>
-            </div>
-          </>
-        )}
+        <button
+          className="nk-btn"
+          onClick={() => setRecoveryOpen(true)}
+        >
+          Use recovery phrase instead
+        </button>
       </div>
+      {recoveryOpen && (
+        <RecoveryPhraseDialog
+          busy={recoveryBusy}
+          error={recoveryError}
+          value={recoveryInput}
+          onChange={setRecoveryInput}
+          onCancel={() => {
+            setRecoveryOpen(false);
+            setRecoveryError(null);
+            setRecoveryInput("");
+          }}
+          onSubmit={onUseRecovery}
+        />
+      )}
     </div>
   );
 }
@@ -456,17 +486,6 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
               device. A mismatch means the key was tampered with in transit —
               cancel and try again.
             </p>
-            {needsPhrase && (
-              <input
-                className="nk-input"
-                type="password"
-                placeholder="Your 24-word recovery phrase"
-                value={phraseInput}
-                onChange={(e) => setPhraseInput(e.target.value)}
-                disabled={busy}
-                autoComplete="off"
-              />
-            )}
             {error && <p className="nk-error-text">{error}</p>}
             <div className="nk-modal-actions">
               <button
@@ -487,6 +506,20 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
           </>
         )}
       </div>
+      {needsPhrase && (
+        <RecoveryPhraseDialog
+          busy={busy}
+          error={error}
+          value={phraseInput}
+          onChange={setPhraseInput}
+          onCancel={() => {
+            setNeedsPhrase(false);
+            setPhraseInput("");
+            setError(null);
+          }}
+          onSubmit={onApprove}
+        />
+      )}
     </div>
   );
 }

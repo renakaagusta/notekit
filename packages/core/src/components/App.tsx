@@ -781,8 +781,9 @@ export function App({ user, onSignOut }: AppProps = {}) {
        * notes/tickets/links needs the device registered (`collectVaultRecipients`
        * only picks up devices in `.notekit/devices/`), so blocking it behind a
        * tab would leave new devices encrypting to themselves only — readable
-       * here but not by other paired devices. Dismissable via the recovery-
-       * phrase escape hatch.
+       * here but not by other paired devices. Escapable when truly locked out
+       * (no phrase, no other device, not a wallet vault) via the dialog's
+       * "Start a new vault" action.
        */}
       {vaultPhase === "ready" && cryptoPhase === "needs-pair" && (
         <VaultPairNewDevice />

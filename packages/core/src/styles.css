@@ -7389,6 +7389,12 @@ a.nk-commit-sha:hover {
   justify-content: center;
 }
 
+/* Pairing-modal escape hatch hint (E2EE lockout recovery). */
+.nk-pair-escape-hint {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
 /* Annotation stage: image with an ink overlay sized exactly to it (#32). */
 .nk-annot-stage {
   position: relative;

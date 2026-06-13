@@ -15,6 +15,7 @@ import { deriveWalletVaultIdentity } from "../lib/crypto/wallet-key";
 import { connectWallet, hasInjectedWallet } from "../lib/crypto/wallet-provider";
 import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
 import { notifyDevicePaired } from "../lib/notifications-api";
+import { AddVaultDialog } from "./AddVaultDialog";
 
 /**
  * Derive the human-comparable pairing fingerprint for a pubkey. Both the new
@@ -133,6 +134,7 @@ export function VaultPairNewDevice() {
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
   const [walletBusy, setWalletBusy] = useState(false);
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [addVaultOpen, setAddVaultOpen] = useState(false);
   const walletAvailable = hasInjectedWallet();
 
   const fingerprint = useFingerprint(device?.recipient);
@@ -315,7 +317,37 @@ export function VaultPairNewDevice() {
         >
           Use recovery phrase instead
         </button>
+
+        <div className="nk-divider" />
+
+        {/*
+         * Escape hatch (the only non-unlock exit): if you've lost the
+         * recovery phrase, have no other device, and it isn't a wallet vault,
+         * pairing and recovery are both impossible. Without this you'd be
+         * permanently stuck on this modal. Adding/connecting another vault
+         * activates it server-side; reloading re-bootstraps crypto against
+         * the new vault, leaving the unreachable one behind (its data stays
+         * encrypted in git, unread).
+         */}
+        <p className="nk-muted nk-pair-escape-hint">
+          Lost your recovery phrase and have no other device?
+        </p>
+        <button className="nk-btn" onClick={() => setAddVaultOpen(true)}>
+          Start a new vault instead
+        </button>
       </div>
+      {addVaultOpen && (
+        <AddVaultDialog
+          onAdded={() => {
+            // The server already switched to the new vault. A full reload is
+            // the simplest correct re-bootstrap from a locked state — it tears
+            // down the old vault's sync/streams and re-runs crypto bootstrap,
+            // which lands on "needs-setup" for a fresh vault.
+            window.location.reload();
+          }}
+          onCancel={() => setAddVaultOpen(false)}
+        />
+      )}
       {recoveryOpen && (
         <RecoveryPhraseDialog
           busy={recoveryBusy}

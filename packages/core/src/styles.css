@@ -4070,6 +4070,99 @@ a.nk-commit-sha:hover {
   margin-top: 14px;
 }
 
+/* Vertical variant: full-width stacked choices (e.g. the wallet-vs-phrase
+ * vault-root picker). Each button spans the card; helper copy sits between
+ * them rather than to the side. */
+.nk-modal-actions--stack {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.nk-modal-actions--stack .nk-btn {
+  width: 100%;
+}
+
+.nk-modal-actions--stack .nk-muted {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+/* ─── Wallet-first vault setup ──────────────────────────────────── */
+
+/* Branded hero CTA: logo + "Continue with <wallet>". Full-width, prominent. */
+.nk-wallet-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 12px;
+  background: #18181b;
+  color: #fafafa;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.12s ease, transform 0.04s ease;
+}
+.nk-wallet-cta:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.nk-wallet-cta:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.nk-wallet-cta:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Muted "works with" trust strip under the CTA. */
+.nk-wallet-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.nk-wallet-strip__label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nk-text-muted, #9ca3af);
+  margin-right: 2px;
+}
+.nk-wallet-strip svg {
+  opacity: 0.85;
+}
+
+/* Quiet text-link button (no chrome, underline on hover). */
+.nk-textlink {
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--nk-text-muted, #6b7280);
+  font: inherit;
+  cursor: pointer;
+}
+.nk-textlink:hover:not(:disabled) {
+  color: var(--nk-text, #18181b);
+  text-decoration: underline;
+}
+.nk-textlink:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Quiet recovery-phrase fallback link. */
+.nk-wallet-alt {
+  margin-top: 22px;
+  font-size: 14px;
+}
+
 /* ─── Vault setup ───────────────────────────────────────────────── */
 
 .nk-vault-setup,

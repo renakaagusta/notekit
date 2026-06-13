@@ -7,8 +7,30 @@ import {
   loadStoredRecovery,
 } from "../lib/crypto/recovery-store";
 import { recoverySigningFromMnemonic } from "../lib/crypto/recovery";
+import { deriveWalletVaultIdentity } from "../lib/crypto/wallet-key";
+import {
+  connectWallet,
+  detectedWallet,
+  hasInjectedWallet,
+  type WalletId,
+} from "../lib/crypto/wallet-provider";
 import { initVault } from "../lib/secrets-vault";
 import { useAuthStore } from "../stores/authStore";
+import {
+  MetaMaskIcon,
+  RabbyIcon,
+  CoinbaseIcon,
+  WalletConnectIcon,
+  WalletIcon,
+} from "./BrandIcons";
+
+/** Render the brand logo for a detected wallet id. */
+function WalletLogo({ id, size = 20 }: { id: WalletId; size?: number }) {
+  if (id === "metamask") return <MetaMaskIcon size={size} />;
+  if (id === "rabby") return <RabbyIcon size={size} />;
+  if (id === "coinbase") return <CoinbaseIcon size={size} />;
+  return <WalletIcon size={size} />;
+}
 
 /**
  * Silent vault setup. No 24-word wall: we generate the recovery key, stash it
@@ -27,15 +49,61 @@ export function VaultSetup() {
   const refreshBackup = useRecoveryBackupStore((s) => s.refresh);
 
   const [failed, setFailed] = useState<string | null>(null);
+  // Web3 users can root the vault in their wallet instead of a generated phrase.
+  // Offer the choice once if a wallet is present; otherwise set up silently.
+  const [choosing, setChoosing] = useState(hasInjectedWallet());
+  const [walletBusy, setWalletBusy] = useState(false);
   // Guard against React 18 StrictMode double-invoke creating two vaults.
   const ranRef = useRef(false);
 
   useEffect(() => {
+    if (choosing) return; // wait for the user to pick a root
     if (ranRef.current) return;
     ranRef.current = true;
     void run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [choosing]);
+
+  /**
+   * Build the owner descriptor (member #0) from the signed-in account.
+   */
+  function ownerFromAccount() {
+    const account = useAuthStore.getState().user;
+    return account?.email
+      ? { memberId: account.email, displayName: account.name ?? undefined, email: account.email }
+      : undefined;
+  }
+
+  /**
+   * Root the new vault in the connected EVM wallet. The wallet signature
+   * derives the recovery identity + signing key, so no phrase is generated or
+   * stored — the wallet *is* the backup. Each future device self-unlocks by
+   * signing again (see VaultPairing.onUseWallet).
+   */
+  async function runWallet() {
+    setFailed(null);
+    setWalletBusy(true);
+    try {
+      const device = (await loadDeviceIdentity()) ?? (await createDeviceIdentity());
+      const conn = await connectWallet();
+      const { identity, signing } = await deriveWalletVaultIdentity(conn.sign);
+      await initVault({
+        device,
+        recoveryRecipient: identity.recipient,
+        recoverySigning: signing,
+        owner: ownerFromAccount(),
+      });
+      setDevice(device);
+      setEncryptionRequired(true);
+      await refreshBackup();
+      setChoosing(false);
+      setPhase("ready");
+    } catch (e) {
+      setFailed((e as Error).message);
+    } finally {
+      setWalletBusy(false);
+    }
+  }
 
   async function run() {
     setFailed(null);
@@ -51,15 +119,11 @@ export function VaultSetup() {
       const recoverySigning = await recoverySigningFromMnemonic(recovery.mnemonic);
       // Born-with-membership: stamp the owner as member #0 (keyed by account
       // email, matching how the directory looks members up).
-      const account = useAuthStore.getState().user;
-      const owner = account?.email
-        ? { memberId: account.email, displayName: account.name ?? undefined, email: account.email }
-        : undefined;
       await initVault({
         device,
         recoveryRecipient: recovery.recipient,
         recoverySigning,
-        owner,
+        owner: ownerFromAccount(),
       });
       setDevice(device);
       // initVault stamps `encryption: required`; reflect that in the live store
@@ -74,6 +138,52 @@ export function VaultSetup() {
       // shell. Surface a local retry instead.
       setFailed((e as Error).message);
     }
+  }
+
+  // Web3 path: lead with the user's detected wallet as the hero, with a muted
+  // "works with" logo strip for trust and the recovery phrase demoted to a
+  // quiet link. Shown only when a wallet is detected.
+  if (choosing && !failed) {
+    const wallet = detectedWallet() ?? { id: "wallet" as WalletId, name: "wallet" };
+    return (
+      <div className="nk-modal-backdrop">
+        <div className="nk-modal nk-vault-setup nk-vault-secure">
+          <h2>Secure your notes</h2>
+          <p className="nk-muted">
+            End-to-end encrypted. Your wallet holds the key — nothing else to
+            back up, and any device unlocks by signing again.
+          </p>
+
+          <button
+            className="nk-wallet-cta"
+            onClick={() => void runWallet()}
+            disabled={walletBusy}
+          >
+            <WalletLogo id={wallet.id} size={22} />
+            <span>
+              {walletBusy ? "Waiting for wallet…" : `Continue with ${wallet.name}`}
+            </span>
+          </button>
+
+          <div className="nk-wallet-strip">
+            <span className="nk-wallet-strip__label">works with</span>
+            <MetaMaskIcon size={18} />
+            <RabbyIcon size={18} />
+            <CoinbaseIcon size={18} />
+            <WalletConnectIcon size={18} />
+          </div>
+
+          <button
+            className="nk-textlink nk-wallet-alt"
+            onClick={() => setChoosing(false)}
+            disabled={walletBusy}
+          >
+            Prefer a recovery phrase? Set it up →
+          </button>
+          {failed && <p className="nk-error-text">{failed}</p>}
+        </div>
+      </div>
+    );
   }
 
   if (!failed) {

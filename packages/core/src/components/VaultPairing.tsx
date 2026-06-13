@@ -11,6 +11,8 @@ import {
   recoverySigningFromMnemonic,
 } from "../lib/crypto/recovery";
 import { importRecovery, loadStoredRecovery } from "../lib/crypto/recovery-store";
+import { deriveWalletVaultIdentity } from "../lib/crypto/wallet-key";
+import { connectWallet, hasInjectedWallet } from "../lib/crypto/wallet-provider";
 import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
 import { notifyDevicePaired } from "../lib/notifications-api";
 
@@ -76,6 +78,9 @@ export function VaultPairNewDevice() {
   const [recoveryInput, setRecoveryInput] = useState("");
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [walletBusy, setWalletBusy] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const walletAvailable = hasInjectedWallet();
 
   const fingerprint = useFingerprint(device?.recipient);
 
@@ -172,6 +177,46 @@ export function VaultPairNewDevice() {
     }
   }
 
+  // Wallet self-unlock: a vault rooted in an EVM wallet needs no other device
+  // and no typed phrase. Connect, sign, and the wallet re-derives the same
+  // recovery identity that roots the vault — then we register this device.
+  async function onUseWallet() {
+    if (!device) return;
+    setWalletBusy(true);
+    setWalletError(null);
+    try {
+      const conn = await connectWallet();
+      const { identity, signing } = await deriveWalletVaultIdentity(conn.sign);
+      const recovery = await readRecovery();
+      if (!recovery || recovery.recipient !== identity.recipient) {
+        throw new Error(
+          "This wallet doesn't match the vault's key. Connect the wallet you set it up with.",
+        );
+      }
+      await addDevice(
+        {
+          deviceId: device.deviceId,
+          name: device.name,
+          recipient: device.recipient,
+        },
+        {
+          deviceId: "recovery",
+          name: "recovery",
+          identity: identity.identity,
+          recipient: identity.recipient,
+          createdAt: new Date().toISOString(),
+        },
+        signing,
+      );
+      await notifyDevicePaired(device.deviceId, device.name).catch(() => {});
+      setPhase("ready");
+    } catch (e) {
+      setWalletError((e as Error).message);
+    } finally {
+      setWalletBusy(false);
+    }
+  }
+
   return (
     <div className="nk-modal-backdrop">
       <div className="nk-modal nk-vault-pair">
@@ -197,6 +242,19 @@ export function VaultPairNewDevice() {
         </p>
 
         <div className="nk-divider" />
+
+        {walletAvailable && (
+          <>
+            <button
+              className="nk-btn nk-btn--primary"
+              onClick={onUseWallet}
+              disabled={walletBusy}
+            >
+              {walletBusy ? "Waiting for wallet…" : "Unlock with wallet"}
+            </button>
+            {walletError && <p className="nk-error-text">{walletError}</p>}
+          </>
+        )}
 
         {!recoveryOpen ? (
           <button

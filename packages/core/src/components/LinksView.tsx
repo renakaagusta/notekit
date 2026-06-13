@@ -15,7 +15,12 @@ import { useShareStore } from "../stores/shareStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { detectPlatform, platformLabel } from "../lib/link-platform";
+import { MediaViewer } from "./MediaViewer";
 import type { SavedLink } from "../types/link";
+
+function isMedia(link: SavedLink): boolean {
+  return link.kind === "image" || link.kind === "pdf";
+}
 
 function parseTags(raw: string): string[] {
   return raw
@@ -124,6 +129,7 @@ export function LinksView() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<SavedLink | null>(null);
 
   const detectedPlatform = addUrl ? detectPlatform(addUrl) : null;
   const isAdding = addingIn !== undefined;
@@ -333,8 +339,29 @@ export function LinksView() {
           promptMove(link);
         }}
       >
-        <div className="nk-link-card-main">
+        {link.kind === "image" && link.url && (
+          <img
+            className="nk-link-thumb"
+            src={link.url}
+            alt=""
+            loading="lazy"
+            onClick={() => setViewing(link)}
+          />
+        )}
+        <div
+          className={`nk-link-card-main${
+            isMedia(link) && link.url ? " nk-link-card-main--media" : ""
+          }`}
+          onClick={
+            isMedia(link) && link.url ? () => setViewing(link) : undefined
+          }
+        >
           <div className="nk-link-card-top">
+            {isMedia(link) && (
+              <span className={`nk-kind-badge nk-kind--${link.kind}`}>
+                {link.kind === "pdf" ? "PDF" : "Image"}
+              </span>
+            )}
             {link.platform && (
               <span
                 className={`nk-platform-badge nk-platform--${link.platform}`}
@@ -617,6 +644,15 @@ export function LinksView() {
         >
           {renderNode(tree, 0)}
         </ul>
+      )}
+
+      {viewing && viewing.url && (
+        <MediaViewer
+          url={viewing.url}
+          kind={viewing.kind ?? "link"}
+          title={viewing.title || viewing.url}
+          onClose={() => setViewing(null)}
+        />
       )}
     </div>
   );

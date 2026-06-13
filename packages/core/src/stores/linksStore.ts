@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import type { SavedLink } from "../types/link";
 import { linkPathFor, sanitizeFolderPath } from "../lib/file-paths";
 import { detectPlatform } from "../lib/link-platform";
+import { detectLinkKind } from "../lib/link-kind";
 import { useCryptoStore } from "./cryptoStore";
 
 interface LinksState {
@@ -58,6 +59,9 @@ export const useLinksStore = create<LinksState>()(
         const timestamp = now();
         const title = input.title?.trim() || existing?.title || titleFromUrl(input.url);
         const platform = input.platform ?? existing?.platform ?? detectPlatform(input.url);
+        // Auto-classify image/pdf from the URL unless the caller is explicit
+        // or we already classified this item before.
+        const kind = input.kind ?? existing?.kind ?? detectLinkKind(input.url);
         const folder =
           input.folder !== undefined
             ? cleanFolder(input.folder)
@@ -72,6 +76,7 @@ export const useLinksStore = create<LinksState>()(
           title,
           description: input.description ?? existing?.description ?? null,
           platform,
+          kind,
           tags: input.tags ?? existing?.tags ?? [],
           folder,
           createdAt: existing?.createdAt ?? timestamp,

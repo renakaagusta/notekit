@@ -1,3 +1,12 @@
+/**
+ * Render kind for a saved-URL item. A `link` shows a link card; `image`
+ * renders an `<img>` preview; `pdf` opens in the pdf.js viewer. All three
+ * share the same on-disk shape (a URL under `links/`) and differ only in
+ * how the UI presents the URL. Orthogonal to {@link NoteFormat}. See
+ * #25/#26.
+ */
+export type LinkKind = "link" | "image" | "pdf";
+
 export interface SavedLink {
   id: string;
   path: string;
@@ -6,6 +15,12 @@ export interface SavedLink {
   description: string | null;
   platform: string | null;
   tags: string[];
+  /**
+   * How to render the URL: `link` (default), `image`, or `pdf`. Encrypted
+   * links keep this inside the ciphertext so the leak surface stays
+   * "timestamps + folder only".
+   */
+  kind?: LinkKind;
   /**
    * Vault-relative folder this link lives in, e.g. `research/papers`.
    * `null` means the vault root. Mirrors `Note.folder` so the Links

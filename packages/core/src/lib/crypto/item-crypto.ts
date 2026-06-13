@@ -33,13 +33,13 @@
  */
 
 import { encryptSecrets, decryptSecrets } from "./vault-crypto";
-import type { Note } from "../../types/note";
+import type { Note, NoteFormat } from "../../types/note";
 import type {
   Ticket,
   TicketStatus,
   TicketPriority,
 } from "../../types/ticket";
-import type { SavedLink } from "../../types/link";
+import type { SavedLink, LinkKind } from "../../types/link";
 
 export type EncryptedItemKind = "note" | "ticket" | "link";
 
@@ -48,6 +48,8 @@ export interface EncryptedNotePayload {
   title: string;
   body: string;
   tags: string[];
+  /** Body format; private so it never widens the leak surface. */
+  format?: NoteFormat;
 }
 export interface EncryptedTicketPayload {
   title: string;
@@ -63,6 +65,8 @@ export interface EncryptedLinkPayload {
   description: string | null;
   platform: string | null;
   tags: string[];
+  /** Render kind (link/image/pdf); private so only timestamps + folder leak. */
+  kind?: LinkKind;
 }
 
 /** Public frontmatter ships in plaintext for each kind. */
@@ -124,6 +128,7 @@ export function splitNoteForEncryption(note: Note): {
       title: note.title ?? "",
       body: note.body,
       tags: note.tags,
+      ...(note.format && note.format !== "md" ? { format: note.format } : {}),
     },
   };
 }
@@ -143,6 +148,7 @@ export function mergeEncryptedNote(
     updatedAt: fm.updatedAt,
     folder: fm.folder,
     tags: payload.tags,
+    format: payload.format ?? "md",
   };
 }
 
@@ -215,6 +221,7 @@ export function splitLinkForEncryption(l: SavedLink): {
       description: l.description,
       platform: l.platform,
       tags: l.tags,
+      ...(l.kind && l.kind !== "link" ? { kind: l.kind } : {}),
     },
   };
 }
@@ -232,6 +239,7 @@ export function mergeEncryptedLink(
     description: payload.description,
     platform: payload.platform,
     tags: payload.tags,
+    kind: payload.kind ?? "link",
     folder: fm.folder ?? null,
     createdAt: fm.createdAt,
     updatedAt: fm.updatedAt,

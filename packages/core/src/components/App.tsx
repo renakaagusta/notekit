@@ -4,6 +4,7 @@ import {
   FileText,
   Menu,
   PanelLeft,
+  Pencil,
   Plus,
   Search,
   X,
@@ -35,6 +36,9 @@ import {
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import type { User } from "../types/user";
 import { Editor, type EditorHandle } from "./Editor";
+import { InkCanvas } from "./InkCanvas";
+import { parseInk, serializeInk } from "../lib/ink";
+import { emptyInkDocument } from "../types/ink";
 import { EditorToolbar } from "./EditorToolbar";
 import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { FirstEncryptDialog } from "./FirstEncryptDialog";
@@ -484,6 +488,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
         })()
       : null;
 
+  // Drawing notes (format "ink") swap the markdown editor for the pen
+  // canvas. Journal drafts are always markdown, so they never qualify.
+  const isInkNote = !draftJournal && note?.format === "ink" && !!activeNoteId;
+
   // Secrets and Links render their own title header (with actions), so the
   // breadcrumb would just repeat it. Blank the crumb for them and drop the
   // breadcrumb row on desktop (it still appears on mobile / when collapsed
@@ -613,14 +621,24 @@ export function App({ user, onSignOut }: AppProps = {}) {
           <EncryptedSkippedBanner />
           {view === "notes" && (
             <>
-              {editorBinding && (
+              {editorBinding && !isInkNote && (
                 <EditorToolbar
                   getEditor={() => editorRef.current?.editor ?? null}
                   onHistoryClick={() => setHistoryOpen(true)}
                 />
               )}
               <div className="nk-editor-wrap">
-                {editorBinding ? (
+                {editorBinding && isInkNote && activeNoteId ? (
+                  <div className="nk-ink-wrap">
+                    <InkCanvas
+                      key={editorBinding.key}
+                      doc={parseInk(editorBinding.body)}
+                      onChange={(d) =>
+                        updateBody(activeNoteId, serializeInk(d))
+                      }
+                    />
+                  </div>
+                ) : editorBinding ? (
                   <Editor
                     key={editorBinding.key}
                     ref={editorRef}
@@ -642,16 +660,33 @@ export function App({ user, onSignOut }: AppProps = {}) {
                     <p className="nk-empty-hint">
                       Pick one from the sidebar, or create a new one.
                     </p>
-                    <button
-                      className="nk-empty-cta"
-                      onClick={() => {
-                        const folder = activeSettings?.defaultFolder ?? null;
-                        const created = upsert({ title: "Untitled", body: "", folder });
-                        setActive(created.id);
-                      }}
-                    >
-                      <Plus size={14} aria-hidden /> New note
-                    </button>
+                    <div className="nk-empty-cta-row">
+                      <button
+                        className="nk-empty-cta"
+                        onClick={() => {
+                          const folder = activeSettings?.defaultFolder ?? null;
+                          const created = upsert({ title: "Untitled", body: "", folder });
+                          setActive(created.id);
+                        }}
+                      >
+                        <Plus size={14} aria-hidden /> New note
+                      </button>
+                      <button
+                        className="nk-empty-cta"
+                        onClick={() => {
+                          const folder = activeSettings?.defaultFolder ?? null;
+                          const created = upsert({
+                            title: "Drawing",
+                            body: serializeInk(emptyInkDocument()),
+                            folder,
+                            format: "ink",
+                          });
+                          setActive(created.id);
+                        }}
+                      >
+                        <Pencil size={14} aria-hidden /> New drawing
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

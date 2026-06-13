@@ -103,6 +103,7 @@ export const useNotesStore = create<NotesState>()(
         folder,
         tags: input.tags ?? existing?.tags ?? [],
         encrypted,
+        format: input.format ?? existing?.format,
       };
       set((state) => {
         state.notes[id] = note;

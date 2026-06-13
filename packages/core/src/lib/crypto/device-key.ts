@@ -7,6 +7,7 @@
  */
 import { generateIdentity, identityToRecipient } from "age-encryption";
 import { nanoid } from "nanoid";
+import { getNativePlatform, type NativePlatform } from "../native";
 
 const DB_NAME = "notekit-crypto";
 // v2 added the "recovery" store (see recovery-store.ts). Both files open the
@@ -95,13 +96,69 @@ export async function clearDeviceIdentity(): Promise<void> {
   await idbDelete(KEY);
 }
 
+/**
+ * A human label for this device, shown in the Devices list. We distinguish the
+ * three runtimes so a Chrome tab doesn't read the same as the installed app:
+ *
+ *   - Capacitor app  → the hardware ("iPhone" / "iPad" / "Android")
+ *   - Electron app   → the OS ("Mac" / "Windows" / "Linux"), like a desktop app
+ *   - Web browser    → "<Browser> browser in <OS>" (e.g. "Chrome browser in Mac")
+ *
+ * so two sessions on the same Mac — the desktop app and a browser tab — are
+ * told apart.
+ */
 function defaultDeviceName(): string {
   if (typeof navigator === "undefined") return "Device";
-  const ua = navigator.userAgent;
-  if (/iPhone|iPad|iPod/i.test(ua)) return "iOS";
-  if (/Android/i.test(ua)) return "Android";
+  return deviceLabel(navigator.userAgent, {
+    native: getNativePlatform(),
+    electron: isElectronWrapper(),
+  });
+}
+
+/**
+ * Pure naming core — separated from the global reads above so it's testable.
+ * Exported for the unit test; callers should use the device's stored `name`.
+ */
+export function deviceLabel(
+  ua: string,
+  env: { native: NativePlatform; electron: boolean },
+): string {
+  // Native mobile app — name it by the hardware, not the embedded WebView.
+  if (env.native === "ios") return /iPad/i.test(ua) ? "iPad" : "iPhone";
+  if (env.native === "android") return "Android";
+
+  const os = osLabel(ua);
+
+  // Electron desktop wrapper — a real installed app, so the bare OS name reads
+  // right (matches how WhatsApp's desktop app shows "Mac").
+  if (env.electron) return os || "Desktop";
+
+  // Plain web browser — keep it distinct from the native app.
+  const browser = browserLabel(ua);
+  return os ? `${browser} browser in ${os}` : `${browser} browser`;
+}
+
+function isElectronWrapper(): boolean {
+  if (typeof window === "undefined") return false;
+  const w = window as unknown as { notekit?: { keychain?: unknown } };
+  return !!w.notekit?.keychain;
+}
+
+function osLabel(ua: string): string {
   if (/Mac/i.test(ua)) return "Mac";
   if (/Win/i.test(ua)) return "Windows";
+  if (/CrOS/i.test(ua)) return "ChromeOS";
   if (/Linux/i.test(ua)) return "Linux";
-  return "Device";
+  return "";
+}
+
+function browserLabel(ua: string): string {
+  // Order matters: Edge / Opera carry "Chrome" in their UA, so match them
+  // first; Chrome carries "Safari", so Safari comes last.
+  if (/Edg\//i.test(ua)) return "Edge";
+  if (/OPR\//i.test(ua) || /\bOpera\b/i.test(ua)) return "Opera";
+  if (/Firefox\//i.test(ua)) return "Firefox";
+  if (/Chrome\//i.test(ua)) return "Chrome";
+  if (/Safari\//i.test(ua)) return "Safari";
+  return "Browser";
 }

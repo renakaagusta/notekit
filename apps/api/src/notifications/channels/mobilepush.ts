@@ -1,11 +1,10 @@
 /**
  * Mobile push channel.
  *
- * iOS uses direct APNs HTTP/2 with a `.p8` auth key — no Firebase
- * dependency. Android uses FCM HTTP v1 (unavoidable for background push).
- *
- * M5 wires the actual HTTP/2 + JWT signing. Until then this loops tokens and
- * logs.
+ * Single delivery path: FCM HTTP v1 for every platform. iOS devices register
+ * an FCM token (Firebase wraps APNs natively), Android registers an FCM token
+ * directly, so the server never speaks the APNs protocol itself — one
+ * service-account credential covers both.
  */
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../db";
@@ -23,15 +22,11 @@ export async function sendMobilePush(
   if (tokens.length === 0) return;
 
   for (const t of tokens) {
-    if (t.platform === "ios") {
-      await sendApns(t.token, summary, notificationId, payload).catch((err) =>
-        handleMobileFailure(t.id, err),
-      );
-    } else if (t.platform === "android") {
-      await sendFcm(t.token, summary, notificationId, payload).catch((err) =>
-        handleMobileFailure(t.id, err),
-      );
-    }
+    // Every platform delivers through FCM — the `platform` column is kept for
+    // diagnostics only and no longer changes the dispatch.
+    await sendFcm(t.token, summary, notificationId, payload).catch((err) =>
+      handleMobileFailure(t.id, err),
+    );
   }
 }
 
@@ -46,97 +41,6 @@ async function handleMobileFailure(tokenId: string, err: unknown): Promise<void>
     return;
   }
   console.error("[notify:mobilepush] send failed:", err);
-}
-
-/**
- * Direct APNs HTTP/2 push. Requires APNS_KEY_ID, APNS_TEAM_ID,
- * APNS_BUNDLE_ID, APNS_KEY_P8 (PEM contents). Uses node:http2.
- */
-async function sendApns(
-  deviceToken: string,
-  summary: string,
-  notificationId: string,
-  payload: Record<string, unknown>,
-): Promise<void> {
-  if (
-    !env.apns.keyId ||
-    !env.apns.teamId ||
-    !env.apns.bundleId ||
-    !env.apns.keyP8
-  ) {
-    return;
-  }
-  const jwt = await buildApnsJwt(
-    env.apns.keyId,
-    env.apns.teamId,
-    env.apns.keyP8,
-  );
-  const host = env.apns.production
-    ? "api.push.apple.com"
-    : "api.sandbox.push.apple.com";
-
-  const http2 = await import("node:http2");
-  const client = http2.connect(`https://${host}`);
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const req = client.request({
-        ":method": "POST",
-        ":path": `/3/device/${deviceToken}`,
-        "apns-topic": env.apns.bundleId!,
-        "apns-push-type": "alert",
-        authorization: `bearer ${jwt}`,
-        "content-type": "application/json",
-      });
-      req.setEncoding("utf8");
-      let status = 0;
-      let body = "";
-      req.on("response", (h) => {
-        status = Number(h[":status"]);
-      });
-      req.on("data", (chunk) => (body += chunk));
-      req.on("end", () => {
-        if (status >= 200 && status < 300) return resolve();
-        reject(new Error(`apns_${status}: ${body.slice(0, 200)}`));
-      });
-      req.on("error", reject);
-      req.end(
-        JSON.stringify({
-          aps: {
-            alert: { title: "NoteKit", body: summary },
-            sound: "default",
-          },
-          notificationId,
-          data: payload,
-        }),
-      );
-    });
-  } finally {
-    client.close();
-  }
-}
-
-/**
- * APNs uses ES256 JWTs signed with the .p8 private key. Tokens valid up to
- * an hour; we mint per-request for simplicity (low traffic). Optimize later
- * with a 50-minute cache if needed.
- */
-async function buildApnsJwt(
-  keyId: string,
-  teamId: string,
-  p8Pem: string,
-): Promise<string> {
-  const { createSign } = await import("node:crypto");
-  const header = { alg: "ES256", kid: keyId };
-  const claims = { iss: teamId, iat: Math.floor(Date.now() / 1000) };
-  const b64 = (obj: object) =>
-    Buffer.from(JSON.stringify(obj))
-      .toString("base64url");
-  const signingInput = `${b64(header)}.${b64(claims)}`;
-  const signer = createSign("SHA256");
-  signer.update(signingInput);
-  signer.end();
-  const sig = signer.sign({ key: p8Pem, dsaEncoding: "ieee-p1363" });
-  return `${signingInput}.${sig.toString("base64url")}`;
 }
 
 /**

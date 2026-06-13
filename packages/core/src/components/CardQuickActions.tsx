@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { Lock, MoreHorizontal, Unlock } from "lucide-react";
+import { Lock, MoreHorizontal, Share2, Unlock } from "lucide-react";
 import type { Ticket, TicketPriority } from "../types/ticket";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useShareStore } from "../stores/shareStore";
 
 const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
   { value: "urgent", label: "P0 · Urgent" },
@@ -26,6 +28,9 @@ export function CardQuickActions({
 }: CardQuickActionsProps) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Born-E2EE vault: nothing to toggle, every ticket is sealed.
+  const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
+  const openShare = useShareStore((s) => s.open);
 
   useEffect(() => {
     if (!open) return;
@@ -123,27 +128,44 @@ export function CardQuickActions({
             </div>
           </div>
 
-          <button
-            type="button"
-            className="nk-qa-action"
-            onClick={handleToggleEncrypted}
-            role="menuitem"
-            title={
-              ticket.encrypted
-                ? "Decrypt this ticket and store it as plain markdown"
-                : "End-to-end encrypt this ticket"
-            }
-          >
-            {ticket.encrypted ? (
-              <>
-                <Unlock size={14} aria-hidden /> Decrypt ticket
-              </>
-            ) : (
-              <>
-                <Lock size={14} aria-hidden /> Encrypt ticket
-              </>
-            )}
-          </button>
+          {!encryptionRequired && (
+            <button
+              type="button"
+              className="nk-qa-action"
+              onClick={handleToggleEncrypted}
+              role="menuitem"
+              title={
+                ticket.encrypted
+                  ? "Decrypt this ticket and store it as plain markdown"
+                  : "End-to-end encrypt this ticket"
+              }
+            >
+              {ticket.encrypted ? (
+                <>
+                  <Unlock size={14} aria-hidden /> Decrypt ticket
+                </>
+              ) : (
+                <>
+                  <Lock size={14} aria-hidden /> Encrypt ticket
+                </>
+              )}
+            </button>
+          )}
+
+          {(encryptionRequired || ticket.encrypted) && (
+            <button
+              type="button"
+              className="nk-qa-action"
+              role="menuitem"
+              title="Share this ticket"
+              onClick={() => {
+                setOpen(false);
+                openShare({ kind: "ticket", id: ticket.id, title: ticket.title });
+              }}
+            >
+              <Share2 size={14} aria-hidden /> Share ticket
+            </button>
+          )}
 
           <button
             type="button"

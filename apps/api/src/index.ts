@@ -12,6 +12,7 @@ import { notificationRoutes } from "./routes/notifications";
 import { integrationsRoutes } from "./routes/integrations";
 import { iapRoutes } from "./routes/iap";
 import { avatarRoutes } from "./routes/avatar";
+import { directoryRoutes } from "./routes/directory";
 import { startTelegramPoller } from "./notifications/telegramPoller";
 
 const app = new Hono();
@@ -71,6 +72,7 @@ app.route("/agents", agentRoutes);
 app.route("/notifications", notificationRoutes);
 app.route("/integrations", integrationsRoutes);
 app.route("/iap", iapRoutes);
+app.route("/directory", directoryRoutes);
 // Public Gravatar-compatible service. Mounted last so its CORS-permissive
 // nature (images served to other origins) is intentional and traceable.
 app.route("/avatar", avatarRoutes);

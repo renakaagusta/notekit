@@ -1,6 +1,7 @@
 import type { Note } from "../types/note";
 import type { Ticket } from "../types/ticket";
-import type { SavedLink } from "../types/link";
+import type { SavedLink, LinkKind } from "../types/link";
+import { parseInk } from "./ink";
 
 /**
  * Serialize a note/ticket into a markdown file with YAML frontmatter.
@@ -102,6 +103,8 @@ export function serializeNote(note: Note): string {
     updatedAt: note.updatedAt,
     folder: note.folder,
     tags: note.tags,
+    // Emit only when non-default so existing markdown notes don't churn.
+    format: note.format && note.format !== "md" ? note.format : undefined,
   });
   return fm + note.body;
 }
@@ -124,6 +127,10 @@ export function deserializeNote(path: string, content: string): Note | null {
     updatedAt: String(frontmatter.updatedAt ?? new Date().toISOString()),
     folder: (frontmatter.folder as string | null) ?? null,
     tags: Array.isArray(frontmatter.tags) ? (frontmatter.tags as string[]) : [],
+    format:
+      frontmatter.format === "html" || frontmatter.format === "ink"
+        ? frontmatter.format
+        : "md",
   };
 }
 
@@ -187,11 +194,21 @@ export function deserializeTicket(path: string, content: string): Ticket | null 
   };
 }
 
+function parseLinkKind(v: unknown): LinkKind {
+  return v === "image" || v === "pdf" ? v : "link";
+}
+
 export function serializeLink(link: SavedLink): string {
   const fm = emitFrontmatter({
     id: link.id,
     url: link.url,
     platform: link.platform,
+    // Emit only when non-default so existing link files don't churn.
+    kind: link.kind && link.kind !== "link" ? link.kind : undefined,
+    annotation:
+      link.annotation && link.annotation.strokes.length > 0
+        ? JSON.stringify(link.annotation)
+        : undefined,
     folder: link.folder,
     tags: link.tags,
     createdAt: link.createdAt,
@@ -226,6 +243,11 @@ export function deserializeLink(path: string, content: string): SavedLink | null
     description,
     platform: (frontmatter.platform as string | null) ?? null,
     tags: Array.isArray(frontmatter.tags) ? (frontmatter.tags as string[]) : [],
+    kind: parseLinkKind(frontmatter.kind),
+    annotation:
+      typeof frontmatter.annotation === "string"
+        ? parseInk(frontmatter.annotation)
+        : null,
     folder: folderFromFrontmatter(frontmatter.folder, path),
     createdAt: String(frontmatter.createdAt ?? new Date().toISOString()),
     updatedAt: String(frontmatter.updatedAt ?? new Date().toISOString()),

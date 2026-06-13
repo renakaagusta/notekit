@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import type { Ticket, TicketStatus } from "../types/ticket";
 import { ticketPathFor } from "../lib/file-paths";
 import { useVaultStore } from "./vaultStore";
+import { useCryptoStore } from "./cryptoStore";
 
 interface TicketsState {
   tickets: Record<string, Ticket>;
@@ -56,7 +57,10 @@ export const useTicketsStore = create<TicketsState>()(
         updatedAt: timestamp,
         dueDate: input.dueDate ?? existing?.dueDate ?? null,
         createdBy: input.createdBy ?? existing?.createdBy ?? defaultCreator,
-        encrypted: input.encrypted ?? existing?.encrypted ?? false,
+        encrypted:
+          input.encrypted ??
+          existing?.encrypted ??
+          useCryptoStore.getState().encryptionRequired,
       };
       set((state) => {
         state.tickets[id] = ticket;

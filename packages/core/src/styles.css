@@ -4040,6 +4040,12 @@ a.nk-commit-sha:hover {
   vertical-align: middle;
 }
 
+.nk-pill--warn {
+  background: color-mix(in srgb, var(--danger, #e5484d) 14%, transparent);
+  border-color: color-mix(in srgb, var(--danger, #e5484d) 40%, transparent);
+  color: var(--danger, #e5484d);
+}
+
 .nk-divider {
   height: 1px;
   background: var(--border-soft);
@@ -4062,6 +4068,99 @@ a.nk-commit-sha:hover {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 14px;
+}
+
+/* Vertical variant: full-width stacked choices (e.g. the wallet-vs-phrase
+ * vault-root picker). Each button spans the card; helper copy sits between
+ * them rather than to the side. */
+.nk-modal-actions--stack {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.nk-modal-actions--stack .nk-btn {
+  width: 100%;
+}
+
+.nk-modal-actions--stack .nk-muted {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+/* ─── Wallet-first vault setup ──────────────────────────────────── */
+
+/* Branded hero CTA: logo + "Continue with <wallet>". Full-width, prominent. */
+.nk-wallet-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 13px 16px;
+  border: none;
+  border-radius: 12px;
+  background: #18181b;
+  color: #fafafa;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.12s ease, transform 0.04s ease;
+}
+.nk-wallet-cta:hover:not(:disabled) {
+  opacity: 0.9;
+}
+.nk-wallet-cta:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.nk-wallet-cta:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Muted "works with" trust strip under the CTA. */
+.nk-wallet-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.nk-wallet-strip__label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--nk-text-muted, #9ca3af);
+  margin-right: 2px;
+}
+.nk-wallet-strip svg {
+  opacity: 0.85;
+}
+
+/* Quiet text-link button (no chrome, underline on hover). */
+.nk-textlink {
+  display: inline-block;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--nk-text-muted, #6b7280);
+  font: inherit;
+  cursor: pointer;
+}
+.nk-textlink:hover:not(:disabled) {
+  color: var(--nk-text, #18181b);
+  text-decoration: underline;
+}
+.nk-textlink:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+/* Quiet recovery-phrase fallback link. */
+.nk-wallet-alt {
+  margin-top: 22px;
+  font-size: 14px;
 }
 
 /* ─── Vault setup ───────────────────────────────────────────────── */
@@ -4215,6 +4314,176 @@ a.nk-commit-sha:hover {
   font-size: 11.5px;
   line-height: 1.45;
   margin: 0 0 6px;
+}
+
+/* ── Recovery phrase dialog ─────────────────────────────────────────────── */
+/* Rendered as a separate backdrop on top of the pairing modal so it doesn't
+ * compete for vertical space on small screens. */
+.nk-recovery-backdrop {
+  z-index: 200;
+}
+
+.nk-recovery-dialog {
+  padding: 20px 22px;
+  max-width: 420px;
+}
+
+.nk-recovery-dialog h2 {
+  font-size: 15px;
+  margin: 0 0 8px;
+}
+
+.nk-recovery-dialog p {
+  margin: 0 0 12px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-2);
+}
+
+.nk-recovery-input {
+  /* Tall enough to comfortably fit 24 words without scrolling */
+  min-height: 110px;
+  resize: none;
+}
+
+/* iOS Safari auto-zooms any input with font-size < 16px when it gains focus.
+ * Override here for touch devices only so desktop sizing stays unchanged. */
+@supports (-webkit-touch-callout: none) {
+  .nk-input,
+  .nk-textarea {
+    font-size: 16px;
+  }
+}
+
+/* ── Share dialog ───────────────────────────────────────────────────────── */
+.nk-share-dialog {
+  max-width: 460px;
+}
+
+/* Lock icon inline to the LEFT of the title (header isn't flex by default). */
+.nk-share-dialog .nk-modal-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nk-share-dialog .nk-modal-hd h2 {
+  margin: 0;
+  /* leave room for the absolutely-positioned close button */
+  padding-right: 24px;
+}
+
+/* The passphrase value and its copy button share a row; let the code shrink. */
+.nk-share-link .nk-share-row code {
+  flex: 1;
+  min-width: 0;
+}
+
+.nk-share-list {
+  margin-bottom: 12px;
+}
+
+.nk-share-list .nk-muted {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 6px;
+}
+
+.nk-share-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  margin-bottom: 6px;
+}
+
+.nk-share-row code {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  word-break: break-all;
+}
+
+.nk-share-add {
+  display: flex;
+  gap: 8px;
+}
+
+.nk-share-add input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.nk-safety-number {
+  font-size: 17px;
+  letter-spacing: 1px;
+  text-align: center;
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  margin: 6px 0 10px;
+}
+
+.nk-share-linkbtn {
+  margin-top: 12px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* ─── Add-member flow (first-class membership) ────────────────────── */
+
+.nk-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}
+
+.nk-field-row .nk-input {
+  flex: 1;
+}
+
+.nk-member-preview {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.nk-checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nk-checkbox-row input {
+  margin-top: 2px;
+}
+
+.nk-success-text {
+  color: var(--ok, #2e7d32);
+  font-size: 14px;
+  margin: 6px 0;
+}
+
+.nk-share-link {
+  margin-top: 12px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
 }
 
 /* ─── Recovery backup nudge + sheet ──────────────────────────────── */
@@ -6969,4 +7238,170 @@ a.nk-commit-sha:hover {
     page-break-inside: avoid;
     break-inside: avoid;
   }
+}
+
+/* ── Media items (image/pdf saved-URL kinds, #27) ─────────────────────── */
+
+.nk-kind-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  background: var(--surface-2, rgba(127, 127, 127, 0.18));
+  color: var(--text-muted, #888);
+}
+
+.nk-kind--pdf {
+  background: #b3261e;
+  color: #fff;
+}
+
+.nk-kind--image {
+  background: #1f7a4d;
+  color: #fff;
+}
+
+.nk-link-thumb {
+  width: 44px;
+  height: 44px;
+  object-fit: cover;
+  border-radius: var(--r-sm, 4px);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  margin-right: 8px;
+  cursor: zoom-in;
+  background: var(--surface-2, rgba(127, 127, 127, 0.12));
+}
+
+.nk-link-card-main--media {
+  cursor: pointer;
+}
+
+/* Fullscreen viewer */
+.nk-media-backdrop {
+  z-index: 120;
+  padding: 0;
+}
+
+.nk-media-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  max-width: 1100px;
+  max-height: 100vh;
+}
+
+.nk-media-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  color: #fff;
+}
+
+.nk-media-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nk-media-bar .nk-iconbtn {
+  color: #fff;
+}
+
+.nk-media-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px 16px;
+}
+
+.nk-media-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: var(--r-sm, 4px);
+}
+
+.nk-media-pdf {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: var(--r-sm, 4px);
+  background: #fff;
+}
+
+.nk-media-fallback {
+  color: #fff;
+  text-align: center;
+  padding: 24px;
+}
+
+.nk-media-fallback a {
+  color: #8ab4f8;
+}
+
+/* ── Ink canvas (pen/stylus, #30) ─────────────────────────────────────── */
+
+.nk-ink-canvas {
+  display: block;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm, 4px);
+  touch-action: none;
+  cursor: crosshair;
+  max-width: 100%;
+}
+
+/* Transparent overlay variant for annotating image/pdf (#32). */
+.nk-ink-canvas--overlay {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
+.nk-ink-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+  height: 100%;
+}
+
+.nk-empty-cta-row {
+  display: flex;
+  gap: var(--gap-2, 8px);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Annotation stage: image with an ink overlay sized exactly to it (#32). */
+.nk-annot-stage {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.nk-annot-stage .nk-media-image {
+  display: block;
+}
+
+.nk-annot-overlay {
+  position: absolute;
+  inset: 0;
 }

@@ -5,14 +5,22 @@ import {
   Folder,
   Lock,
   MoreHorizontal,
+  Share2,
   Unlock,
   X,
 } from "lucide-react";
 import { useLinksStore } from "../stores/linksStore";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useShareStore } from "../stores/shareStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { detectPlatform, platformLabel } from "../lib/link-platform";
+import { MediaViewer, MediaThumb } from "./MediaViewer";
 import type { SavedLink } from "../types/link";
+
+function isMedia(link: SavedLink): boolean {
+  return link.kind === "image" || link.kind === "pdf";
+}
 
 function parseTags(raw: string): string[] {
   return raw
@@ -86,6 +94,10 @@ export function LinksView() {
   const remove = useLinksStore((s) => s.remove);
   const toggleEncrypted = useLinksStore((s) => s.toggleEncrypted);
   const setFolder = useLinksStore((s) => s.setFolder);
+  const setAnnotation = useLinksStore((s) => s.setAnnotation);
+  // Born-E2EE vault: every link is sealed, no per-item toggle.
+  const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
+  const openShare = useShareStore((s) => s.open);
   const createFolder = useLinksStore((s) => s.createFolder);
   const removeFolder = useLinksStore((s) => s.removeFolder);
   const vaultId = useVaultStore((s) => s.activeId);
@@ -118,6 +130,7 @@ export function LinksView() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<SavedLink | null>(null);
 
   const detectedPlatform = addUrl ? detectPlatform(addUrl) : null;
   const isAdding = addingIn !== undefined;
@@ -327,8 +340,23 @@ export function LinksView() {
           promptMove(link);
         }}
       >
-        <div className="nk-link-card-main">
+        {link.kind === "image" && link.url && (
+          <MediaThumb url={link.url} onClick={() => setViewing(link)} />
+        )}
+        <div
+          className={`nk-link-card-main${
+            isMedia(link) && link.url ? " nk-link-card-main--media" : ""
+          }`}
+          onClick={
+            isMedia(link) && link.url ? () => setViewing(link) : undefined
+          }
+        >
           <div className="nk-link-card-top">
+            {isMedia(link) && (
+              <span className={`nk-kind-badge nk-kind--${link.kind}`}>
+                {link.kind === "pdf" ? "PDF" : "Image"}
+              </span>
+            )}
             {link.platform && (
               <span
                 className={`nk-platform-badge nk-platform--${link.platform}`}
@@ -336,7 +364,7 @@ export function LinksView() {
                 {platformLabel(link.platform)}
               </span>
             )}
-            {link.encrypted && (
+            {link.encrypted && !encryptionRequired && (
               <Lock
                 size={12}
                 strokeWidth={2}
@@ -375,26 +403,41 @@ export function LinksView() {
           >
             <ExternalLink size={13} aria-hidden />
           </a>
-          <button
-            className="nk-iconbtn"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleToggleEncrypted(link);
-            }}
-            title={
-              link.encrypted
-                ? "Decrypt this link and store it as plain markdown"
-                : "End-to-end encrypt this link"
-            }
-            aria-label={link.encrypted ? "Decrypt link" : "Encrypt link"}
-            aria-pressed={!!link.encrypted}
-          >
-            {link.encrypted ? (
-              <Unlock size={13} aria-hidden />
-            ) : (
-              <Lock size={13} aria-hidden />
-            )}
-          </button>
+          {!encryptionRequired && (
+            <button
+              className="nk-iconbtn"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleToggleEncrypted(link);
+              }}
+              title={
+                link.encrypted
+                  ? "Decrypt this link and store it as plain markdown"
+                  : "End-to-end encrypt this link"
+              }
+              aria-label={link.encrypted ? "Decrypt link" : "Encrypt link"}
+              aria-pressed={!!link.encrypted}
+            >
+              {link.encrypted ? (
+                <Unlock size={13} aria-hidden />
+              ) : (
+                <Lock size={13} aria-hidden />
+              )}
+            </button>
+          )}
+          {(encryptionRequired || link.encrypted) && (
+            <button
+              className="nk-iconbtn"
+              onClick={(e) => {
+                e.stopPropagation();
+                openShare({ kind: "link", id: link.id, title: link.title || link.url });
+              }}
+              title="Share this link"
+              aria-label="Share link"
+            >
+              <Share2 size={13} aria-hidden />
+            </button>
+          )}
           <span className="nk-tree-ctx-wrap">
             <button
               className="nk-iconbtn"
@@ -596,6 +639,22 @@ export function LinksView() {
         >
           {renderNode(tree, 0)}
         </ul>
+      )}
+
+      {viewing && viewing.url && (
+        <MediaViewer
+          url={viewing.url}
+          kind={viewing.kind ?? "link"}
+          title={viewing.title || viewing.url}
+          // Read the live annotation from the store so edits reflect live.
+          annotation={
+            links.find((l) => l.id === viewing.id)?.annotation ??
+            viewing.annotation ??
+            null
+          }
+          onAnnotationChange={(doc) => setAnnotation(viewing.id, doc)}
+          onClose={() => setViewing(null)}
+        />
       )}
     </div>
   );

@@ -25,6 +25,11 @@ MOBILE="$REPO_ROOT/apps/mobile"
     cp "$PATCHES/ios/App/App/App.entitlements" "$MOBILE/ios/App/App/App.entitlements"
   fi
 
+  echo "→ patching iOS LaunchScreen (iPad-safe full-bleed constraints)"
+  mkdir -p "$MOBILE/ios/App/App/Base.lproj"
+  cp "$PATCHES/ios/App/App/Base.lproj/LaunchScreen.storyboard" \
+     "$MOBILE/ios/App/App/Base.lproj/LaunchScreen.storyboard"
+
   echo "→ patching iOS app icon (monochrome AppIcon.appiconset)"
   ICONSET="App/App/Assets.xcassets/AppIcon.appiconset"
   mkdir -p "$MOBILE/ios/$ICONSET"

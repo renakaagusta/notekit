@@ -6,8 +6,13 @@ import {
   clearPair,
 } from "../lib/vault-api";
 import { addDevice, listDevices, readRecovery } from "../lib/secrets-vault";
-import { recoveryFromMnemonic } from "../lib/crypto/recovery";
-import { importRecovery } from "../lib/crypto/recovery-store";
+import {
+  recoveryFromMnemonic,
+  recoverySigningFromMnemonic,
+} from "../lib/crypto/recovery";
+import { importRecovery, loadStoredRecovery } from "../lib/crypto/recovery-store";
+import { deriveWalletVaultIdentity } from "../lib/crypto/wallet-key";
+import { connectWallet, hasInjectedWallet } from "../lib/crypto/wallet-provider";
 import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
 import { notifyDevicePaired } from "../lib/notifications-api";
 
@@ -58,6 +63,59 @@ function randomCode(): string {
   return (buf[0]! % 1_000_000).toString().padStart(6, "0");
 }
 
+function RecoveryPhraseDialog({
+  busy,
+  error,
+  value,
+  onChange,
+  onCancel,
+  onSubmit,
+}: {
+  busy: boolean;
+  error: string | null;
+  value: string;
+  onChange: (v: string) => void;
+  onCancel: () => void;
+  onSubmit: () => void;
+}) {
+  return (
+    <div className="nk-modal-backdrop nk-recovery-backdrop">
+      <div className="nk-modal nk-recovery-dialog">
+        <h2>Enter recovery phrase</h2>
+        <p>
+          Type your 24-word phrase, separated by spaces. Capitalisation and
+          extra spaces are ignored.
+        </p>
+        <textarea
+          className="nk-textarea nk-recovery-input"
+          rows={6}
+          placeholder="word1 word2 word3 …"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={busy}
+          autoFocus
+          autoCorrect="off"
+          autoCapitalize="none"
+          spellCheck={false}
+        />
+        {error && <p className="nk-error-text">{error}</p>}
+        <div className="nk-modal-actions">
+          <button className="nk-btn" onClick={onCancel} disabled={busy}>
+            Cancel
+          </button>
+          <button
+            className="nk-btn nk-btn--primary"
+            onClick={onSubmit}
+            disabled={busy || !value.trim()}
+          >
+            {busy ? "Unlocking…" : "Unlock"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Shown on a NEW device after vault was already set up elsewhere.
  * Posts an announcement and polls for the device record to appear in the vault.
@@ -73,6 +131,9 @@ export function VaultPairNewDevice() {
   const [recoveryInput, setRecoveryInput] = useState("");
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [walletBusy, setWalletBusy] = useState(false);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const walletAvailable = hasInjectedWallet();
 
   const fingerprint = useFingerprint(device?.recipient);
 
@@ -134,8 +195,11 @@ export function VaultPairNewDevice() {
         throw new Error("This phrase doesn't match the vault's recovery key.");
       }
       // Use a temporary signer composed of the recovery identity to write the
-      // device record and re-encrypt secrets to include this device.
+      // device record and re-encrypt secrets to include this device. The same
+      // phrase also yields the recovery signing key, so the new device record
+      // is signed (required for signed-mode vaults).
       const { identity } = await recoveryFromMnemonic(recoveryInput);
+      const recoverySigning = await recoverySigningFromMnemonic(recoveryInput);
       await addDevice(
         {
           deviceId: device.deviceId,
@@ -149,6 +213,7 @@ export function VaultPairNewDevice() {
           recipient,
           createdAt: new Date().toISOString(),
         },
+        recoverySigning,
       );
       // The user just typed the phrase, so they already hold a backup. Keep a
       // local copy on this device (marked backed-up) so the backup sheet works
@@ -162,6 +227,46 @@ export function VaultPairNewDevice() {
       setRecoveryError((e as Error).message);
     } finally {
       setRecoveryBusy(false);
+    }
+  }
+
+  // Wallet self-unlock: a vault rooted in an EVM wallet needs no other device
+  // and no typed phrase. Connect, sign, and the wallet re-derives the same
+  // recovery identity that roots the vault — then we register this device.
+  async function onUseWallet() {
+    if (!device) return;
+    setWalletBusy(true);
+    setWalletError(null);
+    try {
+      const conn = await connectWallet();
+      const { identity, signing } = await deriveWalletVaultIdentity(conn.sign);
+      const recovery = await readRecovery();
+      if (!recovery || recovery.recipient !== identity.recipient) {
+        throw new Error(
+          "This wallet doesn't match the vault's key. Connect the wallet you set it up with.",
+        );
+      }
+      await addDevice(
+        {
+          deviceId: device.deviceId,
+          name: device.name,
+          recipient: device.recipient,
+        },
+        {
+          deviceId: "recovery",
+          name: "recovery",
+          identity: identity.identity,
+          recipient: identity.recipient,
+          createdAt: new Date().toISOString(),
+        },
+        signing,
+      );
+      await notifyDevicePaired(device.deviceId, device.name).catch(() => {});
+      setPhase("ready");
+    } catch (e) {
+      setWalletError((e as Error).message);
+    } finally {
+      setWalletBusy(false);
     }
   }
 
@@ -191,50 +296,40 @@ export function VaultPairNewDevice() {
 
         <div className="nk-divider" />
 
-        {!recoveryOpen ? (
-          <button
-            className="nk-btn"
-            onClick={() => setRecoveryOpen(true)}
-          >
-            Use recovery phrase instead
-          </button>
-        ) : (
+        {walletAvailable && (
           <>
-            <h3>Recover from phrase</h3>
-            <p className="nk-muted">
-              Enter your 24-word recovery phrase to unlock without another
-              device.
-            </p>
-            <textarea
-              className="nk-textarea"
-              rows={3}
-              placeholder="word word word …"
-              value={recoveryInput}
-              onChange={(e) => setRecoveryInput(e.target.value)}
-              disabled={recoveryBusy}
-            />
-            {recoveryError && (
-              <p className="nk-error-text">{recoveryError}</p>
-            )}
-            <div className="nk-modal-actions">
-              <button
-                className="nk-btn"
-                onClick={() => setRecoveryOpen(false)}
-                disabled={recoveryBusy}
-              >
-                Cancel
-              </button>
-              <button
-                className="nk-btn nk-btn--primary"
-                onClick={onUseRecovery}
-                disabled={recoveryBusy || !recoveryInput.trim()}
-              >
-                {recoveryBusy ? "Unlocking…" : "Unlock"}
-              </button>
-            </div>
+            <button
+              className="nk-btn nk-btn--primary"
+              onClick={onUseWallet}
+              disabled={walletBusy}
+            >
+              {walletBusy ? "Waiting for wallet…" : "Unlock with wallet"}
+            </button>
+            {walletError && <p className="nk-error-text">{walletError}</p>}
           </>
         )}
+
+        <button
+          className="nk-btn"
+          onClick={() => setRecoveryOpen(true)}
+        >
+          Use recovery phrase instead
+        </button>
       </div>
+      {recoveryOpen && (
+        <RecoveryPhraseDialog
+          busy={recoveryBusy}
+          error={recoveryError}
+          value={recoveryInput}
+          onChange={setRecoveryInput}
+          onCancel={() => {
+            setRecoveryOpen(false);
+            setRecoveryError(null);
+            setRecoveryInput("");
+          }}
+          onSubmit={onUseRecovery}
+        />
+      )}
     </div>
   );
 }
@@ -261,6 +356,10 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Signed-mode vaults require the recovery key to sign the new device record.
+  // The origin device holds it locally; a secondary device must type the phrase.
+  const [needsPhrase, setNeedsPhrase] = useState(false);
+  const [phraseInput, setPhraseInput] = useState("");
 
   // Derived from the server-relayed pubkey. The human compares it against the
   // new device's screen to detect a swapped key.
@@ -289,6 +388,29 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     setBusy(true);
     setError(null);
     try {
+      // Sign the new device record with the recovery key. The origin device
+      // holds the mnemonic locally (one-click); a secondary device in a
+      // signed-mode vault must type the recovery phrase to obtain the key.
+      const stored = await loadStoredRecovery();
+      let recoverySigning = stored
+        ? await recoverySigningFromMnemonic(stored.mnemonic)
+        : undefined;
+      if (!recoverySigning) {
+        const recovery = await readRecovery();
+        if (recovery?.signingKey) {
+          if (!phraseInput.trim()) {
+            setNeedsPhrase(true);
+            setError("This vault requires your recovery phrase to approve a device on this device.");
+            setBusy(false);
+            return;
+          }
+          const { recipient } = await recoveryFromMnemonic(phraseInput);
+          if (recipient !== recovery.recipient) {
+            throw new Error("That recovery phrase doesn't match this vault.");
+          }
+          recoverySigning = await recoverySigningFromMnemonic(phraseInput);
+        }
+      }
       await addDevice(
         {
           deviceId: info.deviceId,
@@ -296,6 +418,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
           recipient: info.pubkey,
         },
         signer,
+        recoverySigning,
       );
       await clearPair(code.trim()).catch(() => {});
       // Security alert across the user's channels. Best-effort — the device is
@@ -383,6 +506,20 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
           </>
         )}
       </div>
+      {needsPhrase && (
+        <RecoveryPhraseDialog
+          busy={busy}
+          error={error}
+          value={phraseInput}
+          onChange={setPhraseInput}
+          onCancel={() => {
+            setNeedsPhrase(false);
+            setPhraseInput("");
+            setError(null);
+          }}
+          onSubmit={onApprove}
+        />
+      )}
     </div>
   );
 }

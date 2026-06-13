@@ -73,13 +73,6 @@ export const env = {
     privateKey: optional("VAPID_PRIVATE_KEY"),
     subject: optional("VAPID_SUBJECT"),
   },
-  apns: {
-    keyId: optional("APNS_KEY_ID"),
-    teamId: optional("APNS_TEAM_ID"),
-    bundleId: optional("APNS_BUNDLE_ID"),
-    keyP8: optionalPem("APNS_KEY_P8"),
-    production: process.env.APNS_PRODUCTION === "true",
-  },
   fcm: {
     projectId: optional("FCM_PROJECT_ID"),
     clientEmail: optional("FCM_CLIENT_EMAIL"),

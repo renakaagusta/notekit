@@ -4,6 +4,7 @@ import {
   FileText,
   Menu,
   PanelLeft,
+  Pencil,
   Plus,
   Search,
   X,
@@ -27,6 +28,7 @@ import {
   pull as pullSync,
 } from "../lib/sync";
 import { bindVaultPersistence } from "../lib/vault-persistence";
+import { publishMyKeys } from "../lib/directory";
 import {
   startVaultEventStream,
   stopVaultEventStream,
@@ -34,9 +36,13 @@ import {
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import type { User } from "../types/user";
 import { Editor, type EditorHandle } from "./Editor";
+import { InkCanvas } from "./InkCanvas";
+import { parseInk, serializeInk } from "../lib/ink";
+import { emptyInkDocument } from "../types/ink";
 import { EditorToolbar } from "./EditorToolbar";
 import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { FirstEncryptDialog } from "./FirstEncryptDialog";
+import { ShareDialog } from "./ShareDialog";
 import { RecoveryBackupNudge } from "./RecoveryBackupNudge";
 import { RecoveryBackupSheet } from "./RecoveryBackupSheet";
 import { Sidebar } from "./Sidebar";
@@ -312,6 +318,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
   // re-encryption commit — retry a few times until nothing's left skipped.
   useEffect(() => {
     if (cryptoPhase !== "ready") return;
+    // Publish our public keys to the directory so others can share with us.
+    // Done here (not only in bootstrap) so the first-run path — which finishes
+    // via VaultSetup, not bootstrap's ready branch — also publishes.
+    void publishMyKeys().catch(() => {});
     let cancelled = false;
     let tries = 0;
     let timer: ReturnType<typeof setTimeout>;
@@ -478,6 +488,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
         })()
       : null;
 
+  // Drawing notes (format "ink") swap the markdown editor for the pen
+  // canvas. Journal drafts are always markdown, so they never qualify.
+  const isInkNote = !draftJournal && note?.format === "ink" && !!activeNoteId;
+
   // Secrets and Links render their own title header (with actions), so the
   // breadcrumb would just repeat it. Blank the crumb for them and drop the
   // breadcrumb row on desktop (it still appears on mobile / when collapsed
@@ -607,14 +621,24 @@ export function App({ user, onSignOut }: AppProps = {}) {
           <EncryptedSkippedBanner />
           {view === "notes" && (
             <>
-              {editorBinding && (
+              {editorBinding && !isInkNote && (
                 <EditorToolbar
                   getEditor={() => editorRef.current?.editor ?? null}
                   onHistoryClick={() => setHistoryOpen(true)}
                 />
               )}
               <div className="nk-editor-wrap">
-                {editorBinding ? (
+                {editorBinding && isInkNote && activeNoteId ? (
+                  <div className="nk-ink-wrap">
+                    <InkCanvas
+                      key={editorBinding.key}
+                      doc={parseInk(editorBinding.body)}
+                      onChange={(d) =>
+                        updateBody(activeNoteId, serializeInk(d))
+                      }
+                    />
+                  </div>
+                ) : editorBinding ? (
                   <Editor
                     key={editorBinding.key}
                     ref={editorRef}
@@ -636,16 +660,33 @@ export function App({ user, onSignOut }: AppProps = {}) {
                     <p className="nk-empty-hint">
                       Pick one from the sidebar, or create a new one.
                     </p>
-                    <button
-                      className="nk-empty-cta"
-                      onClick={() => {
-                        const folder = activeSettings?.defaultFolder ?? null;
-                        const created = upsert({ title: "Untitled", body: "", folder });
-                        setActive(created.id);
-                      }}
-                    >
-                      <Plus size={14} aria-hidden /> New note
-                    </button>
+                    <div className="nk-empty-cta-row">
+                      <button
+                        className="nk-empty-cta"
+                        onClick={() => {
+                          const folder = activeSettings?.defaultFolder ?? null;
+                          const created = upsert({ title: "Untitled", body: "", folder });
+                          setActive(created.id);
+                        }}
+                      >
+                        <Plus size={14} aria-hidden /> New note
+                      </button>
+                      <button
+                        className="nk-empty-cta"
+                        onClick={() => {
+                          const folder = activeSettings?.defaultFolder ?? null;
+                          const created = upsert({
+                            title: "Drawing",
+                            body: serializeInk(emptyInkDocument()),
+                            folder,
+                            format: "ink",
+                          });
+                          setActive(created.id);
+                        }}
+                      >
+                        <Pencil size={14} aria-hidden /> New drawing
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -723,18 +764,25 @@ export function App({ user, onSignOut }: AppProps = {}) {
       {vaultPhase === "needs-pick" && (
         <VaultPicker onPicked={onVaultPicked} />
       )}
-      {view === "secrets" && vaultPhase === "ready" && cryptoPhase === "needs-setup" && (
+      {/*
+       * First-run setup is hoisted out of the Secrets-tab gate (it used to
+       * require `view === "secrets"`). With E2EE-everywhere a fresh device
+       * must initialize the vault — write `recovery.json` + register itself —
+       * before *any* item can be sealed, so gating setup behind a tab the
+       * user might never open left the vault uninitialized and every item
+       * silently unsealed. `VaultSetup` is a brief, silent step, safe to run
+       * from any view.
+       */}
+      {vaultPhase === "ready" && cryptoPhase === "needs-setup" && (
         <VaultSetup />
       )}
       {/*
-       * Pair-this-device modal is hoisted out of the Secrets-tab gate so
-       * users discover it from any view. E2EE on notes/tickets/links also
-       * needs the device to be registered (`collectVaultRecipients` only
-       * picks up devices that landed in `.notekit/devices/`), so blocking
-       * it behind a tab navigation would leave new devices encrypting to
-       * themselves only — readable on this device but not by other paired
-       * devices. The modal is dismissable via the recovery-phrase escape
-       * hatch if the user really wants to skip.
+       * Pair-this-device modal is likewise discoverable from any view. E2EE on
+       * notes/tickets/links needs the device registered (`collectVaultRecipients`
+       * only picks up devices in `.notekit/devices/`), so blocking it behind a
+       * tab would leave new devices encrypting to themselves only — readable
+       * here but not by other paired devices. Dismissable via the recovery-
+       * phrase escape hatch.
        */}
       {vaultPhase === "ready" && cryptoPhase === "needs-pair" && (
         <VaultPairNewDevice />
@@ -893,6 +941,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
       )}
 
       <FirstEncryptDialog />
+      <ShareDialog />
       <RecoveryBackupSheet />
     </div>
   );

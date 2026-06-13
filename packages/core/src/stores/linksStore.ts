@@ -5,6 +5,8 @@ import { nanoid } from "nanoid";
 import type { SavedLink } from "../types/link";
 import { linkPathFor, sanitizeFolderPath } from "../lib/file-paths";
 import { detectPlatform } from "../lib/link-platform";
+import { detectLinkKind } from "../lib/link-kind";
+import { useCryptoStore } from "./cryptoStore";
 
 interface LinksState {
   links: Record<string, SavedLink>;
@@ -24,6 +26,8 @@ interface LinksState {
   toggleEncrypted(id: string): void;
   /** Move a link to another folder, or to the vault root (`null`). */
   setFolder(id: string, folder: string | null): void;
+  /** Set (or clear) the ink annotation drawn over a media item (#32). */
+  setAnnotation(id: string, annotation: SavedLink["annotation"]): void;
   createFolder(path: string): void;
   removeFolder(path: string): void;
   remove(id: string): void;
@@ -57,6 +61,9 @@ export const useLinksStore = create<LinksState>()(
         const timestamp = now();
         const title = input.title?.trim() || existing?.title || titleFromUrl(input.url);
         const platform = input.platform ?? existing?.platform ?? detectPlatform(input.url);
+        // Auto-classify image/pdf from the URL unless the caller is explicit
+        // or we already classified this item before.
+        const kind = input.kind ?? existing?.kind ?? detectLinkKind(input.url);
         const folder =
           input.folder !== undefined
             ? cleanFolder(input.folder)
@@ -71,11 +78,16 @@ export const useLinksStore = create<LinksState>()(
           title,
           description: input.description ?? existing?.description ?? null,
           platform,
+          kind,
+          annotation: input.annotation ?? existing?.annotation ?? null,
           tags: input.tags ?? existing?.tags ?? [],
           folder,
           createdAt: existing?.createdAt ?? timestamp,
           updatedAt: timestamp,
-          encrypted: input.encrypted ?? existing?.encrypted ?? false,
+          encrypted:
+            input.encrypted ??
+            existing?.encrypted ??
+            useCryptoStore.getState().encryptionRequired,
         };
         set((state) => {
           state.links[id] = link;
@@ -88,6 +100,15 @@ export const useLinksStore = create<LinksState>()(
           const link = state.links[id];
           if (!link) return;
           link.encrypted = !link.encrypted;
+          link.updatedAt = now();
+        });
+      },
+
+      setAnnotation(id, annotation) {
+        set((state) => {
+          const link = state.links[id];
+          if (!link) return;
+          link.annotation = annotation ?? null;
           link.updatedAt = now();
         });
       },

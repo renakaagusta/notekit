@@ -7352,3 +7352,24 @@ a.nk-commit-sha:hover {
 .nk-media-fallback a {
   color: #8ab4f8;
 }
+
+/* ── Ink canvas (pen/stylus, #30) ─────────────────────────────────────── */
+
+.nk-ink-canvas {
+  display: block;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm, 4px);
+  touch-action: none;
+  cursor: crosshair;
+  max-width: 100%;
+}
+
+/* Transparent overlay variant for annotating image/pdf (#32). */
+.nk-ink-canvas--overlay {
+  position: absolute;
+  inset: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}

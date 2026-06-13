@@ -1,10 +1,11 @@
 /**
  * Body content format for an authored item. `md` is the default and
  * historical behavior; `html` lets a note carry a sanitized HTML body
- * (e.g. a web clip) rendered instead of markdown. This axis is
- * orthogonal to the saved-URL `kind` on {@link SavedLink}. See #25/#26.
+ * (e.g. a web clip); `ink` stores a vector pen drawing (the body is an
+ * `InkDocument` JSON, see #29/#31). This axis is orthogonal to the
+ * saved-URL `kind` on {@link SavedLink}. See #25/#26.
  */
-export type NoteFormat = "md" | "html";
+export type NoteFormat = "md" | "html" | "ink";
 
 export interface Note {
   id: string;

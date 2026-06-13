@@ -126,7 +126,10 @@ export function deserializeNote(path: string, content: string): Note | null {
     updatedAt: String(frontmatter.updatedAt ?? new Date().toISOString()),
     folder: (frontmatter.folder as string | null) ?? null,
     tags: Array.isArray(frontmatter.tags) ? (frontmatter.tags as string[]) : [],
-    format: frontmatter.format === "html" ? "html" : "md",
+    format:
+      frontmatter.format === "html" || frontmatter.format === "ink"
+        ? frontmatter.format
+        : "md",
   };
 }
 

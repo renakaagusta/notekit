@@ -94,6 +94,7 @@ export function LinksView() {
   const remove = useLinksStore((s) => s.remove);
   const toggleEncrypted = useLinksStore((s) => s.toggleEncrypted);
   const setFolder = useLinksStore((s) => s.setFolder);
+  const setAnnotation = useLinksStore((s) => s.setAnnotation);
   // Born-E2EE vault: every link is sealed, no per-item toggle.
   const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
   const openShare = useShareStore((s) => s.open);
@@ -645,6 +646,13 @@ export function LinksView() {
           url={viewing.url}
           kind={viewing.kind ?? "link"}
           title={viewing.title || viewing.url}
+          // Read the live annotation from the store so edits reflect live.
+          annotation={
+            links.find((l) => l.id === viewing.id)?.annotation ??
+            viewing.annotation ??
+            null
+          }
+          onAnnotationChange={(doc) => setAnnotation(viewing.id, doc)}
           onClose={() => setViewing(null)}
         />
       )}

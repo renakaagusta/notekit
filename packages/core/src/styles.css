@@ -7388,3 +7388,20 @@ a.nk-commit-sha:hover {
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* Annotation stage: image with an ink overlay sized exactly to it (#32). */
+.nk-annot-stage {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.nk-annot-stage .nk-media-image {
+  display: block;
+}
+
+.nk-annot-overlay {
+  position: absolute;
+  inset: 0;
+}

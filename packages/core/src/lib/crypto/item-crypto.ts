@@ -40,6 +40,7 @@ import type {
   TicketPriority,
 } from "../../types/ticket";
 import type { SavedLink, LinkKind } from "../../types/link";
+import type { InkDocument } from "../../types/ink";
 
 export type EncryptedItemKind = "note" | "ticket" | "link";
 
@@ -67,6 +68,8 @@ export interface EncryptedLinkPayload {
   tags: string[];
   /** Render kind (link/image/pdf); private so only timestamps + folder leak. */
   kind?: LinkKind;
+  /** Ink annotation over the media (#32); private, travels with the link. */
+  annotation?: InkDocument | null;
 }
 
 /** Public frontmatter ships in plaintext for each kind. */
@@ -222,6 +225,9 @@ export function splitLinkForEncryption(l: SavedLink): {
       platform: l.platform,
       tags: l.tags,
       ...(l.kind && l.kind !== "link" ? { kind: l.kind } : {}),
+      ...(l.annotation && l.annotation.strokes.length > 0
+        ? { annotation: l.annotation }
+        : {}),
     },
   };
 }
@@ -240,6 +246,7 @@ export function mergeEncryptedLink(
     platform: payload.platform,
     tags: payload.tags,
     kind: payload.kind ?? "link",
+    annotation: payload.annotation ?? null,
     folder: fm.folder ?? null,
     createdAt: fm.createdAt,
     updatedAt: fm.updatedAt,

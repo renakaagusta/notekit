@@ -1,3 +1,5 @@
+import type { InkDocument } from "./ink";
+
 /**
  * Render kind for a saved-URL item. A `link` shows a link card; `image`
  * renders an `<img>` preview; `pdf` opens in the pdf.js viewer. All three
@@ -21,6 +23,14 @@ export interface SavedLink {
    * "timestamps + folder only".
    */
   kind?: LinkKind;
+  /**
+   * Optional ink annotation drawn over the media (#32). Bundled with the
+   * item — it encrypts alongside the link and never touches the remote
+   * bytes (which we don't own). `null`/absent means un-annotated.
+   * Currently populated for `image`; `pdf` annotation awaits pdf.js page
+   * rendering (#33).
+   */
+  annotation?: InkDocument | null;
   /**
    * Vault-relative folder this link lives in, e.g. `research/papers`.
    * `null` means the vault root. Mirrors `Note.folder` so the Links

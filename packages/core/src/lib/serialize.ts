@@ -1,6 +1,7 @@
 import type { Note } from "../types/note";
 import type { Ticket } from "../types/ticket";
 import type { SavedLink, LinkKind } from "../types/link";
+import { parseInk } from "./ink";
 
 /**
  * Serialize a note/ticket into a markdown file with YAML frontmatter.
@@ -204,6 +205,10 @@ export function serializeLink(link: SavedLink): string {
     platform: link.platform,
     // Emit only when non-default so existing link files don't churn.
     kind: link.kind && link.kind !== "link" ? link.kind : undefined,
+    annotation:
+      link.annotation && link.annotation.strokes.length > 0
+        ? JSON.stringify(link.annotation)
+        : undefined,
     folder: link.folder,
     tags: link.tags,
     createdAt: link.createdAt,
@@ -239,6 +244,10 @@ export function deserializeLink(path: string, content: string): SavedLink | null
     platform: (frontmatter.platform as string | null) ?? null,
     tags: Array.isArray(frontmatter.tags) ? (frontmatter.tags as string[]) : [],
     kind: parseLinkKind(frontmatter.kind),
+    annotation:
+      typeof frontmatter.annotation === "string"
+        ? parseInk(frontmatter.annotation)
+        : null,
     folder: folderFromFrontmatter(frontmatter.folder, path),
     createdAt: String(frontmatter.createdAt ?? new Date().toISOString()),
     updatedAt: String(frontmatter.updatedAt ?? new Date().toISOString()),

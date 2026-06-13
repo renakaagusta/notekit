@@ -62,6 +62,43 @@ describe("link kind", () => {
     }
   });
 
+  it("round-trips an image annotation through frontmatter", () => {
+    const annotated = {
+      ...baseLink,
+      kind: "image" as const,
+      annotation: {
+        v: 1 as const,
+        width: 800,
+        height: 600,
+        strokes: [
+          {
+            tool: "pen" as const,
+            color: "#111111",
+            width: 2,
+            points: [
+              { x: 1, y: 2, p: 0.5 },
+              { x: 3, y: 4, p: 0.6 },
+            ],
+          },
+        ],
+      },
+    };
+    const out = serializeLink(annotated);
+    expect(out).toContain("annotation:");
+    expect(deserializeLink(baseLink.path, out)?.annotation).toEqual(
+      annotated.annotation,
+    );
+  });
+
+  it("omits annotation when there are no strokes", () => {
+    const out = serializeLink({
+      ...baseLink,
+      annotation: { v: 1, width: 10, height: 10, strokes: [] },
+    });
+    expect(out).not.toContain("annotation:");
+    expect(deserializeLink(baseLink.path, out)?.annotation).toBeNull();
+  });
+
   it("falls back to link for an unknown kind value", () => {
     const out = serializeLink(baseLink).replace(
       `url: ${baseLink.url}`,

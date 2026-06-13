@@ -1,6 +1,8 @@
-import { useEffect } from "react";
-import { ExternalLink, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ExternalLink, Pencil, Trash2, X } from "lucide-react";
 import { useMediaSrc } from "../lib/useMediaSrc";
+import { InkCanvas } from "./InkCanvas";
+import { emptyInkDocument, type InkDocument } from "../types/ink";
 import type { LinkKind } from "../types/link";
 
 /** Cache-resolved image thumbnail for media cards (#27/#28). */
@@ -28,6 +30,10 @@ interface MediaViewerProps {
   kind: LinkKind;
   title: string;
   onClose: () => void;
+  /** Existing ink annotation over this media (#32). */
+  annotation?: InkDocument | null;
+  /** Persist annotation changes. When omitted, annotation is read-only. */
+  onAnnotationChange?: (doc: InkDocument | null) => void;
 }
 
 /**
@@ -42,9 +48,21 @@ interface MediaViewerProps {
  * this leaks the viewer's IP/referrer to that host. The cache work in #28
  * adds the fetch-and-strip-referrer path on native runtimes.
  */
-export function MediaViewer({ url, kind, title, onClose }: MediaViewerProps) {
+export function MediaViewer({
+  url,
+  kind,
+  title,
+  onClose,
+  annotation,
+  onAnnotationChange,
+}: MediaViewerProps) {
   // Cache-resolved src: cached object URL once available, raw URL until then.
   const src = useMediaSrc(url) ?? url;
+  const [annotating, setAnnotating] = useState(false);
+  // Annotation is only wired for images today; pdf needs pdf.js page coords (#33).
+  const canAnnotate = kind === "image" && !!onAnnotationChange;
+  const annotationDoc = annotation ?? emptyInkDocument();
+  const hasMarks = !!annotation && annotation.strokes.length > 0;
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -75,6 +93,27 @@ export function MediaViewer({ url, kind, title, onClose }: MediaViewerProps) {
           >
             <ExternalLink size={14} aria-hidden />
           </a>
+          {canAnnotate && (
+            <button
+              className="nk-iconbtn"
+              onClick={() => setAnnotating((v) => !v)}
+              title={annotating ? "Done annotating" : "Annotate"}
+              aria-label="Annotate"
+              aria-pressed={annotating}
+            >
+              <Pencil size={14} aria-hidden />
+            </button>
+          )}
+          {canAnnotate && hasMarks && (
+            <button
+              className="nk-iconbtn"
+              onClick={() => onAnnotationChange?.(null)}
+              title="Clear annotation"
+              aria-label="Clear annotation"
+            >
+              <Trash2 size={14} aria-hidden />
+            </button>
+          )}
           <button
             className="nk-iconbtn"
             onClick={onClose}
@@ -86,7 +125,21 @@ export function MediaViewer({ url, kind, title, onClose }: MediaViewerProps) {
         </div>
         <div className="nk-media-body">
           {kind === "image" ? (
-            <img className="nk-media-image" src={src} alt={title} />
+            <div className="nk-annot-stage">
+              <img className="nk-media-image" src={src} alt={title} />
+              {(annotating || hasMarks) && (
+                <div
+                  className="nk-annot-overlay"
+                  style={{ pointerEvents: annotating ? "auto" : "none" }}
+                >
+                  <InkCanvas
+                    transparent
+                    doc={annotationDoc}
+                    onChange={(d) => onAnnotationChange?.(d)}
+                  />
+                </div>
+              )}
+            </div>
           ) : (
             // First-cut PDF render via the platform viewer; #28 swaps this
             // for pdf.js fed from the byte cache for consistent rendering

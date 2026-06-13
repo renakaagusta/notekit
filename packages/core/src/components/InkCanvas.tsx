@@ -157,7 +157,11 @@ export function InkCanvas({
     <canvas
       ref={canvasRef}
       className={`nk-ink-canvas${transparent ? " nk-ink-canvas--overlay" : ""}`}
-      style={{ width: doc.width, height: doc.height, touchAction: "none" }}
+      style={
+        transparent
+          ? { touchAction: "none" }
+          : { width: doc.width, height: doc.height, touchAction: "none" }
+      }
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={finishStroke}

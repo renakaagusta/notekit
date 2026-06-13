@@ -26,6 +26,8 @@ interface LinksState {
   toggleEncrypted(id: string): void;
   /** Move a link to another folder, or to the vault root (`null`). */
   setFolder(id: string, folder: string | null): void;
+  /** Set (or clear) the ink annotation drawn over a media item (#32). */
+  setAnnotation(id: string, annotation: SavedLink["annotation"]): void;
   createFolder(path: string): void;
   removeFolder(path: string): void;
   remove(id: string): void;
@@ -77,6 +79,7 @@ export const useLinksStore = create<LinksState>()(
           description: input.description ?? existing?.description ?? null,
           platform,
           kind,
+          annotation: input.annotation ?? existing?.annotation ?? null,
           tags: input.tags ?? existing?.tags ?? [],
           folder,
           createdAt: existing?.createdAt ?? timestamp,
@@ -97,6 +100,15 @@ export const useLinksStore = create<LinksState>()(
           const link = state.links[id];
           if (!link) return;
           link.encrypted = !link.encrypted;
+          link.updatedAt = now();
+        });
+      },
+
+      setAnnotation(id, annotation) {
+        set((state) => {
+          const link = state.links[id];
+          if (!link) return;
+          link.annotation = annotation ?? null;
           link.updatedAt = now();
         });
       },

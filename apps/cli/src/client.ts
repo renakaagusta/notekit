@@ -36,11 +36,28 @@ export async function getClient(opts: GetClientOptions = {}): Promise<NoteKitApi
 }
 
 /** Pretty-print an unknown error and exit with code 1. Used in command catch blocks. */
+/** Friendlier text for known API error codes (substring match on the message). */
+const FRIENDLY_ERRORS: Array<[string, string]> = [
+  [
+    "no_vault_configured",
+    "No vault yet. Create one in the NoteKit app (it defaults to NoteKit Git), then try again.",
+  ],
+  [
+    "forgejo_not_configured",
+    "NoteKit-hosted Git isn't configured on this server. Use a GitHub/GitLab vault, or contact the admin.",
+  ],
+];
+
 export function dieWithError(err: unknown): never {
   if (err instanceof NotAuthenticatedError) {
     process.stderr.write(kleur.red(err.message) + "\n");
   } else if (err instanceof Error) {
-    process.stderr.write(kleur.red(`error: ${err.message}`) + "\n");
+    const friendly = FRIENDLY_ERRORS.find(([code]) =>
+      err.message.includes(code),
+    );
+    process.stderr.write(
+      kleur.red(friendly ? friendly[1] : `error: ${err.message}`) + "\n",
+    );
   } else {
     process.stderr.write(kleur.red(`error: ${String(err)}`) + "\n");
   }

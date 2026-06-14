@@ -88,5 +88,7 @@ jobs:
           FORGEJO_SECRET_KEY: ${{ secrets.FORGEJO_SECRET_KEY }}
           FORGEJO_INTERNAL_TOKEN: ${{ secrets.FORGEJO_INTERNAL_TOKEN }}
           FORGEJO_ADMIN_TOKEN: ${{ secrets.FORGEJO_ADMIN_TOKEN }}
+          FORGEJO_ADMIN_USER: ${{ secrets.FORGEJO_ADMIN_USER }}
+          FORGEJO_ADMIN_PASSWORD: ${{ secrets.FORGEJO_ADMIN_PASSWORD }}
         run: |
           docker compose -f docker-compose.notekit.yml up -d --remove-orphans

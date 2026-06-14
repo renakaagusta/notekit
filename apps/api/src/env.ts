@@ -94,6 +94,12 @@ export const env = {
   forgejo: {
     url: optional("FORGEJO_URL"),
     adminToken: optional("FORGEJO_ADMIN_TOKEN"),
+    // Forgejo requires HTTP Basic auth (not a token) to create access tokens,
+    // so per-user token minting needs the admin's username + password (used
+    // with a `Sudo:` header to act as the target user). Token-only admin ops
+    // (create user, etc.) still use adminToken above.
+    adminUser: optional("FORGEJO_ADMIN_USER"),
+    adminPassword: optional("FORGEJO_ADMIN_PASSWORD"),
     domain: optional("FORGEJO_DOMAIN"),
   },
   agents: {

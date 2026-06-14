@@ -9,6 +9,7 @@ import { nanoid } from "nanoid";
 import { getClient, dieWithError } from "../client.js";
 import { openEditor } from "../lib/editor.js";
 import { parseFrontmatter, stringifyFrontmatter } from "../lib/frontmatter.js";
+import { isEncrypted, decryptNote } from "../lib/crypto.js";
 
 const NOTES_DIR = "notes";
 const INDEX_PATH = `${NOTES_DIR}/index.json`;
@@ -109,7 +110,26 @@ const readCmd = defineCommand({
       const nk = await getClient({ requireAuth: true });
       const path = await resolveNotePath(nk, String(args.idOrPath));
       const file = await nk.vault.readFile(path);
-      const text = file.content ?? "";
+      let text = file.content ?? "";
+      // Encrypted (.md.age) notes: decrypt with the unlocked recovery phrase
+      // and render plaintext frontmatter + body, so `read` looks the same as
+      // for a plain note (#49).
+      if (text && isEncrypted(path)) {
+        const note = await decryptNote(path, text);
+        if (note) {
+          text = stringifyFrontmatter(
+            {
+              id: note.id,
+              title: note.title,
+              tags: note.tags,
+              createdAt: note.createdAt,
+              updatedAt: note.updatedAt,
+              folder: note.folder ?? undefined,
+            },
+            note.body.startsWith("\n") ? note.body : `\n${note.body}`,
+          );
+        }
+      }
       process.stdout.write(text);
       if (!text.endsWith("\n")) process.stdout.write("\n");
     } catch (err) {

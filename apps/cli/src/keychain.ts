@@ -9,9 +9,36 @@ import { Entry } from "@napi-rs/keyring";
 
 const SERVICE = "notekit-cli";
 const ACCOUNT = "token";
+// The vault recovery phrase (24-word BIP39), stored after `notekit vault
+// unlock`. It derives the age identity that decrypts E2EE notes/secrets (#49).
+const RECOVERY_ACCOUNT = "recovery";
 
 function entry(): Entry {
   return new Entry(SERVICE, ACCOUNT);
+}
+
+function recoveryEntry(): Entry {
+  return new Entry(SERVICE, RECOVERY_ACCOUNT);
+}
+
+export async function getRecoveryPhrase(): Promise<string | null> {
+  try {
+    return recoveryEntry().getPassword() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setRecoveryPhrase(phrase: string): Promise<void> {
+  recoveryEntry().setPassword(phrase);
+}
+
+export async function clearRecoveryPhrase(): Promise<void> {
+  try {
+    recoveryEntry().deletePassword();
+  } catch {
+    // Already absent — ignore.
+  }
 }
 
 export async function getToken(): Promise<string | null> {

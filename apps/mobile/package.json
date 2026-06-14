@@ -5,6 +5,8 @@
   "license": "MIT",
   "scripts": {
     "sync": "pnpm --filter @notekit/web build && cap sync && pnpm firebase:config",
+    "sync:release": "VITE_API_URL=${VITE_API_URL:-https://api.notekit.online} pnpm --filter @notekit/web build && cap sync && pnpm firebase:config && bash scripts/assert-bundle-url.sh",
+    "assert:bundle": "bash scripts/assert-bundle-url.sh",
     "firebase:config": "test -d android/app && cp -f android-config/google-services.json android/app/google-services.json || true",
     "ios": "pnpm sync && cap open ios",
     "android": "pnpm sync && cap open android",

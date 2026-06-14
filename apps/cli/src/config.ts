@@ -14,8 +14,17 @@ export interface CliConfig {
 }
 
 const DEFAULT_CONFIG: CliConfig = {
-  apiUrl: "http://localhost:3001",
+  // Prod by default so a fresh install reaches NoteKit out of the box. Point
+  // at a dev server with `NOTEKIT_API_URL=http://localhost:3001` (env wins
+  // over the saved config below).
+  apiUrl: "https://api.notekit.online",
 };
+
+/** Env override — highest priority, for local dev / self-hosters. */
+function envApiUrl(): string | undefined {
+  const v = process.env.NOTEKIT_API_URL?.trim();
+  return v && v.length > 0 ? v : undefined;
+}
 
 export function configDir(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
@@ -28,13 +37,16 @@ export function configPath(): string {
 }
 
 export async function loadConfig(): Promise<CliConfig> {
+  const override = envApiUrl();
   try {
     const raw = await fs.readFile(configPath(), "utf8");
     const parsed = JSON.parse(raw) as Partial<CliConfig>;
-    return { ...DEFAULT_CONFIG, ...parsed };
+    const cfg = { ...DEFAULT_CONFIG, ...parsed };
+    if (override) cfg.apiUrl = override;
+    return cfg;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") {
-      return { ...DEFAULT_CONFIG };
+      return { ...DEFAULT_CONFIG, ...(override ? { apiUrl: override } : {}) };
     }
     throw err;
   }

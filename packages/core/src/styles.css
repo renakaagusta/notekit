@@ -7389,6 +7389,26 @@ a.nk-commit-sha:hover {
   justify-content: center;
 }
 
+/* Pairing-modal escape hatch hint (E2EE lockout recovery). */
+.nk-pair-escape-hint {
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+/* "Recommended" badge on the NoteKit Git provider tab (#39). */
+.nk-tab-badge {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: var(--accent, #4f7cff);
+  color: #fff;
+  vertical-align: middle;
+}
+
 /* Annotation stage: image with an ink overlay sized exactly to it (#32). */
 .nk-annot-stage {
   position: relative;

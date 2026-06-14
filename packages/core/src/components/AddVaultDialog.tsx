@@ -16,7 +16,10 @@ interface AddVaultDialogProps {
 }
 
 export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
-  const [provider, setProvider] = useState<Provider>("github");
+  // NoteKit-hosted Git (Forgejo) is the recommended default: a new user gets
+  // an encrypted vault with no third-party account to connect. GitHub/GitLab
+  // remain explicit "bring your own" choices. See #39.
+  const [provider, setProvider] = useState<Provider>("notekit");
   const [githubMode, setGithubMode] = useState<SubMode>("list");
   const [repos, setRepos] = useState<VaultRepo[] | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
@@ -277,9 +280,18 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
 
         <div className="nk-modal-tabs">
           <button
+            className={provider === "notekit" ? "active" : ""}
+            onClick={() => setProvider("notekit")}
+            title="NoteKit-hosted Git via Forgejo — no other account needed"
+          >
+            <NotekitIcon size={14} className="nk-modal-tab-icon" />
+            NoteKit Git
+            <span className="nk-tab-badge">Recommended</span>
+          </button>
+          <button
             className={provider === "github" ? "active" : ""}
             onClick={() => setProvider("github")}
-            title="GitHub"
+            title="GitHub (bring your own)"
           >
             <GithubIcon size={14} className="nk-modal-tab-icon" />
             GitHub
@@ -291,14 +303,6 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
           >
             <GitlabIcon size={14} className="nk-modal-tab-icon" />
             GitLab
-          </button>
-          <button
-            className={provider === "notekit" ? "active" : ""}
-            onClick={() => setProvider("notekit")}
-            title="NoteKit-hosted Git via Forgejo"
-          >
-            <NotekitIcon size={14} className="nk-modal-tab-icon" />
-            NoteKit Git
           </button>
         </div>
 

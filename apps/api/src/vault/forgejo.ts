@@ -211,67 +211,41 @@ export async function writeFileAs(
   author: GitAuthor,
   committer: GitAuthor,
 ): Promise<{ sha: string }> {
-  const api = `${baseUrl()}/api/v1/repos/${owner}/${repo}`;
+  // Forgejo doesn't implement GitHub's low-level git-data API (POST
+  // /git/blobs|trees|commits), and its /git/refs endpoint returns an array,
+  // not a single object — the old GitHub-shaped flow threw on `ref.object`.
+  // Its Contents API *does* accept `author` + `committer`, so we attribute the
+  // agent (author) vs the vault owner (committer) in a single call.
+  const url = `${baseUrl()}/api/v1/repos/${owner}/${repo}/contents/${encodePath(path)}`;
 
-  const refRes = await fetch(`${api}/git/refs/heads/${encodeURIComponent(branch)}`, {
-    headers: headers(token),
-  });
-  if (!refRes.ok) throw new GhError(refRes.status, await refRes.text());
-  const ref = (await refRes.json()) as { object: { sha: string } };
-  const parentSha = ref.object.sha;
-
-  const commitRes = await fetch(`${api}/git/commits/${parentSha}`, { headers: headers(token) });
-  if (!commitRes.ok) throw new GhError(commitRes.status, await commitRes.text());
-  const parentCommit = (await commitRes.json()) as { tree: { sha: string } };
-
-  const blobRes = await fetch(`${api}/git/blobs`, {
-    method: "POST",
-    headers: headers(token, true),
-    body: JSON.stringify({
-      content: Buffer.from(contents, "utf-8").toString("base64"),
-      encoding: "base64",
-    }),
-  });
-  if (!blobRes.ok) throw new GhError(blobRes.status, await blobRes.text());
-  const blob = (await blobRes.json()) as { sha: string };
-
-  const treeRes = await fetch(`${api}/git/trees`, {
-    method: "POST",
-    headers: headers(token, true),
-    body: JSON.stringify({
-      base_tree: parentCommit.tree.sha,
-      tree: [{ path, mode: "100644", type: "blob", sha: blob.sha }],
-    }),
-  });
-  if (!treeRes.ok) throw new GhError(treeRes.status, await treeRes.text());
-  const tree = (await treeRes.json()) as { sha: string };
-
-  const nowIso = new Date().toISOString();
-  const newCommitRes = await fetch(`${api}/git/commits`, {
-    method: "POST",
-    headers: headers(token, true),
-    body: JSON.stringify({
-      message,
-      tree: tree.sha,
-      parents: [parentSha],
-      author: { ...author, date: nowIso },
-      committer: { ...committer, date: nowIso },
-    }),
-  });
-  if (!newCommitRes.ok) throw new GhError(newCommitRes.status, await newCommitRes.text());
-  const newCommit = (await newCommitRes.json()) as { sha: string };
-
-  const updateRes = await fetch(
-    `${api}/git/refs/heads/${encodeURIComponent(branch)}`,
-    {
-      method: "PATCH",
-      headers: headers(token, true),
-      body: JSON.stringify({ sha: newCommit.sha, force: false }),
-    },
+  // Look up the existing blob sha so we create (POST) or update (PUT) correctly.
+  let prevSha: string | undefined;
+  const head = await fetch(
+    `${url}?ref=${encodeURIComponent(branch)}`,
+    { headers: headers(token) },
   );
-  if (!updateRes.ok) throw new GhError(updateRes.status, await updateRes.text());
+  if (head.ok) {
+    const j = (await head.json()) as { sha?: string };
+    prevSha = j.sha;
+  }
 
-  return { sha: blob.sha };
+  const reqBody: Record<string, unknown> = {
+    message,
+    content: Buffer.from(contents, "utf-8").toString("base64"),
+    branch,
+    author: { name: author.name, email: author.email },
+    committer: { name: committer.name, email: committer.email },
+  };
+  if (prevSha) reqBody.sha = prevSha;
+
+  const res = await fetch(url, {
+    method: prevSha ? "PUT" : "POST",
+    headers: headers(token, true),
+    body: JSON.stringify(reqBody),
+  });
+  if (!res.ok) throw new GhError(res.status, await res.text());
+  const json = (await res.json()) as { content: { sha: string } };
+  return { sha: json.content.sha };
 }
 
 /**

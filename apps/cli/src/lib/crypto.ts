@@ -6,6 +6,7 @@ import {
   recoveryFromMnemonic,
   isValidMnemonic,
   type RecoveryIdentity,
+  type DeviceIdentity,
 } from "@notekit/core/crypto";
 import * as e2ee from "@notekit/core/vault-e2ee";
 import type { NoteKitApi } from "@notekit/api-client";
@@ -37,6 +38,18 @@ export async function requireVaultIdentity(): Promise<RecoveryIdentity> {
   const id = await tryVaultIdentity();
   if (!id) throw new VaultLockedError();
   return id;
+}
+
+/** A DeviceIdentity rooted in the recovery key — for secrets-vault get/set. */
+export async function vaultDevice(): Promise<DeviceIdentity> {
+  const id = await requireVaultIdentity();
+  return {
+    deviceId: "cli",
+    name: "notekit-cli",
+    identity: id.identity,
+    recipient: id.recipient,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 export const isEncrypted = e2ee.isEncrypted;

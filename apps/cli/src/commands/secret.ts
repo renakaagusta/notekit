@@ -15,10 +15,13 @@ import {
   deleteSecretVault,
   listAllSecrets,
   removeSecret,
+  getSecret,
+  setSecret,
   DEFAULT_VAULT_LABEL,
   DEFAULT_VAULT_SLUG,
 } from "@notekit/core/secrets";
 import { getSecretsClient } from "../lib/secrets.js";
+import { vaultDevice } from "../lib/crypto.js";
 import { dieWithError } from "../client.js";
 
 function slugify(input: string): string {
@@ -188,6 +191,52 @@ const removeCmd = defineCommand({
   },
 });
 
+const setCmd = defineCommand({
+  meta: {
+    name: "set",
+    description: "Create or update an encrypted secret (requires `vault unlock`).",
+  },
+  args: {
+    name: { type: "positional", description: "Secret name.", required: true },
+    value: { type: "positional", description: "Secret value.", required: true },
+    vault: { type: "string", description: "Vault slug ('default' = root).", required: false },
+  },
+  async run({ args }) {
+    try {
+      await getSecretsClient({ requireAuth: true });
+      const vault = args.vault ? normalizeVaultArg(String(args.vault)) : DEFAULT_VAULT_SLUG;
+      await setSecret(String(args.name), String(args.value), await vaultDevice(), vault);
+      process.stdout.write(`${kleur.green("set")}  ${kleur.cyan(vault || "(default)")}/${args.name}\n`);
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
+const revealCmd = defineCommand({
+  meta: {
+    name: "reveal",
+    description: "Decrypt and print a secret's value (requires `vault unlock`).",
+  },
+  args: {
+    name: { type: "positional", description: "Secret name.", required: true },
+    vault: { type: "string", description: "Vault slug ('default' = root).", required: false },
+  },
+  async run({ args }) {
+    try {
+      await getSecretsClient({ requireAuth: true });
+      const vault = args.vault ? normalizeVaultArg(String(args.vault)) : DEFAULT_VAULT_SLUG;
+      const value = await getSecret(String(args.name), await vaultDevice(), vault);
+      if (value === null) {
+        dieWithError(new Error(`secret "${args.name}" not found in vault "${vault || "(default)"}"`));
+      }
+      process.stdout.write(`${value}\n`);
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
 /** Accept "default", "" or "(default)" as aliases for the root vault. */
 function normalizeVaultArg(raw: string): string {
   const v = raw.trim();
@@ -199,11 +248,13 @@ export const secretCommand = defineCommand({
   meta: {
     name: "secret",
     description:
-      "Manage encrypted secrets and the vaults that group them. Reveal/edit/move require the desktop or web app.",
+      "Manage encrypted secrets and the vaults that group them. Unlock with `notekit vault unlock` to set/reveal.",
   },
   subCommands: {
     vault: vaultCmd,
     list: listCmd,
+    set: setCmd,
+    reveal: revealCmd,
     remove: removeCmd,
   },
 });

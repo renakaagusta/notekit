@@ -88,8 +88,29 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
         let encryptedSkipped = 0;
         let scanned = 0;
         for (const filePath of candidatePaths) {
+          // Encrypted note → decrypt (if unlocked) and match; otherwise note
+          // it as skipped rather than failing the whole search (#49).
           if (isEncryptedItemPath(filePath)) {
-            encryptedSkipped++;
+            let note = null;
+            try {
+              const file = await nk.vault.readFile(filePath);
+              note = file.content ? await decryptNote(filePath, file.content) : null;
+            } catch {
+              note = null; // locked or undecryptable
+            }
+            if (!note) {
+              encryptedSkipped++;
+              continue;
+            }
+            const hay = `${note.title}\n${note.tags.join(" ")}\n${note.body}`.toLowerCase();
+            if (!hay.includes(needle)) continue;
+            hits.push({
+              path: filePath,
+              title: note.title,
+              tags: note.tags,
+              snippet: makeSnippet(note.body, needle),
+            });
+            if (hits.length >= max) break;
             continue;
           }
           if (!filePath.endsWith(".md")) continue;
@@ -271,12 +292,35 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
     },
     async ({ path, body, frontmatterPatch, commitMessage }) => {
       try {
-        if (isEncryptedItemPath(path)) {
-          return errorContent(
-            `notes_update: ${path} is end-to-end encrypted. The MCP server cannot edit it — the user must update this note on one of their devices.`,
-          );
-        }
         const existing = await nk.vault.readFile(path);
+        // Encrypted note → decrypt, merge, re-encrypt (#49).
+        if (existing.content && isEncryptedItemPath(path)) {
+          const note = await decryptNote(path, existing.content);
+          if (!note) return errorContent(`notes_update: couldn't decrypt ${path}`);
+          if (body !== undefined) note.body = body;
+          if (frontmatterPatch) {
+            if ("title" in frontmatterPatch) {
+              note.title = frontmatterPatch["title"] == null ? "" : String(frontmatterPatch["title"]);
+            }
+            if ("tags" in frontmatterPatch) {
+              const t = frontmatterPatch["tags"];
+              note.tags = Array.isArray(t) ? t.map(String) : [];
+            }
+            if ("folder" in frontmatterPatch) {
+              const f = frontmatterPatch["folder"];
+              note.folder = f == null ? null : String(f);
+            }
+          }
+          note.updatedAt = new Date().toISOString();
+          const sealed = await encryptNote(note);
+          await nk.vault.writeFile(
+            path,
+            sealed,
+            commitMessage ?? `notekit: update ${path}`,
+            existing.sha ?? undefined,
+          );
+          return textContent(`Updated ${path}`);
+        }
         const parsed = parseMarkdown(existing.content ?? "");
         const mergedFm: Record<string, unknown> = { ...parsed.frontmatter };
         if (frontmatterPatch) {

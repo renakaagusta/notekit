@@ -109,7 +109,7 @@ export async function createAccessToken(username: string, tokenName: string): Pr
 
 export async function listRepos(token: string): Promise<GhRepo[]> {
   const res = await fetch(
-    `${baseUrl()}/api/v1/repos/search?limit=50&sort=newest&token=${encodeURIComponent(token)}`,
+    `${baseUrl()}/api/v1/repos/search?limit=50&sort=updated&order=desc&token=${encodeURIComponent(token)}`,
     { headers: headers(token) },
   );
   if (!res.ok) throw new GhError(res.status, await res.text());
@@ -188,7 +188,10 @@ export async function writeFile(
   };
   if (prevSha) body.sha = prevSha;
   const res = await fetch(url, {
-    method: "PUT",
+    // Forgejo (unlike GitHub) splits create/update: POST creates a new file,
+    // PUT updates an existing one and *requires* `sha`. Using PUT for a new
+    // file 422s with "[SHA]: Required".
+    method: prevSha ? "PUT" : "POST",
     headers: headers(token, true),
     body: JSON.stringify(body),
   });

@@ -94,6 +94,8 @@ services:
       FORGEJO_URL: https://${GIT_DOMAIN}
       FORGEJO_DOMAIN: ${GIT_DOMAIN}
       FORGEJO_ADMIN_TOKEN: ${FORGEJO_ADMIN_TOKEN:-}
+      FORGEJO_ADMIN_USER: ${FORGEJO_ADMIN_USER:-}
+      FORGEJO_ADMIN_PASSWORD: ${FORGEJO_ADMIN_PASSWORD:-}
       AGENT_EMAIL_DOMAIN: ${AGENT_EMAIL_DOMAIN:-agents.notekit.app}
     volumes:
       - notekit-db:/app/apps/api/data

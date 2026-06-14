@@ -38,6 +38,25 @@ function adminHeaders(json = false): Record<string, string> {
   return headers(env.forgejo.adminToken ?? "", json);
 }
 
+/**
+ * HTTP Basic auth as the Forgejo admin, optionally impersonating `sudo`.
+ * Required for the token-creation endpoint, which Forgejo refuses to serve
+ * over token auth. With a `Sudo` header an admin mints a token *for* the
+ * target user (verified: admin token alone → 401, Basic + Sudo → 201).
+ */
+function adminBasicHeaders(sudo?: string, json = false): Record<string, string> {
+  const user = env.forgejo.adminUser ?? "";
+  const pass = env.forgejo.adminPassword ?? "";
+  const h: Record<string, string> = {
+    Authorization: `Basic ${Buffer.from(`${user}:${pass}`).toString("base64")}`,
+    Accept: "application/json",
+    "User-Agent": "NoteKit",
+  };
+  if (sudo) h["Sudo"] = sudo;
+  if (json) h["Content-Type"] = "application/json";
+  return h;
+}
+
 function encodePath(path: string): string {
   return path.split("/").map(encodeURIComponent).join("/");
 }
@@ -75,8 +94,10 @@ export async function createAccessToken(username: string, tokenName: string): Pr
     `${baseUrl()}/api/v1/users/${encodeURIComponent(username)}/tokens`,
     {
       method: "POST",
-      headers: adminHeaders(true),
-      body: JSON.stringify({ name: tokenName }),
+      // Basic auth + Sudo: token creation is the one endpoint Forgejo won't
+      // serve over token auth. `scopes` is required for the token to be usable.
+      headers: adminBasicHeaders(username, true),
+      body: JSON.stringify({ name: tokenName, scopes: ["all"] }),
     },
   );
   if (!res.ok) throw new GhError(res.status, await res.text());

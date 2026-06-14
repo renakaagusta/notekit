@@ -248,10 +248,9 @@ export function App({ user, onSignOut }: AppProps = {}) {
       try {
         const status = await getVaultStatus();
         if (cancelled) return;
-        if (!status.hasGithubToken) {
-          setVaultPhase("needs-token");
-          return;
-        }
+        // Don't gate on a GitHub token: NoteKit-hosted Git (Forgejo) vaults
+        // need none. If there's a configured active vault of ANY provider,
+        // load it. Only fall through to the empty states when there isn't one.
         if (status.configured && status.vault) {
           setVault(status.vault);
           // Populate the full vault list so the switcher is ready.
@@ -278,8 +277,12 @@ export function App({ user, onSignOut }: AppProps = {}) {
           startVaultEventStream();
           await cryptoReady;
           await rehydrateEncryptedIfSkipped();
-        } else {
+        } else if (status.hasGithubToken) {
+          // A git provider is connected but no active vault → pick/create one.
           setVaultPhase("needs-pick");
+        } else {
+          // No vault and no provider yet → empty state to set one up.
+          setVaultPhase("needs-token");
         }
       } catch (e) {
         if (!cancelled) setVaultError((e as Error).message);

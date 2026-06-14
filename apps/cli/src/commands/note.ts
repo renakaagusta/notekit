@@ -9,7 +9,15 @@ import { nanoid } from "nanoid";
 import { getClient, dieWithError } from "../client.js";
 import { openEditor } from "../lib/editor.js";
 import { parseFrontmatter, stringifyFrontmatter } from "../lib/frontmatter.js";
-import { isEncrypted, decryptNote } from "../lib/crypto.js";
+import { getSecretsClient } from "../lib/secrets.js";
+import {
+  isEncrypted,
+  decryptNote,
+  vaultIsEncrypted,
+  encryptNote,
+  listEncryptedNotes,
+} from "../lib/crypto.js";
+import type { Note } from "@notekit/core/types";
 
 const NOTES_DIR = "notes";
 const INDEX_PATH = `${NOTES_DIR}/index.json`;
@@ -34,7 +42,9 @@ const newCmd = defineCommand({
   },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
+      // getSecretsClient configures the @notekit/core backend so the E2EE
+      // helpers (vaultIsEncrypted / encryptNote) can read the vault.
+      const nk = await getSecretsClient({ requireAuth: true });
 
       const seed = args.body
         ? String(args.body)
@@ -43,11 +53,33 @@ const newCmd = defineCommand({
 
       const id = nanoid(10);
       const now = new Date().toISOString();
+      const title = String(args.title);
       const tags = args.tag ? String(args.tag).split(",").map((t) => t.trim()).filter(Boolean) : [];
+
+      // Born-E2EE vault → seal the note as `.md.age` for the whole vault
+      // audience. No plaintext index update (it would leak titles); E2EE
+      // notes are listed by scanning + decrypting, like the web.
+      if (await vaultIsEncrypted()) {
+        const note: Note = {
+          id,
+          path: `${NOTES_DIR}/${id}.md.age`,
+          title,
+          body,
+          frontmatter: {},
+          createdAt: now,
+          updatedAt: now,
+          folder: null,
+          tags,
+        };
+        const sealed = await encryptNote(note);
+        await nk.vault.writeFile(note.path, sealed, `note: create ${id}`);
+        process.stdout.write(`${kleur.green("created (encrypted)")} ${note.path}\n`);
+        return;
+      }
 
       const frontmatter = {
         id,
-        title: String(args.title),
+        title,
         createdAt: now,
         updatedAt: now,
         tags,
@@ -58,7 +90,7 @@ const newCmd = defineCommand({
       await nk.vault.writeFile(path, content, `note: create ${id}`);
 
       await updateIndex(nk, (idx) => {
-        idx.notes.unshift({ id, path, title: String(args.title), updatedAt: now });
+        idx.notes.unshift({ id, path, title, updatedAt: now });
         return idx;
       });
 
@@ -76,11 +108,14 @@ const listCmd = defineCommand({
   },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
-      const { index: idx } = await readIndex(nk);
+      const nk = await getSecretsClient({ requireAuth: true });
+      // E2EE vault → scan + decrypt (no plaintext index). Plaintext → index.
+      const rows: { id: string; title: string }[] = (await vaultIsEncrypted())
+        ? await listEncryptedNotes(nk)
+        : (await readIndex(nk)).index.notes;
       // `--limit foo` would otherwise become NaN and silently return zero
       // results via slice(0, NaN). Reject early so the user sees the bug.
-      let limit = idx.notes.length;
+      let limit = rows.length;
       if (args.limit) {
         const parsed = Number(args.limit);
         if (!Number.isInteger(parsed) || parsed < 0) {
@@ -88,10 +123,10 @@ const listCmd = defineCommand({
         }
         limit = parsed;
       }
-      for (const n of idx.notes.slice(0, limit)) {
+      for (const n of rows.slice(0, limit)) {
         process.stdout.write(`${kleur.dim(n.id)}  ${n.title}\n`);
       }
-      if (idx.notes.length === 0) {
+      if (rows.length === 0) {
         process.stdout.write(kleur.dim("(no notes — create one with `notekit note new <title>`)\n"));
       }
     } catch (err) {
@@ -107,7 +142,7 @@ const readCmd = defineCommand({
   },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
+      const nk = await getSecretsClient({ requireAuth: true });
       const path = await resolveNotePath(nk, String(args.idOrPath));
       const file = await nk.vault.readFile(path);
       let text = file.content ?? "";
@@ -290,7 +325,14 @@ async function updateIndex(nk: NoteKitApi, mut: (idx: NoteIndex) => NoteIndex): 
 
 async function resolveNotePath(nk: NoteKitApi, idOrPath: string): Promise<string> {
   if (idOrPath.includes("/")) return idOrPath;
-  if (idOrPath.endsWith(".md") && idOrPath.startsWith(NOTES_DIR)) return idOrPath;
+  if (
+    (idOrPath.endsWith(".md") || idOrPath.endsWith(".md.age")) &&
+    idOrPath.startsWith(NOTES_DIR)
+  ) {
+    return idOrPath;
+  }
+  // E2EE vaults have no plaintext index; notes are `notes/<id>.md.age`.
+  if (await vaultIsEncrypted()) return `${NOTES_DIR}/${idOrPath}.md.age`;
   const { index: idx } = await readIndex(nk);
   const found = idx.notes.find((n) => n.id === idOrPath);
   if (found) return found.path;

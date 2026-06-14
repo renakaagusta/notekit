@@ -11,3 +11,5 @@ export * from "./recovery";
 export * from "./item-crypto";
 export * from "./signing";
 export * from "./wallet-key";
+// Type-only — no runtime import of the IndexedDB-backed device-key module.
+export type { DeviceIdentity } from "./device-key";

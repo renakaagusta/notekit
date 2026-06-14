@@ -12,8 +12,15 @@ import {
   deserializeEncryptedNote,
   deserializeEncryptedTicket,
   deserializeEncryptedLink,
+  serializeEncryptedNote,
   type RecoveryIdentity,
+  type DeviceIdentity,
 } from "@notekit/core/crypto";
+import {
+  collectVaultRecipients,
+  readVaultConfig,
+} from "@notekit/core/secrets";
+import type { NoteKitApi } from "@notekit/api-client";
 import type { Note } from "@notekit/core/types";
 import type { Ticket } from "@notekit/core/types";
 import type { SavedLink } from "@notekit/core/types";
@@ -80,3 +87,69 @@ export async function decryptLink(
 }
 
 export { classifyEncryptedPath };
+
+/**
+ * Is the active vault born-E2EE? Reads `.notekit/config.json` via the
+ * configured secrets backend — caller must have run `getSecretsClient()`.
+ */
+export async function vaultIsEncrypted(): Promise<boolean> {
+  try {
+    const config = await readVaultConfig();
+    return config.encryption === "required";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Seal a note into the `.md.age` envelope for the whole vault audience
+ * (every registered device + the recovery key). The CLI acts as a device
+ * rooted in the recovery identity — `collectVaultRecipients` adds it plus
+ * the existing devices and the recovery recipient.
+ */
+export async function encryptNote(note: Note): Promise<string> {
+  const id = await requireVaultIdentity();
+  const device: DeviceIdentity = {
+    deviceId: "cli",
+    name: "notekit-cli",
+    identity: id.identity,
+    recipient: id.recipient,
+    createdAt: new Date().toISOString(),
+  };
+  const recipients = await collectVaultRecipients(device);
+  return serializeEncryptedNote(note, recipients);
+}
+
+export interface EncryptedNoteMeta {
+  id: string;
+  title: string;
+  path: string;
+  updatedAt: string;
+}
+
+/**
+ * List notes in an E2EE vault by scanning `notes/` and decrypting each item
+ * (the web does the same — there's no plaintext index that could leak titles).
+ */
+export async function listEncryptedNotes(
+  nk: NoteKitApi,
+): Promise<EncryptedNoteMeta[]> {
+  const { entries } = await nk.vault.listFiles("notes/");
+  const out: EncryptedNoteMeta[] = [];
+  for (const e of entries) {
+    if (classifyEncryptedPath(e.path) !== "note") continue;
+    const file = await nk.vault.readFile(e.path);
+    if (!file.content) continue;
+    const note = await decryptNote(e.path, file.content);
+    if (note) {
+      out.push({
+        id: note.id,
+        title: note.title,
+        path: e.path,
+        updatedAt: note.updatedAt,
+      });
+    }
+  }
+  out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return out;
+}

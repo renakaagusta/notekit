@@ -966,7 +966,7 @@ function syncLabel(
   vaultPhase: string,
   vaultLabel: string,
 ): string {
-  if (vaultPhase === "needs-token") return "Sign in with GitHub to sync";
+  if (vaultPhase === "needs-token") return "Set up a vault to sync";
   if (vaultPhase === "needs-pick") return "Pick a vault repo";
   if (phase === "fetching") return "Pulling…";
   if (phase === "pushing") return "Syncing…";

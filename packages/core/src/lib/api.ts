@@ -27,9 +27,19 @@ function resolveApiUrl(): string {
   // the substitution and the prod bundle silently ships with the localhost
   // fallback. Asserted in apps/web/Dockerfile post-build so a regression
   // can't sneak past CI.
-  // @ts-expect-error — Vite replaces this at build time; types don't see it.
-  const fromEnv = import.meta.env.VITE_API_URL as string | undefined;
-  if (typeof fromEnv === "string" && fromEnv.length > 0) return fromEnv;
+  //
+  // The try/catch leaves that literal token untouched (so Vite still
+  // substitutes it) while keeping this safe in a non-Vite runtime: when
+  // `@notekit/core` is imported from the Node CLI, `import.meta.env` is
+  // undefined and the access throws — we fall back instead of crashing at
+  // module load. CLI/MCP consumers supply their own apiUrl via config anyway.
+  try {
+    // @ts-expect-error — Vite replaces this at build time; types don't see it.
+    const fromEnv = import.meta.env.VITE_API_URL as string | undefined;
+    if (typeof fromEnv === "string" && fromEnv.length > 0) return fromEnv;
+  } catch {
+    // Non-Vite runtime (Node): import.meta.env is undefined.
+  }
   return "http://localhost:3001";
 }
 

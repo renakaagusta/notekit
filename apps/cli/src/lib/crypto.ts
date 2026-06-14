@@ -123,6 +123,7 @@ export async function encryptNote(note: Note): Promise<string> {
 export interface EncryptedNoteMeta {
   id: string;
   title: string;
+  body: string;
   path: string;
   updatedAt: string;
 }
@@ -145,6 +146,7 @@ export async function listEncryptedNotes(
       out.push({
         id: note.id,
         title: note.title,
+        body: note.body,
         path: e.path,
         updatedAt: note.updatedAt,
       });

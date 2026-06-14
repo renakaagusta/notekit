@@ -180,10 +180,28 @@ const editCmd = defineCommand({
   },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
+      const nk = await getSecretsClient({ requireAuth: true });
       const path = await resolveNotePath(nk, String(args.idOrPath));
       const file = await nk.vault.readFile(path);
-      const seed = file.content ?? "";
+      const encrypted = isEncrypted(path);
+
+      // Seed the editor with plaintext (decrypt first for E2EE notes).
+      let seed = file.content ?? "";
+      if (encrypted && seed) {
+        const note = await decryptNote(path, seed);
+        if (!note) throw new Error(`couldn't decrypt ${path}`);
+        seed = stringifyFrontmatter(
+          {
+            id: note.id,
+            title: note.title,
+            tags: note.tags,
+            createdAt: note.createdAt,
+            updatedAt: note.updatedAt,
+            folder: note.folder ?? undefined,
+          },
+          note.body.startsWith("\n") ? note.body : `\n${note.body}`,
+        );
+      }
 
       const next = await openEditor({ seed, extension: ".md" });
       if (next === seed) {
@@ -191,12 +209,29 @@ const editCmd = defineCommand({
         return;
       }
 
-      // Bump updatedAt + refresh index title.
       const { data, body } = parseFrontmatter(next);
       const now = new Date().toISOString();
       data.updatedAt = now;
-      const content = stringifyFrontmatter(data, body);
 
+      if (encrypted) {
+        const note: Note = {
+          id: String(data.id ?? ""),
+          path,
+          title: String(data.title ?? ""),
+          body,
+          frontmatter: {},
+          createdAt: String(data.createdAt ?? now),
+          updatedAt: now,
+          folder: (data.folder as string | null | undefined) ?? null,
+          tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
+        };
+        const sealed = await encryptNote(note);
+        await nk.vault.writeFile(path, sealed, `note: edit ${note.id}`, file.sha ?? undefined);
+        process.stdout.write(`${kleur.green("updated (encrypted)")} ${path}\n`);
+        return;
+      }
+
+      const content = stringifyFrontmatter(data, body);
       await nk.vault.writeFile(path, content, `note: edit ${data.id ?? path}`, file.sha ?? undefined);
 
       const title = String(data.title ?? path.split("/").pop());
@@ -223,17 +258,20 @@ const rmCmd = defineCommand({
   },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
+      const nk = await getSecretsClient({ requireAuth: true });
       const path = await resolveNotePath(nk, String(args.idOrPath));
       const existing = await nk.vault.readFile(path);
       if (!existing.sha) {
         throw new Error(`cannot delete ${path}: no sha returned from server`);
       }
       await nk.vault.deleteFile(path, existing.sha, `note: delete ${path}`);
-      await updateIndex(nk, (idx) => {
-        idx.notes = idx.notes.filter((n) => n.path !== path);
-        return idx;
-      });
+      // E2EE vaults have no plaintext index to maintain.
+      if (!isEncrypted(path)) {
+        await updateIndex(nk, (idx) => {
+          idx.notes = idx.notes.filter((n) => n.path !== path);
+          return idx;
+        });
+      }
       process.stdout.write(`${kleur.yellow("removed")} ${path}\n`);
     } catch (err) {
       dieWithError(err);
@@ -251,14 +289,27 @@ const searchCmd = defineCommand({
   },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
-      const { index: idx } = await readIndex(nk);
+      const nk = await getSecretsClient({ requireAuth: true });
       const q = String(args.query).toLowerCase();
-
-      // Phase 3 TODO: replace this with a server-side `nk.vault.search()` once
-      // the API exposes ripgrep over the working tree. For now, fetch every
-      // note in the index and substring-match — fine for personal vaults.
       let hits = 0;
+
+      // E2EE vault → scan + decrypt every note and match title/body in memory.
+      if (await vaultIsEncrypted()) {
+        for (const n of await listEncryptedNotes(nk)) {
+          if (
+            n.title.toLowerCase().includes(q) ||
+            n.body.toLowerCase().includes(q)
+          ) {
+            process.stdout.write(`${kleur.dim(n.id)}  ${n.title}\n`);
+            hits++;
+          }
+        }
+        if (hits === 0) process.stdout.write(kleur.dim("no matches\n"));
+        return;
+      }
+
+      const { index: idx } = await readIndex(nk);
+      // Plaintext: fetch every indexed note and substring-match.
       for (const n of idx.notes) {
         const titleHit = n.title.toLowerCase().includes(q);
         let bodyHit = false;

@@ -21,6 +21,7 @@ import { runMcpServer } from "@notekit/mcp/run";
 
 import { getClient } from "../client.js";
 import { loadConfig } from "../config.js";
+import { NOTEKIT_SKILL_MD } from "../lib/skill.js";
 import { getToken } from "../keychain.js";
 import {
   ALL_CLIENTS,
@@ -175,6 +176,20 @@ const installCmd = defineCommand({
     } else {
       process.stdout.write(kleur.yellow("(--print-only — nothing written)\n"));
       process.stdout.write(`Target file would be: ${kleur.dim(configPath)}\n`);
+    }
+
+    // For Claude Code, also install the NoteKit agent skill so the model
+    // understands how to use these tools well (search-before-create, E2EE,
+    // notes-vs-tickets). Skills are a Claude-Code concept; other clients
+    // just get the MCP config.
+    if (String(args.client) === "claude-code" && !args.printOnly) {
+      const skillDir = path.join(homedir(), ".claude", "skills", "notekit");
+      const skillPath = path.join(skillDir, "SKILL.md");
+      mkdirSync(skillDir, { recursive: true });
+      writeFileSync(skillPath, NOTEKIT_SKILL_MD, "utf8");
+      process.stdout.write(
+        `${kleur.green("✓")} installed the NoteKit skill → ${kleur.dim(skillPath)}\n`,
+      );
     }
 
     // Always print the copy-paste block + deeplink, per

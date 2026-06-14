@@ -12,6 +12,8 @@
     "./stores": "./src/stores/index.ts",
     "./components": "./src/components/index.ts",
     "./secrets": "./src/lib/secrets-vault.ts",
+    "./crypto": "./src/lib/crypto/index.ts",
+    "./vault-e2ee": "./src/lib/vault-e2ee.ts",
     "./styles.css": "./src/styles.css"
   },
   "scripts": {

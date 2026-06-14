@@ -18,6 +18,13 @@ import {
 import { parseMarkdown, serializeMarkdown } from "../lib/markdown.js";
 import { resolveProjectContext } from "../lib/project.js";
 import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
+import { randomBytes } from "node:crypto";
+import { vaultIsEncrypted, encryptTicket, decryptTicket } from "../lib/crypto.js";
+import type { Ticket } from "@notekit/core/types";
+
+function newItemId(): string {
+  return randomBytes(8).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
+}
 
 const STATUSES = ["todo", "in_progress", "blocked", "done", "archived"] as const;
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
@@ -63,8 +70,33 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         const tickets: Record<string, unknown>[] = [];
         let encryptedSkipped = 0;
         for (const filePath of candidatePaths) {
+          // Encrypted ticket → decrypt (if unlocked) and include; else skip.
           if (isEncryptedItemPath(filePath)) {
-            encryptedSkipped++;
+            let t = null;
+            try {
+              const file = await nk.vault.readFile(filePath);
+              t = file.content ? await decryptTicket(filePath, file.content) : null;
+            } catch {
+              t = null;
+            }
+            if (!t) {
+              encryptedSkipped++;
+              continue;
+            }
+            if (status && t.status !== status) continue;
+            if (priority && t.priority !== priority) continue;
+            if (assignee && t.assignee !== assignee) continue;
+            tickets.push({
+              path: filePath,
+              title: t.title,
+              status: t.status,
+              priority: t.priority,
+              assignee: t.assignee,
+              labels: t.labels,
+              dueDate: t.dueDate,
+              snippet: t.body.slice(0, 160).trim(),
+            });
+            if (tickets.length >= max) break;
             continue;
           }
           if (!filePath.endsWith(".md")) continue;
@@ -121,13 +153,39 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
     },
     async (args) => {
       try {
+        const now = new Date().toISOString();
+        // Born-E2EE vault → seal as an opaque tickets/<id>.md.age (#49).
+        if (await vaultIsEncrypted()) {
+          const id = newItemId();
+          const ticket: Ticket = {
+            id,
+            path: `tickets/${id}.md.age`,
+            title: args.title,
+            body: args.body ?? "",
+            status: args.status ?? "todo",
+            priority: args.priority ?? "medium",
+            assignee: args.assignee ?? null,
+            labels: args.labels ?? [],
+            linkedNotes: [],
+            createdAt: now,
+            updatedAt: now,
+            dueDate: args.dueDate ?? null,
+            createdBy: null,
+          };
+          const sealed = await encryptTicket(ticket);
+          await nk.vault.writeFile(
+            ticket.path,
+            sealed,
+            args.commitMessage ?? `notekit: open ticket ${args.title}`,
+          );
+          return textContent(`Created encrypted ticket at ${ticket.path}`);
+        }
         const ctx = resolveProjectContext();
         const resolved = resolveScope("tickets", {
           scope: args.scope,
           project: args.project,
           ctx,
         });
-        const now = new Date().toISOString();
         const targetPath =
           args.path ?? `${resolved.writePrefix}${slugify(args.title)}.md`;
         const frontmatter: Record<string, unknown> = {
@@ -177,12 +235,28 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
     },
     async ({ path, body, commitMessage, ...patch }) => {
       try {
-        if (isEncryptedItemPath(path)) {
-          return errorContent(
-            `tickets_update: ${path} is end-to-end encrypted. The MCP server cannot edit it — the user must update this ticket on one of their devices.`,
-          );
-        }
         const existing = await nk.vault.readFile(path);
+        // Encrypted ticket → decrypt, patch, re-encrypt (#49).
+        if (existing.content && isEncryptedItemPath(path)) {
+          const ticket = await decryptTicket(path, existing.content);
+          if (!ticket) return errorContent(`tickets_update: couldn't decrypt ${path}`);
+          if (body !== undefined) ticket.body = body;
+          if (patch.title !== undefined) ticket.title = patch.title;
+          if (patch.status !== undefined) ticket.status = patch.status;
+          if (patch.priority !== undefined) ticket.priority = patch.priority;
+          if (patch.assignee !== undefined) ticket.assignee = patch.assignee;
+          if (patch.labels !== undefined) ticket.labels = patch.labels;
+          if (patch.dueDate !== undefined) ticket.dueDate = patch.dueDate;
+          ticket.updatedAt = new Date().toISOString();
+          const sealed = await encryptTicket(ticket);
+          await nk.vault.writeFile(
+            path,
+            sealed,
+            commitMessage ?? `notekit: update ticket ${path}`,
+            existing.sha ?? undefined,
+          );
+          return textContent(`Updated ${path}`);
+        }
         const parsed = parseMarkdown(existing.content ?? "");
         const fm: Record<string, unknown> = { ...parsed.frontmatter };
         for (const [k, v] of Object.entries(patch)) {

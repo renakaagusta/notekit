@@ -7,6 +7,18 @@ import { defineCommand } from "citty";
 import kleur from "kleur";
 import { getClient, dieWithError } from "../client.js";
 import { patchConfig } from "../config.js";
+import {
+  isValidMnemonic,
+  recoveryFromMnemonic,
+  generateRecoveryMnemonic,
+  recoverySigningFromMnemonic,
+  type DeviceIdentity,
+} from "@notekit/core/crypto";
+import { readRecovery, readVaultConfig, initVault } from "@notekit/core/secrets";
+import { nanoid } from "nanoid";
+import { getSecretsClient } from "../lib/secrets.js";
+import { loadConfig } from "../config.js";
+import { setRecoveryPhrase, clearRecoveryPhrase } from "../keychain.js";
 
 const listCmd = defineCommand({
   meta: { name: "list", description: "List vaults the signed-in user can access." },
@@ -185,12 +197,153 @@ const migrateCmd = defineCommand({
   },
 });
 
+const unlockCmd = defineCommand({
+  meta: {
+    name: "unlock",
+    description:
+      "Store your recovery phrase so the CLI can read/write this E2EE vault.",
+  },
+  args: {
+    phrase: {
+      type: "string",
+      description: "24-word recovery phrase (else read from stdin).",
+      required: false,
+    },
+  },
+  async run({ args }) {
+    try {
+      const phrase = (args.phrase ?? (await readStdin())).trim();
+      if (!phrase) {
+        throw new Error(
+          "No phrase provided. Pass --phrase \"<24 words>\" or pipe it on stdin.",
+        );
+      }
+      if (!isValidMnemonic(phrase)) {
+        throw new Error("That isn't a valid 24-word BIP39 recovery phrase.");
+      }
+      const { recipient } = await recoveryFromMnemonic(phrase);
+      // Verify it matches THIS vault's recovery key (if the vault is encrypted).
+      await getSecretsClient({ requireAuth: true });
+      const recovery = await readRecovery();
+      if (recovery && recovery.recipient !== recipient) {
+        throw new Error(
+          "This phrase doesn't match the active vault's recovery key.",
+        );
+      }
+      await setRecoveryPhrase(phrase);
+      if (!recovery) {
+        process.stdout.write(
+          kleur.yellow(
+            "Stored — but the active vault isn't end-to-end encrypted yet (no recovery key on record).\n",
+          ),
+        );
+      } else {
+        process.stdout.write(kleur.green("Vault unlocked.\n"));
+      }
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
+const setupCmd = defineCommand({
+  meta: {
+    name: "setup",
+    description:
+      "Turn on end-to-end encryption for the active vault (born-E2EE).",
+  },
+  args: {
+    phrase: {
+      type: "string",
+      description: "Reuse an existing 24-word phrase instead of generating one.",
+      required: false,
+    },
+  },
+  async run({ args }) {
+    try {
+      await getSecretsClient({ requireAuth: true });
+      const existing = await readVaultConfig();
+      if (existing.encryption === "required") {
+        throw new Error("This vault is already end-to-end encrypted.");
+      }
+      const generated = !args.phrase;
+      const phrase = (args.phrase ?? generateRecoveryMnemonic()).trim();
+      if (!isValidMnemonic(phrase)) {
+        throw new Error("That isn't a valid 24-word BIP39 recovery phrase.");
+      }
+      const { identity, recipient } = await recoveryFromMnemonic(phrase);
+      const recoverySigning = await recoverySigningFromMnemonic(phrase);
+      const device: DeviceIdentity = {
+        deviceId: `cli-${nanoid(8)}`,
+        name: "notekit-cli",
+        identity,
+        recipient,
+        createdAt: new Date().toISOString(),
+      };
+      const cfg = await loadConfig();
+      const owner = cfg.email
+        ? { memberId: cfg.email, email: cfg.email }
+        : undefined;
+      await initVault({
+        device,
+        recoveryRecipient: recipient,
+        encryption: "required",
+        recoverySigning,
+        owner,
+      });
+      await setRecoveryPhrase(phrase);
+      process.stdout.write(kleur.green("Vault is now end-to-end encrypted.\n"));
+      if (generated) {
+        process.stdout.write(
+          kleur.yellow(
+            "\n⚠  Back up your recovery phrase — it's the ONLY way to recover this vault:\n\n",
+          ),
+        );
+        process.stdout.write(`  ${kleur.bold(phrase)}\n\n`);
+      }
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
+const lockCmd = defineCommand({
+  meta: {
+    name: "lock",
+    description: "Forget the stored recovery phrase.",
+  },
+  async run() {
+    try {
+      await clearRecoveryPhrase();
+      process.stdout.write(kleur.green("Vault locked (recovery phrase forgotten).\n"));
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
+function readStdin(): Promise<string> {
+  return new Promise((resolve) => {
+    if (process.stdin.isTTY) {
+      resolve("");
+      return;
+    }
+    let data = "";
+    process.stdin.setEncoding("utf8");
+    process.stdin.on("data", (c) => (data += c));
+    process.stdin.on("end", () => resolve(data));
+  });
+}
+
 export const vaultCommand = defineCommand({
   meta: { name: "vault", description: "Manage NoteKit vaults." },
   subCommands: {
     list: listCmd,
     switch: switchCmd,
     sync: syncCmd,
+    setup: setupCmd,
+    unlock: unlockCmd,
+    lock: lockCmd,
     members: membersCmd,
     migrate: migrateCmd,
   },

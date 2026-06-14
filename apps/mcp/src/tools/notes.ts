@@ -24,6 +24,13 @@ import {
 import { parseMarkdown, serializeMarkdown } from "../lib/markdown.js";
 import { resolveProjectContext } from "../lib/project.js";
 import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
+import { randomBytes } from "node:crypto";
+import { vaultIsEncrypted, encryptNote, decryptNote } from "../lib/crypto.js";
+import type { Note } from "@notekit/core/types";
+
+function newItemId(): string {
+  return randomBytes(8).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
+}
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 
@@ -81,8 +88,29 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
         let encryptedSkipped = 0;
         let scanned = 0;
         for (const filePath of candidatePaths) {
+          // Encrypted note → decrypt (if unlocked) and match; otherwise note
+          // it as skipped rather than failing the whole search (#49).
           if (isEncryptedItemPath(filePath)) {
-            encryptedSkipped++;
+            let note = null;
+            try {
+              const file = await nk.vault.readFile(filePath);
+              note = file.content ? await decryptNote(filePath, file.content) : null;
+            } catch {
+              note = null; // locked or undecryptable
+            }
+            if (!note) {
+              encryptedSkipped++;
+              continue;
+            }
+            const hay = `${note.title}\n${note.tags.join(" ")}\n${note.body}`.toLowerCase();
+            if (!hay.includes(needle)) continue;
+            hits.push({
+              path: filePath,
+              title: note.title,
+              tags: note.tags,
+              snippet: makeSnippet(note.body, needle),
+            });
+            if (hits.length >= max) break;
             continue;
           }
           if (!filePath.endsWith(".md")) continue;
@@ -131,12 +159,24 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
     },
     async ({ path }) => {
       try {
-        if (isEncryptedItemPath(path)) {
-          return errorContent(
-            `notes_read: ${path} is end-to-end encrypted. The MCP server cannot decrypt it — the user must open this note on one of their devices.`,
-          );
-        }
         const file = await nk.vault.readFile(path);
+        // Encrypted note → decrypt with NOTEKIT_RECOVERY_PHRASE (#49).
+        if (file.content && isEncryptedItemPath(path)) {
+          const note = await decryptNote(path, file.content);
+          if (!note) return errorContent(`notes_read: couldn't decrypt ${path}`);
+          return jsonContent({
+            path,
+            sha: file.sha,
+            frontmatter: {
+              title: note.title,
+              tags: note.tags,
+              folder: note.folder,
+              createdAt: note.createdAt,
+              updatedAt: note.updatedAt,
+            },
+            body: note.body,
+          });
+        }
         const parsed = parseMarkdown(file.content ?? "");
         return jsonContent({
           path: file.path,
@@ -180,10 +220,34 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
     },
     async ({ title, body, path, tags, commitMessage, scope, project }) => {
       try {
+        const now = new Date().toISOString();
+        // Born-E2EE vault → seal the note as an opaque notes/<id>.md.age
+        // (no slug/project in the path, which would leak the title). Agents
+        // find it again via notes_search (which decrypts).
+        if (await vaultIsEncrypted()) {
+          const id = newItemId();
+          const note: Note = {
+            id,
+            path: `notes/${id}.md.age`,
+            title,
+            body,
+            frontmatter: {},
+            createdAt: now,
+            updatedAt: now,
+            folder: null,
+            tags: tags ?? [],
+          };
+          const sealed = await encryptNote(note);
+          await nk.vault.writeFile(
+            note.path,
+            sealed,
+            commitMessage ?? `notekit: add ${title}`,
+          );
+          return textContent(`Created encrypted note at ${note.path}`);
+        }
         const ctx = resolveProjectContext();
         const resolved = resolveScope("notes", { scope, project, ctx });
         const targetPath = path ?? `${resolved.writePrefix}${slugify(title)}.md`;
-        const now = new Date().toISOString();
         const frontmatter: Record<string, unknown> = {
           title,
           tags: tags ?? [],
@@ -228,12 +292,35 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
     },
     async ({ path, body, frontmatterPatch, commitMessage }) => {
       try {
-        if (isEncryptedItemPath(path)) {
-          return errorContent(
-            `notes_update: ${path} is end-to-end encrypted. The MCP server cannot edit it — the user must update this note on one of their devices.`,
-          );
-        }
         const existing = await nk.vault.readFile(path);
+        // Encrypted note → decrypt, merge, re-encrypt (#49).
+        if (existing.content && isEncryptedItemPath(path)) {
+          const note = await decryptNote(path, existing.content);
+          if (!note) return errorContent(`notes_update: couldn't decrypt ${path}`);
+          if (body !== undefined) note.body = body;
+          if (frontmatterPatch) {
+            if ("title" in frontmatterPatch) {
+              note.title = frontmatterPatch["title"] == null ? "" : String(frontmatterPatch["title"]);
+            }
+            if ("tags" in frontmatterPatch) {
+              const t = frontmatterPatch["tags"];
+              note.tags = Array.isArray(t) ? t.map(String) : [];
+            }
+            if ("folder" in frontmatterPatch) {
+              const f = frontmatterPatch["folder"];
+              note.folder = f == null ? null : String(f);
+            }
+          }
+          note.updatedAt = new Date().toISOString();
+          const sealed = await encryptNote(note);
+          await nk.vault.writeFile(
+            path,
+            sealed,
+            commitMessage ?? `notekit: update ${path}`,
+            existing.sha ?? undefined,
+          );
+          return textContent(`Updated ${path}`);
+        }
         const parsed = parseMarkdown(existing.content ?? "");
         const mergedFm: Record<string, unknown> = { ...parsed.frontmatter };
         if (frontmatterPatch) {

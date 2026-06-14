@@ -5,8 +5,13 @@ import { createDeviceIdentity, loadDeviceIdentity } from "../lib/crypto/device-k
 import {
   createAndStoreRecovery,
   loadStoredRecovery,
+  importRecovery,
 } from "../lib/crypto/recovery-store";
-import { recoverySigningFromMnemonic } from "../lib/crypto/recovery";
+import {
+  recoveryFromMnemonic,
+  recoverySigningFromMnemonic,
+} from "../lib/crypto/recovery";
+import { RecoveryPhraseDialog } from "./VaultPairing";
 import { deriveWalletVaultIdentity } from "../lib/crypto/wallet-key";
 import {
   connectWallet,
@@ -51,8 +56,17 @@ export function VaultSetup() {
   const [failed, setFailed] = useState<string | null>(null);
   // Web3 users can root the vault in their wallet instead of a generated phrase.
   // Offer the choice once if a wallet is present; otherwise set up silently.
-  const [choosing, setChoosing] = useState(hasInjectedWallet());
+  // Always offer the root choice (generate / wallet / existing phrase) so the
+  // "use an existing phrase" option is reachable. One tap on "Create a new
+  // recovery phrase" keeps the common path nearly as quiet as before.
+  const [choosing, setChoosing] = useState(true);
   const [walletBusy, setWalletBusy] = useState(false);
+  // "I already have a recovery phrase" path — reuse a phrase the user holds
+  // elsewhere so this vault shares one secret with their others (verbatim).
+  const [importOpen, setImportOpen] = useState(false);
+  const [importValue, setImportValue] = useState("");
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   // Guard against React 18 StrictMode double-invoke creating two vaults.
   const ranRef = useRef(false);
 
@@ -105,6 +119,46 @@ export function VaultSetup() {
     }
   }
 
+  /**
+   * Root the new vault in a recovery phrase the user already has (from another
+   * device or a written backup). The vault adopts that key verbatim, so one
+   * phrase unlocks all vaults that share it — and the on-device cache (a single
+   * slot) then matches every such vault. Trade-off: shared blast radius across
+   * vaults that reuse the phrase; that's the user's deliberate choice here.
+   */
+  async function runImport() {
+    const mnemonic = importValue.trim();
+    if (!mnemonic) return;
+    setImportBusy(true);
+    setImportError(null);
+    try {
+      const device =
+        (await loadDeviceIdentity()) ?? (await createDeviceIdentity());
+      // Throws on an invalid BIP39 phrase — surfaced inline below.
+      const { recipient } = await recoveryFromMnemonic(mnemonic);
+      const recoverySigning = await recoverySigningFromMnemonic(mnemonic);
+      await initVault({
+        device,
+        recoveryRecipient: recipient,
+        recoverySigning,
+        owner: ownerFromAccount(),
+      });
+      // Cache the phrase locally (marked backed-up — the user already holds it)
+      // so the recovery sheet and nudge stay consistent on this device.
+      await importRecovery(mnemonic).catch(() => {});
+      setDevice(device);
+      setEncryptionRequired(true);
+      await refreshBackup();
+      setImportOpen(false);
+      setChoosing(false);
+      setPhase("ready");
+    } catch (e) {
+      setImportError((e as Error).message);
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
   async function run() {
     setFailed(null);
     try {
@@ -144,44 +198,76 @@ export function VaultSetup() {
   // "works with" logo strip for trust and the recovery phrase demoted to a
   // quiet link. Shown only when a wallet is detected.
   if (choosing && !failed) {
+    const hasWallet = hasInjectedWallet();
     const wallet = detectedWallet() ?? { id: "wallet" as WalletId, name: "wallet" };
     return (
       <div className="nk-modal-backdrop">
         <div className="nk-modal nk-vault-setup nk-vault-secure">
           <h2>Secure your notes</h2>
           <p className="nk-muted">
-            End-to-end encrypted. Your wallet holds the key — nothing else to
-            back up, and any device unlocks by signing again.
+            {hasWallet
+              ? "End-to-end encrypted. Your wallet holds the key — nothing else to back up, and any device unlocks by signing again."
+              : "End-to-end encrypted. We'll generate a recovery phrase for you — or reuse one you already have."}
           </p>
 
-          <button
-            className="nk-wallet-cta"
-            onClick={() => void runWallet()}
-            disabled={walletBusy}
-          >
-            <WalletLogo id={wallet.id} size={22} />
-            <span>
-              {walletBusy ? "Waiting for wallet…" : `Continue with ${wallet.name}`}
-            </span>
-          </button>
+          {hasWallet && (
+            <>
+              <button
+                className="nk-wallet-cta"
+                onClick={() => void runWallet()}
+                disabled={walletBusy}
+              >
+                <WalletLogo id={wallet.id} size={22} />
+                <span>
+                  {walletBusy
+                    ? "Waiting for wallet…"
+                    : `Continue with ${wallet.name}`}
+                </span>
+              </button>
 
-          <div className="nk-wallet-strip">
-            <span className="nk-wallet-strip__label">works with</span>
-            <MetaMaskIcon size={18} />
-            <RabbyIcon size={18} />
-            <CoinbaseIcon size={18} />
-            <WalletConnectIcon size={18} />
-          </div>
+              <div className="nk-wallet-strip">
+                <span className="nk-wallet-strip__label">works with</span>
+                <MetaMaskIcon size={18} />
+                <RabbyIcon size={18} />
+                <CoinbaseIcon size={18} />
+                <WalletConnectIcon size={18} />
+              </div>
+            </>
+          )}
+
+          <button
+            className={hasWallet ? "nk-textlink nk-wallet-alt" : "nk-btn nk-btn--primary"}
+            onClick={() => setChoosing(false)}
+            disabled={walletBusy || importBusy}
+          >
+            {hasWallet
+              ? "Prefer a recovery phrase? Set it up →"
+              : "Create a new recovery phrase"}
+          </button>
 
           <button
             className="nk-textlink nk-wallet-alt"
-            onClick={() => setChoosing(false)}
-            disabled={walletBusy}
+            onClick={() => setImportOpen(true)}
+            disabled={walletBusy || importBusy}
           >
-            Prefer a recovery phrase? Set it up →
+            I already have a recovery phrase →
           </button>
           {failed && <p className="nk-error-text">{failed}</p>}
         </div>
+        {importOpen && (
+          <RecoveryPhraseDialog
+            busy={importBusy}
+            error={importError}
+            value={importValue}
+            onChange={setImportValue}
+            onCancel={() => {
+              setImportOpen(false);
+              setImportError(null);
+              setImportValue("");
+            }}
+            onSubmit={() => void runImport()}
+          />
+        )}
       </div>
     );
   }

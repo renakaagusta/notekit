@@ -64,7 +64,7 @@ function randomCode(): string {
   return (buf[0]! % 1_000_000).toString().padStart(6, "0");
 }
 
-function RecoveryPhraseDialog({
+export function RecoveryPhraseDialog({
   busy,
   error,
   value,

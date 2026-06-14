@@ -267,59 +267,44 @@ export async function commitFiles(
   if (files.length === 0) return { commitSha: "" };
   const api = `${baseUrl()}/api/v1/repos/${owner}/${repo}`;
 
-  const refRes = await fetch(`${api}/git/refs/heads/${encodeURIComponent(branch)}`, {
-    headers: headers(token),
-  });
-  if (!refRes.ok) throw new GhError(refRes.status, await refRes.text());
-  const parentSha = ((await refRes.json()) as { object: { sha: string } }).object.sha;
+  // Forgejo doesn't implement GitHub's git-data write API (POST blobs/trees/
+  // commits). Its ChangeFiles endpoint (POST /contents) commits many files at
+  // once. Each op needs to know create vs update (update requires the file's
+  // current sha), so resolve existing shas first.
+  const ops = await Promise.all(
+    files.map(async (f) => {
+      const head = await fetch(
+        `${api}/contents/${encodePath(f.path)}?ref=${encodeURIComponent(branch)}`,
+        { headers: headers(token) },
+      );
+      const sha = head.ok
+        ? ((await head.json()) as { sha?: string }).sha
+        : undefined;
+      return {
+        operation: sha ? "update" : "create",
+        path: f.path,
+        content: Buffer.from(f.content, "utf-8").toString("base64"),
+        ...(sha ? { sha } : {}),
+      };
+    }),
+  );
 
-  const commitRes = await fetch(`${api}/git/commits/${parentSha}`, { headers: headers(token) });
-  if (!commitRes.ok) throw new GhError(commitRes.status, await commitRes.text());
-  const baseTreeSha = ((await commitRes.json()) as { tree: { sha: string } }).tree.sha;
-
-  const tree: { path: string; mode: string; type: string; sha: string }[] = [];
-  for (const f of files) {
-    const blobRes = await fetch(`${api}/git/blobs`, {
-      method: "POST",
-      headers: headers(token, true),
-      body: JSON.stringify({ content: Buffer.from(f.content, "utf-8").toString("base64"), encoding: "base64" }),
-    });
-    if (!blobRes.ok) throw new GhError(blobRes.status, await blobRes.text());
-    const blobSha = ((await blobRes.json()) as { sha: string }).sha;
-    tree.push({ path: f.path, mode: "100644", type: "blob", sha: blobSha });
-  }
-
-  const treeRes = await fetch(`${api}/git/trees`, {
-    method: "POST",
-    headers: headers(token, true),
-    body: JSON.stringify({ base_tree: baseTreeSha, tree }),
-  });
-  if (!treeRes.ok) throw new GhError(treeRes.status, await treeRes.text());
-  const treeSha = ((await treeRes.json()) as { sha: string }).sha;
-
-  const nowIso = new Date().toISOString();
-  const newCommitRes = await fetch(`${api}/git/commits`, {
+  const res = await fetch(`${api}/contents`, {
     method: "POST",
     headers: headers(token, true),
     body: JSON.stringify({
+      branch,
       message,
-      tree: treeSha,
-      parents: [parentSha],
-      ...(author ? { author: { ...author, date: nowIso } } : {}),
-      ...(committer ? { committer: { ...committer, date: nowIso } } : {}),
+      files: ops,
+      ...(author ? { author: { name: author.name, email: author.email } } : {}),
+      ...(committer
+        ? { committer: { name: committer.name, email: committer.email } }
+        : {}),
     }),
   });
-  if (!newCommitRes.ok) throw new GhError(newCommitRes.status, await newCommitRes.text());
-  const newCommitSha = ((await newCommitRes.json()) as { sha: string }).sha;
-
-  const updateRes = await fetch(`${api}/git/refs/heads/${encodeURIComponent(branch)}`, {
-    method: "PATCH",
-    headers: headers(token, true),
-    body: JSON.stringify({ sha: newCommitSha, force: false }),
-  });
-  if (!updateRes.ok) throw new GhError(updateRes.status, await updateRes.text());
-
-  return { commitSha: newCommitSha };
+  if (!res.ok) throw new GhError(res.status, await res.text());
+  const json = (await res.json()) as { commit?: { sha?: string } };
+  return { commitSha: json.commit?.sha ?? "" };
 }
 
 export async function deleteFile(
@@ -340,6 +325,28 @@ export async function deleteFile(
   if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
 }
 
+/**
+ * Resolve a branch's head commit sha. Forgejo's `/git/refs/heads/{branch}`
+ * returns an *array* (prefix match), not GitHub's single `{ object }`, which
+ * threw on `.object.sha`. `/branches/{branch}` gives the head commit directly.
+ * Returns null for a missing branch (e.g. empty repo).
+ */
+async function branchHeadSha(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+): Promise<string | null> {
+  const res = await fetch(
+    `${baseUrl()}/api/v1/repos/${owner}/${repo}/branches/${encodeURIComponent(branch)}`,
+    { headers: headers(token) },
+  );
+  if (res.status === 404) return null;
+  if (!res.ok) throw new GhError(res.status, await res.text());
+  const j = (await res.json()) as { commit: { id: string } };
+  return j.commit.id;
+}
+
 export async function listTree(
   token: string,
   owner: string,
@@ -347,16 +354,11 @@ export async function listTree(
   branch: string,
   prefix: string,
 ): Promise<GhTreeEntry[]> {
-  const refRes = await fetch(
-    `${baseUrl()}/api/v1/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
-    { headers: headers(token) },
-  );
-  if (refRes.status === 404) return [];
-  if (!refRes.ok) throw new GhError(refRes.status, await refRes.text());
-  const ref = (await refRes.json()) as { object: { sha: string } };
+  const headSha = await branchHeadSha(token, owner, repo, branch);
+  if (!headSha) return [];
 
   const treeRes = await fetch(
-    `${baseUrl()}/api/v1/repos/${owner}/${repo}/git/trees/${ref.object.sha}?recursive=true`,
+    `${baseUrl()}/api/v1/repos/${owner}/${repo}/git/trees/${headSha}?recursive=true&per_page=1000`,
     { headers: headers(token) },
   );
   if (!treeRes.ok) throw new GhError(treeRes.status, await treeRes.text());

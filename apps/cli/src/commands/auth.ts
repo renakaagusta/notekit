@@ -34,17 +34,18 @@ const login = defineCommand({
   },
   async run({ args }) {
     try {
-      if (args.token) {
-        await setToken(args.token);
-        await verifyAndStoreIdentity();
-        process.stdout.write(kleur.green("Signed in.\n"));
-        return;
-      }
-
-      const timeoutSec = parseTimeout(args.timeout);
-      const token = await runBrowserFlow(timeoutSec);
+      const token = args.token
+        ? args.token
+        : await runBrowserFlow(parseTimeout(args.timeout));
       await setToken(token);
-      await verifyAndStoreIdentity();
+      // Verify before declaring success; on failure, don't leave a bad token
+      // stranded in the keychain (it would make later commands fail opaquely).
+      try {
+        await verifyAndStoreIdentity();
+      } catch (err) {
+        await clearToken().catch(() => {});
+        throw err;
+      }
       process.stdout.write(kleur.green("Signed in.\n"));
     } catch (err) {
       dieWithError(err);
@@ -98,14 +99,18 @@ export const authCommand = defineCommand({
 
 async function verifyAndStoreIdentity(): Promise<void> {
   // Hit /auth/me so the user sees an early error if the token is bad, and
-  // so we can cache the user id + email in config.json. Failures bubble up
-  // — they indicate either a revoked token or an unreachable server, both
-  // of which the user wants to know about immediately.
+  // so we can cache the user id + email in config.json. A bad/revoked token
+  // does NOT 4xx here — the API replies 200 with `{ user: null }` — so we
+  // must treat a null user as failure explicitly, or `login` would falsely
+  // report "Signed in." for an invalid token (then every command fails).
   const nk = await getClient({ requireAuth: true });
   const me = await nk.auth.me();
-  if (me.user) {
-    await patchConfig({ userId: me.user.id, email: me.user.email });
+  if (!me.user) {
+    throw new Error(
+      "That token isn't valid — the server didn't recognize it. Mint a fresh one in the web app (Account → API tokens) and try again.",
+    );
   }
+  await patchConfig({ userId: me.user.id, email: me.user.email });
 }
 
 /** Parse the `--timeout` flag with a sensible default and a clear error. */

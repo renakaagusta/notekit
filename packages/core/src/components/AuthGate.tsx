@@ -3,7 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { App } from "./App";
 import { SignIn } from "./SignIn";
-import { NoteKitWordmark } from "./NoteKitLogo";
+import { NoteKitMark, NoteKitWordmark } from "./NoteKitLogo";
 import { SkeletonLines } from "./Skeleton";
 
 export function AuthGate() {
@@ -26,7 +26,10 @@ export function AuthGate() {
       <div className="nk" data-dir="studio" data-theme={preAuthTheme}>
         <div className="nk-signin">
           <div className="nk-signin-card">
-            <div className="nk-signin-brand"><NoteKitWordmark /></div>
+            <div className="nk-signin-brand">
+              <NoteKitMark size={28} />
+              <NoteKitWordmark />
+            </div>
             <SkeletonLines count={2} />
           </div>
         </div>
@@ -39,7 +42,10 @@ export function AuthGate() {
       <div className="nk" data-dir="studio" data-theme={preAuthTheme}>
         <div className="nk-signin">
           <div className="nk-signin-card">
-            <div className="nk-signin-brand"><NoteKitWordmark /></div>
+            <div className="nk-signin-brand">
+              <NoteKitMark size={28} />
+              <NoteKitWordmark />
+            </div>
             <p className="nk-signin-tag">Couldn't reach the API server.</p>
             <p className="nk-signin-hint">
               Make sure <code>pnpm --filter @notekit/api dev</code> is running

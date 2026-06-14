@@ -22,6 +22,10 @@ function recoveryEntry(): Entry {
 }
 
 export async function getRecoveryPhrase(): Promise<string | null> {
+  // Env wins — headless servers / CI have no OS keyring. Matches the MCP's
+  // NOTEKIT_RECOVERY_PHRASE so a server can unlock the vault without `unlock`.
+  const env = process.env.NOTEKIT_RECOVERY_PHRASE?.trim();
+  if (env) return env;
   try {
     return recoveryEntry().getPassword() ?? null;
   } catch {
@@ -42,6 +46,11 @@ export async function clearRecoveryPhrase(): Promise<void> {
 }
 
 export async function getToken(): Promise<string | null> {
+  // Env wins — headless servers / CI have no OS keyring, so `auth login`
+  // can't persist a token there. Set NOTEKIT_TOKEN (a `nkp_` user token or
+  // an `nka_` agent token) and the CLI is authenticated without a keyring.
+  const env = process.env.NOTEKIT_TOKEN?.trim();
+  if (env) return env;
   try {
     const value = entry().getPassword();
     return value ?? null;

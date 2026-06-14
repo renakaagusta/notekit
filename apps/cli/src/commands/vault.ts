@@ -7,9 +7,17 @@ import { defineCommand } from "citty";
 import kleur from "kleur";
 import { getClient, dieWithError } from "../client.js";
 import { patchConfig } from "../config.js";
-import { isValidMnemonic, recoveryFromMnemonic } from "@notekit/core/crypto";
-import { readRecovery } from "@notekit/core/secrets";
+import {
+  isValidMnemonic,
+  recoveryFromMnemonic,
+  generateRecoveryMnemonic,
+  recoverySigningFromMnemonic,
+  type DeviceIdentity,
+} from "@notekit/core/crypto";
+import { readRecovery, readVaultConfig, initVault } from "@notekit/core/secrets";
+import { nanoid } from "nanoid";
 import { getSecretsClient } from "../lib/secrets.js";
+import { loadConfig } from "../config.js";
 import { setRecoveryPhrase, clearRecoveryPhrase } from "../keychain.js";
 
 const listCmd = defineCommand({
@@ -238,6 +246,67 @@ const unlockCmd = defineCommand({
   },
 });
 
+const setupCmd = defineCommand({
+  meta: {
+    name: "setup",
+    description:
+      "Turn on end-to-end encryption for the active vault (born-E2EE).",
+  },
+  args: {
+    phrase: {
+      type: "string",
+      description: "Reuse an existing 24-word phrase instead of generating one.",
+      required: false,
+    },
+  },
+  async run({ args }) {
+    try {
+      await getSecretsClient({ requireAuth: true });
+      const existing = await readVaultConfig();
+      if (existing.encryption === "required") {
+        throw new Error("This vault is already end-to-end encrypted.");
+      }
+      const generated = !args.phrase;
+      const phrase = (args.phrase ?? generateRecoveryMnemonic()).trim();
+      if (!isValidMnemonic(phrase)) {
+        throw new Error("That isn't a valid 24-word BIP39 recovery phrase.");
+      }
+      const { identity, recipient } = await recoveryFromMnemonic(phrase);
+      const recoverySigning = await recoverySigningFromMnemonic(phrase);
+      const device: DeviceIdentity = {
+        deviceId: `cli-${nanoid(8)}`,
+        name: "notekit-cli",
+        identity,
+        recipient,
+        createdAt: new Date().toISOString(),
+      };
+      const cfg = await loadConfig();
+      const owner = cfg.email
+        ? { memberId: cfg.email, email: cfg.email }
+        : undefined;
+      await initVault({
+        device,
+        recoveryRecipient: recipient,
+        encryption: "required",
+        recoverySigning,
+        owner,
+      });
+      await setRecoveryPhrase(phrase);
+      process.stdout.write(kleur.green("Vault is now end-to-end encrypted.\n"));
+      if (generated) {
+        process.stdout.write(
+          kleur.yellow(
+            "\n⚠  Back up your recovery phrase — it's the ONLY way to recover this vault:\n\n",
+          ),
+        );
+        process.stdout.write(`  ${kleur.bold(phrase)}\n\n`);
+      }
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
 const lockCmd = defineCommand({
   meta: {
     name: "lock",
@@ -272,6 +341,7 @@ export const vaultCommand = defineCommand({
     list: listCmd,
     switch: switchCmd,
     sync: syncCmd,
+    setup: setupCmd,
     unlock: unlockCmd,
     lock: lockCmd,
     members: membersCmd,

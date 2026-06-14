@@ -138,7 +138,9 @@
   border: 1px solid var(--border, #2a2a31);
   border-radius: 6px;
   padding: 0.6rem 0.75rem;
-  background: var(--card, #16161a);
+  /* --card was never defined, so this fell back to a hardcoded dark color
+     and rendered as a black box in light mode. Use the real theme surface. */
+  background: var(--surface-2, #17171a);
 }
 .token-row__main {
   flex: 1;

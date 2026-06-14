@@ -13,6 +13,7 @@ import {
   deserializeEncryptedTicket,
   deserializeEncryptedLink,
   serializeEncryptedNote,
+  serializeEncryptedTicket,
   type RecoveryIdentity,
   type DeviceIdentity,
 } from "@notekit/core/crypto";
@@ -108,6 +109,11 @@ export async function vaultIsEncrypted(): Promise<boolean> {
  * the existing devices and the recovery recipient.
  */
 export async function encryptNote(note: Note): Promise<string> {
+  return serializeEncryptedNote(note, await vaultRecipients());
+}
+
+/** Recipient set for the active vault, with the CLI rooted in the recovery key. */
+async function vaultRecipients(): Promise<string[]> {
   const id = await requireVaultIdentity();
   const device: DeviceIdentity = {
     deviceId: "cli",
@@ -116,8 +122,26 @@ export async function encryptNote(note: Note): Promise<string> {
     recipient: id.recipient,
     createdAt: new Date().toISOString(),
   };
-  const recipients = await collectVaultRecipients(device);
-  return serializeEncryptedNote(note, recipients);
+  return collectVaultRecipients(device);
+}
+
+export async function encryptTicket(ticket: Ticket): Promise<string> {
+  return serializeEncryptedTicket(ticket, await vaultRecipients());
+}
+
+/** List tickets in an E2EE vault by scanning + decrypting (no plaintext index). */
+export async function listEncryptedTickets(nk: NoteKitApi): Promise<Ticket[]> {
+  const { entries } = await nk.vault.listFiles("tickets/");
+  const out: Ticket[] = [];
+  for (const e of entries) {
+    if (classifyEncryptedPath(e.path) !== "ticket") continue;
+    const file = await nk.vault.readFile(e.path);
+    if (!file.content) continue;
+    const t = await decryptTicket(e.path, file.content);
+    if (t) out.push(t);
+  }
+  out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return out;
 }
 
 export interface EncryptedNoteMeta {

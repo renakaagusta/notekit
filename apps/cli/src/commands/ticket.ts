@@ -7,7 +7,15 @@ import { defineCommand } from "citty";
 import kleur from "kleur";
 import { nanoid } from "nanoid";
 import type { Ticket, TicketStatus, TicketPriority } from "@notekit/core/types";
-import { getClient, dieWithError } from "../client.js";
+import { dieWithError } from "../client.js";
+import { getSecretsClient } from "../lib/secrets.js";
+import {
+  vaultIsEncrypted,
+  encryptTicket,
+  decryptTicket,
+  listEncryptedTickets,
+  isEncrypted,
+} from "../lib/crypto.js";
 import { openEditor } from "../lib/editor.js";
 import { parseFrontmatter, stringifyFrontmatter } from "../lib/frontmatter.js";
 import type { NoteKitApi } from "@notekit/api-client";
@@ -43,7 +51,7 @@ const newCmd = defineCommand({
   },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
+      const nk = await getSecretsClient({ requireAuth: true });
 
       const priority = normalizePriority(args.priority);
       const id = nanoid(10);
@@ -101,9 +109,17 @@ const listCmd = defineCommand({
   },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
-      const { index: idx } = await readIndex(nk);
-      let rows = idx.tickets;
+      const nk = await getSecretsClient({ requireAuth: true });
+      // E2EE → scan + decrypt; plaintext → index. Both yield rows with the
+      // fields below (status/priority/title).
+      let rows: {
+        id: string;
+        title: string;
+        status: TicketStatus;
+        priority: TicketPriority;
+      }[] = (await vaultIsEncrypted())
+        ? await listEncryptedTickets(nk)
+        : (await readIndex(nk)).index.tickets;
       if (args.status) {
         const want = normalizeStatus(String(args.status));
         rows = rows.filter((t) => t.status === want);
@@ -130,7 +146,7 @@ const showCmd = defineCommand({
   args: { id: { type: "positional", description: "Ticket id or path.", required: true } },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
+      const nk = await getSecretsClient({ requireAuth: true });
       const { ticket } = await readTicket(nk, String(args.id));
       process.stdout.write(`${kleur.bold(ticket.title)}  ${kleur.dim(`#${ticket.id}`)}\n`);
       process.stdout.write(`${badge(ticket.status)}  ${priorityBadge(ticket.priority)}`);
@@ -169,7 +185,7 @@ const assignCmd = defineCommand({
   },
   async run({ args }) {
     try {
-      const nk = await getClient({ requireAuth: true });
+      const nk = await getSecretsClient({ requireAuth: true });
       const { ticket, sha } = await readTicket(nk, String(args.id));
       const value = String(args.assignee);
       ticket.assignee = value === "none" || value === "" ? null : value;
@@ -206,7 +222,7 @@ export const ticketCommand = defineCommand({
 
 async function transition(idOrPath: string, status: TicketStatus, message: string): Promise<void> {
   try {
-    const nk = await getClient({ requireAuth: true });
+    const nk = await getSecretsClient({ requireAuth: true });
     const { ticket, sha } = await readTicket(nk, idOrPath);
     ticket.status = status;
     ticket.updatedAt = new Date().toISOString();
@@ -268,6 +284,9 @@ async function readIndex(nk: NoteKitApi): Promise<{ index: TicketIndex; sha: str
 }
 
 async function updateIndex(nk: NoteKitApi, mut: (idx: TicketIndex) => TicketIndex): Promise<void> {
+  // E2EE vaults have no plaintext index (it would leak titles/assignees);
+  // tickets are listed by scanning + decrypting, like the web.
+  if (await vaultIsEncrypted()) return;
   const { index, sha } = await readIndex(nk);
   const next = mut(index);
   await nk.vault.writeFile(
@@ -280,7 +299,13 @@ async function updateIndex(nk: NoteKitApi, mut: (idx: TicketIndex) => TicketInde
 
 async function resolveTicketPath(nk: NoteKitApi, idOrPath: string): Promise<string> {
   if (idOrPath.includes("/")) return idOrPath;
-  if (idOrPath.endsWith(".md") && idOrPath.startsWith(TICKETS_DIR)) return idOrPath;
+  if (
+    (idOrPath.endsWith(".md") || idOrPath.endsWith(".md.age")) &&
+    idOrPath.startsWith(TICKETS_DIR)
+  ) {
+    return idOrPath;
+  }
+  if (await vaultIsEncrypted()) return `${TICKETS_DIR}/${idOrPath}.md.age`;
   const { index: idx } = await readIndex(nk);
   const found = idx.tickets.find((t) => t.id === idOrPath);
   if (found) return found.path;
@@ -290,6 +315,11 @@ async function resolveTicketPath(nk: NoteKitApi, idOrPath: string): Promise<stri
 async function readTicket(nk: NoteKitApi, idOrPath: string): Promise<{ ticket: Ticket; sha: string | null }> {
   const path = await resolveTicketPath(nk, idOrPath);
   const file = await nk.vault.readFile(path);
+  if (file.content && isEncrypted(path)) {
+    const ticket = await decryptTicket(path, file.content);
+    if (!ticket) throw new Error(`couldn't decrypt ${path}`);
+    return { ticket, sha: file.sha };
+  }
   const { data, body } = parseFrontmatter(file.content ?? "");
   // Apply sensible defaults — the file is the source of truth, but older
   // tickets may be missing optional fields.
@@ -312,6 +342,12 @@ async function readTicket(nk: NoteKitApi, idOrPath: string): Promise<{ ticket: T
 }
 
 async function writeTicket(nk: NoteKitApi, ticket: Ticket, sha?: string | null): Promise<void> {
+  if (await vaultIsEncrypted()) {
+    const path = `${TICKETS_DIR}/${ticket.id}.md.age`;
+    const sealed = await encryptTicket({ ...ticket, path });
+    await nk.vault.writeFile(path, sealed, `ticket: update ${ticket.id}`, sha ?? undefined);
+    return;
+  }
   const data: Record<string, unknown> = {
     id: ticket.id,
     title: ticket.title,

@@ -41,7 +41,7 @@ const DEV_URL = "http://localhost:5173";
 function resolveApiUrl(): string {
   const fromEnv = process.env.NOTEKIT_API_URL ?? process.env.VITE_API_URL;
   if (fromEnv && fromEnv.length > 0) return fromEnv.replace(/\/$/, "");
-  return "http://localhost:3001";
+  return "https://api.notekit.online";
 }
 const API_URL = resolveApiUrl();
 
@@ -87,6 +87,7 @@ function createMainWindow(): BrowserWindow {
     minHeight: 600,
     backgroundColor: "#0b0b0b",
     show: false,
+    icon: path.join(__dirname, "..", "build", "icon.png"),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,

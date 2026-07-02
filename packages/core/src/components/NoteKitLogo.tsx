@@ -19,17 +19,14 @@ export function NoteKitMark({ size = 24, className }: { size?: number; className
   );
 }
 
-/** "note/kit" wordmark. Monochrome: the slash is a quiet gray separator so it
- * still reads as a divider without the old amber pop. */
+/** "Notekit" wordmark. */
 export function NoteKitWordmark({ className }: { className?: string }) {
   return (
     <span
       className={className}
       style={{ fontWeight: 700, letterSpacing: "-0.025em", lineHeight: 1 }}
     >
-      note
-      <span style={{ color: "var(--muted,#a1a1aa)" }}>/</span>
-      kit
+      Notekit
     </span>
   );
 }

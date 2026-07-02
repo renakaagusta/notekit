@@ -1,11 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
-  FileText,
   Menu,
   PanelLeft,
-  Pencil,
-  Plus,
   Search,
   X,
 } from "lucide-react";
@@ -35,18 +32,12 @@ import {
 } from "../lib/vault-events-client";
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import type { User } from "../types/user";
-import { Editor, type EditorHandle } from "./Editor";
-import { InkCanvas } from "./InkCanvas";
-import { parseInk, serializeInk } from "../lib/ink";
-import { emptyInkDocument } from "../types/ink";
-import { EditorToolbar } from "./EditorToolbar";
 import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { FirstEncryptDialog } from "./FirstEncryptDialog";
 import { ShareDialog } from "./ShareDialog";
 import { RecoveryBackupNudge } from "./RecoveryBackupNudge";
 import { RecoveryBackupSheet } from "./RecoveryBackupSheet";
 import { Sidebar } from "./Sidebar";
-import { TicketsBoard } from "./TicketsBoard";
 import { GraphView } from "./GraphView";
 import { CalendarView } from "./CalendarView";
 import { HistoryView } from "./HistoryView";
@@ -61,7 +52,9 @@ import { VaultPairNewDevice } from "./VaultPairing";
 import { SecretsView } from "./SecretsView";
 import { LinksView } from "./LinksView";
 import { SearchPalette } from "./SearchPalette";
-import { isValidYMD, journalYMDFromPath, shiftYMD, todayYMD } from "../lib/journal";
+import { SplitPane } from "./SplitPane";
+import { findLeaf, useLayoutStore } from "../stores/layoutStore";
+import { isValidYMD, shiftYMD, todayYMD } from "../lib/journal";
 import type { SearchHit } from "../lib/search";
 
 type MainView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
@@ -94,11 +87,9 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const note = useNotesStore((s) =>
     s.activeNoteId ? s.notes[s.activeNoteId] : null,
   );
-  const updateBody = useNotesStore((s) => s.updateBody);
   const upsert = useNotesStore((s) => s.upsert);
   const setActive = useNotesStore((s) => s.setActive);
   const openJournal = useNotesStore((s) => s.openJournal);
-  const updateJournalDraftBody = useNotesStore((s) => s.updateJournalDraftBody);
   const draftJournal = useNotesStore((s) => s.draftJournal);
   const phase = useSyncStore((s) => s.phase);
   const lastSyncedAt = useSyncStore((s) => s.lastSyncedAt);
@@ -125,6 +116,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem("nk:sidebar-collapsed") === "1",
   );
+  const [zenMode, setZenMode] = useState(false);
+  const [vimMode, setVimMode] = useState(
+    () => localStorage.getItem("nk:vim-mode") === "1",
+  );
+  useEffect(() => {
+    localStorage.setItem("nk:vim-mode", vimMode ? "1" : "0");
+  }, [vimMode]);
   useEffect(() => {
     localStorage.setItem("nk:sidebar-collapsed", sidebarCollapsed ? "1" : "0");
   }, [sidebarCollapsed]);
@@ -135,8 +133,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const [mobilePane, setMobilePane] = useState<"list" | "detail">("list");
   const [focusTicket, setFocusTicket] = useState<{ id: string; seq: number } | null>(null);
   const [focusAgent, setFocusAgent] = useState<{ slug: string; seq: number } | null>(null);
-  const editorRef = useRef<EditorHandle>(null);
   const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
+
+  const layout = useLayoutStore((s) => s.layout);
+  const openNoteInLayout = useLayoutStore((s) => s.openNote);
 
   const noteHeading = note ? noteTitle(note) : null;
 
@@ -172,7 +172,8 @@ export function App({ user, onSignOut }: AppProps = {}) {
         const folder =
           useVaultStore.getState().activeSettings?.defaultFolder ?? null;
         const created = upsert({ title: "Untitled", body: "", folder });
-        setActive(created.id);
+        openNoteInLayout(created.id);
+        setView("notes");
         return;
       }
       // Cmd+; opens calendar
@@ -188,10 +189,32 @@ export function App({ user, onSignOut }: AppProps = {}) {
         openJournal(ymd);
         setView("notes");
       }
+      // ⌘⇧Z → zen / focus mode (distraction-free writing)
+      if (key === "z" && e.shiftKey) {
+        e.preventDefault();
+        setZenMode((z) => !z);
+      }
+      // ⌘⇧O → outline panel (toggles for the active pane)
+      if (key === "o" && e.shiftKey) {
+        e.preventDefault();
+        const pid = useLayoutStore.getState().activePaneId;
+        useLayoutStore.getState().toggleOutline(pid);
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [upsert, setActive, openJournal]);
+
+  // Sync sidebar / keyboard note activations to the layout store so the
+  // active pane opens the note as a tab. Skips when the layout already
+  // shows the note (prevents the loop from layoutStore.openNote → setActive).
+  useEffect(() => {
+    if (!activeNoteId) return;
+    const { layout: l, activePaneId: pid } = useLayoutStore.getState();
+    const leaf = findLeaf(l, pid);
+    if (leaf?.activeTab === activeNoteId) return;
+    openNoteInLayout(activeNoteId);
+  }, [activeNoteId, openNoteInLayout]);
 
   useEffect(() => {
     function onOpen(e: Event) {
@@ -210,12 +233,12 @@ export function App({ user, onSignOut }: AppProps = {}) {
       );
       if (found) {
         setView("notes");
-        setActive(found.id);
+        openNoteInLayout(found.id);
         return;
       }
       const created = upsert({ title: target, body: `# ${target}\n\n` });
       setView("notes");
-      setActive(created.id);
+      openNoteInLayout(created.id);
     }
     window.addEventListener("notekit:open-wikilink", onOpen as EventListener);
     return () =>
@@ -235,8 +258,6 @@ export function App({ user, onSignOut }: AppProps = {}) {
     if (!isMobile) return;
     if (view === "notes") {
       setMobilePane(activeNoteId || draftJournal ? "detail" : "list");
-    } else if (view === "tickets") {
-      setMobilePane("list");
     } else {
       setMobilePane("detail");
     }
@@ -383,14 +404,12 @@ export function App({ user, onSignOut }: AppProps = {}) {
   // find the right tab in a sea of open tabs.
   useEffect(() => {
     if (typeof document === "undefined") return;
-    const base = "note/kit";
+    const base = "Notekit";
     let label: string | null = null;
     if (view === "notes") {
       label = draftJournal?.date ?? noteHeading;
-    } else if (view === "tickets") {
-      label = "Tickets";
-    } else if (view === "calendar") {
-      label = "Calendar";
+    } else if (view === "calendar" || view === "tickets") {
+      label = "Tasks";
     } else if (view === "graph") {
       label = "Graph";
     } else if (view === "secrets") {
@@ -455,7 +474,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
         setView("notes");
         return;
       case "ticket":
-        setView("tickets");
+        setView("calendar");
         setFocusTicket({ id: hit.payload.ticketId, seq: Date.now() });
         return;
       case "agent":
@@ -470,31 +489,6 @@ export function App({ user, onSignOut }: AppProps = {}) {
 
   const vaultLabel = vault ? `${vault.owner}/${vault.repo}` : "Local vault";
 
-  // Editor binding: journal draft takes precedence over the active note so that
-  // ⌘+' on an unvisited day shows an in-memory buffer until first keystroke.
-  // Journal notes (existing or draft) share a stable key keyed by date so that
-  // the editor does not remount when a draft materializes into a real note.
-  const editorBinding = draftJournal
-    ? {
-        key: `journal-${draftJournal.date}`,
-        body: draftJournal.body,
-        onChange: updateJournalDraftBody,
-      }
-    : activeNoteId && note
-      ? (() => {
-          const journalDate = journalYMDFromPath(note.path);
-          return {
-            key: journalDate ? `journal-${journalDate}` : activeNoteId,
-            body: note.body,
-            onChange: (v: string) => updateBody(activeNoteId, v),
-          };
-        })()
-      : null;
-
-  // Drawing notes (format "ink") swap the markdown editor for the pen
-  // canvas. Journal drafts are always markdown, so they never qualify.
-  const isInkNote = !draftJournal && note?.format === "ink" && !!activeNoteId;
-
   // Secrets and Links render their own title header (with actions), so the
   // breadcrumb would just repeat it. Blank the crumb for them and drop the
   // breadcrumb row on desktop (it still appears on mobile / when collapsed
@@ -506,11 +500,11 @@ export function App({ user, onSignOut }: AppProps = {}) {
       ? draftJournal
         ? draftJournal.date
         : (noteHeading ?? "—")
-      : view === "tickets"
-        ? "Tickets"
-        : view === "graph"
+      : view === "graph"
           ? "Graph"
-          : "Calendar";
+          : (view === "calendar" || view === "tickets")
+            ? "Tasks"
+            : "Calendar";
 
   function exitMobileDetail() {
     setActive(null);
@@ -536,6 +530,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
         data-sidebar-collapsed={
           !isMobile && sidebarCollapsed ? "true" : undefined
         }
+        data-zen={zenMode ? "true" : undefined}
       >
         <Sidebar
           view={view}
@@ -560,7 +555,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
            * make the slide-over shell navigable). */}
           {(isMobile ||
             sidebarCollapsed ||
-            (!viewOwnsTitle && (view !== "notes" || !editorBinding))) && (
+            (!viewOwnsTitle && view !== "notes")) && (
             <header className="nk-main-hd">
               {!isMobile && sidebarCollapsed && (
                 <button
@@ -611,7 +606,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
                   onClick={() => {
                     const folder = activeSettings?.defaultFolder ?? null;
                     const created = upsert({ title: "Untitled", body: "", folder });
-                    setActive(created.id);
+                    openNoteInLayout(created.id);
                   }}
                   aria-label="New note"
                 >
@@ -623,87 +618,23 @@ export function App({ user, onSignOut }: AppProps = {}) {
           <RecoveryBackupNudge />
           <EncryptedSkippedBanner />
           {view === "notes" && (
-            <>
-              {editorBinding && !isInkNote && (
-                <EditorToolbar
-                  getEditor={() => editorRef.current?.editor ?? null}
-                  onHistoryClick={() => setHistoryOpen(true)}
-                />
-              )}
-              <div className="nk-editor-wrap">
-                {editorBinding && isInkNote && activeNoteId ? (
-                  <div className="nk-ink-wrap">
-                    <InkCanvas
-                      key={editorBinding.key}
-                      doc={parseInk(editorBinding.body)}
-                      onChange={(d) =>
-                        updateBody(activeNoteId, serializeInk(d))
-                      }
-                    />
-                  </div>
-                ) : editorBinding ? (
-                  <Editor
-                    key={editorBinding.key}
-                    ref={editorRef}
-                    value={editorBinding.body}
-                    onChange={editorBinding.onChange}
-                  />
-                ) : (
-                  <div className="nk-empty nk-empty--center">
-                    <FileText
-                      size={40}
-                      aria-hidden
-                      style={{
-                        color: "var(--muted)",
-                        opacity: 0.5,
-                        marginBottom: 16,
-                      }}
-                    />
-                    <p>No note selected.</p>
-                    <p className="nk-empty-hint">
-                      Pick one from the sidebar, or create a new one.
-                    </p>
-                    <div className="nk-empty-cta-row">
-                      <button
-                        className="nk-empty-cta"
-                        onClick={() => {
-                          const folder = activeSettings?.defaultFolder ?? null;
-                          const created = upsert({ title: "Untitled", body: "", folder });
-                          setActive(created.id);
-                        }}
-                      >
-                        <Plus size={14} aria-hidden /> New note
-                      </button>
-                      <button
-                        className="nk-empty-cta"
-                        onClick={() => {
-                          const folder = activeSettings?.defaultFolder ?? null;
-                          const created = upsert({
-                            title: "Drawing",
-                            body: serializeInk(emptyInkDocument()),
-                            folder,
-                            format: "ink",
-                          });
-                          setActive(created.id);
-                        }}
-                      >
-                        <Pencil size={14} aria-hidden /> New drawing
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
+            <SplitPane
+              node={layout}
+              zenMode={zenMode}
+              onZenToggle={() => setZenMode((z) => !z)}
+              vimMode={vimMode}
+              onVimToggle={() => setVimMode((v) => !v)}
+              onHistoryClick={() => setHistoryOpen(true)}
+            />
           )}
-          {view === "tickets" && <TicketsBoard focusTicket={focusTicket} />}
           {view === "graph" && <GraphView />}
-          {view === "calendar" && (
+          {(view === "calendar" || view === "tickets") && (
             <CalendarView
               onOpenJournal={(ymd) => {
                 openJournal(ymd);
                 setView("notes");
               }}
-              onOpenTicket={() => setView("tickets")}
+              focusTicket={focusTicket}
             />
           )}
           {view === "secrets" && <SecretsView />}

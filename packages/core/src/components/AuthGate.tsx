@@ -48,8 +48,7 @@ export function AuthGate() {
             </div>
             <p className="nk-signin-tag">Couldn't reach the API server.</p>
             <p className="nk-signin-hint">
-              Make sure <code>pnpm --filter @notekit/api dev</code> is running
-              on port 3001.
+              Make sure <code>https://api.notekit.online</code> is reachable.
             </p>
           </div>
         </div>

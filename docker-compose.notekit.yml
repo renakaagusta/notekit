@@ -63,7 +63,7 @@ services:
       # Allow the Capacitor native WebView origins (iOS: capacitor://localhost,
       # Android: https://localhost) to call the API — without this the mobile
       # app is CORS-blocked and every request fails with a network error.
-      CORS_EXTRA_ORIGINS: "capacitor://localhost,https://localhost"
+      CORS_EXTRA_ORIGINS: "capacitor://localhost,https://localhost,http://localhost:5173"
       SESSION_SECRET: ${SESSION_SECRET}
       DATABASE_URL: file:./data/notekit.db
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}

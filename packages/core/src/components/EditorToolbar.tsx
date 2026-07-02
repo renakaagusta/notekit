@@ -6,7 +6,10 @@ import {
   History as LucideHistory,
   Image as LucideImage,
   ListChecks,
+  List as LucideList,
   Lock as LucideLock,
+  Maximize2 as LucideMaximize,
+  Minimize2 as LucideMinimize,
   Redo2,
   Share2 as LucideShare,
   Table as LucideTable,
@@ -35,9 +38,15 @@ import { noteTitle } from "../lib/note-display";
 interface EditorToolbarProps {
   getEditor(): TipTapEditor | null;
   onHistoryClick?(): void;
+  zenMode?: boolean;
+  onZenToggle?(): void;
+  outlineOpen?: boolean;
+  onOutlineToggle?(): void;
+  vimMode?: boolean;
+  onVimToggle?(): void;
 }
 
-export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps) {
+export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle, outlineOpen, onOutlineToggle, vimMode, onVimToggle }: EditorToolbarProps) {
   const [aaOpen, setAaOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -328,6 +337,33 @@ export function EditorToolbar({ getEditor, onHistoryClick }: EditorToolbarProps)
         onClick={onHistoryClick}
       >
         <HistoryIcon />
+      </button>
+
+      <button
+        className={`nk-tb-btn${vimMode ? " is-active" : ""}`}
+        title={vimMode ? "Vim mode on" : "Vim mode off"}
+        aria-label="Toggle vim mode"
+        onClick={onVimToggle}
+      >
+        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "monospace" }}>VIM</span>
+      </button>
+
+      <button
+        className={`nk-tb-btn${outlineOpen ? " is-active" : ""}`}
+        title="Outline (⌘⇧O)"
+        aria-label="Toggle outline panel"
+        onClick={onOutlineToggle}
+      >
+        <LucideList size={16} aria-hidden />
+      </button>
+
+      <button
+        className="nk-tb-btn"
+        title={zenMode ? "Exit zen mode (⌘⇧Z)" : "Zen mode (⌘⇧Z)"}
+        aria-label={zenMode ? "Exit zen mode" : "Zen mode"}
+        onClick={onZenToggle}
+      >
+        {zenMode ? <LucideMinimize size={16} aria-hidden /> : <LucideMaximize size={16} aria-hidden />}
       </button>
     </div>
   );

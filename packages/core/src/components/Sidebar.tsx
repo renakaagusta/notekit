@@ -16,14 +16,12 @@ import {
   Plus,
   Search,
   Shield,
-  SquareKanban,
 } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import type { User } from "../types/user";
 import { CreateMenu } from "./CreateMenu";
 import { NoteList } from "./NoteList";
-import { TicketSidebarList } from "./TicketSidebarList";
 import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { VaultSwitcher } from "./VaultSwitcher";
 import { NotekitIcon } from "./BrandIcons";
@@ -43,8 +41,7 @@ const NAV: {
   Icon: typeof FileText;
 }[] = [
   { view: "notes", label: "Notes", Icon: FileText },
-  { view: "tickets", label: "Tickets", Icon: SquareKanban },
-  { view: "calendar", label: "Calendar", Icon: CalendarIcon },
+  { view: "calendar", label: "Tasks", Icon: CalendarIcon },
   { view: "graph", label: "Graph", Icon: Network },
   { view: "links", label: "Links", Icon: Link2 },
   { view: "secrets", label: "Secrets", Icon: Shield },
@@ -93,7 +90,6 @@ export function Sidebar({
   onOpenMenu,
   onCollapse,
 }: SidebarProps) {
-  const upsertTicket = useTicketsStore((s) => s.upsert);
   // Counts for the section header badge. Subscribes to the count
   // (cheap primitive equality) rather than the array (would re-render
   // every keystroke). The all() selector already exists in both stores.
@@ -172,34 +168,26 @@ export function Sidebar({
   function onAdd() {
     if (view === "notes") {
       setCreateMenuOpen((v) => !v);
-    } else if (view === "tickets") {
-      upsertTicket({ title: "New ticket", status: "todo" });
     }
   }
 
-  // The "+" on a nav row both switches to that surface and starts a create.
-  function onNavAdd(target: "notes" | "tickets") {
-    if (target === "notes") {
-      if (view !== "notes") onView("notes");
-      setCreateMenuOpen((v) => !v);
-    } else {
-      if (view !== "tickets") onView("tickets");
-      upsertTicket({ title: "New ticket", status: "todo" });
-    }
+  function onNavAdd(target: "notes") {
+    if (view !== "notes") onView("notes");
+    setCreateMenuOpen((v) => !v);
   }
 
   const heading =
     view === "notes"
       ? "Notes"
-      : view === "tickets"
-        ? "Tickets"
-        : view === "graph"
+      : view === "graph"
           ? "Graph"
           : view === "secrets"
             ? "Secrets"
             : view === "links"
               ? "Links"
-              : "Calendar";
+              : view === "calendar"
+                ? "Tasks"
+                : "Calendar";
 
   return (
     <aside className="nk-sidebar" ref={asideRef}>
@@ -233,8 +221,8 @@ export function Sidebar({
         {NAV.map(({ view: v, label, Icon }) => {
           const active = view === v;
           const count =
-            v === "notes" ? notesCount : v === "tickets" ? ticketsCount : 0;
-          const canAdd = v === "notes" || v === "tickets";
+            v === "notes" ? notesCount : v === "calendar" ? ticketsCount : 0;
+          const canAdd = v === "notes";
           return (
             <div
               key={v}
@@ -249,15 +237,13 @@ export function Sidebar({
                 <span className="nk-navitem-label">{label}</span>
                 {count > 0 && <span className="nk-sidebar-count">{count}</span>}
               </button>
-              {canAdd && (
+              {canAdd && v === "notes" && (
                 <button
                   className="nk-iconbtn nk-navitem-add"
-                  data-create-toggle={v === "notes" ? "" : undefined}
-                  onClick={() => onNavAdd(v)}
-                  title={
-                    v === "notes" ? "New file or folder (⌘N)" : "New ticket"
-                  }
-                  aria-label={v === "notes" ? "New note" : "New ticket"}
+                  data-create-toggle=""
+                  onClick={() => onNavAdd("notes")}
+                  title="New file or folder (⌘N)"
+                  aria-label="New note"
                 >
                   <Plus size={14} aria-hidden />
                 </button>
@@ -302,9 +288,6 @@ export function Sidebar({
           {view === "notes" && notesCount > 0 && (
             <span className="nk-sidebar-count">{notesCount}</span>
           )}
-          {view === "tickets" && ticketsCount > 0 && (
-            <span className="nk-sidebar-count">{ticketsCount}</span>
-          )}
         </span>
         <span className="nk-sidebar-hd-actions nk-tree-add-wrap">
           {onOpenSearch && (
@@ -317,22 +300,18 @@ export function Sidebar({
               <Search size={14} aria-hidden />
             </button>
           )}
-          {view !== "graph" && view !== "secrets" && view !== "links" && (
+          {view === "notes" && (
             <>
               <button
                 className="nk-iconbtn"
-                data-create-toggle={view === "notes" ? "" : undefined}
+                data-create-toggle=""
                 onClick={onAdd}
-                title={
-                  view === "notes"
-                    ? "New file or folder (⌘N for note)"
-                    : "New ticket"
-                }
+                title="New file or folder (⌘N for note)"
                 aria-label="Add"
               >
                 <Plus size={14} aria-hidden />
               </button>
-              {view === "notes" && mobileShell && createMenuOpen && (
+              {mobileShell && createMenuOpen && (
                 <CreateMenu
                   parent={null}
                   onClose={() => setCreateMenuOpen(false)}
@@ -351,7 +330,6 @@ export function Sidebar({
       {mobileShell && <EncryptedSkippedBanner />}
 
       {view === "notes" && <NoteList mobileShell={mobileShell} />}
-      {view === "tickets" && <TicketSidebarList />}
       {view === "graph" && (
         <div className="nk-empty">
           <p>Knowledge graph.</p>
@@ -364,12 +342,9 @@ export function Sidebar({
       )}
       {view === "calendar" && (
         <div className="nk-empty">
-          <p>Daily journals.</p>
+          <p>Calendar &amp; tasks.</p>
           <p className="nk-empty-hint">
-            <kbd>⌘</kbd>
-            <kbd>'</kbd> opens today.{" "}
-            <code style={{ fontFamily: "var(--mono-font)" }}>[[2026-05-16]]</code>{" "}
-            links to a date.
+            Tasks with a due date appear on the calendar. Drag them to reschedule.
           </p>
         </div>
       )}

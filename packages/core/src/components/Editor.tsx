@@ -12,12 +12,32 @@ import { Image } from "@tiptap/extension-image";
 import { Link } from "@tiptap/extension-link";
 import { Placeholder } from "@tiptap/extension-placeholder";
 import { Markdown, type MarkdownStorage } from "tiptap-markdown";
+import DOMPurify from "dompurify";
+import { Highlight } from "./extensions/Highlight";
+import { BlockMath, InlineMath } from "./extensions/Math";
+import { Callout } from "./extensions/Callout";
+import { Mermaid } from "./extensions/Mermaid";
+import { Media } from "./extensions/Media";
+import { SlashCommands } from "./extensions/SlashCommands";
+import { VimMode } from "./extensions/VimMode";
 import { Wikilink } from "./extensions/Wikilink";
+
+const PURIFY_CONFIG = {
+  USE_PROFILES: { html: true },
+  FORBID_TAGS: ["script", "style", "iframe", "object", "embed", "form", "input", "button"] as string[],
+  FORBID_ATTR: ["onerror", "onload", "onclick", "onmouseover"] as string[],
+};
+
+function sanitize(md: string): string {
+  if (typeof window === "undefined") return md;
+  return String(DOMPurify.sanitize(md, PURIFY_CONFIG));
+}
 
 interface EditorProps {
   value: string;
   onChange(value: string): void;
   readOnly?: boolean;
+  vimMode?: boolean;
 }
 
 export interface EditorHandle {
@@ -25,7 +45,7 @@ export interface EditorHandle {
 }
 
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
-  { value, onChange, readOnly = false },
+  { value, onChange, readOnly = false, vimMode = false },
   ref,
 ) {
   const editor = useEditor({
@@ -43,13 +63,21 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       TableCell,
       Image,
       Link.configure({ openOnClick: false, autolink: true }),
+      Highlight.configure({ multicolor: false }),
+      BlockMath,
+      InlineMath,
+      Callout,
+      Mermaid,
+      Media,
+      SlashCommands,
+      VimMode.configure({ enabled: vimMode }),
       Wikilink,
       // The first line of the body becomes the note title (via
       // noteTitle()), so cue users to type a meaningful title first
       // rather than a generic "write anything" prompt.
       Placeholder.configure({ placeholder: "Start with a title…" }),
       Markdown.configure({
-        html: false,
+        html: true,
         tightLists: true,
         bulletListMarker: "-",
         linkify: true,
@@ -58,7 +86,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
         transformCopiedText: true,
       }),
     ],
-    content: value,
+    content: sanitize(value),
     onUpdate({ editor }) {
       const md = (editor.storage as unknown as { markdown: MarkdownStorage }).markdown.getMarkdown();
       onChange(md);
@@ -95,7 +123,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
     if (!editor) return;
     const current: string = (editor.storage as unknown as { markdown: MarkdownStorage }).markdown.getMarkdown();
     if (current === value) return;
-    editor.commands.setContent(value, { emitUpdate: false });
+    editor.commands.setContent(sanitize(value), { emitUpdate: false });
   }, [value, editor]);
 
   useEffect(() => {

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import type { Ticket, TicketPriority } from "../types/ticket";
 import type { Note } from "../types/note";
+import { TicketDetail } from "./TicketDetail";
 import {
   buildMonthGrid,
   buildWeekGrid,
@@ -42,15 +43,20 @@ const PRIORITY_CLASS: Record<TicketPriority, string> = {
 
 const DRAG_MIME = "application/x-notekit-ticket-id";
 
+type FocusPulse = { id: string; seq: number };
+
 interface CalendarViewProps {
   onOpenJournal?: (ymd: string) => void;
   onOpenTicket?: (ticketId: string) => void;
+  focusTicket?: FocusPulse | null;
 }
 
-export function CalendarView({ onOpenJournal, onOpenTicket }: CalendarViewProps) {
+export function CalendarView({ onOpenJournal, onOpenTicket, focusTicket }: CalendarViewProps) {
   const notes = useNotesStore((s) => s.all());
   const tickets = useTicketsStore((s) => s.all());
   const setDueDate = useTicketsStore((s) => s.setDueDate);
+  const upsertTicket = useTicketsStore((s) => s.upsert);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const today = todayYMD();
   const [cursor, setCursor] = useState(today);
@@ -67,6 +73,15 @@ export function CalendarView({ onOpenJournal, onOpenTicket }: CalendarViewProps)
     localStorage.setItem("notekit:heatmapOpen", heatmapOpen ? "1" : "0");
   }, [heatmapOpen]);
   const [heatmapSelectedYmd, setHeatmapSelectedYmd] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (focusTicket?.id) setDetailId(focusTicket.id);
+  }, [focusTicket?.id, focusTicket?.seq]);
+
+  function handleOpenTicket(id: string) {
+    setDetailId(id);
+    onOpenTicket?.(id);
+  }
 
   const firstWeekday = useMemo(() => localeFirstWeekday(), []);
   const labels = useMemo(() => weekdayLabels(firstWeekday), [firstWeekday]);
@@ -108,6 +123,15 @@ export function CalendarView({ onOpenJournal, onOpenTicket }: CalendarViewProps)
     }
     return { notesByDay, ticketsByDay };
   }, [notes, tickets]);
+
+  const priorityRank: Record<TicketPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+  const unscheduled = useMemo(() =>
+    tickets
+      .filter((t) => !t.dueDate && t.status !== "done" && t.status !== "archived")
+      .sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority] || a.title.localeCompare(b.title)),
+    [tickets],
+  );
+  const [unscheduledOpen, setUnscheduledOpen] = useState(true);
 
   function goPrev() {
     if (mode === "month") {
@@ -164,7 +188,7 @@ export function CalendarView({ onOpenJournal, onOpenTicket }: CalendarViewProps)
     firstWeekday, labels, notesByDay, ticketsByDay, selectedDay,
     dragOver, setDragOver,
     onSelectDay: (ymd: string, noteId?: string) => openPopup(ymd, noteId),
-    onOpenTicket,
+    onOpenTicket: handleOpenTicket,
     onDragStartTicket: handleDragStart,
     onDropCell: handleDrop,
   };
@@ -206,7 +230,11 @@ export function CalendarView({ onOpenJournal, onOpenTicket }: CalendarViewProps)
           tickets={ticketsByDay.get(cursor) ?? []}
           onOpenNote={(ymd, noteId) => openPopup(ymd, noteId)}
           onNewNote={(ymd) => openPopup(ymd)}
-          onOpenTicket={onOpenTicket}
+          onOpenTicket={handleOpenTicket}
+          onNewTicket={(dueDate) => {
+            const t = upsertTicket({ title: "New task", status: "todo", dueDate });
+            setDetailId(t.id);
+          }}
           onDragStartTicket={handleDragStart}
           onDropCell={handleDrop}
           dragOver={dragOver}
@@ -238,6 +266,51 @@ export function CalendarView({ onOpenJournal, onOpenTicket }: CalendarViewProps)
         )}
       </section>
 
+      <section className="nk-heatmap-section">
+        <button
+          type="button" className="nk-heatmap-toggle"
+          onClick={() => setUnscheduledOpen((v) => !v)} aria-expanded={unscheduledOpen}
+        >
+          {unscheduledOpen ? <ChevronDown size={12} aria-hidden /> : <ChevronRight size={12} aria-hidden />}
+          <span>Unscheduled ({unscheduled.length})</span>
+          <button
+            type="button"
+            className="nk-iconbtn"
+            style={{ marginLeft: "auto" }}
+            title="New task"
+            aria-label="New task"
+            onClick={(e) => {
+              e.stopPropagation();
+              const t = upsertTicket({ title: "New task", status: "todo" });
+              setDetailId(t.id);
+            }}
+          >
+            <Plus size={12} aria-hidden />
+          </button>
+        </button>
+        {unscheduledOpen && (
+          <div className="nk-unscheduled-list">
+            {unscheduled.length === 0 ? (
+              <p className="nk-empty-hint">No unscheduled tasks. Drag a task here to unschedule it.</p>
+            ) : (
+              unscheduled.map((t) => (
+                <button
+                  key={t.id}
+                  className={`nk-calendar-chip ${PRIORITY_CLASS[t.priority]}`}
+                  draggable
+                  onDragStart={(e) => handleDragStart(t, e)}
+                  onClick={() => handleOpenTicket(t.id)}
+                  title={`${t.title} (${PRIORITY_LABEL[t.priority]})`}
+                >
+                  <span className="nk-calendar-chip-priority">{PRIORITY_LABEL[t.priority]}</span>
+                  <span className="nk-calendar-chip-title">{t.title}</span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
+      </section>
+
       {selectedDay && mode !== "day" && (
         <DayPopup
           ymd={selectedDay}
@@ -245,8 +318,16 @@ export function CalendarView({ onOpenJournal, onOpenTicket }: CalendarViewProps)
           tickets={ticketsByDay.get(selectedDay) ?? []}
           initialNoteId={popupInitialNoteId}
           onClose={() => { setSelectedDay(null); setPopupInitialNoteId(null); }}
-          onOpenTicket={onOpenTicket}
+          onOpenTicket={handleOpenTicket}
+          onNewTicket={(dueDate) => {
+            const t = upsertTicket({ title: "New task", status: "todo", dueDate });
+            setDetailId(t.id);
+          }}
         />
+      )}
+
+      {detailId && (
+        <TicketDetail ticketId={detailId} onClose={() => setDetailId(null)} />
       )}
     </div>
   );
@@ -265,9 +346,10 @@ interface DayPopupProps {
   initialNoteId: string | null;
   onClose: () => void;
   onOpenTicket?: (ticketId: string) => void;
+  onNewTicket?: (dueDate: string) => void;
 }
 
-function DayPopup({ ymd, notes, tickets, initialNoteId, onClose, onOpenTicket }: DayPopupProps) {
+function DayPopup({ ymd, notes, tickets, initialNoteId, onClose, onOpenTicket, onNewTicket }: DayPopupProps) {
   const upsert = useNotesStore((s) => s.upsert);
 
   const [mode, setMode] = useState<PopupMode>(() => {
@@ -351,9 +433,9 @@ function DayPopup({ ymd, notes, tickets, initialNoteId, onClose, onOpenTicket }:
             <button className="nk-day-panel-action" onClick={createNote}>
               + New note
             </button>
-            {tickets.length > 0 && (
-              <section className="nk-popup-tickets">
-                <h5 className="nk-calendar-section-title">Due ({tickets.length})</h5>
+            <section className="nk-popup-tickets">
+              <h5 className="nk-calendar-section-title">Tasks ({tickets.length})</h5>
+              {tickets.length > 0 && (
                 <ul className="nk-day-panel-list">
                   {tickets.map((t) => (
                     <li key={t.id}>
@@ -367,8 +449,14 @@ function DayPopup({ ymd, notes, tickets, initialNoteId, onClose, onOpenTicket }:
                     </li>
                   ))}
                 </ul>
-              </section>
-            )}
+              )}
+              <button
+                className="nk-day-panel-action"
+                onClick={() => { onNewTicket?.(ymd); onClose(); }}
+              >
+                + New task
+              </button>
+            </section>
           </div>
         )}
 
@@ -678,13 +766,14 @@ interface DayPaneProps {
   onOpenNote: (ymd: string, noteId: string) => void;
   onNewNote: (ymd: string) => void;
   onOpenTicket?: (id: string) => void;
+  onNewTicket?: (dueDate: string) => void;
   onDragStartTicket: (t: Ticket, e: React.DragEvent) => void;
   onDropCell: (ymd: string, e: React.DragEvent) => void;
 }
 
 function DayPane({
   ymd, notes, tickets, dragOver, setDragOver,
-  onOpenNote, onNewNote, onOpenTicket, onDragStartTicket, onDropCell,
+  onOpenNote, onNewNote, onOpenTicket, onNewTicket, onDragStartTicket, onDropCell,
 }: DayPaneProps) {
   const isOver = dragOver === ymd;
   return (
@@ -721,9 +810,9 @@ function DayPane({
         )}
       </section>
       <section>
-        <h3 className="nk-calendar-section-title">Due ({tickets.length})</h3>
+        <h3 className="nk-calendar-section-title">Tasks ({tickets.length})</h3>
         {tickets.length === 0 ? (
-          <p className="nk-empty-hint">No tickets due this day.</p>
+          <p className="nk-empty-hint">No tasks due this day.</p>
         ) : (
           <ul className="nk-calendar-day-tickets">
             {tickets.map((t) => (
@@ -737,6 +826,9 @@ function DayPane({
             ))}
           </ul>
         )}
+        <button className="nk-day-panel-action" onClick={() => onNewTicket?.(ymd)}>
+          + New task
+        </button>
       </section>
     </div>
   );

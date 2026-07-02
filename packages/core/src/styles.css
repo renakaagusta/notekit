@@ -2,6 +2,8 @@
  * Design tokens & component styles ported from the v1 prototype.
  * Direction A "Studio" — Linear-feel: dense, keyboard-first, sans editor.
  */
+@import "katex/dist/katex.min.css";
+@import "tippy.js/dist/tippy.css";
 
 .nk {
   --ui-font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -234,6 +236,23 @@ body {
  * brings it back. */
 .nk-app[data-sidebar-collapsed="true"] {
   grid-template-columns: 0 1fr;
+}
+
+/* Zen / focus mode — hides sidebar, toolbar, and header chrome */
+.nk-app[data-zen="true"] {
+  grid-template-columns: 0 1fr;
+}
+.nk-app[data-zen="true"] .nk-sidebar { display: none; }
+.nk-app[data-zen="true"] .nk-main-hd { display: none; }
+.nk-app[data-zen="true"] .nk-toolbar { display: none; }
+.nk-app[data-zen="true"] .nk-editor-wrap {
+  padding-top: 10vh;
+}
+.nk-app[data-zen="true"] .nk-prose {
+  max-width: 680px;
+  margin: 0 auto;
+  padding-left: 32px;
+  padding-right: 32px;
 }
 
 /* Devices/recovery panel rendered inside the wide account modal — unlike
@@ -1697,6 +1716,232 @@ a.nk-commit-sha:hover {
 
 .nk-prose strong { font-weight: 700; }
 .nk-prose em { font-style: italic; }
+.nk-prose mark {
+  background: #fff3a3;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+@media (prefers-color-scheme: dark) {
+  .nk-prose mark { background: #7a6a00; }
+}
+
+/* ─── Vim mode indicator ────────────────────────────────────────── */
+.nk-prose[data-vim-mode="normal"] {
+  caret-color: transparent;
+  outline: 2px solid var(--accent, #6366f1) !important;
+  outline-offset: -2px;
+}
+/* Show NORMAL badge at bottom-right of editor when in normal mode */
+.nk-editor-wrap:has(.nk-prose[data-vim-mode="normal"])::after {
+  content: "NORMAL";
+  position: absolute;
+  bottom: 8px;
+  right: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--accent, #6366f1);
+  pointer-events: none;
+}
+.nk-editor-wrap { position: relative; }
+
+/* ─── Outline panel ─────────────────────────────────────────────── */
+.nk-editor-wrap--outlined {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+}
+.nk-outline-panel {
+  border-left: 1px solid var(--border, #2a2a2a);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--surface, #141414);
+}
+.nk-outline-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted, #888);
+  border-bottom: 1px solid var(--border, #2a2a2a);
+  flex-shrink: 0;
+}
+.nk-outline-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+.nk-outline-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 8px;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 4px;
+  color: var(--text, #e8e8e8);
+}
+.nk-outline-item:hover { background: var(--surface-2, #1e1e1e); }
+.nk-outline-level {
+  font-size: 10px;
+  color: var(--muted, #888);
+  flex-shrink: 0;
+  width: 16px;
+}
+.nk-outline-text {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.nk-outline-empty {
+  font-size: 12px;
+  color: var(--muted, #888);
+  padding: 12px 10px;
+  margin: 0;
+}
+
+/* ─── Slash command menu ────────────────────────────────────────── */
+.tippy-box[data-theme~="nk-slash"] {
+  background: var(--surface-2, #1e1e1e);
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  padding: 4px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.tippy-box[data-theme~="nk-slash"] .tippy-content { padding: 0; }
+
+.nk-slash-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+}
+.nk-slash-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  color: var(--text, #e8e8e8);
+}
+.nk-slash-item:hover,
+.nk-slash-item--active {
+  background: var(--accent-muted, rgba(99,102,241,0.15));
+}
+.nk-slash-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text, #e8e8e8);
+}
+.nk-slash-desc {
+  font-size: 11px;
+  color: var(--muted, #888);
+}
+
+/* ─── Embedded media ────────────────────────────────────────────── */
+.nk-prose .nk-media {
+  margin: 0.75em 0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.nk-prose .nk-media--video video {
+  width: 100%;
+  max-height: 480px;
+  display: block;
+  border-radius: 6px;
+  background: #000;
+}
+.nk-prose .nk-media--audio audio {
+  width: 100%;
+  display: block;
+}
+.nk-prose .nk-media--pdf iframe {
+  width: 100%;
+  height: 540px;
+  border: none;
+  border-radius: 6px;
+  display: block;
+  background: var(--surface, #1a1a1a);
+}
+
+/* ─── Callouts ──────────────────────────────────────────────────── */
+.nk-prose .nk-callout {
+  border-left: 3px solid var(--callout-color, var(--accent));
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--callout-color, var(--accent)) 8%, transparent);
+  padding: 0.6em 0.8em;
+  margin: 0.6em 0;
+}
+.nk-prose .nk-callout-title {
+  font-weight: 600;
+  font-size: 0.9em;
+  margin-bottom: 0.35em;
+  color: var(--callout-color, var(--accent));
+  user-select: none;
+}
+.nk-prose .nk-callout-body > * { margin-top: 0 !important; }
+.nk-prose .nk-callout-body > * + * { margin-top: 0.4em !important; }
+
+.nk-prose .nk-callout--note    { --callout-color: #6c8ebf; }
+.nk-prose .nk-callout--info    { --callout-color: #5ba4cf; }
+.nk-prose .nk-callout--tip     { --callout-color: #67ab9f; }
+.nk-prose .nk-callout--warning { --callout-color: #d4a017; }
+.nk-prose .nk-callout--danger  { --callout-color: #e05050; }
+.nk-prose .nk-callout--success { --callout-color: #4caf7d; }
+.nk-prose .nk-callout--question { --callout-color: #b47ee5; }
+.nk-prose .nk-callout--failure  { --callout-color: #e05050; }
+.nk-prose .nk-callout--bug      { --callout-color: #e07050; }
+.nk-prose .nk-callout--example  { --callout-color: #8c8cf0; }
+.nk-prose .nk-callout--quote    { --callout-color: #888; }
+
+/* ─── Math ──────────────────────────────────────────────────────── */
+.nk-prose .tiptap-mathematics-render {
+  overflow-x: auto;
+  padding: 0.5em 0;
+  cursor: default;
+}
+.nk-prose .tiptap-mathematics-render--editable {
+  cursor: text;
+}
+.nk-prose .tiptap-mathematics-render.block-math-error {
+  color: var(--red, #e55);
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+/* ─── Mermaid ───────────────────────────────────────────────────── */
+.nk-prose .nk-mermaid {
+  overflow-x: auto;
+  padding: 0.5em 0;
+  text-align: center;
+}
+.nk-prose .nk-mermaid svg {
+  max-width: 100%;
+  height: auto;
+}
+.nk-prose .nk-mermaid--error {
+  font-family: monospace;
+  font-size: 0.85em;
+  color: var(--red, #e55);
+  white-space: pre-wrap;
+  text-align: left;
+}
 
 .nk-prose a {
   color: var(--accent);
@@ -5634,6 +5879,14 @@ a.nk-commit-sha:hover {
   gap: 4px;
 }
 
+/* Unscheduled tasks panel */
+.nk-unscheduled-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 0;
+}
+
 /* Heatmap */
 .nk-heatmap-section {
   display: flex;
@@ -7424,4 +7677,228 @@ a.nk-commit-sha:hover {
 .nk-annot-overlay {
   position: absolute;
   inset: 0;
+}
+
+/* ─── Multi-pane layout (tabs + splits) ────────────────────────────── */
+
+/* The SplitPane fills whatever space the notes view gets in .nk-main */
+.nk-main > .nk-pane,
+.nk-main > .nk-split {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* A split container — flex row (horizontal) or column (vertical) */
+.nk-split {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.nk-split--horizontal {
+  flex-direction: row;
+}
+
+.nk-split--vertical {
+  flex-direction: column;
+}
+
+/* Each child in a split. The first child gets a fixed percentage width/height
+ * set inline; the second gets flex:1 to fill the remainder. */
+.nk-split-child {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.nk-split-child--fill {
+  flex: 1;
+}
+
+/* Draggable divider between panes */
+.nk-split-divider {
+  flex: 0 0 auto;
+  background: var(--border);
+  transition: background 120ms;
+  position: relative;
+  z-index: 1;
+}
+
+.nk-split-divider--horizontal {
+  width: 1px;
+  cursor: col-resize;
+}
+
+.nk-split-divider--vertical {
+  height: 1px;
+  cursor: row-resize;
+}
+
+.nk-split-divider--horizontal::after,
+.nk-split-divider--vertical::after {
+  content: "";
+  position: absolute;
+}
+
+.nk-split-divider--horizontal::after {
+  inset: 0 -3px;
+}
+
+.nk-split-divider--vertical::after {
+  inset: -3px 0;
+}
+
+.nk-split-divider:hover {
+  background: var(--accent);
+}
+
+/* A single editor pane — flex column filling its allocated space */
+.nk-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+/* Sibling panes get a dividing border on their left/top edge. The split
+ * divider itself handles the 1px gap so we don't double-up. */
+.nk-split--horizontal > .nk-split-child + .nk-split-child {
+  border-left: 1px solid var(--border);
+}
+.nk-split--vertical > .nk-split-child + .nk-split-child {
+  border-top: 1px solid var(--border);
+}
+
+/* Active pane highlight — subtle ring on the tab bar */
+.nk-pane--active > .nk-tab-bar {
+  border-bottom-color: var(--border);
+}
+
+/* ─── Tab bar ────────────────────────────────────────────────────── */
+
+.nk-tab-bar {
+  display: flex;
+  align-items: stretch;
+  flex-shrink: 0;
+  height: 36px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  overflow: hidden;
+  user-select: none;
+}
+
+.nk-tab-bar-tabs {
+  display: flex;
+  align-items: stretch;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nk-tab-bar-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Individual tab */
+.nk-tab {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px 0 10px;
+  max-width: 180px;
+  min-width: 80px;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 100ms, color 100ms;
+}
+
+.nk-tab:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-tab--active {
+  background: var(--surface);
+  color: var(--text);
+  /* bottom border matches surface so tab "sits on" the editor */
+  box-shadow: inset 0 -1px 0 var(--surface);
+}
+
+.nk-tab-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nk-tab-close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  padding: 0;
+  transition: background 100ms, color 100ms, opacity 100ms;
+}
+
+.nk-tab:hover .nk-tab-close,
+.nk-tab--active .nk-tab-close {
+  opacity: 1;
+}
+
+.nk-tab-close:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+/* Split / close actions on the right side of the tab bar */
+.nk-tab-bar-actions {
+  display: flex;
+  align-items: center;
+  padding: 0 4px;
+  gap: 1px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+}
+
+.nk-tab-action {
+  color: var(--muted);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nk-tab-action:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+/* On mobile, hide the split buttons — splitting doesn't make sense on
+ * a single-column layout. Close pane button stays visible. */
+@media (max-width: 720px) {
+  .nk-tab-action:nth-child(-n+2) {
+    display: none;
+  }
 }

@@ -54,24 +54,17 @@ jobs:
           mv /tmp/.buildx-cache-web-new /tmp/.buildx-cache-web || true
           mv /tmp/.buildx-cache-landing-new /tmp/.buildx-cache-landing || true
 
-      # Secrets now come from HashiCorp Vault (secret/notekit) via AppRole
-      # (repo secrets VAULT_ROLE_ID/VAULT_SECRET_ID). Rendered to .env.notekit,
-      # which docker compose reads via --env-file. Runs right before Deploy so a
-      # Vault failure aborts before the running stack is touched.
+      # Secrets come from HashiCorp Vault (secret/notekit) via AppRole (repo
+      # secrets VAULT_ROLE_ID/VAULT_SECRET_ID). The shared host helper renders
+      # every key into $GITHUB_ENV — multi-line-safe (EC private keys) and masks
+      # values in the log. Deploy then reads them via normal compose ${VAR}
+      # interpolation. Runs right before Deploy so a Vault failure aborts before
+      # the running stack is touched.
       - name: Render secrets from Vault
         env:
           VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
           VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
-        run: |
-          set -euo pipefail
-          TOKEN=$(docker exec -e VAULT_ADDR=http://127.0.0.1:8200 vault \
-            vault write -field=token auth/approle/login role_id="$VAULT_ROLE_ID" secret_id="$VAULT_SECRET_ID")
-          docker exec -e VAULT_ADDR=http://127.0.0.1:8200 -e VAULT_TOKEN="$TOKEN" vault \
-            vault kv get -format=json secret/notekit \
-            | python3 -c "import sys,json;d=json.load(sys.stdin)['data']['data'];[print(f'{k}={v}') for k,v in sorted(d.items())]" > .env.notekit
-          echo "Rendered $(grep -c = .env.notekit) vars into .env.notekit from Vault"
+        run: /opt/vault-ci/render-github-env.sh secret/notekit
 
       - name: Deploy
-        run: |
-          docker compose --env-file .env.notekit -f docker-compose.notekit.yml up -d --remove-orphans
-          rm -f .env.notekit
+        run: docker compose -f docker-compose.notekit.yml up -d --remove-orphans

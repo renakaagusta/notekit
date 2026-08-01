@@ -1,10 +1,11 @@
+import "./lib/telemetry"; // must be first — initializes OTel SDK before any other import
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { logger } from "hono/logger";
 import { secureHeaders } from "hono/secure-headers";
 import { bodyLimit } from "hono/body-limit";
 import { env } from "./env";
+import { logger } from "./lib/logger";
 import { authRoutes } from "./routes/auth";
 import { vaultRoutes } from "./routes/vault";
 import { agentRoutes } from "./routes/agents";
@@ -24,7 +25,11 @@ app.use("*", secureHeaders({
   referrerPolicy: "no-referrer",
 }));
 
-app.use("*", logger());
+app.use("*", async (c, next) => {
+  const start = Date.now();
+  await next();
+  logger.info({ method: c.req.method, path: c.req.path, status: c.res.status, ms: Date.now() - start }, "request");
+});
 
 // `webUrl` is the primary web origin; `extraCorsOrigins` lets ops add
 // Capacitor (`capacitor://localhost`, `https://localhost`) and E2E origins
@@ -52,7 +57,7 @@ app.use(
 );
 
 app.onError((err, c) => {
-  console.error(`[api] unhandled error on ${c.req.method} ${c.req.path}:`, err);
+  logger.error({ method: c.req.method, path: c.req.path, err }, "unhandled error");
   return c.json({ error: "server_error" }, 500);
 });
 
@@ -83,7 +88,7 @@ const server = serve(
     port: env.port,
   },
   (info) => {
-    console.log(`[api] listening on http://localhost:${info.port}`);
+    logger.info({ port: info.port }, "api listening");
   },
 );
 
@@ -92,10 +97,10 @@ startTelegramPoller();
 
 // Graceful shutdown so in-flight requests finish and SQLite WAL flushes.
 function shutdown(signal: NodeJS.Signals) {
-  console.log(`[api] received ${signal}, shutting down`);
+  logger.info({ signal }, "shutting down");
   server.close(() => process.exit(0));
   setTimeout(() => {
-    console.warn("[api] forced exit after 10s");
+    logger.warn("forced exit after 10s");
     process.exit(1);
   }, 10_000).unref();
 }

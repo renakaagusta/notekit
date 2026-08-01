@@ -97,6 +97,13 @@ services:
       FORGEJO_ADMIN_USER: ${FORGEJO_ADMIN_USER:-}
       FORGEJO_ADMIN_PASSWORD: ${FORGEJO_ADMIN_PASSWORD:-}
       AGENT_EMAIL_DOMAIN: ${AGENT_EMAIL_DOMAIN:-agents.notekit.app}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/json
+      OTEL_SERVICE_NAME: notekit-api
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      PYROSCOPE_ENDPOINT: http://pyroscope:4040
     volumes:
       - notekit-db:/app/apps/api/data
     networks:

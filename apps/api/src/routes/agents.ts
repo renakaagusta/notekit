@@ -257,7 +257,7 @@ agentRoutes.delete("/:slug", async (c) => {
     }
     await db
       .update(schema.agentTokens)
-      .set({ revokedAt: new Date() })
+      .set({ revokedAt: Date.now() })
       .where(
         and(
           eq(schema.agentTokens.userId, user.id),

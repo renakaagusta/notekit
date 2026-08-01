@@ -31,7 +31,7 @@ export const env = {
     .filter((s) => s.length > 0),
   apiUrl: required("API_URL", "http://localhost:3001"),
   sessionSecret: required("SESSION_SECRET", "dev-insecure-secret-change-me"),
-  databaseUrl: required("DATABASE_URL", "file:./data/notekit.db"),
+  databaseUrl: required("DATABASE_URL", "postgresql://notekit:nk_pg_2026_prod@localhost:5432/notekit"),
   github: {
     clientId: optional("GITHUB_CLIENT_ID"),
     clientSecret: optional("GITHUB_CLIENT_SECRET"),

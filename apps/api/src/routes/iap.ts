@@ -35,10 +35,10 @@ export const iapRoutes = new Hono();
 iapRoutes.get("/entitlement", async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const plusUntil = user.plusUntil ? user.plusUntil.toISOString() : null;
+  const plusUntil = user.plusUntil ? new Date(user.plusUntil).toISOString() : null;
   const active =
     user.plusSource === "lifetime" ||
-    (user.plusUntil ? user.plusUntil.getTime() > Date.now() : false);
+    (user.plusUntil ? user.plusUntil > Date.now() : false);
   return c.json({
     plus: active,
     plusUntil,
@@ -192,7 +192,7 @@ async function upsertAppleReceipt(
   environment: "sandbox" | "production",
   raw: string,
 ): Promise<void> {
-  const expiresAt = info.expiresDate ? new Date(info.expiresDate) : null;
+  const expiresAt = info.expiresDate ?? null;
   await db
     .insert(schema.appleIapReceipts)
     .values({
@@ -204,7 +204,7 @@ async function upsertAppleReceipt(
       expiresAt,
       environment,
       rawJson: raw,
-      updatedAt: new Date(),
+      updatedAt: Date.now(),
     })
     .onConflictDoUpdate({
       target: schema.appleIapReceipts.originalTransactionId,
@@ -214,10 +214,10 @@ async function upsertAppleReceipt(
         expiresAt,
         environment,
         rawJson: raw,
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       },
     })
-    .run();
+    .execute();
 }
 
 async function upsertGooglePurchase(
@@ -237,20 +237,20 @@ async function upsertGooglePurchase(
       userId,
       purchaseToken,
       productId: state.productId,
-      expiresAt: state.expiresAt ? new Date(state.expiresAt) : null,
+      expiresAt: state.expiresAt ?? null,
       acknowledged: state.acknowledged,
       rawJson: JSON.stringify(state.raw),
-      updatedAt: new Date(),
+      updatedAt: Date.now(),
     })
     .onConflictDoUpdate({
       target: schema.googleIapPurchases.purchaseToken,
       set: {
         productId: state.productId,
-        expiresAt: state.expiresAt ? new Date(state.expiresAt) : null,
+        expiresAt: state.expiresAt ?? null,
         acknowledged: state.acknowledged,
         rawJson: JSON.stringify(state.raw),
-        updatedAt: new Date(),
+        updatedAt: Date.now(),
       },
     })
-    .run();
+    .execute();
 }

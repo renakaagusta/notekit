@@ -37,7 +37,7 @@ async function handleMobileFailure(tokenId: string, err: unknown): Promise<void>
     await db
       .delete(schema.mobilePushTokens)
       .where(eq(schema.mobilePushTokens.id, tokenId))
-      .run();
+      .execute();
     return;
   }
   console.error("[notify:mobilepush] send failed:", err);

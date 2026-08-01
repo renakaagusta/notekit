@@ -48,7 +48,7 @@ directoryRoutes.put("/keys", async (c) => {
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
   const { signingKey, devices } = parsed.data;
 
-  const now = new Date();
+  const now = Date.now();
   await db
     .insert(schema.userSigningKeys)
     .values({ userId: user.id, signingKey, updatedAt: now })

@@ -1,114 +1,243 @@
-/**
- * Hand-rolled schema migration runner. Each migration is a `{id, up}` pair
- * applied exactly once, tracked in `schema_migrations`. New migrations
- * append to MIGRATIONS — never edit or reorder existing ones.
- *
- * We don't pull in drizzle-kit on purpose: the DB is small, the operations
- * are SQLite-only, and the ad-hoc loop here is easier to reason about than
- * an opaque codegen tool. If migrations get complicated, swap this out.
- */
-import type Database from "better-sqlite3";
+import type { Pool, PoolClient } from "pg";
 import { nanoid } from "nanoid";
 
-type Migration = { id: string; up: (db: Database.Database) => void };
+type Migration = { id: string; up: (client: PoolClient) => Promise<void> };
 
-// Apply order is the array order — IDs are documentation, not the sort key.
-// Keep the IDs ascending for readability; a fresh DB runs them top-to-bottom,
-// and deployed DBs skip any ID already recorded in `schema_migrations`.
+async function hasColumn(client: PoolClient, table: string, column: string): Promise<boolean> {
+  const res = await client.query(
+    `SELECT 1 FROM information_schema.columns WHERE table_name=$1 AND column_name=$2`,
+    [table, column],
+  );
+  return (res.rowCount ?? 0) > 0;
+}
+
 const MIGRATIONS: Migration[] = [
   {
+    id: "000_initial_schema",
+    up: async (client) => {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          email TEXT NOT NULL UNIQUE,
+          name TEXT,
+          avatar_url TEXT,
+          plan TEXT NOT NULL DEFAULT 'free',
+          created_at BIGINT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS oauth_accounts (
+          provider TEXT NOT NULL,
+          provider_account_id TEXT NOT NULL,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          access_token TEXT,
+          refresh_token TEXT,
+          created_at BIGINT NOT NULL,
+          PRIMARY KEY (provider, provider_account_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS sessions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          expires_at BIGINT NOT NULL,
+          created_at BIGINT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user_id ON oauth_accounts(user_id);
+        CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+
+        CREATE TABLE IF NOT EXISTS user_settings (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          vault_provider TEXT,
+          vault_owner TEXT,
+          vault_repo TEXT,
+          vault_branch TEXT DEFAULT 'main',
+          updated_at BIGINT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS vaults (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          provider TEXT NOT NULL,
+          owner TEXT NOT NULL,
+          repo TEXT NOT NULL,
+          branch TEXT NOT NULL DEFAULT 'main',
+          label TEXT,
+          created_at BIGINT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_vaults_user_id ON vaults(user_id);
+        CREATE UNIQUE INDEX IF NOT EXISTS uniq_vaults_user_provider_owner_repo
+          ON vaults(user_id, provider, owner, repo);
+
+        CREATE TABLE IF NOT EXISTS vault_settings (
+          vault_id TEXT PRIMARY KEY REFERENCES vaults(id) ON DELETE CASCADE,
+          theme TEXT NOT NULL DEFAULT 'dark',
+          default_folder TEXT,
+          default_agent_slug TEXT,
+          updated_at BIGINT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS agent_tokens (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          agent_slug TEXT NOT NULL,
+          token_hash TEXT NOT NULL UNIQUE,
+          created_at BIGINT NOT NULL,
+          revoked_at BIGINT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_agent_tokens_hash ON agent_tokens(token_hash);
+        CREATE INDEX IF NOT EXISTS idx_agent_tokens_user_slug ON agent_tokens(user_id, agent_slug);
+
+        CREATE TABLE IF NOT EXISTS notifications (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          agent_slug TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          resource_path TEXT,
+          summary TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          created_at BIGINT NOT NULL,
+          read_at BIGINT
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_notifications_user_created
+          ON notifications(user_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_notifications_user_unread
+          ON notifications(user_id) WHERE read_at IS NULL;
+
+        CREATE TABLE IF NOT EXISTS notification_prefs (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          telegram_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+          web_push_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+          mobile_push_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+          updated_at BIGINT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS telegram_links (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          chat_id TEXT NOT NULL UNIQUE,
+          linked_at BIGINT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS telegram_link_codes (
+          code TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          expires_at BIGINT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_telegram_link_codes_user
+          ON telegram_link_codes(user_id);
+
+        CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          endpoint TEXT NOT NULL UNIQUE,
+          p256dh TEXT NOT NULL,
+          auth TEXT NOT NULL,
+          user_agent TEXT,
+          created_at BIGINT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_web_push_user ON web_push_subscriptions(user_id);
+
+        CREATE TABLE IF NOT EXISTS mobile_push_tokens (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          platform TEXT NOT NULL,
+          token TEXT NOT NULL UNIQUE,
+          device_id TEXT,
+          created_at BIGINT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_mobile_push_user ON mobile_push_tokens(user_id);
+
+        CREATE TABLE IF NOT EXISTS apple_iap_receipts (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          original_transaction_id TEXT NOT NULL UNIQUE,
+          latest_transaction_id TEXT NOT NULL,
+          product_id TEXT NOT NULL,
+          expires_at BIGINT,
+          environment TEXT NOT NULL,
+          raw_json TEXT NOT NULL,
+          updated_at BIGINT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_apple_iap_user ON apple_iap_receipts(user_id);
+
+        CREATE TABLE IF NOT EXISTS google_iap_purchases (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          purchase_token TEXT NOT NULL UNIQUE,
+          product_id TEXT NOT NULL,
+          expires_at BIGINT,
+          acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
+          raw_json TEXT NOT NULL,
+          updated_at BIGINT NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_google_iap_user ON google_iap_purchases(user_id);
+      `);
+    },
+  },
+  {
     id: "001_add_active_vault_id",
-    up: (db) => {
-      const cols = db
-        .prepare(`PRAGMA table_info(user_settings)`)
-        .all() as { name: string }[];
-      if (cols.some((c) => c.name === "active_vault_id")) return;
-      db.exec(
-        `ALTER TABLE user_settings
-           ADD COLUMN active_vault_id TEXT REFERENCES vaults(id) ON DELETE SET NULL`,
-      );
+    up: async (client) => {
+      if (!(await hasColumn(client, "user_settings", "active_vault_id"))) {
+        await client.query(
+          `ALTER TABLE user_settings
+             ADD COLUMN active_vault_id TEXT REFERENCES vaults(id) ON DELETE SET NULL`,
+        );
+      }
     },
   },
   {
     id: "002_backfill_legacy_vaults",
-    up: (db) => {
-      // For any user_settings row that still carries the pre-multi-vault
-      // columns and has no active_vault_id, materialize a vaults row and
-      // pin the active pointer. ON CONFLICT keeps the migration safe to
-      // retry — e.g. if the same user already created a vaults row via
-      // the new API between releases.
-      const rows = db
-        .prepare(
-          `SELECT user_id, vault_provider, vault_owner, vault_repo, vault_branch
-             FROM user_settings
-            WHERE active_vault_id IS NULL
-              AND vault_owner IS NOT NULL
-              AND vault_repo IS NOT NULL`,
-        )
-        .all() as Array<{
+    up: async (client) => {
+      const { rows } = await client.query<{
         user_id: string;
         vault_provider: string | null;
         vault_owner: string;
         vault_repo: string;
         vault_branch: string | null;
-      }>;
+      }>(
+        `SELECT user_id, vault_provider, vault_owner, vault_repo, vault_branch
+           FROM user_settings
+          WHERE active_vault_id IS NULL
+            AND vault_owner IS NOT NULL
+            AND vault_repo IS NOT NULL`,
+      );
       if (rows.length === 0) return;
 
-      const insertVault = db.prepare(
-        `INSERT INTO vaults (id, user_id, provider, owner, repo, branch, label, created_at)
-         VALUES (@id, @user_id, @provider, @owner, @repo, @branch, @label, @created_at)
-         ON CONFLICT (user_id, provider, owner, repo) DO NOTHING`,
-      );
-      const findExisting = db.prepare(
-        `SELECT id FROM vaults
-          WHERE user_id = @user_id AND provider = @provider
-            AND owner = @owner AND repo = @repo`,
-      );
-      const updateSettings = db.prepare(
-        `UPDATE user_settings
-            SET active_vault_id = @vault_id
-          WHERE user_id = @user_id`,
-      );
-
-      const tx = db.transaction((rs: typeof rows) => {
-        for (const r of rs) {
-          const provider = (r.vault_provider ?? "github") as string;
-          const newId = `vlt_${nanoid(16)}`;
-          insertVault.run({
-            id: newId,
-            user_id: r.user_id,
-            provider,
-            owner: r.vault_owner,
-            repo: r.vault_repo,
-            branch: r.vault_branch ?? "main",
-            label: `${r.vault_owner}/${r.vault_repo}`,
-            created_at: Date.now(),
-          });
-          const existing = findExisting.get({
-            user_id: r.user_id,
-            provider,
-            owner: r.vault_owner,
-            repo: r.vault_repo,
-          }) as { id: string } | undefined;
-          if (existing) {
-            updateSettings.run({ vault_id: existing.id, user_id: r.user_id });
-          }
+      for (const r of rows) {
+        const provider = r.vault_provider ?? "github";
+        const newId = `vlt_${nanoid(16)}`;
+        await client.query(
+          `INSERT INTO vaults (id, user_id, provider, owner, repo, branch, label, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           ON CONFLICT (user_id, provider, owner, repo) DO NOTHING`,
+          [newId, r.user_id, provider, r.vault_owner, r.vault_repo, r.vault_branch ?? "main",
+           `${r.vault_owner}/${r.vault_repo}`, Date.now()],
+        );
+        const existing = await client.query<{ id: string }>(
+          `SELECT id FROM vaults WHERE user_id=$1 AND provider=$2 AND owner=$3 AND repo=$4`,
+          [r.user_id, provider, r.vault_owner, r.vault_repo],
+        );
+        if (existing.rows[0]) {
+          await client.query(
+            `UPDATE user_settings SET active_vault_id=$1 WHERE user_id=$2`,
+            [existing.rows[0].id, r.user_id],
+          );
         }
-      });
-      tx(rows);
-      console.log(
-        `[db] migration 002: backfilled active_vault_id for ${rows.length} legacy row(s)`,
-      );
+      }
+      console.log(`[db] migration 002: backfilled active_vault_id for ${rows.length} legacy row(s)`);
     },
   },
   {
     id: "003_clear_legacy_vault_columns",
-    up: (db) => {
-      // The legacy user_settings.vault_* columns were kept as a fallback
-      // through one release. Migration 002 has copied everything into
-      // `vaults`; clear them now so a deleted vault (which sets
-      // active_vault_id = NULL) can never re-fire backfill from stale data.
-      db.exec(
+    up: async (client) => {
+      await client.query(
         `UPDATE user_settings
             SET vault_provider = NULL,
                 vault_owner = NULL,
@@ -119,189 +248,151 @@ const MIGRATIONS: Migration[] = [
   },
   {
     id: "004_add_users_plus_columns",
-    up: (db) => {
-      const cols = db
-        .prepare(`PRAGMA table_info(users)`)
-        .all() as { name: string }[];
-      if (!cols.some((c) => c.name === "plus_until")) {
-        db.exec(`ALTER TABLE users ADD COLUMN plus_until INTEGER`);
+    up: async (client) => {
+      if (!(await hasColumn(client, "users", "plus_until"))) {
+        await client.query(`ALTER TABLE users ADD COLUMN plus_until BIGINT`);
       }
-      if (!cols.some((c) => c.name === "plus_source")) {
-        db.exec(`ALTER TABLE users ADD COLUMN plus_source TEXT`);
+      if (!(await hasColumn(client, "users", "plus_source"))) {
+        await client.query(`ALTER TABLE users ADD COLUMN plus_source TEXT`);
       }
     },
   },
   {
     id: "005_create_forgejo_accounts",
-    up: (db) => {
-      db.exec(`
+    up: async (client) => {
+      await client.query(`
         CREATE TABLE IF NOT EXISTS forgejo_accounts (
           user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
           username TEXT NOT NULL,
           access_token TEXT NOT NULL,
-          created_at INTEGER NOT NULL
+          created_at BIGINT NOT NULL
         )
       `);
     },
   },
   {
     id: "006_default_theme_dark",
-    up: (db) => {
-      db.exec(`UPDATE vault_settings SET theme = 'dark' WHERE theme = 'auto'`);
+    up: async (client) => {
+      await client.query(`UPDATE vault_settings SET theme = 'dark' WHERE theme = 'auto'`);
     },
   },
   {
     id: "007_create_personal_access_tokens",
-    up: (db) => {
-      // Long-lived bearer tokens for CLI and MCP clients. See schema.ts for
-      // the table doc-comment. Indexed by token_hash because that's the
-      // lookup path on every authenticated bearer request.
-      db.exec(`
+    up: async (client) => {
+      await client.query(`
         CREATE TABLE IF NOT EXISTS personal_access_tokens (
           id TEXT PRIMARY KEY,
           user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           name TEXT NOT NULL,
           token_hash TEXT NOT NULL UNIQUE,
           scope TEXT NOT NULL CHECK (scope IN ('cli', 'mcp')),
-          created_at INTEGER NOT NULL,
-          last_used_at INTEGER,
-          revoked_at INTEGER
+          created_at BIGINT NOT NULL,
+          last_used_at BIGINT,
+          revoked_at BIGINT
         )
       `);
-      db.exec(
+      await client.query(
         `CREATE INDEX IF NOT EXISTS idx_pat_user_id ON personal_access_tokens (user_id)`,
       );
     },
   },
   {
-    id: "009_agent_avatar_cache",
-    up: (db) => {
-      // Historical: cached per-agent custom avatar URLs for the federated
-      // /avatar/:hash endpoint. Superseded by migration 010 — NoteKit no
-      // longer stores per-agent avatar URLs. Kept as a no-op so the
-      // migration id stays recorded and existing deployments don't
-      // re-run anything; the table itself is dropped in 010.
-      void db;
-    },
-  },
-  {
     id: "008_forgejo_storage_quota",
-    up: (db) => {
-      // Per-user storage cap on the NoteKit-hosted Forgejo backend. GitHub
-      // vaults don't need this — GitHub bills users directly. For Forgejo
-      // we pay for disk, so writes get rejected once `used_bytes` crosses
-      // `quota_bytes`. `used_bytes` is refreshed periodically from the
-      // Forgejo repo `size` field; it lags real usage by minutes but is
-      // good enough to stop runaway growth.
-      const cols = db
-        .prepare(`PRAGMA table_info(forgejo_accounts)`)
-        .all() as { name: string }[];
-      if (!cols.some((c) => c.name === "quota_bytes")) {
-        // 100 MB default — covers thousands of plaintext notes and tickets
-        // but blocks anyone trying to use NoteKit as a generic file host.
-        // Plus subscribers get bumped via getEffectiveQuotaBytes().
-        db.exec(
+    up: async (client) => {
+      if (!(await hasColumn(client, "forgejo_accounts", "quota_bytes"))) {
+        await client.query(
           `ALTER TABLE forgejo_accounts ADD COLUMN quota_bytes INTEGER NOT NULL DEFAULT 104857600`,
         );
       }
-      if (!cols.some((c) => c.name === "used_bytes")) {
-        db.exec(
+      if (!(await hasColumn(client, "forgejo_accounts", "used_bytes"))) {
+        await client.query(
           `ALTER TABLE forgejo_accounts ADD COLUMN used_bytes INTEGER NOT NULL DEFAULT 0`,
         );
       }
-      if (!cols.some((c) => c.name === "usage_updated_at")) {
-        db.exec(
-          `ALTER TABLE forgejo_accounts ADD COLUMN usage_updated_at INTEGER`,
+      if (!(await hasColumn(client, "forgejo_accounts", "usage_updated_at"))) {
+        await client.query(
+          `ALTER TABLE forgejo_accounts ADD COLUMN usage_updated_at BIGINT`,
         );
       }
+    },
+  },
+  {
+    id: "009_agent_avatar_cache",
+    up: async (_client) => {
+      // Historical: no-op. Superseded by migration 010.
     },
   },
   {
     id: "010_drop_agent_avatars",
-    up: (db) => {
-      // We no longer store per-agent avatar URLs — agents render their
-      // owner's Gravatar via email hash at request time. Drop the cache
-      // table so the schema reflects the codebase. Safe on fresh installs
-      // (DROP IF EXISTS) and on existing installs that ran migration 009.
-      db.exec(`DROP TABLE IF EXISTS agent_avatars`);
+    up: async (client) => {
+      await client.query(`DROP TABLE IF EXISTS agent_avatars`);
     },
   },
   {
     id: "011_user_key_directory",
-    up: (db) => {
-      // Public-key directory for cross-user E2EE sharing. To encrypt a note to
-      // another user we need their device pubkeys, but those live in *their*
-      // git vault which we can't read. So each user publishes their PUBLIC keys
-      // here (public keys only — content stays zero-knowledge) for others to
-      // look up. The server never verifies the signatures (it can't — it holds
-      // no recovery key); the consuming client verifies each device record's
-      // `sig` against the published `signing_key` and the signing key itself
-      // via an out-of-band safety number. See e2ee-everywhere-and-sharing §3.
-      db.exec(`
+    up: async (client) => {
+      await client.query(`
         CREATE TABLE IF NOT EXISTS user_signing_keys (
           user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
           signing_key TEXT NOT NULL,
-          updated_at INTEGER NOT NULL
-        );
+          updated_at BIGINT NOT NULL
+        )
       `);
-      db.exec(`
+      await client.query(`
         CREATE TABLE IF NOT EXISTS user_directory_devices (
           user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           device_id TEXT NOT NULL,
           recipient TEXT NOT NULL,
           added_at TEXT NOT NULL,
           sig TEXT,
-          updated_at INTEGER NOT NULL,
+          updated_at BIGINT NOT NULL,
           PRIMARY KEY (user_id, device_id)
-        );
+        )
       `);
     },
   },
   {
     id: "012_directory_devices_name_owner",
-    up: (db) => {
-      // First-class membership (docs/architecture/first-class-membership.md):
-      // a directory device record now carries a human `name` (shown when an
-      // owner admits the member) and the `owner` member it belongs to. The
-      // owner field is bound into the signature, so when an owner copies the
-      // record into their vault to admit the member it still verifies against
-      // the member's signing key. Both are nullable for back-compat with
-      // pre-membership published records.
-      const cols = db
-        .prepare(`PRAGMA table_info(user_directory_devices)`)
-        .all() as { name: string }[];
-      if (!cols.some((c) => c.name === "name")) {
-        db.exec(`ALTER TABLE user_directory_devices ADD COLUMN name TEXT`);
+    up: async (client) => {
+      if (!(await hasColumn(client, "user_directory_devices", "name"))) {
+        await client.query(`ALTER TABLE user_directory_devices ADD COLUMN name TEXT`);
       }
-      if (!cols.some((c) => c.name === "owner")) {
-        db.exec(`ALTER TABLE user_directory_devices ADD COLUMN owner TEXT`);
+      if (!(await hasColumn(client, "user_directory_devices", "owner"))) {
+        await client.query(`ALTER TABLE user_directory_devices ADD COLUMN owner TEXT`);
       }
     },
   },
 ];
 
-export function runMigrations(db: Database.Database): void {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS schema_migrations (
-      id TEXT PRIMARY KEY,
-      applied_at INTEGER NOT NULL
-    );
-  `);
-  const seen = new Set(
-    (db.prepare(`SELECT id FROM schema_migrations`).all() as { id: string }[])
-      .map((r) => r.id),
-  );
-  const record = db.prepare(
-    `INSERT INTO schema_migrations (id, applied_at) VALUES (?, ?)`,
-  );
-  for (const m of MIGRATIONS) {
-    if (seen.has(m.id)) continue;
-    const tx = db.transaction(() => {
-      m.up(db);
-      record.run(m.id, Date.now());
-    });
-    tx();
-    console.log(`[db] migration applied: ${m.id}`);
+export async function runMigrations(pool: Pool): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS schema_migrations (
+        id TEXT PRIMARY KEY,
+        applied_at BIGINT NOT NULL
+      )
+    `);
+    const { rows } = await client.query<{ id: string }>(`SELECT id FROM schema_migrations`);
+    const seen = new Set(rows.map((r) => r.id));
+
+    for (const m of MIGRATIONS) {
+      if (seen.has(m.id)) continue;
+      await client.query("BEGIN");
+      try {
+        await m.up(client);
+        await client.query(`INSERT INTO schema_migrations (id, applied_at) VALUES ($1, $2)`, [
+          m.id,
+          Date.now(),
+        ]);
+        await client.query("COMMIT");
+        console.log(`[db] migration applied: ${m.id}`);
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      }
+    }
+  } finally {
+    client.release();
   }
 }
-

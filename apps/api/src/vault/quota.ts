@@ -55,8 +55,8 @@ export async function getQuotaState(userId: string): Promise<QuotaState | null> 
   const quotaBytes = await getEffectiveQuotaBytes(userId);
   const usedBytes = row.usedBytes;
   const usageAge =
-    row.usageUpdatedAt instanceof Date
-      ? Date.now() - row.usageUpdatedAt.getTime()
+    row.usageUpdatedAt != null
+      ? Date.now() - row.usageUpdatedAt
       : Number.POSITIVE_INFINITY;
   return {
     quotaBytes,
@@ -102,8 +102,8 @@ export async function refreshUsedBytesIfStale(userId: string): Promise<number | 
   });
   if (!row) return null;
   const ageMs =
-    row.usageUpdatedAt instanceof Date
-      ? Date.now() - row.usageUpdatedAt.getTime()
+    row.usageUpdatedAt != null
+      ? Date.now() - row.usageUpdatedAt
       : Number.POSITIVE_INFINITY;
   if (ageMs < USAGE_REFRESH_INTERVAL_MS) return row.usedBytes;
 
@@ -115,7 +115,7 @@ export async function refreshUsedBytesIfStale(userId: string): Promise<number | 
     const totalBytes = totalKib * 1024;
     await db
       .update(schema.forgejoAccounts)
-      .set({ usedBytes: totalBytes, usageUpdatedAt: new Date() })
+      .set({ usedBytes: totalBytes, usageUpdatedAt: Date.now() })
       .where(eq(schema.forgejoAccounts.userId, userId));
     return totalBytes;
   } catch (err) {

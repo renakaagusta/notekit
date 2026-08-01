@@ -66,7 +66,7 @@ export async function getPatPrincipal(c: Context): Promise<PatPrincipal | null> 
   // "intentional fire-and-forget" marker — without it this reads like a
   // missing await and trips up both linters and reviewers.
   void db.update(schema.personalAccessTokens)
-    .set({ lastUsedAt: new Date() })
+    .set({ lastUsedAt: Date.now() })
     .where(eq(schema.personalAccessTokens.id, row.id))
     .catch((err) => {
       console.warn("[pat] failed to bump last_used_at:", err);

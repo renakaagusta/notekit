@@ -22,9 +22,6 @@ WORKDIR /app
 
 COPY --from=installer --chown=apiuser:api /app .
 
-# SQLite data directory (mounted as a volume in production)
-RUN mkdir -p /app/apps/api/data && chown apiuser:api /app/apps/api/data
-
 USER apiuser
 ENV NODE_ENV=production
 WORKDIR /app/apps/api

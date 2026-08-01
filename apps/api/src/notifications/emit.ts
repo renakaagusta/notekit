@@ -52,17 +52,16 @@ export function emitAgentEvent(input: AgentEventInput): void {
     payload: JSON.stringify(payload),
   };
 
-  // Inbox write is synchronous — cheap, in-process SQLite.
-  try {
-    db.insert(schema.notifications).values(row).run();
-  } catch (err) {
-    console.error("[notify] failed to persist notification:", err);
-    return;
-  }
-
-  // Channel fan-out is fire-and-forget. Each dispatcher reads prefs itself
-  // so adding a channel later doesn't require touching emit().
-  void dispatch(input.userId, summary, row.id, payload);
+  // Fire-and-forget: persist the notification then fan out to channels.
+  void (async () => {
+    try {
+      await db.insert(schema.notifications).values(row).execute();
+    } catch (err) {
+      console.error("[notify] failed to persist notification:", err);
+      return;
+    }
+    await dispatch(input.userId, summary, row.id, payload);
+  })();
 }
 
 async function dispatch(

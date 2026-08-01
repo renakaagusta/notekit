@@ -1,6 +1,7 @@
 import Pyroscope from "@pyroscope/nodejs";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
+import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { resourceFromAttributes } from "@opentelemetry/resources";
 import {
   ATTR_SERVICE_NAME,
@@ -21,8 +22,32 @@ const sdk = new NodeSDK({
   }),
   instrumentations: [
     getNodeAutoInstrumentations({
-      // fs is too noisy for SQLite workloads
       "@opentelemetry/instrumentation-fs": { enabled: false },
+      // Override pg defaults — auto-instrumentations bundles it but we need
+      // the custom serializer so we disable the bundled one and pass ours below.
+      "@opentelemetry/instrumentation-pg": { enabled: false },
+    }),
+    // Explicit pg instrumentation with full query+parameter visibility.
+    new PgInstrumentation({
+      // Attach raw parameter values as db.query.parameters attribute.
+      enhancedDatabaseReporting: true,
+      // requestHook: inline $1/$2/... placeholders with actual values so
+      // db.statement in Tempo shows the real query without a separate lookup.
+      requestHook(span, { query }) {
+        const { text, values } = query;
+        if (!values || values.length === 0) return;
+        const inlined = values.reduce<string>((sql, val, i) => {
+          const re = new RegExp(`\\$${i + 1}(?!\\d)`, "g");
+          const lit =
+            val == null
+              ? "NULL"
+              : typeof val === "string"
+              ? `'${val.replace(/'/g, "''")}'`
+              : String(val);
+          return sql.replace(re, lit);
+        }, text);
+        span.setAttribute("db.statement", inlined);
+      },
     }),
   ],
 });

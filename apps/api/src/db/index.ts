@@ -2,9 +2,26 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { trace } from "@opentelemetry/api";
+import type { Logger } from "drizzle-orm";
 import { env } from "../env";
 import * as schema from "./schema";
 import { runMigrations } from "./migrations";
+
+// Attach every SQL query as an event on the active OTel span so queries
+// appear inside their parent HTTP request trace in Tempo.
+class OTelQueryLogger implements Logger {
+  logQuery(query: string, params: unknown[]) {
+    const span = trace.getActiveSpan();
+    if (span?.isRecording()) {
+      span.addEvent("db.query", {
+        "db.system": "sqlite",
+        "db.statement": query,
+        "db.parameters": params.length ? JSON.stringify(params) : "",
+      });
+    }
+  }
+}
 
 function resolveSqlitePath(url: string): string {
   if (url.startsWith("file:")) return url.slice("file:".length);
@@ -202,5 +219,5 @@ sqlite.exec(`
 
 runMigrations(sqlite);
 
-export const db = drizzle(sqlite, { schema });
+export const db = drizzle(sqlite, { schema, logger: new OTelQueryLogger() });
 export { schema };

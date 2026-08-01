@@ -7,6 +7,8 @@ RUN turbo prune @notekit/api --docker
 
 # Stage 2: Install dependencies
 FROM node:20-alpine AS installer
+# python3/make/g++ needed for @pyroscope/nodejs → @datadog/pprof native compilation
+RUN apk add --no-cache python3 make g++
 RUN corepack enable && corepack prepare pnpm@9.5.0 --activate
 WORKDIR /app
 COPY --from=pruner /app/out/json/ .

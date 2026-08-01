@@ -72,7 +72,7 @@ notificationRoutes.get("/", async (c) => {
   const limit = Math.min(Number(c.req.query("limit") ?? "50") || 50, 100);
   const before = c.req.query("before");
 
-  let cursorTs: Date | null = null;
+  let cursorTs: number | null = null;
   if (before) {
     const cursor = await db.query.notifications.findFirst({
       where: eq(schema.notifications.id, before),
@@ -101,8 +101,8 @@ notificationRoutes.get("/", async (c) => {
       resourcePath: r.resourcePath,
       summary: r.summary,
       payload: JSON.parse(r.payload),
-      createdAt: r.createdAt.toISOString(),
-      readAt: r.readAt?.toISOString() ?? null,
+      createdAt: new Date(r.createdAt).toISOString(),
+      readAt: r.readAt != null ? new Date(r.readAt).toISOString() : null,
     })),
     nextCursor: rows.length === limit ? rows[rows.length - 1]!.id : null,
   });
@@ -114,14 +114,14 @@ notificationRoutes.post("/:id/read", async (c) => {
   const id = c.req.param("id");
   await db
     .update(schema.notifications)
-    .set({ readAt: new Date() })
+    .set({ readAt: Date.now() })
     .where(
       and(
         eq(schema.notifications.id, id),
         eq(schema.notifications.userId, user.id),
       ),
     )
-    .run();
+    .execute();
   return c.json({ ok: true });
 });
 
@@ -130,9 +130,9 @@ notificationRoutes.post("/read-all", async (c) => {
   if (!user) return c.json({ error: "unauthorized" }, 401);
   await db
     .update(schema.notifications)
-    .set({ readAt: new Date() })
+    .set({ readAt: Date.now() })
     .where(eq(schema.notifications.userId, user.id))
-    .run();
+    .execute();
   return c.json({ ok: true });
 });
 
@@ -174,7 +174,7 @@ notificationRoutes.patch("/prefs", async (c) => {
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const parsed = await parseBody(c, PrefsBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
-  const now = new Date();
+  const now = Date.now();
   await db
     .insert(schema.notificationPrefs)
     .values({
@@ -199,7 +199,7 @@ notificationRoutes.patch("/prefs", async (c) => {
         updatedAt: now,
       },
     })
-    .run();
+    .execute();
   return c.json({ ok: true });
 });
 
@@ -220,9 +220,9 @@ notificationRoutes.post("/telegram/link-code", async (c) => {
     .values({
       code,
       userId: user.id,
-      expiresAt: new Date(Date.now() + 10 * 60_000),
+      expiresAt: Date.now() + 10 * 60_000,
     })
-    .run();
+    .execute();
   return c.json({
     code,
     url: `https://t.me/${env.telegram.botUsername}?start=${code}`,
@@ -236,19 +236,19 @@ notificationRoutes.delete("/telegram", async (c) => {
   await db
     .delete(schema.telegramLinks)
     .where(eq(schema.telegramLinks.userId, user.id))
-    .run();
+    .execute();
   await db
     .insert(schema.notificationPrefs)
     .values({
       userId: user.id,
       telegramEnabled: false,
-      updatedAt: new Date(),
+      updatedAt: Date.now(),
     })
     .onConflictDoUpdate({
       target: schema.notificationPrefs.userId,
-      set: { telegramEnabled: false, updatedAt: new Date() },
+      set: { telegramEnabled: false, updatedAt: Date.now() },
     })
-    .run();
+    .execute();
   return c.json({ ok: true });
 });
 
@@ -290,19 +290,19 @@ notificationRoutes.post("/web-push/subscribe", async (c) => {
         userAgent,
       },
     })
-    .run();
+    .execute();
   await db
     .insert(schema.notificationPrefs)
     .values({
       userId: user.id,
       webPushEnabled: true,
-      updatedAt: new Date(),
+      updatedAt: Date.now(),
     })
     .onConflictDoUpdate({
       target: schema.notificationPrefs.userId,
-      set: { webPushEnabled: true, updatedAt: new Date() },
+      set: { webPushEnabled: true, updatedAt: Date.now() },
     })
-    .run();
+    .execute();
   return c.json({ ok: true });
 });
 
@@ -321,7 +321,7 @@ notificationRoutes.delete("/web-push/subscribe", async (c) => {
         eq(schema.webPushSubscriptions.endpoint, body.endpoint),
       ),
     )
-    .run();
+    .execute();
   return c.json({ ok: true });
 });
 
@@ -353,19 +353,19 @@ notificationRoutes.post("/mobile-push/subscribe", async (c) => {
         deviceId: parsed.data.deviceId ?? null,
       },
     })
-    .run();
+    .execute();
   await db
     .insert(schema.notificationPrefs)
     .values({
       userId: user.id,
       mobilePushEnabled: true,
-      updatedAt: new Date(),
+      updatedAt: Date.now(),
     })
     .onConflictDoUpdate({
       target: schema.notificationPrefs.userId,
-      set: { mobilePushEnabled: true, updatedAt: new Date() },
+      set: { mobilePushEnabled: true, updatedAt: Date.now() },
     })
-    .run();
+    .execute();
   return c.json({ ok: true });
 });
 
@@ -384,6 +384,6 @@ notificationRoutes.delete("/mobile-push/subscribe", async (c) => {
         eq(schema.mobilePushTokens.token, body.token),
       ),
     )
-    .run();
+    .execute();
   return c.json({ ok: true });
 });

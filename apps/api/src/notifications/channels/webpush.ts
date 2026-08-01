@@ -79,7 +79,7 @@ export async function sendWebPush(
           await db
             .delete(schema.webPushSubscriptions)
             .where(eq(schema.webPushSubscriptions.id, s.id))
-            .run();
+            .execute();
         } else {
           console.error("[notify:webpush] send failed:", err);
         }

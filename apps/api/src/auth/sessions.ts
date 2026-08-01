@@ -11,9 +11,9 @@ const SESSION_TTL_MS = 60 * 60 * 24 * 30 * 1000; // 30 days
 
 export async function createSession(userId: string): Promise<{ id: string; expiresAt: Date }> {
   const id = nanoid(32);
-  const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  await db.insert(schema.sessions).values({ id, userId, expiresAt });
-  return { id, expiresAt };
+  const expiresAtMs = Date.now() + SESSION_TTL_MS;
+  await db.insert(schema.sessions).values({ id, userId, expiresAt: expiresAtMs });
+  return { id, expiresAt: new Date(expiresAtMs) };
 }
 
 export function setSessionCookie(c: Context, sessionId: string, expiresAt: Date): void {
@@ -56,7 +56,7 @@ export async function getCurrentUser(c: Context) {
     where: eq(schema.sessions.id, sessionId),
   });
   if (!session) return null;
-  if (session.expiresAt.getTime() < Date.now()) {
+  if (session.expiresAt < Date.now()) {
     await db.delete(schema.sessions).where(eq(schema.sessions.id, sessionId));
     return null;
   }
@@ -92,7 +92,7 @@ export async function getSessionUser(c: Context) {
     where: eq(schema.sessions.id, sessionId),
   });
   if (!session) return null;
-  if (session.expiresAt.getTime() < Date.now()) {
+  if (session.expiresAt < Date.now()) {
     await db.delete(schema.sessions).where(eq(schema.sessions.id, sessionId));
     return null;
   }

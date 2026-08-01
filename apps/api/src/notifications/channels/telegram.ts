@@ -46,11 +46,11 @@ export async function consumeStartCode(
     where: eq(schema.telegramLinkCodes.code, code),
   });
   if (!row) return { ok: false, reason: "code_not_found" };
-  if (row.expiresAt.getTime() < Date.now()) {
+  if (row.expiresAt < Date.now()) {
     await db
       .delete(schema.telegramLinkCodes)
       .where(eq(schema.telegramLinkCodes.code, code))
-      .run();
+      .execute();
     return { ok: false, reason: "code_expired" };
   }
   // Upsert link, drop the code (single-use).
@@ -59,29 +59,29 @@ export async function consumeStartCode(
     .values({
       userId: row.userId,
       chatId,
-      linkedAt: new Date(),
+      linkedAt: Date.now(),
     })
     .onConflictDoUpdate({
       target: schema.telegramLinks.userId,
-      set: { chatId, linkedAt: new Date() },
+      set: { chatId, linkedAt: Date.now() },
     })
-    .run();
+    .execute();
   await db
     .delete(schema.telegramLinkCodes)
     .where(eq(schema.telegramLinkCodes.code, code))
-    .run();
+    .execute();
   // Default to enabling the channel — user explicitly asked to link.
   await db
     .insert(schema.notificationPrefs)
     .values({
       userId: row.userId,
       telegramEnabled: true,
-      updatedAt: new Date(),
+      updatedAt: Date.now(),
     })
     .onConflictDoUpdate({
       target: schema.notificationPrefs.userId,
-      set: { telegramEnabled: true, updatedAt: new Date() },
+      set: { telegramEnabled: true, updatedAt: Date.now() },
     })
-    .run();
+    .execute();
   return { ok: true, userId: row.userId };
 }

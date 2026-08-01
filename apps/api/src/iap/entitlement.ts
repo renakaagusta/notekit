@@ -1,11 +1,3 @@
-/**
- * Compute and persist Plus entitlement for a user.
- *
- * The truth is the latest receipt: pick the maximum `expiresAt` across all
- * non-revoked Apple + Google rows (lifetime web purchases write a far-future
- * expiry too — uniform model, no special cases). `users.plusUntil` mirrors
- * that max so the hot path can ignore IAP tables entirely.
- */
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "../db";
 
@@ -23,7 +15,7 @@ export async function recomputePlusForUser(userId: string): Promise<void> {
     }),
   ]);
 
-  let best: { expiresAt: Date; source: PlusSource } | null = null;
+  let best: { expiresAt: number; source: PlusSource } | null = null;
   if (latestApple?.expiresAt) {
     best = { expiresAt: latestApple.expiresAt, source: "apple" };
   }
@@ -37,7 +29,6 @@ export async function recomputePlusForUser(userId: string): Promise<void> {
   const user = await db.query.users.findFirst({
     where: eq(schema.users.id, userId),
   });
-  // Preserve a manually-set lifetime entitlement.
   if (user?.plusSource === "lifetime" || user?.plusSource === "stripe") {
     return;
   }
@@ -49,14 +40,14 @@ export async function recomputePlusForUser(userId: string): Promise<void> {
       plan: best ? "plus" : "free",
     })
     .where(eq(schema.users.id, userId))
-    .run();
+    .execute();
 }
 
 export function isPlus(user: {
-  plusUntil?: Date | null;
+  plusUntil?: number | null;
   plusSource?: string | null;
 }): boolean {
   if (user.plusSource === "lifetime") return true;
   if (!user.plusUntil) return false;
-  return user.plusUntil.getTime() > Date.now();
+  return user.plusUntil > Date.now();
 }

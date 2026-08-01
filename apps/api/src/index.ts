@@ -6,6 +6,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { bodyLimit } from "hono/body-limit";
 import { env } from "./env";
 import { logger } from "./lib/logger";
+import { pool } from "./db";
 import { authRoutes } from "./routes/auth";
 import { vaultRoutes } from "./routes/vault";
 import { agentRoutes } from "./routes/agents";
@@ -95,10 +96,12 @@ const server = serve(
 // Long-poll Telegram for bot replies in dev. In prod, set a webhook instead.
 startTelegramPoller();
 
-// Graceful shutdown so in-flight requests finish and SQLite WAL flushes.
+// Graceful shutdown — drain in-flight requests then close the PG pool.
 function shutdown(signal: NodeJS.Signals) {
   logger.info({ signal }, "shutting down");
-  server.close(() => process.exit(0));
+  server.close(() => {
+    pool.end().finally(() => process.exit(0));
+  });
   setTimeout(() => {
     logger.warn("forced exit after 10s");
     process.exit(1);

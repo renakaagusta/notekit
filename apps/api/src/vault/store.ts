@@ -15,7 +15,7 @@ export interface VaultRow {
   repo: string;
   branch: string;
   label: string | null;
-  createdAt: Date;
+  createdAt: number;
 }
 
 function toApiVault(row: typeof schema.vaults.$inferSelect): VaultRow {
@@ -132,7 +132,7 @@ export async function deleteVault(
     const fallback = remaining[0]?.id ?? null;
     await db
       .update(schema.userSettings)
-      .set({ activeVaultId: fallback, updatedAt: new Date() })
+      .set({ activeVaultId: fallback, updatedAt: Date.now() })
       .where(eq(schema.userSettings.userId, userId));
     return { deleted: true, newActiveId: fallback };
   }
@@ -148,7 +148,7 @@ export async function setActiveVault(
   const existing = await db.query.userSettings.findFirst({
     where: eq(schema.userSettings.userId, userId),
   });
-  const now = new Date();
+  const now = Date.now();
   if (existing) {
     await db
       .update(schema.userSettings)
@@ -226,7 +226,7 @@ export async function updateVaultSettings(
   const existing = await db.query.vaultSettings.findFirst({
     where: eq(schema.vaultSettings.vaultId, vaultId),
   });
-  const now = new Date();
+  const now = Date.now();
   if (existing) {
     const updates: Partial<typeof schema.vaultSettings.$inferInsert> = {
       updatedAt: now,

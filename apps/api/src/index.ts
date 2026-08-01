@@ -47,8 +47,9 @@ app.use("*", async (c, next) => {
     const status = c.res.status;
     span.setAttribute("http.status_code", status);
     if (status >= 500) span.setStatus({ code: SpanStatusCode.ERROR });
-    span.end();
+    // Log BEFORE span.end() so isRecording()=true and trace_id injects into the log.
     logger.info({ method: c.req.method, path: c.req.path, status, ms: Date.now() - start }, "request");
+    span.end();
   });
 });
 

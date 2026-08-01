@@ -1,4 +1,5 @@
 import "./lib/telemetry"; // must be first — initializes OTel SDK before any other import
+import { trace, context, SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -26,10 +27,29 @@ app.use("*", secureHeaders({
   referrerPolicy: "no-referrer",
 }));
 
+// Manual HTTP server spans — OTel instrumentation-http doesn't patch ESM
+// servers. We create the span here, set it as the active context, then all
+// downstream work (pg queries, outbound fetches) becomes a child span.
+const tracer = trace.getTracer("notekit-api");
 app.use("*", async (c, next) => {
   const start = Date.now();
-  await next();
-  logger.info({ method: c.req.method, path: c.req.path, status: c.res.status, ms: Date.now() - start }, "request");
+  const span = tracer.startSpan(`${c.req.method} ${c.req.path}`, {
+    kind: SpanKind.SERVER,
+    attributes: {
+      "http.method": c.req.method,
+      "http.url": c.req.url,
+      "http.route": c.req.path,
+      "server.address": c.req.header("host") ?? "",
+    },
+  });
+  await context.with(trace.setSpan(context.active(), span), async () => {
+    await next();
+    const status = c.res.status;
+    span.setAttribute("http.status_code", status);
+    if (status >= 500) span.setStatus({ code: SpanStatusCode.ERROR });
+    span.end();
+    logger.info({ method: c.req.method, path: c.req.path, status, ms: Date.now() - start }, "request");
+  });
 });
 
 // `webUrl` is the primary web origin; `extraCorsOrigins` lets ops add

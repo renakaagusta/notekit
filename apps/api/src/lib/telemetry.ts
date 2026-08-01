@@ -23,8 +23,10 @@ const sdk = new NodeSDK({
   instrumentations: [
     getNodeAutoInstrumentations({
       "@opentelemetry/instrumentation-fs": { enabled: false },
-      // Override pg defaults — auto-instrumentations bundles it but we need
-      // the custom serializer so we disable the bundled one and pass ours below.
+      // http server instrumentation doesn't work with ESM (tsx) — manual spans
+      // are created in the Hono middleware in index.ts instead.
+      "@opentelemetry/instrumentation-http": { enabled: false },
+      // Override pg — we provide a custom requestHook below for query visibility.
       "@opentelemetry/instrumentation-pg": { enabled: false },
     }),
     // Explicit pg instrumentation with full query+parameter visibility.

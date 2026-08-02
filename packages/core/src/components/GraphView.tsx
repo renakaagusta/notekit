@@ -376,7 +376,8 @@ export function GraphView() {
                 style={{
                   opacity: dimmed ? 0.05 : undefined,
                   stroke: isConnected ? YELLOW : undefined,
-                  strokeWidth: isConnected ? 1.8 : undefined,
+                  strokeWidth: isConnected ? 1 : undefined,
+                  transition: "stroke 0.25s, opacity 0.25s",
                 }}
               />
             );
@@ -402,11 +403,12 @@ export function GraphView() {
                 style={{
                   cursor: "grab",
                   opacity: dimmed ? 0.12 : 1,
+                  transition: "opacity 0.25s",
                 }}
               >
                 <circle
                   r={isHovered ? r + 2 : r}
-                  style={{ fill: isHovered ? YELLOW : undefined }}
+                  style={{ fill: isHovered ? YELLOW : undefined, transition: "fill 0.25s" }}
                   className={[
                     "nk-graph-node",
                     `nk-graph-node--${n.kind}`,

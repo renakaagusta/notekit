@@ -278,14 +278,14 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
           <X size={16} aria-hidden />
         </button>
 
-        <div className="nk-modal-tabs">
+        <div className="nk-provider-tabs">
           <button
             className={provider === "notekit" ? "active" : ""}
             onClick={() => setProvider("notekit")}
             title="NoteKit-hosted Git via Forgejo — no other account needed"
           >
-            <NotekitIcon size={14} className="nk-modal-tab-icon" />
-            NoteKit Git
+            <NotekitIcon size={22} />
+            <span>NoteKit Git</span>
             <span className="nk-tab-badge">Recommended</span>
           </button>
           <button
@@ -293,16 +293,16 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
             onClick={() => setProvider("github")}
             title="GitHub (bring your own)"
           >
-            <GithubIcon size={14} className="nk-modal-tab-icon" />
-            GitHub
+            <GithubIcon size={22} />
+            <span>GitHub</span>
           </button>
           <button
             className={provider === "gitlab" ? "active" : ""}
             onClick={() => setProvider("gitlab")}
             title="GitLab (bring your own)"
           >
-            <GitlabIcon size={14} className="nk-modal-tab-icon" />
-            GitLab
+            <GitlabIcon size={22} />
+            <span>GitLab</span>
           </button>
         </div>
 

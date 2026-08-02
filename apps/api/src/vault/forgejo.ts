@@ -116,16 +116,11 @@ export async function deleteAccessToken(username: string, tokenName: string): Pr
 
 /** Create token, deleting any existing token with the same name first (upsert). */
 export async function upsertAccessToken(username: string, tokenName: string): Promise<string> {
-  try {
-    return await createAccessToken(username, tokenName);
-  } catch (err) {
-    if (err instanceof GhError && err.status === 400 &&
-      (err.body.includes("name has been used") || err.body.includes("already exists"))) {
-      await deleteAccessToken(username, tokenName);
-      return await createAccessToken(username, tokenName);
-    }
-    throw err;
-  }
+  // Always delete first (no-op if the token doesn't exist), then create fresh.
+  // This handles the case where a previous provision wrote to Forgejo but
+  // failed before writing to the DB, leaving an orphaned token with the same name.
+  await deleteAccessToken(username, tokenName);
+  return await createAccessToken(username, tokenName);
 }
 
 // ── Repo operations ───────────────────────────────────────────────────────────

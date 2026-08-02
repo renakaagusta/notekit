@@ -406,10 +406,7 @@ export function GraphView() {
               >
                 <circle
                   r={isHovered ? r + 2 : r}
-                  style={{
-                    fill: isHovered || isNeighbor ? YELLOW : undefined,
-                    opacity: isNeighbor && !isHovered ? 0.75 : undefined,
-                  }}
+                  style={{ fill: isHovered ? YELLOW : undefined }}
                   className={[
                     "nk-graph-node",
                     `nk-graph-node--${n.kind}`,
@@ -422,8 +419,8 @@ export function GraphView() {
                   className="nk-graph-label"
                   y={r + 14}
                   style={{
-                    fontWeight: isHovered ? 700 : isNeighbor ? 600 : 400,
-                    fill: isHovered ? YELLOW : isNeighbor ? "var(--text)" : undefined,
+                    fontWeight: isHovered ? 700 : isNeighbor ? 500 : 400,
+                    fill: isHovered ? YELLOW : undefined,
                   }}
                 >
                   {label}

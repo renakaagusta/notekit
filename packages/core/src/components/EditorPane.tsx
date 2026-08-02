@@ -54,6 +54,7 @@ export function EditorPane({
   const upsert = useNotesStore((s) => s.upsert);
   const links = useLinksStore((s) => s.all());
   const activeSettings = useVaultStore((s) => s.activeSettings);
+  const vaultReady = useVaultStore((s) => s.phase === "ready");
 
   if (!pane) return null;
 
@@ -186,27 +187,33 @@ export function EditorPane({
               style={{ color: "var(--muted)", opacity: 0.4, marginBottom: 14 }}
             />
             <p>No note open.</p>
-            <p className="nk-empty-hint">Pick one from the sidebar, or:</p>
-            <div className="nk-empty-cta-row">
-              <button className="nk-empty-cta" onClick={handleNewNote}>
-                <Plus size={14} aria-hidden /> New note
-              </button>
-              <button
-                className="nk-empty-cta"
-                onClick={() => {
-                  const folder = activeSettings?.defaultFolder ?? null;
-                  const created = upsert({
-                    title: "Drawing",
-                    body: serializeInk(emptyInkDocument()),
-                    folder,
-                    format: "ink",
-                  });
-                  openNote(created.id, paneId);
-                }}
-              >
-                <Pencil size={14} aria-hidden /> New drawing
-              </button>
-            </div>
+            {vaultReady ? (
+              <>
+                <p className="nk-empty-hint">Pick one from the sidebar, or:</p>
+                <div className="nk-empty-cta-row">
+                  <button className="nk-empty-cta" onClick={handleNewNote}>
+                    <Plus size={14} aria-hidden /> New note
+                  </button>
+                  <button
+                    className="nk-empty-cta"
+                    onClick={() => {
+                      const folder = activeSettings?.defaultFolder ?? null;
+                      const created = upsert({
+                        title: "Drawing",
+                        body: serializeInk(emptyInkDocument()),
+                        folder,
+                        format: "ink",
+                      });
+                      openNote(created.id, paneId);
+                    }}
+                  >
+                    <Pencil size={14} aria-hidden /> New drawing
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="nk-empty-hint">Connect a vault to start writing.</p>
+            )}
           </div>
         )}
       </div>

@@ -50,14 +50,14 @@ export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }
     return (Object.values(notes) as Note[])
       .filter((n) => n.format !== "ink")
       .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))
-      .slice(0, 6);
+      .slice(0, 8);
   }, [notes]);
 
   const todayTasks = useMemo(() => {
     const ymd = todayYMD();
     return tickets
       .filter((t) => t.dueDate === ymd && t.status !== "done")
-      .slice(0, 6);
+      .slice(0, 8);
   }, [tickets]);
 
   return (
@@ -78,12 +78,14 @@ export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }
         </button>
       </div>
 
-      {recent.length > 0 && (
-        <section className="nk-home-section">
-          <h2 className="nk-home-section-title">
-            <Zap size={13} aria-hidden />
-            Recent
-          </h2>
+      <section className="nk-home-section">
+        <h2 className="nk-home-section-title">
+          <Zap size={13} aria-hidden />
+          Recent
+        </h2>
+        {recent.length === 0 ? (
+          <p className="nk-home-empty">No notes yet. Create one above.</p>
+        ) : (
           <ul className="nk-home-list">
             {recent.map((n) => (
               <li key={n.id}>
@@ -95,15 +97,17 @@ export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+      </section>
 
-      {todayTasks.length > 0 && (
-        <section className="nk-home-section">
-          <h2 className="nk-home-section-title">
-            <CheckSquare size={13} aria-hidden />
-            Today
-          </h2>
+      <section className="nk-home-section">
+        <h2 className="nk-home-section-title">
+          <CheckSquare size={13} aria-hidden />
+          Today
+        </h2>
+        {todayTasks.length === 0 ? (
+          <p className="nk-home-empty">No tasks due today.</p>
+        ) : (
           <ul className="nk-home-list">
             {todayTasks.map((t) => (
               <li key={t.id}>
@@ -117,8 +121,8 @@ export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+      </section>
     </div>
   );
 }

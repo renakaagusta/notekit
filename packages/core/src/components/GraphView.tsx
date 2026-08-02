@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useMembersStore } from "../stores/membersStore";
@@ -13,6 +13,8 @@ const HEIGHT = 640;
 const CX = WIDTH / 2;
 const CY = HEIGHT / 2;
 
+const YELLOW = "#f5c542";
+
 type NodeKind = "note" | "ticket" | "project" | "member";
 type EdgeKind = "wikilink" | "creator" | "collaborator" | "project" | "linked";
 
@@ -20,8 +22,6 @@ interface GraphNode {
   id: string;
   kind: NodeKind;
   label: string;
-  x: number;
-  y: number;
   degree: number;
   refId?: string;
   memberKind?: "user" | "agent" | "legacy";
@@ -32,6 +32,15 @@ interface GraphEdge {
   from: string;
   to: string;
   kind: EdgeKind;
+}
+
+// Simulation node — positions live here, separate from metadata.
+interface SimNode {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
 }
 
 const WIKILINK_RE = /\[\[([^\]]+)\]\]/g;
@@ -76,11 +85,6 @@ function projectForNote(note: Note): string | null {
   return null;
 }
 
-function projectForTicket(t: Ticket): string | null {
-  void t;
-  return null;
-}
-
 interface FilterState {
   notes: boolean;
   tickets: boolean;
@@ -95,84 +99,95 @@ const DEFAULT_FILTER: FilterState = {
   members: false,
 };
 
-// ── Force-directed simulation ──────────────────────────────────────────────
+// ── Force sim (single step) ────────────────────────────────────────────────
 
-function runForce(
-  nodes: GraphNode[],
+function stepSim(
+  sn: SimNode[],
   edges: GraphEdge[],
-  iterations = 280,
+  alpha: number,
+  pinned: { id: string; x: number; y: number } | null,
 ): void {
-  if (nodes.length === 0) return;
-
-  // Seed positions in a circle for deterministic start.
-  const n = nodes.length;
-  const r0 = Math.min(WIDTH, HEIGHT) * 0.3;
-  nodes.forEach((nd, i) => {
-    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-    nd.x = CX + Math.cos(angle) * r0;
-    nd.y = CY + Math.sin(angle) * r0;
-  });
+  const n = sn.length;
+  if (n === 0) return;
 
   const REPULSION = 12000;
   const SPRING_K = 0.025;
   const SPRING_REST = 130;
   const GRAVITY = 0.005;
   const PAD = 50;
+  const DAMP = 0.65;
 
-  const vx = new Float64Array(n);
-  const vy = new Float64Array(n);
-  const idx = new Map(nodes.map((nd, i) => [nd.id, i]));
+  const idx = new Map(sn.map((s, i) => [s.id, i]));
 
-  for (let iter = 0; iter < iterations; iter++) {
-    const alpha = Math.max(0.01, 1 - iter / iterations);
-    vx.fill(0);
-    vy.fill(0);
-
-    // Repulsion between all pairs (Barnes–Hut would scale better, but n<200).
-    for (let i = 0; i < n; i++) {
-      for (let j = i + 1; j < n; j++) {
-        const dx = nodes[j]!.x - nodes[i]!.x;
-        const dy = nodes[j]!.y - nodes[i]!.y;
-        const d2 = dx * dx + dy * dy + 1;
-        const f = REPULSION / d2;
-        const d = Math.sqrt(d2);
-        vx[i]! -= (dx / d) * f;
-        vy[i]! -= (dy / d) * f;
-        vx[j]! += (dx / d) * f;
-        vy[j]! += (dy / d) * f;
-      }
+  // Repulsion
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      const dx = sn[j]!.x - sn[i]!.x;
+      const dy = sn[j]!.y - sn[i]!.y;
+      const d2 = dx * dx + dy * dy + 1;
+      const f = (REPULSION * alpha) / d2;
+      const d = Math.sqrt(d2);
+      const nx = (dx / d) * f;
+      const ny = (dy / d) * f;
+      sn[i]!.vx -= nx;
+      sn[i]!.vy -= ny;
+      sn[j]!.vx += nx;
+      sn[j]!.vy += ny;
     }
+  }
 
-    // Spring attraction along edges.
-    for (const e of edges) {
-      const ai = idx.get(e.from);
-      const bi = idx.get(e.to);
-      if (ai == null || bi == null) continue;
-      const dx = nodes[bi]!.x - nodes[ai]!.x;
-      const dy = nodes[bi]!.y - nodes[ai]!.y;
-      const d = Math.sqrt(dx * dx + dy * dy) + 0.001;
-      const f = SPRING_K * (d - SPRING_REST);
-      vx[ai]! += (dx / d) * f;
-      vy[ai]! += (dy / d) * f;
-      vx[bi]! -= (dx / d) * f;
-      vy[bi]! -= (dy / d) * f;
-    }
+  // Spring
+  for (const e of edges) {
+    const ai = idx.get(e.from);
+    const bi = idx.get(e.to);
+    if (ai == null || bi == null) continue;
+    const dx = sn[bi]!.x - sn[ai]!.x;
+    const dy = sn[bi]!.y - sn[ai]!.y;
+    const d = Math.sqrt(dx * dx + dy * dy) + 0.001;
+    const f = SPRING_K * (d - SPRING_REST) * alpha;
+    sn[ai]!.vx += (dx / d) * f;
+    sn[ai]!.vy += (dy / d) * f;
+    sn[bi]!.vx -= (dx / d) * f;
+    sn[bi]!.vy -= (dy / d) * f;
+  }
 
-    // Gravity toward center.
-    for (let i = 0; i < n; i++) {
-      vx[i]! += (CX - nodes[i]!.x) * GRAVITY;
-      vy[i]! += (CY - nodes[i]!.y) * GRAVITY;
-    }
+  // Gravity
+  for (const s of sn) {
+    s.vx += (CX - s.x) * GRAVITY * alpha;
+    s.vy += (CY - s.y) * GRAVITY * alpha;
+  }
 
-    // Integrate and clamp.
-    for (let i = 0; i < n; i++) {
-      nodes[i]!.x = Math.max(PAD, Math.min(WIDTH - PAD, nodes[i]!.x + vx[i]! * alpha));
-      nodes[i]!.y = Math.max(PAD, Math.min(HEIGHT - PAD, nodes[i]!.y + vy[i]! * alpha));
+  // Integrate
+  for (const s of sn) {
+    if (pinned && s.id === pinned.id) {
+      s.x = pinned.x;
+      s.y = pinned.y;
+      s.vx = 0;
+      s.vy = 0;
+    } else {
+      s.vx *= DAMP;
+      s.vy *= DAMP;
+      s.x = Math.max(PAD, Math.min(WIDTH - PAD, s.x + s.vx));
+      s.y = Math.max(PAD, Math.min(HEIGHT - PAD, s.y + s.vy));
     }
   }
 }
 
-// ── Component ─────────────────────────────────────────────────────────────
+function initSim(n: number): SimNode[] {
+  // Deterministic circle seed
+  return Array.from({ length: n }, (_, i) => {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+    return {
+      id: "",
+      x: CX + Math.cos(angle) * 280,
+      y: CY + Math.sin(angle) * 280,
+      vx: 0,
+      vy: 0,
+    };
+  });
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
 
 export function GraphView() {
   const notes = useNotesStore((s) => s.all());
@@ -185,11 +200,21 @@ export function GraphView() {
 
   const [hover, setHover] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER);
-  // drag-to-pan
-  const panRef = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(1);
+
+  // Render trigger for RAF loop
+  const [, rerender] = useReducer((n: number) => n + 1, 0);
+
   const svgRef = useRef<SVGSVGElement>(null);
+  const simRef = useRef<SimNode[]>([]);
+  const alphaRef = useRef(1.0);
+  const rafRef = useRef<number | null>(null);
+  const pinnedRef = useRef<{ id: string; x: number; y: number } | null>(null);
+  // pan drag
+  const panDragRef = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null);
+  // node drag tracking
+  const nodeDragRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (membersStatus === "idle") void loadMembers();
@@ -200,6 +225,29 @@ export function GraphView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [notes, tickets, memberList, filters],
   );
+
+  // Re-seed simulation whenever the node list changes.
+  useEffect(() => {
+    const seed = initSim(nodes.length);
+    seed.forEach((s, i) => { s.id = nodes[i]!.id; });
+    simRef.current = seed;
+    alphaRef.current = 1.0;
+  }, [nodes]);
+
+  // Continuous RAF loop.
+  useEffect(() => {
+    function loop() {
+      const alpha = alphaRef.current;
+      if (alpha > 0.003 || pinnedRef.current) {
+        stepSim(simRef.current, edges, Math.min(alpha, 0.3), pinnedRef.current);
+        if (!pinnedRef.current) alphaRef.current *= 0.97;
+        rerender();
+      }
+      rafRef.current = requestAnimationFrame(loop);
+    }
+    rafRef.current = requestAnimationFrame(loop);
+    return () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current); };
+  }, [edges]);
 
   // Hover neighbours
   const hoveredSet = useMemo(() => {
@@ -218,36 +266,76 @@ export function GraphView() {
         <p>No notes or tickets to graph yet.</p>
         <p className="nk-empty-hint">
           Add a few items and connect them with{" "}
-          <code style={{ fontFamily: "var(--mono-font)" }}>[[wikilinks]]</code>,
-          frontmatter <code>creator:</code> / <code>collaborators:</code>, or a folder per project.
+          <code style={{ fontFamily: "var(--mono-font)" }}>[[wikilinks]]</code>.
         </p>
       </div>
     );
   }
 
-  const nodeIndex = new Map(nodes.map((n) => [n.id, n]));
+  // Build position lookup from live sim
+  const posMap = new Map(simRef.current.map((s) => [s.id, { x: s.x, y: s.y }]));
 
-  function onClickNode(n: GraphNode) {
-    if (n.kind === "note" && n.refId) setActiveNote(n.refId);
+  // Convert client (screen) coords → node-space coords
+  function clientToNode(clientX: number, clientY: number): { x: number; y: number } {
+    const svg = svgRef.current;
+    if (!svg) return { x: clientX, y: clientY };
+    const rect = svg.getBoundingClientRect();
+    // viewBox scale (preserveAspectRatio: meet)
+    const scaleX = WIDTH / rect.width;
+    const scaleY = HEIGHT / rect.height;
+    const vs = Math.max(scaleX, scaleY); // "meet" takes the larger
+    const ox = (rect.width - WIDTH / vs) / 2;
+    const oy = (rect.height - HEIGHT / vs) / 2;
+    const svgX = (clientX - rect.left - ox) * vs;
+    const svgY = (clientY - rect.top - oy) * vs;
+    // Undo the g transform: translate(pan.x + CX*(1-scale), ...) scale(scale)
+    const tx = pan.x + CX * (1 - scale);
+    const ty = pan.y + CY * (1 - scale);
+    return {
+      x: (svgX - tx) / scale,
+      y: (svgY - ty) / scale,
+    };
+  }
+
+  function onSvgMouseDown(e: React.MouseEvent) {
+    if (e.button !== 0) return;
+    // Only pan when not dragging a node
+    panDragRef.current = { startX: e.clientX, startY: e.clientY, ox: pan.x, oy: pan.y };
+  }
+
+  function onSvgMouseMove(e: React.MouseEvent) {
+    if (nodeDragRef.current) {
+      const pos = clientToNode(e.clientX, e.clientY);
+      pinnedRef.current = { id: nodeDragRef.current, ...pos };
+      alphaRef.current = Math.max(alphaRef.current, 0.3);
+      return;
+    }
+    if (!panDragRef.current) return;
+    setPan({
+      x: panDragRef.current.ox + (e.clientX - panDragRef.current.startX),
+      y: panDragRef.current.oy + (e.clientY - panDragRef.current.startY),
+    });
+  }
+
+  function onSvgMouseUp() {
+    panDragRef.current = null;
+    nodeDragRef.current = null;
+    pinnedRef.current = null;
+    // Let the sim cool again from current alpha
+    alphaRef.current = Math.max(alphaRef.current, 0.1);
   }
 
   function onWheel(e: React.WheelEvent) {
     e.preventDefault();
-    setScale((s) => Math.max(0.3, Math.min(3, s * (e.deltaY > 0 ? 0.9 : 1.1))));
+    setScale((s) => Math.max(0.2, Math.min(4, s * (e.deltaY > 0 ? 0.9 : 1.1))));
   }
 
-  function onMouseDown(e: React.MouseEvent) {
-    if (e.button !== 0) return;
-    panRef.current = { startX: e.clientX, startY: e.clientY, ox: pan.x, oy: pan.y };
+  function onNodeMouseDown(e: React.MouseEvent, id: string) {
+    e.stopPropagation(); // prevent pan
+    nodeDragRef.current = id;
+    const pos = clientToNode(e.clientX, e.clientY);
+    pinnedRef.current = { id, ...pos };
   }
-  function onMouseMove(e: React.MouseEvent) {
-    if (!panRef.current) return;
-    setPan({
-      x: panRef.current.ox + (e.clientX - panRef.current.startX),
-      y: panRef.current.oy + (e.clientY - panRef.current.startY),
-    });
-  }
-  function onMouseUp() { panRef.current = null; }
 
   return (
     <div className="nk-graph">
@@ -267,81 +355,75 @@ export function GraphView() {
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         preserveAspectRatio="xMidYMid meet"
         onWheel={onWheel}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
-        style={{ cursor: panRef.current ? "grabbing" : "grab" }}
+        onMouseDown={onSvgMouseDown}
+        onMouseMove={onSvgMouseMove}
+        onMouseUp={onSvgMouseUp}
+        onMouseLeave={onSvgMouseUp}
+        style={{ cursor: nodeDragRef.current ? "grabbing" : panDragRef.current ? "grabbing" : "grab" }}
       >
         <g transform={`translate(${pan.x + CX * (1 - scale)},${pan.y + CY * (1 - scale)}) scale(${scale})`}>
-
-          {/* Edges — render before nodes so nodes sit on top */}
           {edges.map((e, i) => {
-            const a = nodeIndex.get(e.from);
-            const b = nodeIndex.get(e.to);
-            if (!a || !b) return null;
-            const isConnected =
-              hoveredSet && (hoveredSet.has(e.from) && hoveredSet.has(e.to));
+            const ap = posMap.get(e.from);
+            const bp = posMap.get(e.to);
+            if (!ap || !bp) return null;
+            const isConnected = hoveredSet && hoveredSet.has(e.from) && hoveredSet.has(e.to);
             const dimmed = hoveredSet && !isConnected;
             return (
               <line
                 key={`e${i}`}
                 className={`nk-graph-edge nk-graph-edge--${e.kind}`}
-                x1={a.x} y1={a.y} x2={b.x} y2={b.y}
+                x1={ap.x} y1={ap.y} x2={bp.x} y2={bp.y}
                 style={{
-                  opacity: dimmed ? 0.05 : isConnected ? 1 : undefined,
-                  stroke: isConnected ? "var(--accent)" : undefined,
-                  strokeWidth: isConnected ? 1.5 : undefined,
-                  transition: "opacity 0.12s, stroke 0.12s",
+                  opacity: dimmed ? 0.05 : undefined,
+                  stroke: isConnected ? YELLOW : undefined,
+                  strokeWidth: isConnected ? 1.8 : undefined,
                 }}
               />
             );
           })}
 
-          {/* Nodes */}
           {nodes.map((n) => {
+            const pos = posMap.get(n.id);
+            if (!pos) return null;
             const r = nodeRadius(n);
             const isHovered = hover === n.id;
             const isNeighbor = hoveredSet ? hoveredSet.has(n.id) : false;
             const dimmed = hoveredSet && !isNeighbor;
-            const highlighted = isNeighbor && !isHovered;
             const label = labelFor(n, encryptionRequired);
+
             return (
               <g
                 key={n.id}
-                transform={`translate(${n.x},${n.y})`}
+                transform={`translate(${pos.x},${pos.y})`}
                 onMouseEnter={() => setHover(n.id)}
                 onMouseLeave={() => setHover(null)}
-                onClick={() => onClickNode(n)}
+                onMouseDown={(e) => onNodeMouseDown(e, n.id)}
+                onClick={() => { if (n.kind === "note" && n.refId) setActiveNote(n.refId); }}
                 style={{
-                  cursor: n.kind === "note" ? "pointer" : "default",
+                  cursor: "grab",
                   opacity: dimmed ? 0.12 : 1,
-                  transition: "opacity 0.12s",
                 }}
               >
                 <circle
+                  r={isHovered ? r + 2 : r}
+                  style={{
+                    fill: isHovered || isNeighbor ? YELLOW : undefined,
+                    opacity: isNeighbor && !isHovered ? 0.75 : undefined,
+                  }}
                   className={[
                     "nk-graph-node",
                     `nk-graph-node--${n.kind}`,
                     n.degree >= 3 ? "hub" : "",
                     n.encrypted && !encryptionRequired ? "encrypted" : "",
                     n.kind === "member" && n.memberKind === "agent" ? "agent" : "",
-                    isHovered ? "hovered" : "",
-                    highlighted ? "neighbor" : "",
                   ].filter(Boolean).join(" ")}
-                  r={isHovered ? r + 2 : r}
                 />
                 <text
                   className="nk-graph-label"
                   y={r + 14}
                   style={{
                     fontWeight: isHovered ? 700 : isNeighbor ? 600 : 400,
-                    fill: isHovered
-                      ? "var(--text)"
-                      : isNeighbor
-                      ? "var(--text-2)"
-                      : undefined,
-                    fontSize: isHovered ? 11.5 : undefined,
+                    fill: isHovered ? YELLOW : isNeighbor ? "var(--text)" : undefined,
                   }}
                 >
                   {label}
@@ -358,7 +440,7 @@ export function GraphView() {
           <b>{stats.projects}</b> projects · <b>{stats.members}</b> members
         </div>
         <div style={{ fontSize: 10.5, color: "var(--muted)" }}>
-          Click a note to open · scroll to zoom · drag to pan
+          Drag node to move · scroll to zoom · drag background to pan
         </div>
       </div>
     </div>
@@ -386,7 +468,6 @@ function FilterChip({
 }
 
 function nodeRadius(n: GraphNode): number {
-  // Small dots like Obsidian: base 4px, up to ~12px for highly-connected nodes.
   const base = n.kind === "project" ? 5 : n.kind === "member" ? 4 : 4;
   return base + Math.sqrt(Math.max(0, n.degree)) * 1.4;
 }
@@ -398,7 +479,7 @@ function labelFor(n: GraphNode, encryptionRequired: boolean): string {
   return `${lock}${agentTag}${text}`;
 }
 
-// ── Graph build ────────────────────────────────────────────────────────────
+// ── Graph build (metadata only, no positions) ──────────────────────────────
 
 interface BuildArgs {
   notes: Note[];
@@ -436,11 +517,7 @@ function buildGraph(args: BuildArgs): BuildResult {
       const nodeId = `note:${n.id}`;
       noteIdToNodeId.set(n.id, nodeId);
       byTitle.set(t.toLowerCase(), nodeId);
-      const node: GraphNode = {
-        id: nodeId, kind: "note", label: t || "Untitled",
-        x: 0, y: 0, degree: 0, refId: n.id, encrypted: !!n.encrypted,
-      };
-      allNodes.push(node);
+      allNodes.push({ id: nodeId, kind: "note", label: t || "Untitled", degree: 0, refId: n.id, encrypted: !!n.encrypted });
     }
   }
 
@@ -449,11 +526,7 @@ function buildGraph(args: BuildArgs): BuildResult {
     for (const t of tickets) {
       const nodeId = `ticket:${t.id}`;
       ticketIdToNodeId.set(t.id, nodeId);
-      const node: GraphNode = {
-        id: nodeId, kind: "ticket", label: t.title || "Untitled ticket",
-        x: 0, y: 0, degree: 0, refId: t.id, encrypted: !!t.encrypted,
-      };
-      allNodes.push(node);
+      allNodes.push({ id: nodeId, kind: "ticket", label: t.title || "Untitled ticket", degree: 0, refId: t.id, encrypted: !!t.encrypted });
     }
   }
 
@@ -486,9 +559,7 @@ function buildGraph(args: BuildArgs): BuildResult {
     if (!nodeId) return null;
     if (memberHubs.has(nodeId)) return nodeId;
     const resolved = resolveAssignee(ref, members);
-    const label = resolved?.display ?? ref;
-    const mkind = resolved?.kind ?? "legacy";
-    const node: GraphNode = { id: nodeId, kind: "member", label, x: 0, y: 0, degree: 0, memberKind: mkind };
+    const node: GraphNode = { id: nodeId, kind: "member", label: resolved?.display ?? ref, degree: 0, memberKind: resolved?.kind ?? "legacy" };
     memberHubs.set(nodeId, node);
     allNodes.push(node);
     return nodeId;
@@ -511,8 +582,7 @@ function buildGraph(args: BuildArgs): BuildResult {
       if (!fromId) continue;
       if (t.createdBy) { const mId = ensureMember(t.createdBy); if (mId) edge(mId, fromId, "creator"); }
       if (t.assignee && t.assignee !== t.createdBy) {
-        const mId = ensureMember(t.assignee);
-        if (mId) edge(mId, fromId, "collaborator");
+        const mId = ensureMember(t.assignee); if (mId) edge(mId, fromId, "collaborator");
       }
     }
   }
@@ -520,7 +590,7 @@ function buildGraph(args: BuildArgs): BuildResult {
   function ensureProject(name: string): string {
     const nodeId = `project:${name}`;
     if (!projectHubs.has(nodeId)) {
-      const node: GraphNode = { id: nodeId, kind: "project", label: name, x: 0, y: 0, degree: 0 };
+      const node: GraphNode = { id: nodeId, kind: "project", label: name, degree: 0 };
       projectHubs.set(nodeId, node);
       allNodes.push(node);
     }
@@ -533,19 +603,9 @@ function buildGraph(args: BuildArgs): BuildResult {
       const p = projectForNote(n);
       if (p) edge(ensureProject(p), fromId, "project");
     }
-    for (const t of tickets) {
-      const fromId = ticketIdToNodeId.get(t.id);
-      if (!fromId) continue;
-      const p = projectForTicket(t);
-      if (p) edge(ensureProject(p), fromId, "project");
-    }
   }
 
-  // Stamp degrees.
   for (const n of allNodes) n.degree = degree.get(n.id) ?? 0;
-
-  // Run force-directed layout (mutates x/y in place).
-  runForce(allNodes, edges);
 
   return {
     nodes: allNodes,

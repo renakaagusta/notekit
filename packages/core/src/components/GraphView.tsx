@@ -366,7 +366,7 @@ export function GraphView() {
             const ap = posMap.get(e.from);
             const bp = posMap.get(e.to);
             if (!ap || !bp) return null;
-            const isConnected = hoveredSet && hoveredSet.has(e.from) && hoveredSet.has(e.to);
+            const isConnected = hover && (e.from === hover || e.to === hover);
             const dimmed = hoveredSet && !isConnected;
             return (
               <line

@@ -2291,20 +2291,30 @@ a.nk-commit-sha:hover {
 }
 
 .nk-graph-node {
-  fill: var(--surface);
-  stroke: var(--border);
-  stroke-width: 1.5;
-  transition: fill 0.15s, stroke 0.15s, stroke-width 0.15s;
+  fill: var(--text-2);
+  stroke: none;
+  transition: fill 0.12s, r 0.12s;
 }
 
-.nk-graph-node.hub {
-  fill: var(--accent-soft);
-  stroke: var(--accent);
+/* Node sizes / fills by kind. Project + member hubs are accent-tinted. */
+.nk-graph-node--note    { fill: var(--text-2); }
+.nk-graph-node--ticket  { fill: var(--accent); opacity: 0.85; }
+.nk-graph-node--project { fill: var(--accent); }
+.nk-graph-node--member  { fill: rgba(120, 180, 255, 0.85); }
+.nk-graph-node--member.agent { fill: rgba(180, 140, 255, 0.85); }
+
+/* Hub = heavily connected node; slightly brighter fill. */
+.nk-graph-node.hub { fill: var(--text); }
+
+/* Hovered node pulses accent. */
+.nk-graph-node.hovered {
+  fill: var(--accent);
 }
 
-.nk-graph-node:hover {
-  stroke: var(--accent);
-  stroke-width: 2.5;
+/* Neighbour nodes also shift to accent (dimmer). */
+.nk-graph-node.neighbor {
+  fill: var(--accent);
+  opacity: 0.6;
 }
 
 .nk-graph-edge {
@@ -2340,23 +2350,15 @@ a.nk-commit-sha:hover {
   color: var(--text);
 }
 
-/* Typed graph: per-kind node fills and edge styles. Hubs (project,
- * member) live on top of the dot grid; items (note, ticket) stay
- * neutral so the eye reads hubs as anchors. */
-.nk-graph-node--note { fill: var(--surface); stroke: var(--border); }
-.nk-graph-node--ticket { fill: var(--surface); stroke: var(--accent); }
-.nk-graph-node--project { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
-.nk-graph-node--member { fill: rgba(120, 180, 255, 0.18); stroke: rgba(120, 180, 255, 0.85); stroke-width: 1.8; }
-.nk-graph-node--member.agent { fill: rgba(180, 140, 255, 0.18); stroke: rgba(180, 140, 255, 0.85); }
-
-.nk-graph-edge--wikilink { stroke: var(--border); }
-.nk-graph-edge--linked { stroke: var(--accent); stroke-opacity: 0.45; }
-.nk-graph-edge--creator { stroke: rgba(120, 180, 255, 0.7); stroke-width: 1.5; }
+/* Edge type styles (default state, no hover override needed — handled inline). */
+.nk-graph-edge--wikilink   { stroke: var(--border); stroke-opacity: 0.7; }
+.nk-graph-edge--linked     { stroke: var(--accent); stroke-opacity: 0.45; }
+.nk-graph-edge--creator    { stroke: rgba(120, 180, 255, 0.55); stroke-width: 1.5; }
 .nk-graph-edge--collaborator {
-  stroke: rgba(120, 180, 255, 0.45);
+  stroke: rgba(120, 180, 255, 0.35);
   stroke-dasharray: 4 3;
 }
-.nk-graph-edge--project { stroke: rgba(200, 162, 58, 0.4); }
+.nk-graph-edge--project { stroke: rgba(200, 162, 58, 0.35); }
 
 /* Filter chips above the SVG. The toolbar sits inside .nk-graph so it
  * shares the grid background, but pads itself off the top edge. */

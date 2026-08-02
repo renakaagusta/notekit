@@ -91,8 +91,8 @@ interface FilterState {
 const DEFAULT_FILTER: FilterState = {
   notes: true,
   tickets: true,
-  projects: true,
-  members: true,
+  projects: false,
+  members: false,
 };
 
 // ── Force-directed simulation ──────────────────────────────────────────────
@@ -113,10 +113,10 @@ function runForce(
     nd.y = CY + Math.sin(angle) * r0;
   });
 
-  const REPULSION = 3500;
-  const SPRING_K = 0.06;
-  const SPRING_REST = 90;
-  const GRAVITY = 0.008;
+  const REPULSION = 12000;
+  const SPRING_K = 0.025;
+  const SPRING_REST = 130;
+  const GRAVITY = 0.005;
   const PAD = 50;
 
   const vx = new Float64Array(n);
@@ -386,9 +386,9 @@ function FilterChip({
 }
 
 function nodeRadius(n: GraphNode): number {
-  // Scale with degree: hub nodes get bigger, leaf nodes stay small.
-  const base = n.kind === "project" ? 10 : n.kind === "member" ? 9 : 6;
-  return base + Math.sqrt(Math.max(0, n.degree)) * 2.5;
+  // Small dots like Obsidian: base 4px, up to ~12px for highly-connected nodes.
+  const base = n.kind === "project" ? 5 : n.kind === "member" ? 4 : 4;
+  return base + Math.sqrt(Math.max(0, n.degree)) * 1.4;
 }
 
 function labelFor(n: GraphNode, encryptionRequired: boolean): string {

@@ -2296,15 +2296,15 @@ a.nk-commit-sha:hover {
   transition: fill 0.12s, r 0.12s;
 }
 
-/* Node sizes / fills by kind. Project + member hubs are accent-tinted. */
-.nk-graph-node--note    { fill: var(--text-2); }
-.nk-graph-node--ticket  { fill: var(--accent); opacity: 0.85; }
-.nk-graph-node--project { fill: var(--accent); }
-.nk-graph-node--member  { fill: rgba(120, 180, 255, 0.85); }
-.nk-graph-node--member.agent { fill: rgba(180, 140, 255, 0.85); }
+/* Node fills. Obsidian-style: uniform dark gray, slightly larger for hubs. */
+.nk-graph-node--note    { fill: #6b7280; }
+.nk-graph-node--ticket  { fill: var(--accent); }
+.nk-graph-node--project { fill: var(--accent); opacity: 0.7; }
+.nk-graph-node--member  { fill: rgba(120, 180, 255, 0.9); }
+.nk-graph-node--member.agent { fill: rgba(180, 140, 255, 0.9); }
 
-/* Hub = heavily connected node; slightly brighter fill. */
-.nk-graph-node.hub { fill: var(--text); }
+/* Hub = well-connected; slightly darker so it reads as anchor. */
+.nk-graph-node.hub { fill: #374151; }
 
 /* Hovered node pulses accent. */
 .nk-graph-node.hovered {

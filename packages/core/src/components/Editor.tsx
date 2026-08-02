@@ -21,6 +21,7 @@ import { Media } from "./extensions/Media";
 import { SlashCommands } from "./extensions/SlashCommands";
 import { VimMode } from "./extensions/VimMode";
 import { Wikilink } from "./extensions/Wikilink";
+import { WikilinkSuggestion } from "./extensions/WikilinkSuggestion";
 
 const PURIFY_CONFIG = {
   USE_PROFILES: { html: true },
@@ -72,6 +73,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       SlashCommands,
       VimMode.configure({ enabled: vimMode }),
       Wikilink,
+      WikilinkSuggestion,
       // The first line of the body becomes the note title (via
       // noteTitle()), so cue users to type a meaningful title first
       // rather than a generic "write anything" prompt.

@@ -22,6 +22,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   const [provider, setProvider] = useState<Provider>("notekit");
   const [githubMode, setGithubMode] = useState<SubMode>("list");
   const [repos, setRepos] = useState<VaultRepo[] | null>(null);
+  const [githubLoaded, setGithubLoaded] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [newName, setNewName] = useState("notekit-vault");
@@ -44,8 +45,12 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   const [gitlabPrivate, setGitlabPrivate] = useState(true);
   const [gitlabMode, setGitlabMode] = useState<"list" | "create">("list");
 
+  // Load GitHub repos lazily — only when the GitHub tab is first opened.
+  // Avoids spilling a "vault_token_missing" error onto other provider tabs.
   useEffect(() => {
+    if (provider !== "github" || githubLoaded) return;
     let cancelled = false;
+    setGithubLoaded(true);
     setLoadErr(null);
     vaultApi
       .listRepos()
@@ -58,7 +63,8 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider]);
 
   // Provision Forgejo account when switching to notekit tab.
   // Deps are [provider] ONLY — deliberately not notekitStep. Including the

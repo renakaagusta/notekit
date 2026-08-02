@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   CONFIG_PATH,
   DEVICES_PREFIX,
@@ -9,6 +9,15 @@ import {
   addMember,
   collectVaultRecipients,
   configureSecretsBackend,
+  getSecret,
+  setSecret,
+  setActiveVaultKey,
+  unlockVaultKey,
+  addDevice,
+  removeDevice,
+  addSelfToKeybox,
+  migrateToEnvelope,
+  KEYBOX_PATH,
   deviceRecordTrustedByMember,
   ensureOwnerMember,
   ensureSelfRegistered,
@@ -29,10 +38,12 @@ import type { DeviceIdentity } from "./crypto/device-key";
 import {
   generateRecoveryMnemonic,
   recoverySigningFromMnemonic,
+  recoveryFromMnemonic,
 } from "./crypto/recovery";
 import { deviceSigningPayload, sign, toB64 } from "./crypto/signing";
 import { generateIdentity, identityToRecipient } from "age-encryption";
 import { encryptSecrets } from "./crypto/vault-crypto";
+import { generateVaultKey } from "./crypto/keybox";
 
 const PHRASE =
   "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
@@ -700,3 +711,257 @@ describe("batched re-encrypt commits — #13", () => {
     });
   });
 });
+
+describe("envelope mode content seam (P2)", () => {
+  // The seam is a module global — always clear it so it can't leak into the
+  // legacy-mode tests above/below.
+  afterEach(() => setActiveVaultKey(null));
+
+  async function mkDevice(id: string): Promise<DeviceIdentity> {
+    const identity = await generateIdentity();
+    const recipient = await identityToRecipient(identity);
+    return { deviceId: id, name: id, identity, recipient, createdAt: "2026-06-01T00:00:00.000Z" };
+  }
+
+  it("seals content to the vault key, so any device reads it via V (O(1) add)", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const V = await generateVaultKey();
+    setActiveVaultKey(V);
+
+    const devA = await mkDevice("A");
+    await setSecret("OPENAI", "sk-123", devA);
+
+    // Stored ciphertext must be sealed to V, not to devA specifically.
+    const stored = files.get(`${SECRETS_PREFIX}OPENAI.age`)!;
+    expect(stored).toContain("AGE ENCRYPTED FILE");
+    expect(await decryptSecretsRaw(stored, V.identity)).toContain("sk-123");
+
+    // A brand-new device never added anywhere still reads it — content is
+    // device-independent once the keybox hands over V.
+    const devB = await mkDevice("B");
+    expect(await getSecret("OPENAI", devB)).toBe("sk-123");
+  });
+
+  it("without the vault key (legacy mode), a foreign device cannot read V-sealed content", async () => {
+    const { backend } = memoryBackend();
+    configureSecretsBackend(backend);
+    const V = await generateVaultKey();
+    setActiveVaultKey(V);
+    const devA = await mkDevice("A");
+    await setSecret("OPENAI", "sk-123", devA);
+
+    // Drop back to legacy mode: getSecret now decrypts with the device identity,
+    // which is not a recipient of the V-sealed blob → cannot read.
+    setActiveVaultKey(null);
+    const foreign = await mkDevice("F");
+    await expect(getSecret("OPENAI", foreign)).rejects.toThrow();
+  });
+
+  it("initVault(envelope) writes a keybox any listed device can unlock", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    const owner = await mkDevice("owner");
+    const recoveryRecipient = await identityToRecipient(await generateIdentity());
+
+    await initVault({
+      device: owner,
+      recoveryRecipient,
+      recoverySigning,
+      scheme: "envelope",
+    });
+
+    expect(files.has(KEYBOX_PATH)).toBe(true);
+    expect((await readVaultConfig()).scheme).toBe("envelope");
+    const V = await unlockVaultKey(owner);
+    expect(V).not.toBeNull();
+  });
+
+  it("addDevice is O(1) in envelope mode — content untouched, only the keybox is rewritten", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    const owner = await mkDevice("owner");
+    const recoveryRecipient = await identityToRecipient(await generateIdentity());
+    await initVault({ device: owner, recoveryRecipient, recoverySigning, scheme: "envelope" });
+
+    // Simulate bootstrap: unlock V and install it, then write real content.
+    setActiveVaultKey(await unlockVaultKey(owner));
+    await setSecret("OPENAI", "sk-123", owner);
+    await setSecret("STRIPE", "sk-live", owner);
+
+    // Snapshot every content file + the keybox before adding a device.
+    const before = new Map(
+      [...files.entries()].filter(([p]) => p.startsWith(SECRETS_PREFIX)),
+    );
+    const keyboxBefore = files.get(KEYBOX_PATH);
+
+    const newDev = await mkDevice("laptop-2");
+    await addDevice(newDev, owner, recoverySigning);
+
+    // Content files are byte-for-byte identical — nothing re-encrypted. O(1).
+    for (const [p, content] of before) {
+      expect(files.get(p)).toBe(content);
+    }
+    // The keybox was rewritten (now wraps V for the new device too).
+    expect(files.get(KEYBOX_PATH)).not.toBe(keyboxBefore);
+
+    // The freshly-added device can unlock V and read existing content.
+    const V2 = await unlockVaultKey(newDev);
+    expect(V2).not.toBeNull();
+    setActiveVaultKey(V2);
+    expect(await getSecret("OPENAI", newDev)).toBe("sk-123");
+    expect(await getSecret("STRIPE", newDev)).toBe("sk-live");
+  });
+
+  it("addSelfToKeybox lets an owner's new device (holding the phrase) join and read", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    const rec = await recoveryFromMnemonic(PHRASE);
+    const owner = await mkDevice("owner");
+    await initVault({ device: owner, recoveryRecipient: rec.recipient, recoverySigning, scheme: "envelope" });
+    setActiveVaultKey(await unlockVaultKey(owner));
+    await setSecret("OPENAI", "sk-123", owner);
+    const contentBefore = files.get(`${SECRETS_PREFIX}OPENAI.age`);
+
+    // A brand-new device that isn't a keybox recipient yet can't open it...
+    const phone = await mkDevice("phone");
+    await expect(unlockVaultKey(phone)).rejects.toThrow();
+
+    // ...until it self-adds via the recovery identity (owner holds the phrase).
+    const V = await addSelfToKeybox(phone, rec.identity, recoverySigning);
+    expect(V).not.toBeNull();
+
+    // Content was NOT re-sealed, and the phone now opens the keybox directly.
+    expect(files.get(`${SECRETS_PREFIX}OPENAI.age`)).toBe(contentBefore);
+    const V2 = await unlockVaultKey(phone);
+    expect(V2?.identity).toBe(V!.identity);
+    setActiveVaultKey(V2);
+    expect(await getSecret("OPENAI", phone)).toBe("sk-123");
+  });
+
+  it("migrateToEnvelope converts a legacy vault in place, is idempotent, then adds devices O(1)", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    const rec = await recoveryFromMnemonic(PHRASE);
+    const owner = await mkDevice("owner");
+
+    // Legacy vault (scheme defaults to "multi") — content sealed to devices.
+    await initVault({ device: owner, recoveryRecipient: rec.recipient, recoverySigning });
+    expect(files.has(KEYBOX_PATH)).toBe(false);
+    await setSecret("OPENAI", "sk-legacy", owner);
+    expect(await getSecret("OPENAI", owner)).toBe("sk-legacy"); // legacy read
+
+    // Migrate → keybox appears, scheme flips, content now readable via V.
+    const V = await migrateToEnvelope(owner, recoverySigning);
+    expect(V).not.toBeNull();
+    expect(files.has(KEYBOX_PATH)).toBe(true);
+    expect((await readVaultConfig()).scheme).toBe("envelope");
+    setActiveVaultKey(V);
+    expect(await getSecret("OPENAI", owner)).toBe("sk-legacy");
+
+    // Idempotent: a second run just returns the same key, no re-migration.
+    const again = await migrateToEnvelope(owner, recoverySigning);
+    expect(again?.identity).toBe(V!.identity);
+
+    // Post-migration, a new device joins O(1): content byte-identical.
+    const before = files.get(`${SECRETS_PREFIX}OPENAI.age`);
+    const laptop = await mkDevice("laptop");
+    await addDevice(laptop, owner, recoverySigning);
+    expect(files.get(`${SECRETS_PREFIX}OPENAI.age`)).toBe(before);
+    setActiveVaultKey(await unlockVaultKey(laptop));
+    expect(await getSecret("OPENAI", laptop)).toBe("sk-legacy");
+  });
+
+  it("removeDevice rotates the vault key (forward secrecy) in envelope mode", async () => {
+    const { backend } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    const rec = await recoveryFromMnemonic(PHRASE);
+    const owner = await mkDevice("owner");
+    await initVault({ device: owner, recoveryRecipient: rec.recipient, recoverySigning, scheme: "envelope" });
+    const V1 = await unlockVaultKey(owner);
+    setActiveVaultKey(V1);
+    await setSecret("OPENAI", "sk-1", owner);
+
+    // Add a second device (O(1)), which learns the current vault key.
+    const laptop = await mkDevice("laptop");
+    await addDevice(laptop, owner, recoverySigning);
+    expect((await unlockVaultKey(laptop))?.identity).toBe(V1!.identity);
+
+    // Revoke it → the vault key rotates.
+    await removeDevice(laptop.deviceId, owner, recoverySigning);
+    const V2 = await unlockVaultKey(owner);
+    expect(V2!.identity).not.toBe(V1!.identity); // new key
+    setActiveVaultKey(V2);
+    expect(await getSecret("OPENAI", owner)).toBe("sk-1"); // owner still reads
+
+    // The revoked device can't open the keybox (its entry is gone)...
+    await expect(unlockVaultKey(laptop)).rejects.toThrow();
+    // ...and the OLD key can no longer read the re-sealed content.
+    setActiveVaultKey(V1);
+    await expect(getSecret("OPENAI", owner)).rejects.toThrow();
+  });
+
+  it("full envelope lifecycle: create → add 2 devices → revoke one → survivor reads, revoked locked out", async () => {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    const rec = await recoveryFromMnemonic(PHRASE);
+
+    // Day 1 — owner creates an envelope vault and writes a secret.
+    const owner = await mkDevice("owner");
+    await initVault({ device: owner, recoveryRecipient: rec.recipient, recoverySigning, scheme: "envelope" });
+    setActiveVaultKey(await unlockVaultKey(owner));
+    await setSecret("DEPLOY_KEY", "v1", owner);
+
+    // Day 2 — owner adds a laptop and a phone. Each is O(1): content untouched.
+    const contentAfterCreate = files.get(`${SECRETS_PREFIX}DEPLOY_KEY.age`);
+    const laptop = await mkDevice("laptop");
+    const phone = await mkDevice("phone");
+    await addDevice(laptop, owner, recoverySigning);
+    await addDevice(phone, owner, recoverySigning);
+    expect(files.get(`${SECRETS_PREFIX}DEPLOY_KEY.age`)).toBe(contentAfterCreate); // never re-sealed
+
+    // Both new devices read the existing secret via the keybox.
+    for (const d of [laptop, phone]) {
+      setActiveVaultKey(await unlockVaultKey(d));
+      expect(await getSecret("DEPLOY_KEY", d)).toBe("v1");
+    }
+
+    // Day 3 — the laptop is lost; owner revokes it → the vault key rotates.
+    setActiveVaultKey(await unlockVaultKey(owner));
+    await removeDevice(laptop.deviceId, owner, recoverySigning);
+
+    // The phone (still trusted) keeps working across the rotation...
+    setActiveVaultKey(await unlockVaultKey(phone));
+    expect(await getSecret("DEPLOY_KEY", phone)).toBe("v1");
+    await setSecret("DEPLOY_KEY", "v2", phone); // and can write new content
+    expect(await getSecret("DEPLOY_KEY", phone)).toBe("v2");
+
+    // ...while the revoked laptop can no longer open the keybox at all.
+    await expect(unlockVaultKey(laptop)).rejects.toThrow();
+  });
+
+  it("removeDevice in a signed envelope vault demands the recovery phrase", async () => {
+    const { backend } = memoryBackend();
+    configureSecretsBackend(backend);
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    const rec = await recoveryFromMnemonic(PHRASE);
+    const owner = await mkDevice("owner");
+    await initVault({ device: owner, recoveryRecipient: rec.recipient, recoverySigning, scheme: "envelope" });
+    setActiveVaultKey(await unlockVaultKey(owner));
+    const laptop = await mkDevice("laptop");
+    await addDevice(laptop, owner, recoverySigning);
+    // No recoverySigning → can't re-sign the rotated keybox → refuse.
+    await expect(removeDevice(laptop.deviceId, owner)).rejects.toThrow(/recovery phrase/);
+  });
+});
+
+async function decryptSecretsRaw(armored: string, identity: string): Promise<string> {
+  const { decryptSecrets } = await import("./crypto/vault-crypto");
+  return decryptSecrets(armored, identity);
+}

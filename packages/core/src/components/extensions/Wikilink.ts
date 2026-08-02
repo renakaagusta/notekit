@@ -1,5 +1,14 @@
 import { Node, mergeAttributes, nodeInputRule } from "@tiptap/react";
 
+/** Kind encoded in the wikilink target prefix. */
+export type WikilinkKind = "note" | "link" | "secret";
+
+export function parseWikilinkTarget(raw: string): { kind: WikilinkKind; target: string } {
+  if (raw.startsWith("link:")) return { kind: "link", target: raw.slice(5).trim() };
+  if (raw.startsWith("secret:")) return { kind: "secret", target: raw.slice(7).trim() };
+  return { kind: "note", target: raw.trim() };
+}
+
 interface WikilinkAttrs {
   target: string;
 }
@@ -104,10 +113,14 @@ export const Wikilink = Node.create({
   },
 
   renderHTML({ HTMLAttributes, node }) {
-    const target = node.attrs.target ?? "";
+    const raw = node.attrs.target ?? "";
+    const { kind, target } = parseWikilinkTarget(raw);
     return [
       "span",
-      mergeAttributes(HTMLAttributes, { class: "nk-wikilink" }),
+      mergeAttributes(HTMLAttributes, {
+        class: `nk-wikilink nk-wikilink--${kind}`,
+        "data-wikilink-kind": kind,
+      }),
       target,
     ];
   },

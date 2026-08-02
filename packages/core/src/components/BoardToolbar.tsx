@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Plus, X } from "lucide-react";
 import type { Ticket, TicketPriority, TicketStatus } from "../types/ticket";
 import {
@@ -43,6 +43,8 @@ interface BoardToolbarProps {
   savedViews: SavedView[];
   onSaveCurrent(name: string): void;
   onDeleteSavedView(id: string): void;
+
+  endSlot?: React.ReactNode;
 }
 
 export function BoardToolbar({
@@ -55,6 +57,7 @@ export function BoardToolbar({
   savedViews,
   onSaveCurrent,
   onDeleteSavedView,
+  endSlot,
 }: BoardToolbarProps) {
   const members = useMembersStore((s) => s.members);
 
@@ -100,23 +103,26 @@ export function BoardToolbar({
 
   return (
     <div className="nk-board-toolbar">
-      <div className="nk-view-tabs" role="tablist">
-        {views.map((v) => (
-          <ViewTabButton
-            key={v.id}
-            tab={v}
-            active={v.id === activeViewId}
-            onClick={() => onActiveViewChange(v.id)}
-            onDelete={
-              v.builtin ? undefined : () => onDeleteSavedView(v.id)
-            }
+      <div className="nk-board-toolbar-top">
+        <div className="nk-view-tabs" role="tablist">
+          {views.map((v) => (
+            <ViewTabButton
+              key={v.id}
+              tab={v}
+              active={v.id === activeViewId}
+              onClick={() => onActiveViewChange(v.id)}
+              onDelete={
+                v.builtin ? undefined : () => onDeleteSavedView(v.id)
+              }
+            />
+          ))}
+          <SaveViewButton
+            disabled={isClean}
+            existingNames={savedViews.map((v) => v.name)}
+            onSave={onSaveCurrent}
           />
-        ))}
-        <SaveViewButton
-          disabled={isClean}
-          existingNames={savedViews.map((v) => v.name)}
-          onSave={onSaveCurrent}
-        />
+        </div>
+        {endSlot && <div className="nk-toolbar-end">{endSlot}</div>}
       </div>
 
       <div className="nk-filter-chips">

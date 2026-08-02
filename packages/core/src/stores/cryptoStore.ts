@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { DeviceIdentity } from "../lib/crypto/device-key";
+import type { VaultKey } from "../lib/crypto/keybox";
 
 export type CryptoPhase =
   | "idle"
@@ -21,11 +22,19 @@ interface CryptoState {
    * during bootstrap; defaults to `false` (legacy opt-in) until known.
    */
   encryptionRequired: boolean;
+  /**
+   * The unlocked vault key in envelope-mode vaults (content is sealed to it, and
+   * it's wrapped per-device in the keybox). `null` in legacy vaults or before
+   * the keybox is unlocked. Installed by bootstrapCrypto once the device is
+   * `ready`. Mirrors the module-level seam in secrets-vault.ts (setActiveVaultKey).
+   */
+  vaultKey: VaultKey | null;
   setPhase(phase: CryptoPhase): void;
   setDevice(device: DeviceIdentity | null): void;
   setPairCode(code: string | null): void;
   setError(message: string | null): void;
   setEncryptionRequired(required: boolean): void;
+  setVaultKey(vaultKey: VaultKey | null): void;
   reset(): void;
 }
 
@@ -35,11 +44,13 @@ export const useCryptoStore = create<CryptoState>((set) => ({
   pairCode: null,
   error: null,
   encryptionRequired: false,
+  vaultKey: null,
   setPhase: (phase) => set({ phase }),
   setDevice: (device) => set({ device }),
   setPairCode: (pairCode) => set({ pairCode }),
   setError: (error) => set({ error, phase: error ? "error" : "idle" }),
   setEncryptionRequired: (encryptionRequired) => set({ encryptionRequired }),
+  setVaultKey: (vaultKey) => set({ vaultKey }),
   reset: () =>
-    set({ phase: "idle", device: null, pairCode: null, error: null }),
+    set({ phase: "idle", device: null, pairCode: null, error: null, vaultKey: null }),
 }));

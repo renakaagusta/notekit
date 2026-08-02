@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
-import { CalendarDays, CheckSquare, KanbanSquare, Lock } from "lucide-react";
+import { CalendarDays, CheckSquare, Lock } from "lucide-react";
 import { BoardToolbar } from "./BoardToolbar";
 import { CardQuickActions } from "./CardQuickActions";
 import { SubtaskList } from "./SubtaskList";
@@ -44,6 +44,8 @@ export interface FocusPulse {
 interface TicketsBoardProps {
   /** Scroll this ticket into view and flash-highlight it (e.g. from search). */
   focusTicket?: FocusPulse | null;
+  /** Extra content rendered on the far-right of the board toolbar. */
+  endSlot?: React.ReactNode;
 }
 
 const COLUMNS: { status: TicketStatus; label: string; dot: string }[] = [
@@ -76,7 +78,7 @@ const PRIORITY_CLASS: Record<TicketPriority, string> = {
   low: "priority-p3",
 };
 
-export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
+export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
   const tickets = useTicketsStore((s) => s.tickets);
   const upsert = useTicketsStore((s) => s.upsert);
   const setStatus = useTicketsStore((s) => s.setStatus);
@@ -305,37 +307,6 @@ export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
     if (focusedId && !locate(focusedId)) setFocusedId(null);
   }, [focusedId, grid]);
 
-  if (all.length === 0) {
-    return (
-      <div className="nk-empty nk-empty--center">
-        {/* Quiet illustration so the empty page has a focal point —
-         * sitting at ~40% opacity so it reads as decoration, not a
-         * primary element. Notion / Linear / Slack all illustrate
-         * their empty states; we use the lucide KanbanSquare since
-         * the page IS a kanban board (To do / In progress / Done). */}
-        <KanbanSquare
-          size={40}
-          aria-hidden
-          style={{
-            color: "var(--muted)",
-            opacity: 0.5,
-            marginBottom: 16,
-          }}
-        />
-        <p>No tickets yet.</p>
-        <p className="nk-empty-hint">
-          Click <kbd>+</kbd> in the sidebar to create one.
-        </p>
-        <button
-          className="nk-empty-cta"
-          onClick={() => upsert({ title: "New ticket", status: "todo" })}
-        >
-          + Create your first ticket
-        </button>
-      </div>
-    );
-  }
-
   function cycleStatus(t: Ticket) {
     const idx = STATUS_ORDER.indexOf(t.status);
     const next = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length] ?? "todo";
@@ -378,6 +349,7 @@ export function TicketsBoard({ focusTicket }: TicketsBoardProps = {}) {
         savedViews={savedViews}
         onSaveCurrent={saveCurrent}
         onDeleteSavedView={deleteSavedView}
+        endSlot={endSlot}
       />
       <div className="nk-board">
         {COLUMNS.map((col, colIndex) => {

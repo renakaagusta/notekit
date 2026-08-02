@@ -88,6 +88,18 @@ function createMainWindow(): BrowserWindow {
     backgroundColor: "#0b0b0b",
     show: false,
     icon: path.join(__dirname, "..", "build", "icon.png"),
+    // Frameless-with-traffic-lights on macOS: hide the native title bar and
+    // let the app's own top row (brand + tab bar) absorb the vertical space,
+    // with the stoplight buttons floating over the sidebar's brand row. This
+    // is the Orca / Linear / VS Code look. `trafficLightPosition` nudges the
+    // lights down to sit centered in the ~42px brand row. On Windows/Linux
+    // this key is ignored and the default frame is used.
+    ...(process.platform === "darwin"
+      ? {
+          titleBarStyle: "hiddenInset" as const,
+          trafficLightPosition: { x: 14, y: 15 },
+        }
+      : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,

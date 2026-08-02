@@ -17,13 +17,21 @@ import {
   readRecovery,
   readVaultConfig,
   reEncryptVaultIfMembersChanged,
+  keyboxExists,
+  unlockVaultKey,
+  addSelfToKeybox,
+  setActiveVaultKey,
 } from "./secrets-vault";
 import { useAuthStore } from "../stores/authStore";
 import { loadStoredRecovery } from "./crypto/recovery-store";
-import { recoverySigningFromMnemonic } from "./crypto/recovery";
+import {
+  recoverySigningFromMnemonic,
+  recoveryFromMnemonic,
+} from "./crypto/recovery";
 import { toB64 } from "./crypto/signing";
 import { verifySigningKeyTrust } from "./crypto/trust-store";
 import type { DeviceIdentity } from "./crypto/device-key";
+import type { VaultKey } from "./crypto/keybox";
 
 /**
  * Member device auto-register (issue #14): if this is a member's device that
@@ -84,6 +92,49 @@ async function verifyRecoveryTrust(
   verifySigningKeyTrust(vaultId, recovery?.signingKey ?? null, expected);
 }
 
+/**
+ * Envelope mode (issue #13): unlock the vault key from `.notekit/keybox.age` and
+ * install it into the content-crypto seam + store, so every content read/write
+ * this session uses the vault key instead of per-device recipients. No-op for
+ * legacy vaults (no keybox) — leaves the seam null so content stays per-device.
+ *
+ * A returning device is already a keybox recipient and unlocks directly. A
+ * device that just self-registered via the recovery phrase isn't a recipient
+ * yet, so it unlocks via the recovery identity and adds itself (owner path).
+ */
+async function installVaultKey(device: DeviceIdentity): Promise<void> {
+  const store = useCryptoStore.getState();
+  try {
+    if (!(await keyboxExists())) {
+      setActiveVaultKey(null);
+      store.setVaultKey(null);
+      return;
+    }
+    let vaultKey: VaultKey | null = null;
+    try {
+      vaultKey = await unlockVaultKey(device);
+    } catch {
+      // Not a keybox recipient yet — fall back to the recovery phrase to unlock
+      // and self-add (owner multi-device). A member device that can't sign the
+      // keybox reads via V and is reconciled into it by an owner device later.
+      const stored = await loadStoredRecovery();
+      if (stored?.mnemonic) {
+        const [recId, recSigning] = await Promise.all([
+          recoveryFromMnemonic(stored.mnemonic),
+          recoverySigningFromMnemonic(stored.mnemonic),
+        ]);
+        vaultKey = await addSelfToKeybox(device, recId.identity, recSigning);
+      }
+    }
+    setActiveVaultKey(vaultKey);
+    store.setVaultKey(vaultKey);
+  } catch (e) {
+    console.warn("[crypto] vault-key install failed", e);
+    setActiveVaultKey(null);
+    store.setVaultKey(null);
+  }
+}
+
 export async function bootstrapCrypto(): Promise<void> {
   const store = useCryptoStore.getState();
   store.setPhase("checking");
@@ -116,6 +167,7 @@ export async function bootstrapCrypto(): Promise<void> {
       const fresh = await createDeviceIdentity();
       store.setDevice(fresh);
       if (await tryMemberSelfRegister(fresh)) {
+        await installVaultKey(fresh);
         store.setPhase("ready");
         void reconcileMemberRecipients(fresh);
         return;
@@ -130,6 +182,7 @@ export async function bootstrapCrypto(): Promise<void> {
       store.setDevice(existing);
       // A member's existing device that isn't in *this* vault yet self-joins.
       if (await tryMemberSelfRegister(existing)) {
+        await installVaultKey(existing);
         store.setPhase("ready");
         void reconcileMemberRecipients(existing);
         return;
@@ -138,6 +191,7 @@ export async function bootstrapCrypto(): Promise<void> {
       return;
     }
     store.setDevice(existing);
+    await installVaultKey(existing);
     store.setPhase("ready");
     // Phase 2 (#14): re-seal history if a new member device joined the set.
     void reconcileMemberRecipients(existing);

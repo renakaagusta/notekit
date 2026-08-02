@@ -105,6 +105,29 @@ export async function createAccessToken(username: string, tokenName: string): Pr
   return json.sha1;
 }
 
+export async function deleteAccessToken(username: string, tokenName: string): Promise<void> {
+  const res = await fetch(
+    `${baseUrl()}/api/v1/users/${encodeURIComponent(username)}/tokens/${encodeURIComponent(tokenName)}`,
+    { method: "DELETE", headers: adminBasicHeaders(username, true) },
+  );
+  // 404 = already gone, that's fine
+  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+}
+
+/** Create token, deleting any existing token with the same name first (upsert). */
+export async function upsertAccessToken(username: string, tokenName: string): Promise<string> {
+  try {
+    return await createAccessToken(username, tokenName);
+  } catch (err) {
+    if (err instanceof GhError && err.status === 400 &&
+      (err.body.includes("name has been used") || err.body.includes("already exists"))) {
+      await deleteAccessToken(username, tokenName);
+      return await createAccessToken(username, tokenName);
+    }
+    throw err;
+  }
+}
+
 // ── Repo operations ───────────────────────────────────────────────────────────
 
 export async function listRepos(token: string): Promise<GhRepo[]> {

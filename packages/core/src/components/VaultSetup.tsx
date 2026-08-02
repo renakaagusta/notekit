@@ -19,7 +19,7 @@ import {
   hasInjectedWallet,
   type WalletId,
 } from "../lib/crypto/wallet-provider";
-import { initVault } from "../lib/secrets-vault";
+import { initVault, getActiveVaultKey } from "../lib/secrets-vault";
 import { useAuthStore } from "../stores/authStore";
 import {
   MetaMaskIcon,
@@ -51,6 +51,7 @@ export function VaultSetup() {
   const setDevice = useCryptoStore((s) => s.setDevice);
   const setError = useCryptoStore((s) => s.setError);
   const setEncryptionRequired = useCryptoStore((s) => s.setEncryptionRequired);
+  const setVaultKey = useCryptoStore((s) => s.setVaultKey);
   const refreshBackup = useRecoveryBackupStore((s) => s.refresh);
 
   const [failed, setFailed] = useState<string | null>(null);
@@ -109,6 +110,10 @@ export function VaultSetup() {
       });
       setDevice(device);
       setEncryptionRequired(true);
+      // Envelope vaults: initVault installed the vault key in the seam — mirror
+      // it into the store so the UI reflects it without waiting for a reload.
+      // No-op for legacy vaults (getActiveVaultKey stays null).
+      setVaultKey(getActiveVaultKey());
       await refreshBackup();
       setChoosing(false);
       setPhase("ready");
@@ -148,6 +153,10 @@ export function VaultSetup() {
       await importRecovery(mnemonic).catch(() => {});
       setDevice(device);
       setEncryptionRequired(true);
+      // Envelope vaults: initVault installed the vault key in the seam — mirror
+      // it into the store so the UI reflects it without waiting for a reload.
+      // No-op for legacy vaults (getActiveVaultKey stays null).
+      setVaultKey(getActiveVaultKey());
       await refreshBackup();
       setImportOpen(false);
       setChoosing(false);

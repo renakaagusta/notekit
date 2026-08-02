@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useNotesStore } from "../stores/notesStore";
@@ -49,9 +49,10 @@ interface CalendarViewProps {
   onOpenJournal?: (ymd: string) => void;
   onOpenTicket?: (ticketId: string) => void;
   focusTicket?: FocusPulse | null;
+  endSlot?: React.ReactNode;
 }
 
-export function CalendarView({ onOpenJournal, onOpenTicket, focusTicket }: CalendarViewProps) {
+export function CalendarView({ onOpenJournal, onOpenTicket, focusTicket, endSlot }: CalendarViewProps) {
   const notes = useNotesStore((s) => s.all());
   const tickets = useTicketsStore((s) => s.all());
   const setDueDate = useTicketsStore((s) => s.setDueDate);
@@ -208,16 +209,19 @@ export function CalendarView({ onOpenJournal, onOpenTicket, focusTicket }: Calen
             Today
           </button>
         </div>
-        <div className="nk-calendar-modes" role="tablist">
-          {(["month", "week", "day"] as Mode[]).map((m) => (
-            <button
-              key={m} role="tab" aria-selected={mode === m}
-              className={"nk-calendar-mode" + (mode === m ? " active" : "")}
-              onClick={() => setMode(m)}
-            >
-              {m[0]!.toUpperCase() + m.slice(1)}
-            </button>
-          ))}
+        <div className="nk-calendar-hd-right">
+          <div className="nk-calendar-modes" role="tablist">
+            {(["month", "week", "day"] as Mode[]).map((m) => (
+              <button
+                key={m} role="tab" aria-selected={mode === m}
+                className={"nk-calendar-mode" + (mode === m ? " active" : "")}
+                onClick={() => setMode(m)}
+              >
+                {m[0]!.toUpperCase() + m.slice(1)}
+              </button>
+            ))}
+          </div>
+          {endSlot}
         </div>
       </header>
 

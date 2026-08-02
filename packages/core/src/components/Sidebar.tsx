@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
+  Bookmark,
   Bot,
   Calendar as CalendarIcon,
   Clock,
@@ -10,7 +11,6 @@ import {
   LogOut,
   Menu,
   MonitorSmartphone,
-  MoreHorizontal,
   Network,
   PanelLeft,
   Plus,
@@ -28,13 +28,6 @@ import { NotekitIcon } from "./BrandIcons";
 
 export type SidebarView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
 
-/**
- * Primary nav, rendered as a flat vertical list (Notion / Linear / Orca
- * style) so every surface is one click away — no "More" dropdown to clip
- * at 240px. Notes and Tickets are the browsing surfaces (they show a list
- * below) and carry a count badge + a contextual "+"; the rest are
- * destination views that take over the main pane.
- */
 const NAV: {
   view: SidebarView;
   label: string;
@@ -57,24 +50,10 @@ interface SidebarProps {
   onOpenTokens?: () => void;
   onOpenDevices?: () => void;
   onOpenNotifications?: () => void;
-  /**
-   * When provided, the section header renders a search icon next to the
-   * "+" button. Used by the mobile shell where no ⌘K shortcut is reachable.
-   */
   onOpenSearch?: () => void;
-  /**
-   * When provided, the section header renders a hamburger icon on the left
-   * that opens the global mobile drawer (vault picker + all surfaces).
-   */
   onOpenMenu?: () => void;
-  /**
-   * When provided (desktop only), the brand row renders a collapse button
-   * that hides the whole sidebar.
-   */
   onCollapse?: () => void;
 }
-
-const NAV_HEIGHT_KEY = "nk:sidebar-nav-h";
 
 export function Sidebar({
   view,
@@ -90,62 +69,12 @@ export function Sidebar({
   onOpenMenu,
   onCollapse,
 }: SidebarProps) {
-  // Counts for the section header badge. Subscribes to the count
-  // (cheap primitive equality) rather than the array (would re-render
-  // every keystroke). The all() selector already exists in both stores.
   const notesCount = useNotesStore((s) => s.all().length);
   const ticketsCount = useTicketsStore((s) => s.all().length);
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  // The mobile shell passes onOpenMenu (hamburger → drawer). We use its
-  // presence to anchor the create menu to the right "+" for the breakpoint:
-  // the vertical nav row on desktop, the section-header button on mobile.
   const mobileShell = !!onOpenMenu;
-
-  // Draggable splitter between the surface nav and the list below it. null
-  // = natural (content) height; a number pins it and the nav scrolls. The
-  // list (flex:1) takes whatever's left.
-  const asideRef = useRef<HTMLElement>(null);
-  const navRef = useRef<HTMLDivElement>(null);
-  const [navHeight, setNavHeight] = useState<number | null>(() => {
-    const saved = Number(localStorage.getItem(NAV_HEIGHT_KEY));
-    return Number.isFinite(saved) && saved > 0 ? saved : null;
-  });
-
-  function onResizeStart(e: ReactPointerEvent<HTMLDivElement>) {
-    e.preventDefault();
-    const pointerId = e.pointerId;
-    const handle = e.currentTarget;
-    const navTop = navRef.current?.getBoundingClientRect().top ?? 0;
-    const asideRect = asideRef.current?.getBoundingClientRect();
-    // Reserve room for the footer cluster + a minimum list height so the
-    // nav can never swallow the whole sidebar.
-    const maxBottom = asideRect ? asideRect.bottom - 220 : navTop + 480;
-    handle.setPointerCapture(pointerId);
-
-    function onMove(ev: PointerEvent) {
-      const next = Math.max(96, Math.min(ev.clientY - navTop, maxBottom - navTop));
-      setNavHeight(next);
-    }
-    function onUp() {
-      handle.releasePointerCapture(pointerId);
-      handle.removeEventListener("pointermove", onMove);
-      handle.removeEventListener("pointerup", onUp);
-      setNavHeight((h) => {
-        if (h != null) localStorage.setItem(NAV_HEIGHT_KEY, String(Math.round(h)));
-        return h;
-      });
-    }
-    handle.addEventListener("pointermove", onMove);
-    handle.addEventListener("pointerup", onUp);
-  }
-
-  // Double-click the splitter to reset back to the natural height.
-  function onResizeReset() {
-    setNavHeight(null);
-    localStorage.removeItem(NAV_HEIGHT_KEY);
-  }
 
   useEffect(() => {
     if (!userMenuOpen) return;
@@ -166,14 +95,7 @@ export function Sidebar({
   }, [userMenuOpen]);
 
   function onAdd() {
-    if (view === "notes") {
-      setCreateMenuOpen((v) => !v);
-    }
-  }
-
-  function onNavAdd(target: "notes") {
-    if (view !== "notes") onView("notes");
-    setCreateMenuOpen((v) => !v);
+    if (view === "notes") setCreateMenuOpen((v) => !v);
   }
 
   const heading =
@@ -185,308 +107,268 @@ export function Sidebar({
             ? "Secrets"
             : view === "links"
               ? "Links"
-              : view === "calendar"
-                ? "Tasks"
-                : "Calendar";
+              : "Tasks";
 
   return (
-    <aside className="nk-sidebar" ref={asideRef}>
-      {/* Brand anchors the top-left as the app identity. The vault switcher
-       * (a control, not chrome) moved to the footer next to the account,
-       * forming a coherent workspace+account cluster. */}
-      <div className="nk-brand">
-        <NotekitIcon size={18} className="nk-brand-mark" />
-        <span className="nk-brand-word">NoteKit</span>
-        {onCollapse && (
-          <button
-            className="nk-iconbtn nk-brand-collapse"
-            onClick={onCollapse}
-            title="Hide sidebar"
-            aria-label="Hide sidebar"
-          >
-            <PanelLeft size={15} aria-hidden />
-          </button>
-        )}
-      </div>
-      {/* Flat vertical nav — every surface one click away. Notes/Tickets
-       * carry a count + a contextual "+"; the rest are destination views.
-       * Hidden on mobile (the drawer takes over) via the .nk-nav rule. */}
-      <nav
-        className="nk-nav"
-        aria-label="Surfaces"
-        ref={navRef}
-        style={navHeight != null ? { height: navHeight } : undefined}
-        data-resized={navHeight != null ? "" : undefined}
-      >
-        {NAV.map(({ view: v, label, Icon }) => {
-          const active = view === v;
-          const count =
-            v === "notes" ? notesCount : v === "calendar" ? ticketsCount : 0;
-          const canAdd = v === "notes";
-          return (
-            <div
-              key={v}
-              className={"nk-navitem-row" + (active ? " active" : "")}
-            >
-              <button
-                className="nk-navitem"
-                onClick={() => onView(v)}
-                aria-current={active ? "page" : undefined}
-              >
-                <Icon size={15} className="nk-navitem-icon" aria-hidden />
-                <span className="nk-navitem-label">{label}</span>
-                {count > 0 && <span className="nk-sidebar-count">{count}</span>}
-              </button>
-              {canAdd && v === "notes" && (
-                <button
-                  className="nk-iconbtn nk-navitem-add"
-                  data-create-toggle=""
-                  onClick={() => onNavAdd("notes")}
-                  title="New file or folder (⌘N)"
-                  aria-label="New note"
-                >
-                  <Plus size={14} aria-hidden />
-                </button>
-              )}
-              {v === "notes" && !mobileShell && createMenuOpen && (
-                <CreateMenu
-                  parent={null}
-                  onClose={() => setCreateMenuOpen(false)}
-                />
-              )}
-            </div>
-          );
-        })}
-      </nav>
+    <aside className="nk-sidebar">
+      {/* ── Icon Rail (desktop only) ──────────────────────────────
+       * 40px narrow column: brand mark → nav icons → avatar.
+       * Hidden on mobile — the drawer handles navigation there.
+       * ──────────────────────────────────────────────────────── */}
+      <div className="nk-icon-rail">
+        <div className="nk-rail-brand">
+          <NotekitIcon size={18} />
+        </div>
 
-      {/* Drag to resize the nav block vs the list below; double-click to
-       * reset. Hidden on mobile (the nav is hidden there). */}
-      <div
-        className="nk-nav-resizer"
-        role="separator"
-        aria-orientation="horizontal"
-        aria-label="Resize navigation"
-        onPointerDown={onResizeStart}
-        onDoubleClick={onResizeReset}
-      >
-        <span className="nk-nav-resizer-grip" aria-hidden />
-      </div>
-
-      <div className="nk-sidebar-hd">
-        {onOpenMenu && (
-          <button
-            className="nk-iconbtn nk-sidebar-menu"
-            onClick={onOpenMenu}
-            title="Menu"
-            aria-label="Open menu"
-          >
-            <Menu size={16} aria-hidden />
-          </button>
-        )}
-        <span>
-          {heading}
-          {view === "notes" && notesCount > 0 && (
-            <span className="nk-sidebar-count">{notesCount}</span>
-          )}
-        </span>
-        <span className="nk-sidebar-hd-actions nk-tree-add-wrap">
-          {onOpenSearch && (
+        <nav className="nk-rail-nav" aria-label="Surfaces">
+          {NAV.map(({ view: v, label, Icon }) => (
             <button
-              className="nk-iconbtn nk-sidebar-search"
-              onClick={onOpenSearch}
-              title="Search (⌘K or ⌘P)"
-              aria-label="Search"
+              key={v}
+              className={"nk-rail-item" + (view === v ? " active" : "")}
+              onClick={() => onView(v)}
+              title={label}
+              aria-label={label}
+              aria-current={view === v ? "page" : undefined}
             >
-              <Search size={14} aria-hidden />
+              <Icon size={16} aria-hidden />
             </button>
-          )}
-          {view === "notes" && (
-            <>
+          ))}
+        </nav>
+
+        <div className="nk-rail-foot">
+          {user && (
+            <div className="nk-rail-avatar-wrap" ref={userMenuRef}>
               <button
-                className="nk-iconbtn"
-                data-create-toggle=""
-                onClick={onAdd}
-                title="New file or folder (⌘N for note)"
-                aria-label="Add"
+                type="button"
+                className="nk-rail-avatar-btn"
+                onClick={() => setUserMenuOpen((v) => !v)}
+                title={user.name ?? user.email}
+                aria-label="Account menu"
+                aria-haspopup="menu"
+                aria-expanded={userMenuOpen}
               >
-                <Plus size={14} aria-hidden />
+                {user.avatarUrl ? (
+                  <img className="nk-avatar nk-avatar--sm" src={user.avatarUrl} alt="" />
+                ) : (
+                  <div className="nk-avatar nk-avatar--sm nk-avatar--placeholder">
+                    {(user.name ?? user.email).slice(0, 1).toUpperCase()}
+                  </div>
+                )}
               </button>
-              {mobileShell && createMenuOpen && (
-                <CreateMenu
-                  parent={null}
-                  onClose={() => setCreateMenuOpen(false)}
-                />
+              {userMenuOpen && (
+                <div className="nk-popover nk-popover--rail" role="menu">
+                  {onOpenHistory && (
+                    <button
+                      className="nk-popover-item"
+                      role="menuitem"
+                      onClick={() => { setUserMenuOpen(false); onOpenHistory(); }}
+                    >
+                      <Clock size={14} aria-hidden />
+                      <span>Activity</span>
+                    </button>
+                  )}
+                  {onOpenAgents && (
+                    <button
+                      className="nk-popover-item"
+                      role="menuitem"
+                      onClick={() => { setUserMenuOpen(false); onOpenAgents(); }}
+                    >
+                      <Bot size={14} aria-hidden />
+                      <span>Manage agents</span>
+                    </button>
+                  )}
+                  {onOpenNotifications && (
+                    <button
+                      className="nk-popover-item"
+                      role="menuitem"
+                      onClick={() => { setUserMenuOpen(false); onOpenNotifications(); }}
+                    >
+                      <Bell size={14} aria-hidden />
+                      <span>Notifications</span>
+                    </button>
+                  )}
+                  {onOpenTokens && (
+                    <button
+                      className="nk-popover-item"
+                      role="menuitem"
+                      onClick={() => { setUserMenuOpen(false); onOpenTokens(); }}
+                    >
+                      <KeyRound size={14} aria-hidden />
+                      <span>API tokens</span>
+                    </button>
+                  )}
+                  {onOpenDevices && (
+                    <button
+                      className="nk-popover-item"
+                      role="menuitem"
+                      onClick={() => { setUserMenuOpen(false); onOpenDevices(); }}
+                    >
+                      <MonitorSmartphone size={14} aria-hidden />
+                      <span>Devices</span>
+                    </button>
+                  )}
+                  {onSignOut && (
+                    <button
+                      className="nk-popover-item"
+                      role="menuitem"
+                      onClick={() => { setUserMenuOpen(false); onSignOut(); }}
+                    >
+                      <LogOut size={14} aria-hidden />
+                      <span>Sign out</span>
+                    </button>
+                  )}
+                </div>
               )}
-            </>
+            </div>
           )}
-        </span>
+        </div>
       </div>
 
-      {/* On mobile the list pane (this sidebar) is shown while <main> — where
-          the desktop banner lives — is display:none, so an undecryptable-notes
-          warning there would be invisible. Surface it here so a device that
-          can't read encrypted notes gets the "pair this device" hint instead
-          of a silently-empty list. Desktop keeps the banner in <main>. */}
-      {mobileShell && <EncryptedSkippedBanner />}
-
-      {view === "notes" && <NoteList mobileShell={mobileShell} />}
-      {view === "graph" && (
-        <div className="nk-empty">
-          <p>Knowledge graph.</p>
-          <p className="nk-empty-hint">
-            Nodes are notes. Links come from{" "}
-            <code style={{ fontFamily: "var(--mono-font)" }}>[[wikilinks]]</code>{" "}
-            in your notes.
-          </p>
-        </div>
-      )}
-      {view === "calendar" && (
-        <div className="nk-empty">
-          <p>Calendar &amp; tasks.</p>
-          <p className="nk-empty-hint">
-            Tasks with a due date appear on the calendar. Drag them to reschedule.
-          </p>
-        </div>
-      )}
-      {view === "secrets" && (
-        <div className="nk-empty">
-          <p>Encrypted secrets.</p>
-          <p className="nk-empty-hint">
-            API keys and tokens, encrypted on-device before they touch the
-            vault. Only your devices can read them.
-          </p>
-        </div>
-      )}
-      {view === "links" && (
-        <div className="nk-empty">
-          <p>Saved links.</p>
-          <p className="nk-empty-hint">
-            Bookmarks with auto-detected platform tags — X, GitHub, YouTube,
-            and more.
-          </p>
-        </div>
-      )}
-
-      <VaultSwitcher className="nk-vault-switcher--footer" />
-
-      {user && (
-        <div className="nk-userbar" ref={userMenuRef}>
-          {/* The whole userbar is one button so users can click the
-           * avatar or name to open the menu — previously only the
-           * tiny ⋯ at the right edge was the target, which was a
-           * real daily papercut (users naturally click the avatar).
-           * MoreHorizontal stays as a visual affordance hint inside
-           * the button. */}
-          <button
-            type="button"
-            className="nk-userbar-trigger"
-            onClick={() => setUserMenuOpen((v) => !v)}
-            title="Account menu"
-            aria-label="Account menu"
-            aria-haspopup="menu"
-            aria-expanded={userMenuOpen}
-          >
-            {user.avatarUrl ? (
-              <img className="nk-avatar" src={user.avatarUrl} alt="" />
-            ) : (
-              <div className="nk-avatar nk-avatar--placeholder">
-                {(user.name ?? user.email).slice(0, 1).toUpperCase()}
-              </div>
+      {/* ── Content Panel ─────────────────────────────────────────
+       * Right column: section header + list + vault switcher.
+       * On mobile this fills the full sidebar width (icon rail
+       * is hidden) and shows a hamburger/search/add header.
+       * ──────────────────────────────────────────────────────── */}
+      <div className="nk-panel">
+        {mobileShell ? (
+          /* Mobile header: hamburger ← title → search + add */
+          <div className="nk-sidebar-hd">
+            <button
+              className="nk-iconbtn nk-sidebar-menu"
+              onClick={onOpenMenu}
+              title="Menu"
+              aria-label="Open menu"
+            >
+              <Menu size={16} aria-hidden />
+            </button>
+            <span>
+              {heading}
+              {view === "notes" && notesCount > 0 && (
+                <span className="nk-sidebar-count">{notesCount}</span>
+              )}
+            </span>
+            <span className="nk-sidebar-hd-actions nk-tree-add-wrap">
+              {onOpenSearch && (
+                <button
+                  className="nk-iconbtn nk-sidebar-search"
+                  onClick={onOpenSearch}
+                  title="Search (⌘K or ⌘P)"
+                  aria-label="Search"
+                >
+                  <Search size={14} aria-hidden />
+                </button>
+              )}
+              {view === "notes" && (
+                <>
+                  <button
+                    className="nk-iconbtn"
+                    data-create-toggle=""
+                    onClick={onAdd}
+                    title="New file or folder (⌘N for note)"
+                    aria-label="Add"
+                  >
+                    <Plus size={14} aria-hidden />
+                  </button>
+                  {createMenuOpen && (
+                    <CreateMenu
+                      parent={null}
+                      onClose={() => setCreateMenuOpen(false)}
+                    />
+                  )}
+                </>
+              )}
+            </span>
+          </div>
+        ) : (
+          /* Desktop panel header — Obsidian-style Row 1:
+           * [Files] [Search] [Bookmark/Links]  ···  [⊡ collapse]
+           * Active icon gets a background chip; collapse sits at the far right. */
+          <div className="nk-panel-hd">
+            <div className="nk-panel-nav">
+              <button
+                className={"nk-panel-nav-btn" + (view === "notes" ? " active" : "")}
+                onClick={() => onView("notes")}
+                title="Notes"
+                aria-label="Notes"
+                aria-current={view === "notes" ? "page" : undefined}
+              >
+                <FileText size={15} aria-hidden />
+              </button>
+              <button
+                className="nk-panel-nav-btn"
+                onClick={onOpenSearch}
+                title="Search (⌘K)"
+                aria-label="Search"
+              >
+                <Search size={15} aria-hidden />
+              </button>
+              <button
+                className={"nk-panel-nav-btn" + (view === "links" ? " active" : "")}
+                onClick={() => onView("links")}
+                title="Links"
+                aria-label="Links"
+                aria-current={view === "links" ? "page" : undefined}
+              >
+                <Bookmark size={15} aria-hidden />
+              </button>
+            </div>
+            {onCollapse && (
+              <button
+                className="nk-iconbtn nk-panel-collapse"
+                onClick={onCollapse}
+                title="Hide sidebar"
+                aria-label="Hide sidebar"
+              >
+                <PanelLeft size={14} aria-hidden />
+              </button>
             )}
-            <div className="nk-userbar-meta">
-              <div className="nk-userbar-name">{user.name ?? user.email}</div>
-              <div className="nk-userbar-plan">{user.plan}</div>
-            </div>
-            <MoreHorizontal
-              size={14}
-              aria-hidden
-              className="nk-userbar-chev"
-            />
-          </button>
-          {userMenuOpen && (
-            <div className="nk-popover nk-popover--userbar" role="menu">
-              {onOpenHistory && (
-                <button
-                  className="nk-popover-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    onOpenHistory();
-                  }}
-                >
-                  <Clock size={14} aria-hidden />
-                  <span>Activity</span>
-                </button>
-              )}
-              {onOpenAgents && (
-                <button
-                  className="nk-popover-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    onOpenAgents();
-                  }}
-                >
-                  <Bot size={14} aria-hidden />
-                  <span>Manage agents</span>
-                </button>
-              )}
-              {onOpenNotifications && (
-                <button
-                  className="nk-popover-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    onOpenNotifications();
-                  }}
-                >
-                  <Bell size={14} aria-hidden />
-                  <span>Notifications</span>
-                </button>
-              )}
-              {onOpenTokens && (
-                <button
-                  className="nk-popover-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    onOpenTokens();
-                  }}
-                >
-                  <KeyRound size={14} aria-hidden />
-                  <span>API tokens</span>
-                </button>
-              )}
-              {onOpenDevices && (
-                <button
-                  className="nk-popover-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    onOpenDevices();
-                  }}
-                >
-                  <MonitorSmartphone size={14} aria-hidden />
-                  <span>Devices</span>
-                </button>
-              )}
-              {onSignOut && (
-                <button
-                  className="nk-popover-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setUserMenuOpen(false);
-                    onSignOut();
-                  }}
-                >
-                  <LogOut size={14} aria-hidden />
-                  <span>Sign out</span>
-                </button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+          </div>
+        )}
+
+        {mobileShell && <EncryptedSkippedBanner />}
+
+        {view === "notes" && (
+          <NoteList mobileShell={mobileShell} onCollapse={onCollapse} />
+        )}
+        {view === "graph" && (
+          <div className="nk-empty">
+            <p>Knowledge graph.</p>
+            <p className="nk-empty-hint">
+              Nodes are notes. Links come from{" "}
+              <code style={{ fontFamily: "var(--mono-font)" }}>[[wikilinks]]</code>{" "}
+              in your notes.
+            </p>
+          </div>
+        )}
+        {view === "calendar" && (
+          <div className="nk-empty">
+            <p>Calendar &amp; tasks.</p>
+            <p className="nk-empty-hint">
+              Tasks with a due date appear on the calendar. Drag them to reschedule.
+            </p>
+          </div>
+        )}
+        {view === "secrets" && (
+          <div className="nk-empty">
+            <p>Encrypted secrets.</p>
+            <p className="nk-empty-hint">
+              API keys and tokens, encrypted on-device before they touch the
+              vault. Only your devices can read them.
+            </p>
+          </div>
+        )}
+        {view === "links" && (
+          <div className="nk-empty">
+            <p>Saved links.</p>
+            <p className="nk-empty-hint">
+              Bookmarks with auto-detected platform tags — X, GitHub, YouTube,
+              and more.
+            </p>
+          </div>
+        )}
+
+        <VaultSwitcher className="nk-vault-switcher--footer" />
+      </div>
     </aside>
   );
 }

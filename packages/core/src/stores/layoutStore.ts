@@ -4,11 +4,21 @@ import { useNotesStore } from "./notesStore";
 let _seq = 0;
 const uid = () => `p${++_seq}`;
 
+export type TabEntry =
+  | { type: "note"; id: string }
+  | { type: "link"; id: string }
+  | { type: "secret"; vault: string; name: string };
+
+export function tabKey(t: TabEntry): string {
+  if (t.type === "secret") return `secret:${t.vault}\x00${t.name}`;
+  return `${t.type}:${t.id}`;
+}
+
 export type PaneLeaf = {
   type: "leaf";
   id: string;
-  tabs: string[];
-  activeTab: string | null;
+  tabs: TabEntry[];
+  activeTab: TabEntry | null;
   outlineOpen: boolean;
 };
 
@@ -82,8 +92,9 @@ interface LayoutState {
   layout: PaneNode;
   activePaneId: string;
   openNote(noteId: string, paneId?: string): void;
-  closeTab(noteId: string, paneId: string): void;
-  activateTab(noteId: string, paneId: string): void;
+  openTab(entry: TabEntry, paneId?: string): void;
+  closeTab(tab: TabEntry, paneId: string): void;
+  activateTab(tab: TabEntry, paneId: string): void;
   setActivePaneId(paneId: string): void;
   splitPane(paneId: string, direction: "horizontal" | "vertical"): void;
   closePane(paneId: string): void;
@@ -96,25 +107,31 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
   activePaneId: initial.id,
 
   openNote(noteId, paneId) {
+    get().openTab({ type: "note", id: noteId }, paneId);
+    useNotesStore.getState().setActive(noteId);
+  },
+
+  openTab(entry, paneId) {
+    const key = tabKey(entry);
     const targetId = paneId ?? get().activePaneId;
     set((s) => ({
       layout: mapLeaf(s.layout, targetId, (leaf) => ({
         ...leaf,
-        tabs: leaf.tabs.includes(noteId) ? leaf.tabs : [...leaf.tabs, noteId],
-        activeTab: noteId,
+        tabs: leaf.tabs.some((t) => tabKey(t) === key) ? leaf.tabs : [...leaf.tabs, entry],
+        activeTab: entry,
       })),
       activePaneId: targetId,
     }));
-    useNotesStore.getState().setActive(noteId);
   },
 
-  closeTab(noteId, paneId) {
+  closeTab(tab, paneId) {
+    const key = tabKey(tab);
     set((s) => ({
       layout: mapLeaf(s.layout, paneId, (leaf) => {
-        const idx = leaf.tabs.indexOf(noteId);
-        const tabs = leaf.tabs.filter((t) => t !== noteId);
+        const idx = leaf.tabs.findIndex((t) => tabKey(t) === key);
+        const tabs = leaf.tabs.filter((t) => tabKey(t) !== key);
         const activeTab =
-          leaf.activeTab === noteId
+          leaf.activeTab && tabKey(leaf.activeTab) === key
             ? (tabs[Math.min(idx, tabs.length - 1)] ?? null)
             : leaf.activeTab;
         return { ...leaf, tabs, activeTab };
@@ -122,26 +139,32 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     }));
     if (get().activePaneId === paneId) {
       const leaf = findLeaf(get().layout, paneId);
-      useNotesStore.getState().setActive(leaf?.activeTab ?? null);
+      const next = leaf?.activeTab;
+      if (!next || next.type === "note") {
+        useNotesStore.getState().setActive(next?.id ?? null);
+      }
     }
   },
 
-  activateTab(noteId, paneId) {
+  activateTab(tab, paneId) {
     set((s) => ({
       layout: mapLeaf(s.layout, paneId, (leaf) => ({
         ...leaf,
-        activeTab: noteId,
+        activeTab: tab,
       })),
       activePaneId: paneId,
     }));
-    useNotesStore.getState().setActive(noteId);
+    if (tab.type === "note") {
+      useNotesStore.getState().setActive(tab.id);
+    }
   },
 
   setActivePaneId(paneId) {
     set({ activePaneId: paneId });
     const leaf = findLeaf(get().layout, paneId);
-    if (leaf?.activeTab) {
-      useNotesStore.getState().setActive(leaf.activeTab);
+    const tab = leaf?.activeTab;
+    if (tab?.type === "note") {
+      useNotesStore.getState().setActive(tab.id);
     }
   },
 

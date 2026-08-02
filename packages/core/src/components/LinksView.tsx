@@ -3,8 +3,10 @@ import {
   ChevronRight,
   ExternalLink,
   Folder,
+  Link2,
   Lock,
   MoreHorizontal,
+  Plus,
   Share2,
   Unlock,
   X,
@@ -613,8 +615,19 @@ export function LinksView() {
       )}
 
       {isEmpty && !isAdding && (
-        <div className="nk-empty" style={{ padding: "var(--gap-5) var(--gap-3)" }}>
-          <p>No links yet. Add one above.</p>
+        <div className="nk-empty nk-empty--center">
+          <Link2
+            size={36}
+            aria-hidden
+            style={{ color: "var(--muted)", opacity: 0.4, marginBottom: 14 }}
+          />
+          <p>No links yet.</p>
+          <p className="nk-empty-hint">Bookmarks with auto-detected platform tags.</p>
+          <div className="nk-empty-cta-row">
+            <button className="nk-empty-cta" onClick={() => openAddForm(null)}>
+              <Plus size={14} aria-hidden /> Add link
+            </button>
+          </div>
         </div>
       )}
 

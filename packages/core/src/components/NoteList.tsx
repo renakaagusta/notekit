@@ -1,10 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, FileText, Folder, Lock, MoreHorizontal } from "lucide-react";
+import {
+  ArrowDownAZ,
+  ArrowUpDown,
+  ChevronRight,
+  ChevronsDownUp,
+  FilePlus,
+  FileText,
+  Folder,
+  FolderPlus,
+  Lock,
+  MoreHorizontal,
+  PanelLeftClose,
+} from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { noteTitle, notePreview } from "../lib/note-display";
 import { journalYMDFromPath } from "../lib/journal";
 import type { Note } from "../types/note";
+
+type SortMode = "modified" | "alpha-asc" | "alpha-desc";
 
 interface FolderNode {
   name: string;
@@ -13,7 +27,7 @@ interface FolderNode {
   notes: Note[];
 }
 
-function buildTree(notes: Note[], extraFolders: string[]): FolderNode {
+function buildTree(notes: Note[], extraFolders: string[], sort: SortMode): FolderNode {
   const root: FolderNode = { name: "", path: "", children: [], notes: [] };
   const byPath = new Map<string, FolderNode>();
   byPath.set("", root);
@@ -45,16 +59,30 @@ function buildTree(notes: Note[], extraFolders: string[]): FolderNode {
     parent.notes.push(n);
   }
 
-  const sort = (node: FolderNode) => {
-    node.children.sort((a, b) => a.name.localeCompare(b.name));
-    node.notes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-    node.children.forEach(sort);
+  const applySort = (node: FolderNode) => {
+    if (sort === "alpha-desc") {
+      node.children.sort((a, b) => b.name.localeCompare(a.name));
+      node.notes.sort((a, b) => b.path.localeCompare(a.path));
+    } else if (sort === "alpha-asc") {
+      node.children.sort((a, b) => a.name.localeCompare(b.name));
+      node.notes.sort((a, b) => a.path.localeCompare(b.path));
+    } else {
+      node.children.sort((a, b) => a.name.localeCompare(b.name));
+      node.notes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    }
+    node.children.forEach(applySort);
   };
-  sort(root);
+  applySort(root);
   return root;
 }
 
-export function NoteList({ mobileShell = false }: { mobileShell?: boolean }) {
+export function NoteList({
+  mobileShell = false,
+  onCollapse,
+}: {
+  mobileShell?: boolean;
+  onCollapse?: () => void;
+}) {
   const all = useNotesStore((s) => s.all());
   const folders = useNotesStore((s) => s.folders);
   const activeNoteId = useNotesStore((s) => s.activeNoteId);
@@ -64,13 +92,12 @@ export function NoteList({ mobileShell = false }: { mobileShell?: boolean }) {
   const removeFolder = useNotesStore((s) => s.removeFolder);
   const upsert = useNotesStore((s) => s.upsert);
   const createFolder = useNotesStore((s) => s.createFolder);
-  // In a born-E2EE vault every note is encrypted, so the per-note lock badge
-  // is redundant noise — only show it in legacy/mixed vaults where it actually
-  // distinguishes encrypted from plaintext.
   const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
 
-  // Inlined from the old CreateMenu popover — both actions are now items in
-  // the folder's "more options" menu, so the standalone "+" button is gone.
+  const [sortMode, setSortMode] = useState<SortMode>("modified");
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [dragId, setDragId] = useState<string | null>(null);
+
   function createNewFile(parent: string | null) {
     const note = upsert({ title: "Untitled", body: "", folder: parent });
     setActive(note.id);
@@ -89,9 +116,41 @@ export function NoteList({ mobileShell = false }: { mobileShell?: boolean }) {
     () => all.filter((n) => !journalYMDFromPath(n.path)),
     [all],
   );
-  const tree = useMemo(() => buildTree(nonJournalNotes, folders), [nonJournalNotes, folders]);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-  const [dragId, setDragId] = useState<string | null>(null);
+  const tree = useMemo(
+    () => buildTree(nonJournalNotes, folders, sortMode),
+    [nonJournalNotes, folders, sortMode],
+  );
+
+  function cycleSortMode() {
+    setSortMode((m) =>
+      m === "modified" ? "alpha-asc" : m === "alpha-asc" ? "alpha-desc" : "modified",
+    );
+  }
+
+  function collapseAll() {
+    const paths = new Set<string>();
+    function collect(node: FolderNode) {
+      if (node.path) paths.add(node.path);
+      node.children.forEach(collect);
+    }
+    collect(tree);
+    setCollapsed(paths);
+  }
+
+  function expandAll() {
+    setCollapsed(new Set());
+  }
+
+  const allCollapsed = useMemo(() => {
+    function allFolderPaths(node: FolderNode): string[] {
+      return [
+        ...(node.path ? [node.path] : []),
+        ...node.children.flatMap(allFolderPaths),
+      ];
+    }
+    const paths = allFolderPaths(tree);
+    return paths.length > 0 && paths.every((p) => collapsed.has(p));
+  }, [tree, collapsed]);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<string | null>(null);
 
@@ -166,14 +225,70 @@ export function NoteList({ mobileShell = false }: { mobileShell?: boolean }) {
   }, [ctxMenu]);
 
   const isEmpty = all.length === 0 && folders.length === 0;
+
+  const SortIcon =
+    sortMode === "alpha-asc" ? ArrowDownAZ : sortMode === "alpha-desc" ? ArrowUpDown : ArrowUpDown;
+  const sortLabel =
+    sortMode === "modified" ? "Sort: modified" : sortMode === "alpha-asc" ? "Sort: A→Z" : "Sort: Z→A";
+
+  const toolbar = !mobileShell && (
+    <div className="nk-tree-toolbar">
+      <button
+        className="nk-tree-tb-btn"
+        title="New note"
+        aria-label="New note"
+        onClick={() => createNewFile(null)}
+      >
+        <FilePlus size={14} aria-hidden />
+      </button>
+      <button
+        className="nk-tree-tb-btn"
+        title="New folder"
+        aria-label="New folder"
+        onClick={() => createNewFolder(null)}
+      >
+        <FolderPlus size={14} aria-hidden />
+      </button>
+      <button
+        className={"nk-tree-tb-btn" + (sortMode !== "modified" ? " active" : "")}
+        title={sortLabel}
+        aria-label={sortLabel}
+        onClick={cycleSortMode}
+      >
+        <SortIcon size={14} aria-hidden />
+      </button>
+      <button
+        className="nk-tree-tb-btn"
+        title={allCollapsed ? "Expand all" : "Collapse all"}
+        aria-label={allCollapsed ? "Expand all" : "Collapse all"}
+        onClick={allCollapsed ? expandAll : collapseAll}
+      >
+        <ChevronsDownUp size={14} aria-hidden />
+      </button>
+      {onCollapse && (
+        <button
+          className="nk-tree-tb-btn"
+          title="Hide sidebar"
+          aria-label="Hide sidebar"
+          onClick={onCollapse}
+        >
+          <PanelLeftClose size={14} aria-hidden />
+        </button>
+      )}
+    </div>
+  );
+
   if (isEmpty) {
     return (
-      <div className="nk-empty nk-empty--center">
-        <p>No notes yet.</p>
-        <p className="nk-empty-hint">
-          {mobileShell ? "Tap + to create one." : "Press ⌘N to create one."}
-        </p>
-      </div>
+      <>
+        {toolbar}
+        <div className="nk-empty nk-empty--center">
+          <p>No notes yet.</p>
+          <p className="nk-empty-hint">
+            {mobileShell ? "Tap + to create one." : "Press ⌘N to create one."}
+          </p>
+        </div>
+      </>
     );
   }
 
@@ -354,20 +469,23 @@ export function NoteList({ mobileShell = false }: { mobileShell?: boolean }) {
   }
 
   return (
-    <ul
-      className={"nk-tree" + (dropTarget === "" ? " drop-root" : "")}
-      onDragOver={(e) => {
-        if (!dragId) return;
-        e.preventDefault();
-        setDropTarget("");
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        onDropTo(null);
-      }}
-    >
-      {renderNode(tree, 0)}
-    </ul>
+    <>
+      {toolbar}
+      <ul
+        className={"nk-tree" + (dropTarget === "" ? " drop-root" : "")}
+        onDragOver={(e) => {
+          if (!dragId) return;
+          e.preventDefault();
+          setDropTarget("");
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          onDropTo(null);
+        }}
+      >
+        {renderNode(tree, 0)}
+      </ul>
+    </>
   );
 }
 

@@ -260,8 +260,10 @@ body {
 .nk-devices-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0;
   width: 100%;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .nk-side-panel {
@@ -369,55 +371,244 @@ body {
 /* ─── Sidebar ───────────────────────────────────────────────────── */
 
 .nk-sidebar {
-  /* Sidebar is the recessed plane; the document area (--surface) is
-   * the elevated focus. This matches Notion / Outline / Linear where
-   * the workspace chrome sits on a slightly grayer ground and the page
-   * itself reads as a bright sheet of paper. The previous mapping
-   * (sidebar=white, main=gray) felt inverted because the document was
-   * the dimmer surface. */
   background: var(--bg);
   border-right: 1px solid var(--border);
+  /* Two-column Obsidian-style layout: narrow icon rail + content panel */
+  display: grid;
+  grid-template-columns: 40px 1fr;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ── Icon Rail ─────────────────────────────────────────────────────────
+ * 40px narrow left column (Obsidian-style). Desktop only — hidden on
+ * mobile where the drawer handles navigation.
+ * Layout: brand mark top → nav icons flex-grow → collapse + avatar bottom.
+ * ──────────────────────────────────────────────────────────────────── */
+.nk-icon-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-right: 1px solid var(--border-soft);
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.nk-rail-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 46px;
+  flex-shrink: 0;
+  color: var(--text-2);
+}
+
+.nk-rail-nav {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1 1 auto;
+  padding: 4px 0;
+  width: 100%;
+}
+
+.nk-rail-item {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-md);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  flex-shrink: 0;
+}
+
+.nk-rail-item:hover {
+  background: var(--hover);
+  color: var(--text-2);
+}
+
+.nk-rail-item.active {
+  background: var(--selected);
+  color: var(--accent-text);
+}
+
+.nk-rail-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  flex-shrink: 0;
+}
+
+.nk-rail-collapse {
+  color: var(--muted);
+  opacity: 0.6;
+  transition: opacity 120ms, color 120ms;
+}
+
+.nk-rail-collapse:hover,
+.nk-rail-collapse:focus-visible {
+  opacity: 1;
+  color: var(--text-2);
+}
+
+/* Avatar button in the rail foot */
+.nk-rail-avatar-wrap {
+  position: relative;
+}
+
+.nk-rail-avatar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  padding: 2px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: opacity 120ms;
+}
+
+.nk-rail-avatar-btn:hover {
+  opacity: 0.8;
+}
+
+/* Smaller avatar variant for the icon rail (28px vs default 24px) */
+.nk-avatar--sm {
+  width: 26px;
+  height: 26px;
+}
+
+/* ── Content Panel ─────────────────────────────────────────────────────
+ * Right column next to the icon rail: section header + list + footer.
+ * ──────────────────────────────────────────────────────────────────── */
+.nk-panel {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-width: 0;
 }
 
-/* App identity anchor — top-left, where the eye lands first. The vault
- * switcher (a control) lives in the footer instead. */
-.nk-brand {
+/* Desktop panel header: section title (left) + icon actions (right) */
+.nk-panel-hd {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 14px 14px 10px;
-  font-size: 14px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  gap: 4px;
+  padding: 7px 8px 7px 10px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border-soft);
+  min-height: 40px;
+}
+
+/* Row 1 nav group: Files · Search · Bookmark — mirrors Obsidian's panel tabs */
+.nk-panel-nav {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 1 1 auto;
+}
+
+.nk-panel-nav-btn {
+  width: 30px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  border-radius: var(--r-md);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  flex-shrink: 0;
+}
+
+.nk-panel-nav-btn:hover {
+  background: var(--hover);
+  color: var(--text-2);
+}
+
+.nk-panel-nav-btn.active {
+  background: var(--selected);
   color: var(--text);
 }
 
-.nk-brand-mark {
-  flex: 0 0 auto;
-  border-radius: var(--r-sm);
+.nk-panel-actions {
+  display: inline-flex;
+  gap: 2px;
 }
 
-.nk-brand-word {
-  line-height: 1;
-}
-
-/* Collapse control sits at the trailing edge of the brand row. Quiet but
- * always visible at rest so it's discoverable; brightens on hover/focus. */
-.nk-brand-collapse {
+/* Collapse sits at far-right of panel header */
+.nk-panel-collapse {
   margin-left: auto;
-  color: var(--muted);
-  opacity: 0.6;
-  transition: opacity 120ms, color 120ms;
+  flex-shrink: 0;
 }
 
-.nk-brand:hover .nk-brand-collapse,
-.nk-brand-collapse:focus-visible {
-  opacity: 1;
-  color: var(--text-2);
+/* ── macOS desktop: frameless title bar (hiddenInset) ──────────────────
+ * Traffic lights float at x:14, spanning ~80px horizontally within the
+ * 40px icon rail column. Make the whole rail a drag region; interactive
+ * children opt back out with no-drag.
+ * ──────────────────────────────────────────────────────────────────── */
+[data-desktop-mac="true"] .nk-icon-rail {
+  -webkit-app-region: drag;
+}
+
+[data-desktop-mac="true"] .nk-rail-nav,
+[data-desktop-mac="true"] .nk-rail-foot,
+[data-desktop-mac="true"] .nk-rail-brand {
+  -webkit-app-region: no-drag;
+}
+
+/* Push rail brand below the traffic lights (~28px inset on hiddenInset).
+ * padding-top shrinks the centering zone so the icon lands at ≈31px,
+ * clear of the stoplights which end at ≈28px. */
+[data-desktop-mac="true"] .nk-rail-brand {
+  height: 58px;
+  padding-top: 28px;
+}
+
+/* Panel header is a drag region; icon buttons opt back out.
+ * Traffic lights (hiddenInset) end at x≈64px; rail is 40px wide, so
+ * panel-hd needs 28px left padding to clear the green stoplight. */
+[data-desktop-mac="true"] .nk-panel-hd {
+  -webkit-app-region: drag;
+  padding-left: 28px;
+}
+
+[data-desktop-mac="true"] .nk-panel-hd > * {
+  -webkit-app-region: no-drag;
+}
+
+/* The tab bar's empty gutter is a second drag handle; tabs + actions
+ * opt out so clicks and tab switches still land. */
+[data-desktop-mac="true"] .nk-tab-bar,
+[data-desktop-mac="true"] .nk-tab-bar-tabs {
+  -webkit-app-region: drag;
+}
+
+[data-desktop-mac="true"] .nk-tab,
+[data-desktop-mac="true"] .nk-tab-bar-actions {
+  -webkit-app-region: no-drag;
+}
+
+/* When the sidebar is collapsed the document header sits at the window edge,
+ * so its leading expand button needs the same stoplight clearance. */
+[data-desktop-mac="true"] .nk-app[data-sidebar-collapsed="true"] .nk-main-hd {
+  padding-left: 76px;
+  -webkit-app-region: drag;
+}
+
+[data-desktop-mac="true"] .nk-app[data-sidebar-collapsed="true"] .nk-main-hd button,
+[data-desktop-mac="true"] .nk-app[data-sidebar-collapsed="true"] .nk-main-hd .nk-iconbtn {
+  -webkit-app-region: no-drag;
 }
 
 /* Expand control, shown in the document header when the sidebar is hidden. */
@@ -447,134 +638,15 @@ body {
 /* Flat vertical nav (Notion / Linear / Orca style). Stacked icon+label
  * rows so every surface is visible — no horizontal "More" dropdown to
  * clip at 240px. */
+/* .nk-nav / .nk-navitem* — desktop nav is now the icon rail (.nk-rail-*).
+ * These rules are kept only for the mobile shell which hides the nav anyway;
+ * they can be removed in a future cleanup pass. */
 .nk-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: var(--gap-2);
-  border-bottom: 1px solid var(--border-soft);
-  flex: 0 0 auto;
+  display: none;
 }
 
-/* Once dragged to an explicit height, the nav scrolls instead of growing
- * the sidebar. The resizer below draws the divider, so drop the border. */
-.nk-nav[data-resized] {
-  overflow-y: auto;
-  min-height: 0;
-  border-bottom: 0;
-  scrollbar-width: thin;
-}
-
-/* Draggable splitter between the nav block and the list. A thin strip
- * with a wider invisible hit area; shows a centred grip on hover. */
 .nk-nav-resizer {
-  position: relative;
-  height: 7px;
-  flex: 0 0 auto;
-  cursor: row-resize;
-  touch-action: none;
-}
-
-.nk-nav-resizer-grip {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  width: 28px;
-  height: 3px;
-  border-radius: 2px;
-  background: var(--border);
-  opacity: 0;
-  transition: opacity 120ms;
-}
-
-.nk-nav-resizer:hover .nk-nav-resizer-grip,
-.nk-nav-resizer:active .nk-nav-resizer-grip {
-  opacity: 1;
-}
-
-/* Row = clickable surface button + optional "+" sibling. A row (not a
- * lone button) so the "+" isn't nested inside the nav button (invalid),
- * and so the create menu can anchor to it. */
-.nk-navitem-row {
-  position: relative;
-  display: flex;
-  align-items: center;
-  border-radius: var(--r-md);
-  transition: background 120ms;
-}
-
-.nk-navitem-row:hover {
-  background: var(--hover);
-}
-
-.nk-navitem-row.active {
-  background: var(--selected);
-}
-
-.nk-navitem {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 8px;
-  background: transparent;
-  border: 0;
-  border-radius: var(--r-md);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-2);
-  cursor: pointer;
-  text-align: left;
-  transition: color 120ms;
-}
-
-.nk-navitem-row:hover .nk-navitem,
-.nk-navitem-row.active .nk-navitem {
-  color: var(--text);
-}
-
-.nk-navitem-row.active .nk-navitem {
-  color: var(--accent-text);
-}
-
-.nk-navitem-icon {
-  flex: 0 0 auto;
-  color: var(--muted);
-  transition: color 120ms;
-}
-
-.nk-navitem-row:hover .nk-navitem-icon {
-  color: var(--text-2);
-}
-
-.nk-navitem-row.active .nk-navitem-icon {
-  color: var(--accent-text);
-}
-
-.nk-navitem-label {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* "+" sits at the row's trailing edge; quiet until hover/active so the
- * nav reads calm at rest (Notion's pattern). */
-.nk-navitem-add {
-  flex: 0 0 auto;
-  margin-right: 4px;
-  opacity: 0;
-  transition: opacity 120ms;
-}
-
-.nk-navitem-row:hover .nk-navitem-add,
-.nk-navitem-row.active .nk-navitem-add,
-.nk-navitem-add:focus-visible {
-  opacity: 1;
+  display: none;
 }
 
 .nk-sidebar-section {
@@ -622,6 +694,45 @@ body {
   border-radius: var(--r-sm);
   vertical-align: middle;
   font-variant-numeric: tabular-nums;
+}
+
+/* Obsidian-style compact action toolbar above the file tree */
+.nk-tree-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px 6px 4px;
+  flex-shrink: 0;
+}
+
+.nk-tree-tb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: none;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+  flex-shrink: 0;
+}
+
+.nk-tree-tb-btn:hover {
+  background: var(--surface-2);
+  color: var(--text-1);
+}
+
+.nk-tree-tb-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.nk-tree-tb-btn.active {
+  color: var(--accent);
 }
 
 .nk-tree {
@@ -2094,6 +2205,28 @@ a.nk-commit-sha:hover {
   border-color: rgba(255, 200, 0, 0.45);
 }
 
+/* Link wikilinks — blue tint */
+.nk-wikilink--link {
+  background: rgba(96, 165, 250, 0.10);
+  border-color: rgba(96, 165, 250, 0.30);
+  color: #60a5fa;
+}
+.nk-wikilink--link:hover {
+  background: rgba(96, 165, 250, 0.18);
+  border-color: rgba(96, 165, 250, 0.50);
+}
+
+/* Secret wikilinks — red/shield tint */
+.nk-wikilink--secret {
+  background: rgba(248, 113, 113, 0.10);
+  border-color: rgba(248, 113, 113, 0.30);
+  color: #f87171;
+}
+.nk-wikilink--secret:hover {
+  background: rgba(248, 113, 113, 0.18);
+  border-color: rgba(248, 113, 113, 0.50);
+}
+
 .nk-prose .ProseMirror-selectednode {
   outline: 2px solid var(--accent);
   border-radius: 4px;
@@ -2276,6 +2409,12 @@ a.nk-commit-sha:hover {
   padding: var(--gap-3) var(--gap-4) 0;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
+}
+
+.nk-board-toolbar-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
 }
 
 .nk-view-tabs {
@@ -3557,6 +3696,84 @@ a.nk-commit-sha:hover {
   margin: 0;
 }
 
+/* ── Link / Secret tab detail views ─────────────────────────────────── */
+.nk-tab-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px 48px;
+  max-width: 680px;
+}
+
+.nk-tab-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.nk-tab-detail-type {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.nk-tab-detail-title {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0 0 12px;
+  line-height: 1.3;
+}
+
+.nk-tab-detail-desc {
+  font-size: 14px;
+  color: var(--text-2);
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+.nk-tab-detail-url {
+  display: block;
+  font-size: 13px;
+  color: var(--accent);
+  text-decoration: none;
+  margin-bottom: 16px;
+  word-break: break-all;
+}
+
+.nk-tab-detail-url:hover {
+  text-decoration: underline;
+}
+
+.nk-tab-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 24px;
+}
+
+.nk-tab-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.nk-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--surface-2);
+  color: var(--text-2);
+}
+
 .nk-empty-cta {
   margin-top: var(--gap-3);
   display: inline-flex;
@@ -3583,7 +3800,193 @@ a.nk-commit-sha:hover {
   color: var(--accent-text);
 }
 
-/* ─── Sign-in card ──────────────────────────────────────────────── */
+/* ─── Sign-in · Oracle-style split-screen auth ──────────────────── */
+/* Standalone dark, black-&-white screen. Brand colors are explicit (not theme
+ * tokens) so it reads identically in light or dark mode. */
+
+.nk-auth {
+  --auth-ink: #0a0a0b; /* canvas */
+  --auth-card: #0f0f11; /* right panel */
+  --auth-line: #232326; /* hairline */
+  --auth-line2: #303036; /* stronger hairline */
+  --auth-fg: #f4f4f5; /* foreground ink */
+  --auth-muted: #8a8a93; /* secondary text */
+  --auth-dim: #57575e; /* captions */
+  --auth-lead: #a9a9b2; /* lead paragraph */
+  --auth-down: #e5484d; /* error */
+  /* Feed the shared brand mark, which reads var(--accent). */
+  --accent: #f4f4f5;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  background: var(--auth-ink);
+  color: var(--auth-fg);
+  font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (min-width: 768px) {
+  .nk-auth {
+    grid-template-columns: 1.05fr 1fr;
+  }
+}
+
+/* LEFT · brand + live-data motif on a hairline grid */
+.nk-auth-left {
+  display: none;
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid var(--auth-line);
+  background-image:
+    radial-gradient(120% 90% at 12% 8%, rgba(255, 255, 255, 0.05), transparent 60%),
+    linear-gradient(var(--auth-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--auth-line) 1px, transparent 1px);
+  background-size:
+    auto,
+    46px 46px,
+    46px 46px;
+}
+
+@media (min-width: 768px) {
+  .nk-auth-left {
+    display: block;
+  }
+}
+
+.nk-auth-stream {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 44px 56px;
+  opacity: 0.1;
+  font-family: var(--mono-font);
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--auth-fg);
+  white-space: pre;
+  pointer-events: none;
+}
+
+.nk-auth-left-inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 44px 56px;
+}
+
+.nk-auth-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.nk-auth-word {
+  font-family: var(--mono-font);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-size: 18px;
+}
+
+.nk-auth-pitch {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.nk-auth-h2 {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.022em;
+  line-height: 1.04;
+  font-size: 44px;
+  max-width: 16ch;
+}
+
+.nk-auth-lead {
+  margin: 0;
+  max-width: 42ch;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--auth-lead);
+}
+
+.nk-auth-tags {
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+  color: var(--auth-dim);
+  letter-spacing: 0.04em;
+}
+
+/* RIGHT · auth panel */
+.nk-auth-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--auth-card);
+  padding: 48px 40px;
+}
+
+.nk-auth-panel {
+  width: 100%;
+  max-width: 372px;
+  display: flex;
+  flex-direction: column;
+}
+
+.nk-auth-lockup-mobile {
+  margin-bottom: 32px;
+}
+
+@media (min-width: 768px) {
+  .nk-auth-lockup-mobile {
+    display: none;
+  }
+}
+
+.nk-auth-overline {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--auth-muted);
+  margin-bottom: 14px;
+}
+
+.nk-auth-h1 {
+  margin: 0 0 10px;
+  font-weight: 800;
+  letter-spacing: -0.022em;
+  line-height: 1.04;
+  font-size: 34px;
+}
+
+.nk-auth-panel .nk-auth-lead {
+  margin: 0 0 28px;
+  font-size: 14.5px;
+}
+
+.nk-auth-rule {
+  height: 1px;
+  background: var(--auth-line);
+  margin: 26px 0 0;
+}
+
+.nk-auth-foot {
+  margin: 20px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--auth-dim);
+}
+
+/* ─── Shared sign-in card + buttons (used app-wide: AuthGate, dialogs, ──
+ * calendar, vault pickers). Theme-token based — keep these generic. The
+ * Oracle auth screen re-skins them via `.nk-auth`-scoped overrides below. */
 
 .nk-signin {
   min-height: 100vh;
@@ -3674,10 +4077,8 @@ a.nk-commit-sha:hover {
 }
 
 /* Apple HIG asks for a white-on-black or black-on-white Sign in with
- * Apple button that visually leads the stack — making it look the same
- * weight as Google/GitHub would violate the guideline. Use the active
- * theme's foreground/background for contrast so it inverts naturally
- * between light and dark without per-theme overrides. */
+ * Apple button that visually leads the stack. Use the active theme's
+ * foreground/background so it inverts naturally between light and dark. */
 .nk-signin-btn-apple {
   background: var(--text);
   color: var(--bg);
@@ -3753,6 +4154,102 @@ a.nk-commit-sha:hover {
   text-decoration: underline;
 }
 
+/* ─── Oracle auth re-skin — scoped to the split-screen only ─────── */
+
+.nk-auth .nk-signin-error {
+  background: #2a1315;
+  border: 1px solid color-mix(in srgb, var(--auth-down) 55%, transparent);
+  color: var(--auth-fg);
+  padding: 10px 14px;
+  border-radius: 11px;
+  font-size: 12.5px;
+  margin-bottom: 16px;
+}
+
+.nk-auth .nk-signin-buttons {
+  gap: 10px;
+}
+
+.nk-auth .nk-signin-btn {
+  padding: 13px 18px;
+  background: #17171a;
+  color: var(--auth-fg);
+  border: 1px solid var(--auth-line2);
+  border-radius: 11px;
+  font-size: 14.5px;
+  font-weight: 600;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    opacity 0.12s;
+}
+
+.nk-auth .nk-signin-btn:hover:not(:disabled) {
+  background: #1e1e22;
+  border-color: #3a3a42;
+}
+
+.nk-auth .nk-signin-btn-apple {
+  background: var(--auth-fg);
+  color: var(--auth-ink);
+  border-color: var(--auth-fg);
+}
+.nk-auth .nk-signin-btn-apple:hover:not(:disabled) {
+  background: var(--auth-fg);
+  color: var(--auth-ink);
+  border-color: var(--auth-fg);
+  opacity: 0.9;
+}
+
+.nk-auth .nk-signin-hint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--auth-muted);
+}
+
+.nk-auth .nk-signin-hint code {
+  background: #17171a;
+  border: 1px solid var(--auth-line2);
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+.nk-auth .nk-signin-btn-ghost {
+  margin-top: 12px;
+  background: transparent;
+  border-color: var(--auth-line2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--auth-muted);
+}
+
+.nk-auth .nk-signin-token-form {
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.nk-auth .nk-signin-token-input {
+  font-size: 13px;
+  padding: 12px 14px;
+  background: #17171a;
+  color: var(--auth-fg);
+  border: 1px solid var(--auth-line2);
+  border-radius: 11px;
+}
+
+.nk-auth .nk-signin-token-input:focus {
+  border-color: var(--auth-fg);
+}
+
+.nk-auth .nk-signin-btn-link {
+  color: var(--auth-muted);
+  font-size: 12.5px;
+}
+
+.nk-auth .nk-signin-btn-link:hover {
+  color: var(--auth-fg);
+}
+
 /* ─── Modal (vault picker, etc.) ───────────────────────────────── */
 
 .nk-modal-backdrop {
@@ -3801,6 +4298,15 @@ a.nk-commit-sha:hover {
   right: 8px;
 }
 
+/* Popover for the icon rail avatar button — opens to the right and upward */
+.nk-popover--rail {
+  top: auto;
+  bottom: 0;
+  left: calc(100% + 6px);
+  right: auto;
+  min-width: 180px;
+}
+
 /* ── Secrets panel ─────────────────────────────────────────── */
 .nk-secrets-panel {
   flex: 1;
@@ -3808,15 +4314,18 @@ a.nk-commit-sha:hover {
   display: flex;
   flex-direction: column;
   gap: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .nk-secrets-hd {
   display: flex;
   align-items: center;
   gap: var(--gap-2);
-  padding: 14px var(--gap-3) 10px;
-  border-bottom: 1px solid var(--border-soft);
+  height: 36px;
+  padding: 0 var(--gap-3);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
 }
 
 .nk-secrets-hd h2 {
@@ -4056,6 +4565,7 @@ a.nk-commit-sha:hover {
 .nk-modal-body {
   padding: 12px 16px 16px;
   overflow-y: auto;
+  min-height: 200px;
 }
 
 /* Collapsible subsection (vault settings hub) */
@@ -4903,6 +5413,13 @@ a.nk-commit-sha:hover {
   font-weight: 500;
 }
 
+.nk-device-id {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  opacity: 0.5;
+  letter-spacing: 0.04em;
+}
+
 /* ─── Vault switcher ────────────────────────────────────────────── */
 
 .nk-vault-switcher {
@@ -5351,6 +5868,62 @@ a.nk-commit-sha:hover {
 .nk-calendar-today:hover {
   background: var(--hover);
   color: var(--text);
+}
+
+/* Tasks view */
+.nk-tasks-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Board/Calendar toggle pill — sits in the toolbar endSlot */
+.nk-tasks-toggle {
+  display: flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 2px;
+}
+
+.nk-tasks-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.nk-tasks-toggle-btn:hover {
+  color: var(--text);
+}
+
+.nk-tasks-toggle-btn.active {
+  background: var(--selected);
+  color: var(--accent-text);
+}
+
+/* endSlot container — far right of the toolbar top row */
+.nk-toolbar-end {
+  display: flex;
+  align-items: center;
+  padding-bottom: 4px;
+}
+
+/* Calendar header right cluster (mode tabs + endSlot) */
+.nk-calendar-hd-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .nk-calendar-modes {
@@ -6298,15 +6871,18 @@ a.nk-commit-sha:hover {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .nk-links-hd {
   display: flex;
   align-items: center;
   gap: var(--gap-2);
-  padding: 14px var(--gap-3) 10px;
-  border-bottom: 1px solid var(--border-soft);
+  height: 36px;
+  padding: 0 var(--gap-3);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
 }
 
 .nk-links-hd h2 {
@@ -6663,28 +7239,27 @@ a.nk-commit-sha:hover {
 
   /* ── Sidebar (list pane) ──────────────────────────────────────── */
 
+  /* On mobile the sidebar is a single full-width flex column.
+     The icon rail is hidden — the drawer handles navigation. */
   .nk-app[data-mobile="true"] .nk-sidebar {
     display: flex;
     flex-direction: column;
     background: var(--bg);
   }
-  /* Vault switcher and user chip live in the drawer on mobile, so hide the
-     copies that the desktop sidebar renders inline. The brand row is
-     redundant too — the section header is the mobile screen title. */
-  .nk-app[data-mobile="true"] .nk-brand {
-    display: none;
-  }
-  .nk-app[data-mobile="true"] .nk-sidebar > .nk-vault-switcher {
-    display: none;
-  }
-  .nk-app[data-mobile="true"] .nk-sidebar > .nk-userbar {
+
+  .nk-app[data-mobile="true"] .nk-icon-rail {
     display: none;
   }
 
-  /* Desktop tab strip is replaced by the bottom nav. The nav resizer goes
-     with it (nothing to resize when the nav is hidden). */
-  .nk-app[data-mobile="true"] .nk-nav,
-  .nk-app[data-mobile="true"] .nk-nav-resizer {
+  .nk-app[data-mobile="true"] .nk-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Vault switcher lives in the drawer on mobile. */
+  .nk-app[data-mobile="true"] .nk-panel > .nk-vault-switcher {
     display: none;
   }
 
@@ -7869,6 +8444,29 @@ a.nk-commit-sha:hover {
 .nk-tab-close:hover {
   background: var(--hover);
   color: var(--text);
+}
+
+/* "+" button — sits directly in nk-tab-bar between the tabs area and actions */
+.nk-tab-new {
+  flex-shrink: 0;
+  width: 28px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  border-radius: 0;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: color 100ms, background 100ms;
+}
+
+.nk-tab-new:hover {
+  color: var(--text);
+  background: var(--hover);
 }
 
 /* Split / close actions on the right side of the tab bar */

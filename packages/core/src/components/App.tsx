@@ -39,7 +39,7 @@ import { RecoveryBackupNudge } from "./RecoveryBackupNudge";
 import { RecoveryBackupSheet } from "./RecoveryBackupSheet";
 import { Sidebar } from "./Sidebar";
 import { GraphView } from "./GraphView";
-import { CalendarView } from "./CalendarView";
+import { TasksView } from "./TasksView";
 import { HistoryView } from "./HistoryView";
 import { AgentsView } from "./AgentsView";
 import { AccessTokensView } from "./AccessTokensView";
@@ -54,8 +54,21 @@ import { LinksView } from "./LinksView";
 import { SearchPalette } from "./SearchPalette";
 import { SplitPane } from "./SplitPane";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";
+import { useLinksStore } from "../stores/linksStore";
+import { parseWikilinkTarget } from "./extensions/Wikilink";
 import { isValidYMD, shiftYMD, todayYMD } from "../lib/journal";
+import { isDesktop } from "../lib/api";
 import type { SearchHit } from "../lib/search";
+
+// On macOS desktop we hide the native title bar (titleBarStyle: hiddenInset)
+// so the app chrome flows up to the window edge with the traffic lights
+// floating over the sidebar brand row. This flag drives the CSS that pads
+// the brand row clear of the stoplights and marks the top rows draggable.
+// Web and non-mac desktop keep the normal frame, so no offset is applied.
+const isDesktopMac =
+  isDesktop &&
+  typeof navigator !== "undefined" &&
+  /Mac/i.test(navigator.userAgent);
 
 type MainView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
 
@@ -212,22 +225,46 @@ export function App({ user, onSignOut }: AppProps = {}) {
     if (!activeNoteId) return;
     const { layout: l, activePaneId: pid } = useLayoutStore.getState();
     const leaf = findLeaf(l, pid);
-    if (leaf?.activeTab === activeNoteId) return;
+    const cur = leaf?.activeTab;
+    if (cur?.type === "note" && cur.id === activeNoteId) return;
     openNoteInLayout(activeNoteId);
   }, [activeNoteId, openNoteInLayout]);
 
   useEffect(() => {
     function onOpen(e: Event) {
-      const target = (e as CustomEvent<{ target: string }>).detail?.target;
-      if (!target) return;
-      const trimmed = target.trim();
-      if (isValidYMD(trimmed)) {
-        openJournal(trimmed);
+      const raw = (e as CustomEvent<{ target: string }>).detail?.target;
+      if (!raw) return;
+      const { kind, target } = parseWikilinkTarget(raw);
+
+      if (kind === "link") {
+        const allLinks = useLinksStore.getState().all();
+        const link = allLinks.find(
+          (l: { id: string; title: string }) =>
+            l.title.toLowerCase() === target.toLowerCase() || l.id === target,
+        );
+        if (link) {
+          useLayoutStore.getState().openTab({ type: "link", id: link.id });
+        }
+        return;
+      }
+
+      if (kind === "secret") {
+        const parts = target.split("/");
+        const hasVault = parts.length > 1;
+        const vaultSlug = hasVault ? (parts[0] ?? "") : "";
+        const name = hasVault ? parts.slice(1).join("/") : target;
+        useLayoutStore.getState().openTab({ type: "secret", vault: vaultSlug, name });
+        return;
+      }
+
+      // kind === "note"
+      if (isValidYMD(target)) {
+        openJournal(target);
         setView("notes");
         return;
       }
       const notes = useNotesStore.getState().all();
-      const wanted = trimmed.toLowerCase();
+      const wanted = target.toLowerCase();
       const found = notes.find(
         (n) => noteTitle(n).trim().toLowerCase() === wanted,
       );
@@ -522,6 +559,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
       className="nk"
       data-dir="studio"
       data-theme={resolvedTheme}
+      data-desktop-mac={isDesktopMac ? "true" : undefined}
     >
       <div
         className="nk-app"
@@ -629,7 +667,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           )}
           {view === "graph" && <GraphView />}
           {(view === "calendar" || view === "tickets") && (
-            <CalendarView
+            <TasksView
               onOpenJournal={(ymd) => {
                 openJournal(ymd);
                 setView("notes");

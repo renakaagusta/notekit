@@ -40,11 +40,8 @@ export const InlineMath = TiptapInlineMath.extend({
   addStorage() {
     return {
       markdown: {
-        serialize: {
-          open: "$",
-          close: "$",
-          mixable: false,
-          expelEnclosingWhitespace: true,
+        serialize(state: { write: (s: string) => void }, node: { attrs: { latex: string } }) {
+          state.write(`$${node.attrs.latex}$`);
         },
         parse: {
           setup: setupKatexPlugin,

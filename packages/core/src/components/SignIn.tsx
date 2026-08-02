@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Key } from "lucide-react";
-import { useResolvedTheme } from "../hooks/useResolvedTheme";
-import { NoteKitMark, NoteKitWordmark } from "./NoteKitLogo";
+import { NoteKitMark } from "./NoteKitLogo";
 
 interface SignInProps {
   providers: { github: boolean; google: boolean; apple: boolean } | null;
@@ -39,14 +38,29 @@ function isDebugBuild(): boolean {
   return dev || debugFlag === "true";
 }
 
+// A faint live-data motif for the left brand panel — a vault sync stream that
+// hints at what Notekit is (encrypted notes/tickets/links/secrets in Git),
+// mirroring the "market stream" motif in the Oracle auth screen.
+const STREAM = `notekit sync --vault personal
+✓ notes/standup-2026-07.md.age    pushed · 12ms
+✓ tickets/e2ee-everywhere.age     encrypted
+✓ links/read-later.age            200 · 8ms
+✓ secrets/api-keys.age            sealed
+  git    main ← 3 commits
+  e2ee   age · 4 devices paired`;
+
+/**
+ * Standalone dark, black-&-white split-screen auth (Oracle-style): left = brand
+ * + a faint live-data motif on a hairline grid, right = the provider stack.
+ * Brand colors are explicit (not theme tokens) so it reads identically in light
+ * or dark mode — the pre-auth screen has no user theme preference to honor.
+ */
 export function SignIn({ providers, onSignIn }: SignInProps) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [tokenMode, setTokenMode] = useState(false);
   const [tokenInput, setTokenInput] = useState("");
   const [tokenError, setTokenError] = useState<string | null>(null);
   const showTokenPath = isCapacitorNative() && isDebugBuild();
-  // Follow the OS appearance — no user preference exists pre-auth.
-  const theme = useResolvedTheme();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -63,28 +77,59 @@ export function SignIn({ providers, onSignIn }: SignInProps) {
     }
   }, []);
 
+  const noProviders =
+    providers && !providers.github && !providers.google && !providers.apple;
+
   return (
-    <div className="nk" data-dir="studio" data-theme={theme}>
-      <div className="nk-signin">
-        <div className="nk-signin-card">
-          <div className="nk-signin-brand">
-            <NoteKitMark size={28} />
-            <NoteKitWordmark />
+    <div className="nk-auth" data-theme="dark">
+      {/* LEFT · brand + live-data motif */}
+      <div className="nk-auth-left">
+        <pre className="nk-auth-stream" aria-hidden>
+          {STREAM}
+        </pre>
+        <div className="nk-auth-left-inner">
+          <div className="nk-auth-lockup">
+            <NoteKitMark size={20} />
+            <span className="nk-auth-word">notekit</span>
           </div>
-          <p className="nk-signin-tag">
-            Notes &amp; tickets in your Git repo.
+          <div className="nk-auth-pitch">
+            <h2 className="nk-auth-h2">Your notes. Your Git. Encrypted.</h2>
+            <p className="nk-auth-lead">
+              Notes, tickets, links &amp; secrets — end-to-end encrypted and
+              version-controlled in a Git repo you own. No lock-in, ever.
+            </p>
+          </div>
+          <div className="nk-auth-tags">notes · tickets · links · secrets</div>
+        </div>
+      </div>
+
+      {/* RIGHT · auth */}
+      <div className="nk-auth-right">
+        <div className="nk-auth-panel">
+          {/* mobile-only lockup */}
+          <div className="nk-auth-lockup nk-auth-lockup-mobile">
+            <NoteKitMark size={20} />
+            <span className="nk-auth-word">notekit</span>
+          </div>
+
+          <div className="nk-auth-overline">// sign in</div>
+          <h1 className="nk-auth-h1">Sign in to Notekit.</h1>
+          <p className="nk-auth-lead">
+            Access your vault across web, desktop, mobile &amp; CLI with one
+            account.
           </p>
+
           {authError && (
             <div className="nk-signin-error">
               Sign-in failed: {authError.replace(/_/g, " ")}
             </div>
           )}
+
           <div className="nk-signin-buttons">
-            {/* Apple goes first per Apple HIG: when an app offers
-                third-party sign-in on iOS, Sign in with Apple must be
-                rendered at least as prominently as the others. Keeping
-                it on top of the stack satisfies that on every platform
-                without per-OS branching. */}
+            {/* Apple goes first per Apple HIG: when an app offers third-party
+                sign-in on iOS, Sign in with Apple must be rendered at least as
+                prominently as the others. Keeping it as the leading white-fill
+                button in the stack satisfies that on every platform. */}
             <button
               className="nk-signin-btn nk-signin-btn-apple"
               disabled={!providers?.apple}
@@ -125,16 +170,15 @@ export function SignIn({ providers, onSignIn }: SignInProps) {
               Continue with Google
             </button>
           </div>
-          {providers &&
-            !providers.github &&
-            !providers.google &&
-            !providers.apple && (
-              <p className="nk-signin-hint">
-                No sign-in providers configured. See{" "}
-                <code>apps/api/.env.example</code> to set up GitHub, Google,
-                or Apple.
-              </p>
-            )}
+
+          {noProviders && (
+            <p className="nk-signin-hint">
+              No sign-in providers configured. See{" "}
+              <code>apps/api/.env.example</code> to set up GitHub, Google, or
+              Apple.
+            </p>
+          )}
+
           {showTokenPath && !tokenMode && (
             <button
               className="nk-signin-btn nk-signin-btn-ghost"
@@ -206,6 +250,12 @@ export function SignIn({ providers, onSignIn }: SignInProps) {
               </button>
             </form>
           )}
+
+          <div className="nk-auth-rule" />
+          <p className="nk-auth-foot">
+            By continuing you agree to Notekit's Terms &amp; Privacy. Your keys
+            never leave your devices.
+          </p>
         </div>
       </div>
     </div>

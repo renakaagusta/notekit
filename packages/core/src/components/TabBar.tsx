@@ -1,18 +1,41 @@
-import { Columns2, Rows2, X } from "lucide-react";
+import { Columns2, Link2, Plus, Rows2, Shield, X } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
+import { useLinksStore } from "../stores/linksStore";
 import { noteTitle } from "../lib/note-display";
-import type { PaneLeaf } from "../stores/layoutStore";
+import { tabKey } from "../stores/layoutStore";
+import type { PaneLeaf, TabEntry } from "../stores/layoutStore";
 
 interface TabBarProps {
   pane: PaneLeaf;
   isActive: boolean;
   canClose: boolean;
-  onActivateTab: (noteId: string) => void;
-  onCloseTab: (noteId: string) => void;
+  onActivateTab: (tab: TabEntry) => void;
+  onCloseTab: (tab: TabEntry) => void;
+  onNewTab: () => void;
   onSplitH: () => void;
   onSplitV: () => void;
   onClosePane: () => void;
   onFocus: () => void;
+}
+
+function useTabLabel(tab: TabEntry): string {
+  const notes = useNotesStore((s) => s.notes);
+  const allLinks = useLinksStore((s) => s.all());
+  if (tab.type === "note") {
+    const note = notes[tab.id];
+    return note ? noteTitle(note) : "Untitled";
+  }
+  if (tab.type === "link") {
+    const link = allLinks.find((l: { id: string; title: string }) => l.id === tab.id);
+    return link?.title || "Link";
+  }
+  return tab.name;
+}
+
+function TabIcon({ tab }: { tab: TabEntry }) {
+  if (tab.type === "link") return <Link2 size={11} aria-hidden style={{ flexShrink: 0 }} />;
+  if (tab.type === "secret") return <Shield size={11} aria-hidden style={{ flexShrink: 0 }} />;
+  return null;
 }
 
 export function TabBar({
@@ -21,49 +44,45 @@ export function TabBar({
   canClose,
   onActivateTab,
   onCloseTab,
+  onNewTab,
   onSplitH,
   onSplitV,
   onClosePane,
   onFocus,
 }: TabBarProps) {
-  const notes = useNotesStore((s) => s.notes);
-
   return (
     <div
       className={`nk-tab-bar${isActive ? " nk-tab-bar--active" : ""}`}
       onMouseDown={onFocus}
     >
       <div className="nk-tab-bar-tabs">
-        {pane.tabs.map((noteId) => {
-          const note = notes[noteId];
-          const label = note ? noteTitle(note) : "Untitled";
-          const active = pane.activeTab === noteId;
+        {pane.tabs.map((tab) => {
+          const key = tabKey(tab);
+          const active = !!pane.activeTab && tabKey(pane.activeTab) === key;
           return (
-            <div
-              key={noteId}
-              className={`nk-tab${active ? " nk-tab--active" : ""}`}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                onActivateTab(noteId);
-              }}
-              title={label}
-            >
-              <span className="nk-tab-label">{label}</span>
-              <button
-                className="nk-tab-close nk-iconbtn"
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onCloseTab(noteId);
-                }}
-                aria-label={`Close ${label}`}
-              >
-                <X size={11} aria-hidden />
-              </button>
-            </div>
+            <TabItem
+              key={key}
+              tab={tab}
+              active={active}
+              onActivate={() => onActivateTab(tab)}
+              onClose={() => onCloseTab(tab)}
+            />
           );
         })}
       </div>
+      <button
+        type="button"
+        className="nk-tab-new"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onNewTab();
+        }}
+        title="New note in this pane"
+        aria-label="New note"
+      >
+        <Plus size={12} aria-hidden />
+      </button>
       <div className="nk-tab-bar-actions">
         <button
           className="nk-iconbtn nk-tab-action"
@@ -104,6 +123,44 @@ export function TabBar({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+function TabItem({
+  tab,
+  active,
+  onActivate,
+  onClose,
+}: {
+  tab: TabEntry;
+  active: boolean;
+  onActivate: () => void;
+  onClose: () => void;
+}) {
+  const label = useTabLabel(tab);
+  return (
+    <div
+      className={`nk-tab${active ? " nk-tab--active" : ""}`}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        onActivate();
+      }}
+      title={label}
+    >
+      <TabIcon tab={tab} />
+      <span className="nk-tab-label">{label}</span>
+      <button
+        className="nk-tab-close nk-iconbtn"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        aria-label={`Close ${label}`}
+      >
+        <X size={11} aria-hidden />
+      </button>
     </div>
   );
 }

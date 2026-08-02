@@ -9,7 +9,7 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "../db";
 import { encryptToken, decryptToken } from "../auth/tokenCrypto";
-import { createUser, createAccessToken } from "./forgejo";
+import { createUser, upsertAccessToken } from "./forgejo";
 import { randomBytes } from "node:crypto";
 
 /** Derive a safe Forgejo username from a user's email address. */
@@ -65,7 +65,7 @@ export async function provisionForgejoAccount(
   // createUser is idempotent — silently succeeds if the login already exists.
   await createUser(username, email, password);
 
-  const token = await createAccessToken(username, "notekit-api");
+  const token = await upsertAccessToken(username, "notekit-api");
 
   await db
     .insert(schema.forgejoAccounts)

@@ -528,7 +528,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
           </div>
         )}
 
-        {provider === "notekit" && (
+        {provider === "notekit" && notekitStep !== "idle" && (
           <div className="nk-modal-body">
             {notekitStep === "provisioning" && (
               <p className="nk-empty-hint">Setting up your NoteKit Git account…</p>

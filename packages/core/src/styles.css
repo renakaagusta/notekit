@@ -215,6 +215,7 @@ body {
 .nk-app {
   width: 100%;
   height: 100%;
+  position: relative;
   display: grid;
   grid-template-columns: 240px 1fr;
   /* Two rows: content + status bar. Outline/Notion run the sidebar
@@ -378,6 +379,26 @@ body {
   grid-template-columns: 40px 1fr;
   overflow: hidden;
   min-width: 0;
+}
+
+/* Drag handle — absolutely positioned at the sidebar's right edge.
+ * Straddles the border so the cursor changes before the user's pointer
+ * leaves the sidebar area. Requires .nk-app to be position: relative. */
+.nk-sidebar-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 28px; /* above the status bar row */
+  width: 6px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+  z-index: 200;
+  user-select: none;
+  transition: background 120ms;
+}
+.nk-sidebar-resizer:hover,
+.nk-sidebar-resizer:active {
+  background: var(--accent);
+  opacity: 0.35;
 }
 
 /* ── Icon Rail ─────────────────────────────────────────────────────────

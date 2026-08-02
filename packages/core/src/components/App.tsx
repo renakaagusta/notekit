@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Menu,
@@ -129,6 +129,32 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
     () => localStorage.getItem("nk:sidebar-collapsed") === "1",
   );
+  const [sidebarWidth, setSidebarWidth] = useState(
+    () => Number(localStorage.getItem("nk:sidebar-width") || 0) || 240,
+  );
+  useEffect(() => {
+    localStorage.setItem("nk:sidebar-width", String(sidebarWidth));
+  }, [sidebarWidth]);
+  const sidebarDragRef = useRef<{ startX: number; startW: number } | null>(null);
+  const [sidebarDragging, setSidebarDragging] = useState(false);
+  function onSidebarDragStart(e: React.MouseEvent) {
+    e.preventDefault();
+    sidebarDragRef.current = { startX: e.clientX, startW: sidebarWidth };
+    setSidebarDragging(true);
+    function onMove(ev: MouseEvent) {
+      if (!sidebarDragRef.current) return;
+      const w = Math.min(480, Math.max(160, sidebarDragRef.current.startW + ev.clientX - sidebarDragRef.current.startX));
+      setSidebarWidth(w);
+    }
+    function onUp() {
+      sidebarDragRef.current = null;
+      setSidebarDragging(false);
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
   const [zenMode, setZenMode] = useState(false);
   const [vimMode, setVimMode] = useState(
     () => localStorage.getItem("nk:vim-mode") === "1",
@@ -569,6 +595,14 @@ export function App({ user, onSignOut }: AppProps = {}) {
           !isMobile && sidebarCollapsed ? "true" : undefined
         }
         data-zen={zenMode ? "true" : undefined}
+        style={
+          !isMobile && !sidebarCollapsed && !zenMode
+            ? {
+                gridTemplateColumns: `${sidebarWidth}px 1fr`,
+                transition: sidebarDragging ? "none" : undefined,
+              }
+            : undefined
+        }
       >
         <Sidebar
           view={view}
@@ -584,6 +618,14 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onOpenMenu={isMobile ? () => setDrawerOpen(true) : undefined}
           onCollapse={isMobile ? undefined : () => setSidebarCollapsed(true)}
         />
+
+        {!isMobile && !sidebarCollapsed && !zenMode && (
+          <div
+            className="nk-sidebar-resizer"
+            style={{ left: sidebarWidth }}
+            onMouseDown={onSidebarDragStart}
+          />
+        )}
 
         <main className="nk-main">
           {/* Hide the chrome row entirely on desktop when an editor is

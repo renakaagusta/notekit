@@ -220,5 +220,31 @@ export function vaultEndpoints(client: NoteKitClient) {
         { method: "DELETE" },
       );
     },
+
+    // ── device pairing rendezvous ────────────────────────────────────────
+    async announcePair(payload: {
+      code: string;
+      pubkey: string;
+      deviceName: string;
+      deviceId: string;
+    }): Promise<{ ok: true; expiresAt: string }> {
+      return client.request("/vault/pair/announce", { method: "POST", body: payload });
+    },
+    async fetchPair(code: string): Promise<{
+      code: string;
+      pubkey: string;
+      deviceName: string;
+      deviceId: string;
+      expiresAt: string;
+    } | null> {
+      try {
+        return await client.request(`/vault/pair/${encodeURIComponent(code)}`);
+      } catch {
+        return null;
+      }
+    },
+    async clearPair(code: string): Promise<{ ok: true }> {
+      return client.request(`/vault/pair/${encodeURIComponent(code)}`, { method: "DELETE" });
+    },
   };
 }

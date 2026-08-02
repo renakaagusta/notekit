@@ -12,13 +12,20 @@ import {
   recoveryFromMnemonic,
   generateRecoveryMnemonic,
   recoverySigningFromMnemonic,
+  generateIdentity,
+  identityToRecipient,
   type DeviceIdentity,
 } from "@notekit/core/crypto";
-import { readRecovery, readVaultConfig, initVault } from "@notekit/core/secrets";
+import { readRecovery, readVaultConfig, initVault, listDevices } from "@notekit/core/secrets";
 import { nanoid } from "nanoid";
 import { getSecretsClient } from "../lib/secrets.js";
 import { loadConfig } from "../config.js";
-import { setRecoveryPhrase, clearRecoveryPhrase } from "../keychain.js";
+import {
+  setRecoveryPhrase,
+  clearRecoveryPhrase,
+  getDeviceIdentity,
+  setDeviceIdentity,
+} from "../keychain.js";
 
 const listCmd = defineCommand({
   meta: { name: "list", description: "List vaults the signed-in user can access." },
@@ -322,6 +329,88 @@ const lockCmd = defineCommand({
   },
 });
 
+const pairCmd = defineCommand({
+  meta: {
+    name: "pair",
+    description:
+      "Pair this CLI as a trusted E2EE device using a 6-digit code — no recovery phrase needed.",
+  },
+  async run() {
+    try {
+      const nk = await getClient({ requireAuth: true });
+      await getSecretsClient({ requireAuth: true });
+
+      // Load or create a persistent age keypair for this CLI install.
+      let device = await getDeviceIdentity();
+      if (!device) {
+        const identity = await generateIdentity();
+        const recipient = await identityToRecipient(identity);
+        const id: DeviceIdentity = {
+          deviceId: `cli-${nanoid(8)}`,
+          name: "notekit-cli",
+          identity,
+          recipient,
+          createdAt: new Date().toISOString(),
+        };
+        await setDeviceIdentity(id);
+        device = id;
+      }
+
+      // Check if already paired.
+      const existing = await listDevices();
+      if (existing.some((d) => d.deviceId === device!.deviceId)) {
+        process.stdout.write(kleur.green("This CLI device is already paired.\n"));
+        return;
+      }
+
+      // Generate a cryptographically uniform 6-digit code.
+      const { webcrypto } = await import("node:crypto");
+      const buf = new Uint32Array(1);
+      const LIMIT = 4_294_000_000;
+      do { (webcrypto as Crypto).getRandomValues(buf); } while (buf[0]! >= LIMIT);
+      const code = (buf[0]! % 1_000_000).toString().padStart(6, "0");
+
+      await nk.vault.announcePair({
+        code,
+        pubkey: device.recipient,
+        deviceName: device.name,
+        deviceId: device.deviceId,
+      });
+
+      const formatted = `${code.slice(0, 3)} ${code.slice(3)}`;
+      process.stdout.write(`\nPairing code: ${kleur.bold().green(formatted)}\n\n`);
+      process.stdout.write(kleur.dim("On your phone or computer:\n"));
+      process.stdout.write(kleur.dim('  NoteKit → Account → Devices → "Link a device"\n'));
+      process.stdout.write(kleur.dim("  Enter the code above. Code expires in 5 minutes.\n\n"));
+      process.stdout.write("Waiting for approval");
+
+      const start = Date.now();
+      while (Date.now() - start < 5 * 60 * 1000) {
+        await new Promise<void>((r) => setTimeout(r, 2000));
+        process.stdout.write(".");
+        try {
+          const devices = await listDevices();
+          if (devices.some((d) => d.deviceId === device!.deviceId)) {
+            await nk.vault.clearPair(code).catch(() => {});
+            process.stdout.write(
+              kleur.green("\n\n✓ Paired! This CLI can now read and write your encrypted vault.\n"),
+            );
+            return;
+          }
+        } catch {
+          // ignore transient errors during polling
+        }
+      }
+
+      await nk.vault.clearPair(code).catch(() => {});
+      process.stderr.write(kleur.red("\n\nTimed out. Run `notekit vault pair` again.\n"));
+      process.exitCode = 1;
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
 function readStdin(): Promise<string> {
   return new Promise((resolve) => {
     if (process.stdin.isTTY) {
@@ -344,6 +433,7 @@ export const vaultCommand = defineCommand({
     setup: setupCmd,
     unlock: unlockCmd,
     lock: lockCmd,
+    pair: pairCmd,
     members: membersCmd,
     migrate: migrateCmd,
   },

@@ -12,13 +12,13 @@ import * as e2ee from "@notekit/core/vault-e2ee";
 import type { NoteKitApi } from "@notekit/api-client";
 import type { Note } from "@notekit/core/types";
 import type { Ticket } from "@notekit/core/types";
-import { getRecoveryPhrase } from "../keychain.js";
+import { getRecoveryPhrase, getDeviceIdentity } from "../keychain.js";
 
 /** Thrown when an encrypted item is hit but no recovery phrase is unlocked. */
 export class VaultLockedError extends Error {
   constructor() {
     super(
-      "This vault is end-to-end encrypted and this CLI is locked. Run `notekit vault unlock` (paste your 24-word recovery phrase) first.",
+      "This vault is end-to-end encrypted. Run `notekit vault pair` to link this CLI, or `notekit vault unlock` to provide your 24-word recovery phrase.",
     );
     this.name = "VaultLockedError";
   }
@@ -27,6 +27,10 @@ export class VaultLockedError extends Error {
 let cached: RecoveryIdentity | null = null;
 
 export async function tryVaultIdentity(): Promise<RecoveryIdentity | null> {
+  // Prefer the real device identity set up via `notekit vault pair`.
+  const device = await getDeviceIdentity();
+  if (device) return { identity: device.identity, recipient: device.recipient };
+  // Fall back to the recovery phrase stored by `notekit vault unlock`.
   if (cached) return cached;
   const phrase = await getRecoveryPhrase();
   if (!phrase || !isValidMnemonic(phrase)) return null;
@@ -40,8 +44,10 @@ export async function requireVaultIdentity(): Promise<RecoveryIdentity> {
   return id;
 }
 
-/** A DeviceIdentity rooted in the recovery key — for secrets-vault get/set. */
+/** DeviceIdentity for secrets-vault operations. Uses the paired device if available. */
 export async function vaultDevice(): Promise<DeviceIdentity> {
+  const device = await getDeviceIdentity();
+  if (device) return device;
   const id = await requireVaultIdentity();
   return {
     deviceId: "cli",

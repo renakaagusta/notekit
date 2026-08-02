@@ -6,12 +6,15 @@
 // Windows the Credential Manager. No native compile needed (prebuilds ship).
 
 import { Entry } from "@napi-rs/keyring";
+import type { DeviceIdentity } from "@notekit/core/crypto";
 
 const SERVICE = "notekit-cli";
 const ACCOUNT = "token";
 // The vault recovery phrase (24-word BIP39), stored after `notekit vault
 // unlock`. It derives the age identity that decrypts E2EE notes/secrets (#49).
 const RECOVERY_ACCOUNT = "recovery";
+// Persistent age keypair for this CLI install (set up via `notekit vault pair`).
+const DEVICE_ACCOUNT = "device-identity";
 
 function entry(): Entry {
   return new Entry(SERVICE, ACCOUNT);
@@ -67,6 +70,31 @@ export async function setToken(token: string): Promise<void> {
 export async function clearToken(): Promise<void> {
   try {
     entry().deletePassword();
+  } catch {
+    // Already absent — ignore.
+  }
+}
+
+function deviceEntry(): Entry {
+  return new Entry(SERVICE, DEVICE_ACCOUNT);
+}
+
+export async function getDeviceIdentity(): Promise<DeviceIdentity | null> {
+  try {
+    const json = deviceEntry().getPassword();
+    return json ? (JSON.parse(json) as DeviceIdentity) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setDeviceIdentity(device: DeviceIdentity): Promise<void> {
+  deviceEntry().setPassword(JSON.stringify(device));
+}
+
+export async function clearDeviceIdentity(): Promise<void> {
+  try {
+    deviceEntry().deletePassword();
   } catch {
     // Already absent — ignore.
   }

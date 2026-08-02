@@ -13,3 +13,5 @@ export * from "./signing";
 export * from "./wallet-key";
 // Type-only — no runtime import of the IndexedDB-backed device-key module.
 export type { DeviceIdentity } from "./device-key";
+// Pure age keypair generation (no IDB storage) — safe for Node consumers.
+export { generateIdentity, identityToRecipient } from "age-encryption";

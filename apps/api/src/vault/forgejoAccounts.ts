@@ -48,8 +48,9 @@ export async function getForgejoAccount(userId: string): Promise<ForgejoAccount 
 }
 
 /**
- * Ensure the user has a Forgejo account. Idempotent — if the account already
- * exists in the DB we return it immediately without hitting Forgejo.
+ * Ensure the user has a Forgejo account. Always re-provisions the access
+ * token so the record self-heals when Forgejo state diverges from the DB
+ * (e.g. after a Forgejo restart that lost user data).
  */
 export async function provisionForgejoAccount(
   userId: string,
@@ -57,24 +58,24 @@ export async function provisionForgejoAccount(
   displayName: string | null,
 ): Promise<ForgejoAccount> {
   const existing = await getForgejoAccount(userId);
-  if (existing) return existing;
-
-  const username = usernameFromEmail(email);
+  const username = existing?.username ?? usernameFromEmail(email);
   const password = randomPassword();
 
   // createUser is idempotent — silently succeeds if the login already exists.
   await createUser(username, email, password);
 
+  // upsertAccessToken deletes any existing token first, then creates fresh.
+  // This keeps the DB token in sync with Forgejo even after a Forgejo reset.
   const token = await upsertAccessToken(username, "notekit-api");
+  const encryptedToken = encryptToken(token);
 
   await db
     .insert(schema.forgejoAccounts)
-    .values({
-      userId,
-      username,
-      accessToken: encryptToken(token),
-    })
-    .onConflictDoNothing();
+    .values({ userId, username, accessToken: encryptedToken })
+    .onConflictDoUpdate({
+      target: schema.forgejoAccounts.userId,
+      set: { accessToken: encryptedToken },
+    });
 
   return { username, token };
 }

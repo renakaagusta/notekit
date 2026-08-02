@@ -1,8 +1,10 @@
 import { useRef } from "react";
 import { ExternalLink, FileText, Pencil, Plus, Shield, X } from "lucide-react";
+import { HomePane } from "./HomePane";
 import { useNotesStore } from "../stores/notesStore";
 import { useLinksStore } from "../stores/linksStore";
 import { useVaultStore } from "../stores/vaultStore";
+import { useTicketsStore } from "../stores/ticketsStore";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";
 import { journalYMDFromPath } from "../lib/journal";
 import { parseInk, serializeInk } from "../lib/ink";
@@ -55,6 +57,7 @@ export function EditorPane({
   const links = useLinksStore((s) => s.all());
   const activeSettings = useVaultStore((s) => s.activeSettings);
   const vaultReady = useVaultStore((s) => s.phase === "ready");
+  const setTicketStatus = useTicketsStore((s) => s.setStatus);
 
   if (!pane) return null;
 
@@ -180,41 +183,21 @@ export function EditorPane({
             </div>
           </div>
         ) : (
-          <div className="nk-empty nk-empty--center">
-            <FileText
-              size={36}
-              aria-hidden
-              style={{ color: "var(--muted)", opacity: 0.4, marginBottom: 14 }}
-            />
-            <p>No note open.</p>
-            {vaultReady ? (
-              <>
-                <p className="nk-empty-hint">Pick one from the sidebar, or:</p>
-                <div className="nk-empty-cta-row">
-                  <button className="nk-empty-cta" onClick={handleNewNote}>
-                    <Plus size={14} aria-hidden /> New note
-                  </button>
-                  <button
-                    className="nk-empty-cta"
-                    onClick={() => {
-                      const folder = activeSettings?.defaultFolder ?? null;
-                      const created = upsert({
-                        title: "Drawing",
-                        body: serializeInk(emptyInkDocument()),
-                        folder,
-                        format: "ink",
-                      });
-                      openNote(created.id, paneId);
-                    }}
-                  >
-                    <Pencil size={14} aria-hidden /> New drawing
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="nk-empty-hint">Connect a vault to start writing.</p>
-            )}
-          </div>
+          <HomePane
+            onNewNote={handleNewNote}
+            onNewDrawing={() => {
+              const folder = activeSettings?.defaultFolder ?? null;
+              const created = upsert({
+                title: "Drawing",
+                body: serializeInk(emptyInkDocument()),
+                folder,
+                format: "ink",
+              });
+              openNote(created.id, paneId);
+            }}
+            onOpenNote={(id) => openNote(id, paneId)}
+            onToggleTicket={(id) => setTicketStatus(id, "done")}
+          />
         )}
       </div>
     </div>

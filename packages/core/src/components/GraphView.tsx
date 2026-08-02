@@ -501,9 +501,14 @@ function buildGraph(args: BuildArgs): BuildResult {
   const projectHubs = new Map<string, GraphNode>();
   const edges: GraphEdge[] = [];
   const degree = new Map<string, number>();
+  const edgeSeen = new Set<string>();
 
   function bump(id: string) { degree.set(id, (degree.get(id) ?? 0) + 1); }
   function edge(from: string, to: string, kind: EdgeKind) {
+    // Deduplicate undirected pairs — A↔B and B↔A are the same visual line.
+    const key = (from < to ? from + "\x00" + to : to + "\x00" + from) + "\x00" + kind;
+    if (edgeSeen.has(key)) return;
+    edgeSeen.add(key);
     edges.push({ from, to, kind });
     bump(from); bump(to);
   }

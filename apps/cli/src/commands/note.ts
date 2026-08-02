@@ -39,6 +39,7 @@ const newCmd = defineCommand({
     title: { type: "positional", description: "Note title.", required: true },
     body: { type: "string", description: "Note body (skip the editor).", required: false },
     tag: { type: "string", description: "Comma-separated tags.", required: false },
+    folder: { type: "string", description: "Folder path (e.g. Trading/Teknikal).", required: false },
   },
   async run({ args }) {
     try {
@@ -55,6 +56,7 @@ const newCmd = defineCommand({
       const now = new Date().toISOString();
       const title = String(args.title);
       const tags = args.tag ? String(args.tag).split(",").map((t) => t.trim()).filter(Boolean) : [];
+      const folder = args.folder ? String(args.folder).trim() || null : null;
 
       // Born-E2EE vault → seal the note as `.md.age` for the whole vault
       // audience. No plaintext index update (it would leak titles); E2EE
@@ -68,7 +70,7 @@ const newCmd = defineCommand({
           frontmatter: {},
           createdAt: now,
           updatedAt: now,
-          folder: null,
+          folder,
           tags,
         };
         const sealed = await encryptNote(note);

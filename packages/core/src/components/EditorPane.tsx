@@ -14,6 +14,8 @@ import { EditorToolbar } from "./EditorToolbar";
 import { OutlinePanel } from "./OutlinePanel";
 import { InkCanvas } from "./InkCanvas";
 import { TabBar } from "./TabBar";
+import { GraphView } from "./GraphView";
+import { TasksView } from "./TasksView";
 import type { TabEntry } from "../stores/layoutStore";
 
 interface EditorPaneProps {
@@ -155,6 +157,10 @@ export function EditorPane({
             onChange={editorBinding.onChange}
             vimMode={vimMode}
           />
+        ) : activeTab?.type === "graph" ? (
+          <GraphView />
+        ) : activeTab?.type === "tasks" ? (
+          <TasksView focusTicket={null} />
         ) : activeTab?.type === "link" ? (
           <LinkTabView
             linkId={activeTab.id}

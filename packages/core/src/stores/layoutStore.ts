@@ -7,10 +7,14 @@ const uid = () => `p${++_seq}`;
 export type TabEntry =
   | { type: "note"; id: string }
   | { type: "link"; id: string }
-  | { type: "secret"; vault: string; name: string };
+  | { type: "secret"; vault: string; name: string }
+  | { type: "graph" }
+  | { type: "tasks" };
 
 export function tabKey(t: TabEntry): string {
   if (t.type === "secret") return `secret:${t.vault}\x00${t.name}`;
+  if (t.type === "graph") return "graph";
+  if (t.type === "tasks") return "tasks";
   return `${t.type}:${t.id}`;
 }
 

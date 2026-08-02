@@ -1,4 +1,4 @@
-import { Columns2, Link2, Plus, Rows2, Shield, X } from "lucide-react";
+import { Columns2, Link2, Network, CalendarDays, Plus, Rows2, Shield, X } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useLinksStore } from "../stores/linksStore";
 import { noteTitle } from "../lib/note-display";
@@ -29,12 +29,16 @@ function useTabLabel(tab: TabEntry): string {
     const link = allLinks.find((l: { id: string; title: string }) => l.id === tab.id);
     return link?.title || "Link";
   }
+  if (tab.type === "graph") return "Graph";
+  if (tab.type === "tasks") return "Tasks";
   return tab.name;
 }
 
 function TabIcon({ tab }: { tab: TabEntry }) {
   if (tab.type === "link") return <Link2 size={11} aria-hidden style={{ flexShrink: 0 }} />;
   if (tab.type === "secret") return <Shield size={11} aria-hidden style={{ flexShrink: 0 }} />;
+  if (tab.type === "graph") return <Network size={11} aria-hidden style={{ flexShrink: 0 }} />;
+  if (tab.type === "tasks") return <CalendarDays size={11} aria-hidden style={{ flexShrink: 0 }} />;
   return null;
 }
 

@@ -606,7 +606,17 @@ export function App({ user, onSignOut }: AppProps = {}) {
       >
         <Sidebar
           view={view}
-          onView={setView}
+          onView={(next) => {
+            if (next === "graph") {
+              useLayoutStore.getState().openTab({ type: "graph" });
+              setView("notes");
+            } else if (next === "calendar" || next === "tickets") {
+              useLayoutStore.getState().openTab({ type: "tasks" });
+              setView("notes");
+            } else {
+              setView(next);
+            }
+          }}
           user={user}
           onSignOut={onSignOut}
           onOpenAgents={() => setAgentsOpen(true)}

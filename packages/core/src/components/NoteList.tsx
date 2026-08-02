@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useCryptoStore } from "../stores/cryptoStore";
+import { useVaultStore } from "../stores/vaultStore";
 import { noteTitle, notePreview } from "../lib/note-display";
 import { journalYMDFromPath } from "../lib/journal";
 import type { Note } from "../types/note";
@@ -93,6 +94,7 @@ export function NoteList({
   const upsert = useNotesStore((s) => s.upsert);
   const createFolder = useNotesStore((s) => s.createFolder);
   const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
+  const vaultReady = useVaultStore((s) => s.phase === "ready");
 
   const [sortMode, setSortMode] = useState<SortMode>("modified");
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -235,17 +237,19 @@ export function NoteList({
     <div className="nk-tree-toolbar">
       <button
         className="nk-tree-tb-btn"
-        title="New note"
+        title={vaultReady ? "New note" : "Set up a vault first"}
         aria-label="New note"
-        onClick={() => createNewFile(null)}
+        onClick={() => vaultReady && createNewFile(null)}
+        disabled={!vaultReady}
       >
         <FilePlus size={14} aria-hidden />
       </button>
       <button
         className="nk-tree-tb-btn"
-        title="New folder"
+        title={vaultReady ? "New folder" : "Set up a vault first"}
         aria-label="New folder"
-        onClick={() => createNewFolder(null)}
+        onClick={() => vaultReady && createNewFolder(null)}
+        disabled={!vaultReady}
       >
         <FolderPlus size={14} aria-hidden />
       </button>
@@ -283,10 +287,19 @@ export function NoteList({
       <>
         {toolbar}
         <div className="nk-empty nk-empty--center">
-          <p>No notes yet.</p>
-          <p className="nk-empty-hint">
-            {mobileShell ? "Tap + to create one." : "Press ⌘N to create one."}
-          </p>
+          {vaultReady ? (
+            <>
+              <p>No notes yet.</p>
+              <p className="nk-empty-hint">
+                {mobileShell ? "Tap + to create one." : "Press ⌘N to create one."}
+              </p>
+            </>
+          ) : (
+            <>
+              <p>No vault set up.</p>
+              <p className="nk-empty-hint">Connect a vault to start syncing notes.</p>
+            </>
+          )}
         </div>
       </>
     );

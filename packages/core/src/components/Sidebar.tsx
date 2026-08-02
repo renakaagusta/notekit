@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
 import type { User } from "../types/user";
 import { CreateMenu } from "./CreateMenu";
 import { NoteList } from "./NoteList";
@@ -71,6 +72,7 @@ export function Sidebar({
 }: SidebarProps) {
   const notesCount = useNotesStore((s) => s.all().length);
   const ticketsCount = useTicketsStore((s) => s.all().length);
+  const vaultReady = useVaultStore((s) => s.phase === "ready");
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -258,7 +260,7 @@ export function Sidebar({
                   <Search size={14} aria-hidden />
                 </button>
               )}
-              {view === "notes" && (
+              {view === "notes" && vaultReady && (
                 <>
                   <button
                     className="nk-iconbtn"

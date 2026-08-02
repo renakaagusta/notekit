@@ -273,7 +273,7 @@ export function GraphView() {
         onMouseLeave={onMouseUp}
         style={{ cursor: panRef.current ? "grabbing" : "grab" }}
       >
-        <g transform={`translate(${pan.x},${pan.y}) scale(${scale}) translate(${CX * (1 - 1 / scale)},${CY * (1 - 1 / scale)})`}>
+        <g transform={`translate(${pan.x + CX * (1 - scale)},${pan.y + CY * (1 - scale)}) scale(${scale})`}>
 
           {/* Edges — render before nodes so nodes sit on top */}
           {edges.map((e, i) => {

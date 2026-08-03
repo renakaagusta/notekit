@@ -29,7 +29,11 @@
 }
 
 .agent__card {
-	@apply snap-center w-[280px] aspect-[280/340] rounded-[24px] bg-[var(--color-bg-primary)] border border-[var(--color-border-primary)] flex flex-col justify-end p-6 hover:brightness-150 transition-all;
+	@apply snap-center w-[280px] aspect-[280/340] rounded-[24px] bg-[var(--color-bg-primary)] border border-[var(--color-border-primary)] flex flex-col justify-between p-6 hover:brightness-150 transition-all;
+}
+
+.card__icon {
+	@apply w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.04] flex items-center justify-center text-[var(--color-text-tertiary)];
 }
 
 .card__content {

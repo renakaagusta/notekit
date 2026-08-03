@@ -6,11 +6,7 @@ import {
 	BentoGrid,
 	BentoGridFeatureLookupWrapper,
 	BentoGridSeperator,
-	BentoGridTopLayer,
-	BentoGridWideCardWrapper,
 } from '@/components/bento-grid'
-import BentoCardLeft from '@/components/bento-grid/components/bento-grid-card-left'
-import BentoGridCardRight from '@/components/bento-grid/components/bento-grid-card-right'
 import BentoGridFeatureLookUpCard from '@/components/bento-grid/components/bento-grid-feature-lookup-card'
 
 const featureLookup = [
@@ -96,25 +92,6 @@ const GitHistory: FC = () => {
 
 			<LayoutWrapper>
 				<BentoGrid>
-					<BentoGridTopLayer>
-						<BentoCardLeft
-							title='Full history, always'
-							description='Every note change is committed. Revert to any point in time.'>
-							<div className={styles.bento__placeholder} />
-						</BentoCardLeft>
-						<BentoGridCardRight
-							title='Your repo, your rules'
-							description='Bring GitHub, GitLab, or Forgejo. NoteKit pushes commits to your remote.'>
-							<div className={styles.bento__placeholder} />
-						</BentoGridCardRight>
-					</BentoGridTopLayer>
-
-					<div className='h-6' />
-
-					<BentoGridWideCardWrapper>
-						<div className={styles.wide__placeholder} />
-					</BentoGridWideCardWrapper>
-
 					<BentoGridSeperator />
 
 					<BentoGridFeatureLookupWrapper>

@@ -27,8 +27,8 @@ export function FAQAccordion({ items, className }: FAQAccordionProps) {
             className={cn(
               "rounded-xl border transition-all duration-300",
               isOpen
-                ? "bg-[#111318] border-primary/40 border-l-2 border-l-primary shadow-[0_0_20px_rgba(249,115,22,0.08)]"
-                : "bg-[#111318] border-white/5 hover:border-primary/20 hover:shadow-[0_0_15px_rgba(249,115,22,0.05)]"
+                ? "bg-[#111318] border-white/30 border-l-2 border-l-white shadow-[0_0_20px_rgba(255,255,255,0.06)]"
+                : "bg-[#111318] border-white/5 hover:border-white/20 hover:shadow-[0_0_15px_rgba(255,255,255,0.04)]"
             )}
           >
             <button

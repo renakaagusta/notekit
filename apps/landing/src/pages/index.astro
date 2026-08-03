@@ -2,12 +2,9 @@
 import Layout from "../layouts/Layout.astro";
 import Header from "../components/Header.astro";
 import Hero from "../components/Hero.astro";
-import ProblemSolution from "../components/ProblemSolution.astro";
 import Features from "../components/Features.astro";
 import ComparisonTable from "../components/ComparisonTable.astro";
-import Flywheel from "../components/Flywheel.astro";
 import Benefits from "../components/Benefits.astro";
-import WhyAgents from "../components/WhyAgents";
 import TechStack from "../components/TechStack.astro";
 import CTA from "../components/CTA.astro";
 import FAQSection from "../components/FAQSection";
@@ -22,12 +19,9 @@ import "../styles/global.css";
   <Header />
   <main>
     <Hero />
-    <ProblemSolution />
     <Features />
     <ComparisonTable />
-    <Flywheel />
     <Benefits />
-    <WhyAgents client:visible />
     <TechStack />
     <CTA />
     <FAQSection client:visible />

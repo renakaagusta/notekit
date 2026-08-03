@@ -1,6 +1,7 @@
 'use client';
 import { ArrowRight } from 'lucide-react';
 import { AnimatePresence, type HTMLMotionProps, motion, type Transition } from 'motion/react';
+
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
@@ -10,12 +11,13 @@ type InputButtonContextType = {
   transition: Transition;
   id: string;
 };
-
 const InputButtonContext = React.createContext<InputButtonContextType | undefined>(undefined);
 
 const useInputButton = (): InputButtonContextType => {
   const context = React.useContext(InputButtonContext);
-  if (!context) throw new Error('useInputButton must be used within a InputButtonProvider');
+  if (!context) {
+    throw new Error('useInputButton must be used within a InputButton');
+  }
   return context;
 };
 
@@ -43,6 +45,7 @@ function InputButtonProvider({
       }}
     >
       <div
+        data-slot="input-button-provider"
         className={cn(
           'relative w-fit flex items-center justify-center h-12 mx-auto',
           (showInput || localShowInput) && 'w-full',
@@ -59,17 +62,19 @@ function InputButtonProvider({
 type InputButtonProps = HTMLMotionProps<'div'>;
 
 function InputButton({ className, ...props }: InputButtonProps) {
-  return <motion.div className={cn('flex size-full', className)} {...props} />;
+  return <motion.div data-slot="input-button" className={cn('flex size-full', className)} {...props} />;
 }
 
 type InputButtonActionProps = HTMLMotionProps<'button'>;
 
 function InputButtonAction({ className, ...props }: InputButtonActionProps) {
   const { transition, setShowInput, id } = useInputButton();
+
   return (
     <motion.button
+      data-slot="input-button-action"
       className={cn(
-        'bg-white/10 text-sm whitespace-nowrap shrink-0 outline-none focus-visible:border-[#ea7317] focus-visible:ring-[#ea7317]/20 focus-visible:ring-4 rounded-xl border border-white/20 text-white hover:bg-white/15 hover:border-white/30 cursor-pointer pl-4 pr-12 size-full font-medium transition-all duration-200',
+        'bg-white text-sm whitespace-nowrap disabled:pointer-events-none disabled:opacity-50 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-[#F06718] focus-visible:ring-[#F06718]/20 focus-visible:ring-4 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 cursor-pointer pl-4 pr-12 size-full font-medium transition-all duration-200',
         className,
       )}
       layoutId={`input-button-action-${id}`}
@@ -80,28 +85,54 @@ function InputButtonAction({ className, ...props }: InputButtonActionProps) {
   );
 }
 
-type InputButtonSubmitProps = HTMLMotionProps<'button'> & { icon?: React.ElementType };
+type InputButtonSubmitProps = HTMLMotionProps<'button'> & {
+  icon?: React.ElementType;
+};
 
-function InputButtonSubmit({ className, children, icon: Icon = ArrowRight, onClick, ...props }: InputButtonSubmitProps) {
+function InputButtonSubmit({
+  className,
+  children,
+  icon: Icon = ArrowRight,
+  onClick,
+  ...props
+}: InputButtonSubmitProps) {
   const { transition, showInput, setShowInput, id } = useInputButton();
+
   return (
     <motion.button
+      data-slot="input-button-submit"
       layoutId={`input-button-submit-${id}`}
       transition={transition}
       className={cn(
-        "z-10 cursor-pointer shrink-0 outline-none focus-visible:border-[#ea7317] focus-visible:ring-[#ea7317]/20 focus-visible:ring-4 whitespace-nowrap bg-[#ea7317] hover:bg-[#d4660f] transition-all duration-200 text-white rounded-lg text-sm flex items-center justify-center font-medium absolute inset-y-2 right-2",
+        "z-10 [&_svg:not([class*='size-'])]:size-4 cursor-pointer disabled:pointer-events-none disabled:opacity-50 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-[#F06718] focus-visible:ring-[#F06718]/20 focus-visible:ring-4 whitespace-nowrap bg-[#F06718] hover:bg-[#e85d0f] transition-all duration-200 text-white rounded-lg text-sm flex items-center justify-center font-medium absolute inset-y-2 right-2",
         showInput ? 'px-4' : 'aspect-square',
         className,
       )}
-      onClick={(e) => { if (showInput && onClick) onClick(e); else setShowInput((prev) => !prev); }}
+      onClick={(e) => {
+        if (showInput && onClick) {
+          onClick(e);
+        } else {
+          setShowInput((prev) => !prev);
+        }
+      }}
       {...props}
     >
       {showInput ? (
-        <motion.span key="show-button" initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
+        <motion.span
+          key="show-button"
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+        >
           {children}
         </motion.span>
       ) : (
-        <motion.span key="show-icon" initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.2 }}>
+        <motion.span
+          key="show-icon"
+          initial={{ opacity: 0, scale: 0 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.2 }}
+        >
           {React.createElement(Icon as React.ComponentType<{ className?: string }>, { className: 'size-4' })}
         </motion.span>
       )}
@@ -113,18 +144,20 @@ type InputButtonInputProps = React.ComponentProps<'input'>;
 
 function InputButtonInput({ className, ...props }: InputButtonInputProps) {
   const { transition, showInput, id } = useInputButton();
+
   return (
     <AnimatePresence>
       {showInput && (
         <div className="absolute inset-0 size-full flex items-center justify-center">
           <motion.div
             layoutId={`input-button-input-${id}`}
-            className="size-full flex items-center bg-white/10 rounded-xl relative border border-white/20"
+            className="size-full flex items-center bg-white rounded-xl relative border border-slate-300"
             transition={transition}
           >
             <input
+              data-slot="input-button-input"
               className={cn(
-                'size-full selection:bg-[#ea7317] selection:text-white placeholder:text-white/40 inset-0 pl-4 border-0 pr-20 py-3 text-sm bg-transparent rounded-xl focus:outline-none absolute shrink-0 text-white',
+                'size-full selection:bg-[#F06718] selection:text-white placeholder:text-slate-500 inset-0 pl-4 focus-visible:border-[#F06718] border-0 focus-visible:ring-[#F06718]/20 focus-visible:ring-4 pr-20 py-3 text-sm bg-transparent rounded-xl focus:outline-none absolute shrink-0 disabled:pointer-events-none disabled:cursor-not-allowed text-slate-900',
                 className,
               )}
               {...props}
@@ -143,4 +176,9 @@ export {
   InputButtonSubmit,
   InputButtonInput,
   useInputButton,
+  type InputButtonProps,
+  type InputButtonProviderProps,
+  type InputButtonActionProps,
+  type InputButtonSubmitProps,
+  type InputButtonInputProps,
 };

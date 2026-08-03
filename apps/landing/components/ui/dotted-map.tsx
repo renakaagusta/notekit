@@ -1,93 +1,101 @@
-'use client'
+import * as React from "react"
+import { createMap } from "svg-dotted-map"
 
-import { useEffect, useRef, useState } from 'react'
+import { cn } from "@/lib/utils"
 
-interface DottedMapProps {
-  dots?: Array<{ lat: number; lng: number; label?: string }>
-  lineColor?: string
+interface Marker {
+  lat: number
+  lng: number
+  size?: number
 }
 
-export function DottedMap({ dots = [], lineColor = '#ea7317' }: DottedMapProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [size, setSize] = useState({ w: 800, h: 400 })
+export interface DottedMapProps extends React.SVGProps<SVGSVGElement> {
+  width?: number
+  height?: number
+  mapSamples?: number
+  markers?: Marker[]
+  dotColor?: string
+  markerColor?: string
+  dotRadius?: number
+  stagger?: boolean
+}
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+export function DottedMap({
+  width = 150,
+  height = 75,
+  mapSamples = 5000,
+  markers = [],
+  markerColor = "#FF6900",
+  dotRadius = 0.2,
+  stagger = true,
+  className,
+  style,
+}: DottedMapProps) {
+  const { points, addMarkers } = createMap({
+    width,
+    height,
+    mapSamples,
+  })
 
-    const { w, h } = size
-    ctx.clearRect(0, 0, w, h)
+  const processedMarkers = addMarkers(markers)
 
-    const rows = 30
-    const cols = 60
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const x = (c / cols) * w
-        const y = (r / rows) * h
-        const lat = 90 - (r / rows) * 180
-        const lng = -180 + (c / cols) * 360
-        if (isLandApprox(lat, lng)) {
-          ctx.beginPath()
-          ctx.arc(x + 6, y + 6, 1.5, 0, Math.PI * 2)
-          ctx.fillStyle = 'rgba(255,255,255,0.2)'
-          ctx.fill()
-        }
+  // Compute stagger helpers in a single, simple pass
+  const { xStep, yToRowIndex } = React.useMemo(() => {
+    const sorted = [...points].sort((a, b) => a.y - b.y || a.x - b.x)
+    const rowMap = new Map<number, number>()
+    let step = 0
+    let prevY = Number.NaN
+    let prevXInRow = Number.NaN
+
+    for (const p of sorted) {
+      if (p.y !== prevY) {
+        // new row
+        prevY = p.y
+        prevXInRow = Number.NaN
+        if (!rowMap.has(p.y)) rowMap.set(p.y, rowMap.size)
       }
+      if (!Number.isNaN(prevXInRow)) {
+        const delta = p.x - prevXInRow
+        if (delta > 0) step = step === 0 ? delta : Math.min(step, delta)
+      }
+      prevXInRow = p.x
     }
 
-    dots.forEach(({ lat, lng }) => {
-      const x = ((lng + 180) / 360) * w
-      const y = ((90 - lat) / 180) * h
-      ctx.beginPath()
-      ctx.arc(x, y, 4, 0, Math.PI * 2)
-      ctx.fillStyle = lineColor
-      ctx.fill()
-    })
-
-    if (dots.length > 1) {
-      ctx.beginPath()
-      dots.forEach(({ lat, lng }, i) => {
-        const x = ((lng + 180) / 360) * w
-        const y = ((90 - lat) / 180) * h
-        if (i === 0) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      })
-      ctx.strokeStyle = lineColor
-      ctx.lineWidth = 1
-      ctx.setLineDash([4, 4])
-      ctx.globalAlpha = 0.5
-      ctx.stroke()
-      ctx.globalAlpha = 1
-    }
-  }, [dots, lineColor, size])
-
-  useEffect(() => {
-    const ro = new ResizeObserver((entries) => {
-      for (const e of entries) {
-        const { width, height } = e.contentRect
-        if (width > 0 && height > 0) setSize({ w: width, h: height })
-      }
-    })
-    if (canvasRef.current?.parentElement) ro.observe(canvasRef.current.parentElement)
-    return () => ro.disconnect()
-  }, [])
+    return { xStep: step || 1, yToRowIndex: rowMap }
+  }, [points])
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={size.w}
-      height={size.h}
-      style={{ width: '100%', height: '100%' }}
-    />
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className={cn("text-gray-500 dark:text-gray-500", className)}
+      style={{ width: "100%", height: "100%", ...style }}
+    >
+      {points.map((point, index) => {
+        const rowIndex = yToRowIndex.get(point.y) ?? 0
+        const offsetX = stagger && rowIndex % 2 === 1 ? xStep / 2 : 0
+        return (
+          <circle
+            cx={point.x + offsetX}
+            cy={point.y}
+            r={dotRadius}
+            fill="currentColor"
+            key={`${point.x}-${point.y}-${index}`}
+          />
+        )
+      })}
+      {processedMarkers.map((marker, index) => {
+        const rowIndex = yToRowIndex.get(marker.y) ?? 0
+        const offsetX = stagger && rowIndex % 2 === 1 ? xStep / 2 : 0
+        return (
+          <circle
+            cx={marker.x + offsetX}
+            cy={marker.y}
+            r={marker.size ?? dotRadius}
+            fill={markerColor}
+            key={`${marker.x}-${marker.y}-${index}`}
+          />
+        )
+      })}
+    </svg>
   )
-}
-
-function isLandApprox(lat: number, lng: number): boolean {
-  if (lat > 75 || lat < -60) return false
-  if (lat > 60 && (lng < -140 || (lng > -10 && lng < 30) || lng > 160)) return false
-  if (lat < -20 && lng > 50 && lng < 140) return false
-  if (lat < 10 && lat > -10 && lng > -50 && lng < 10) return false
-  return true
 }

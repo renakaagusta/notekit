@@ -51,7 +51,7 @@ services:
       - "traefik.http.routers.notekit-web.middlewares=notekit-compress"
       - "traefik.http.routers.notekit-web.priority=10"
 
-  # Superadmin backoffice on admin.<root>. Static SPA (nginx); talks to the API
+  # Superadmin backoffice on backoffice.<root>. Static SPA (nginx); talks to API
   # at api.<root> via better-auth under /backoffice/auth. TLS is covered by the
   # landing service's wildcard *.<root> cert.
   notekit-backoffice:
@@ -70,7 +70,7 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=infrastructure"
       - "traefik.http.services.notekit-backoffice.loadbalancer.server.port=80"
-      - "traefik.http.routers.notekit-backoffice.rule=Host(`admin.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.notekit-backoffice.rule=Host(`backoffice.${ROOT_DOMAIN}`)"
       - "traefik.http.routers.notekit-backoffice.entrypoints=websecure"
       - "traefik.http.routers.notekit-backoffice.tls.certresolver=cloudflare"
       - "traefik.http.routers.notekit-backoffice.service=notekit-backoffice"
@@ -95,7 +95,7 @@ services:
       # Superadmin backoffice gate. Only these emails may sign in and reach
       # /backoffice/*. Override via Vault (BACKOFFICE_ADMIN_EMAILS) to add admins.
       BACKOFFICE_ADMIN_EMAILS: ${BACKOFFICE_ADMIN_EMAILS:-renakaagusta28@gmail.com}
-      BACKOFFICE_WEB_URL: https://admin.${ROOT_DOMAIN}
+      BACKOFFICE_WEB_URL: https://backoffice.${ROOT_DOMAIN}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}

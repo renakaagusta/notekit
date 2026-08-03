@@ -1,0 +1,246 @@
+---
+// Hero section matching the ScaleX reference design
+import TokenIcon from "../assets/images/TokenIcon.png";
+import PatternOrangeTop from "../assets/images/Pattern-Orange-Top.svg";
+import PatternOrangeBottom from "../assets/images/Pattern-Orange-Bottom.svg";
+import { HeroContent, HeroItem, HeroRight, HeroRightItem, HeroBackground } from "./HeroAnimated";
+---
+
+<section
+  class="relative min-h-screen flex flex-col overflow-hidden"
+  style="background: linear-gradient(180deg, rgba(0, 0, 0, 1) 72%, rgba(25, 7, 3, 1) 100%); background-color: #050505;"
+>
+  <!-- Noise Texture Overlay -->
+  <div
+    class="absolute inset-0 opacity-[0.03] pointer-events-none z-[2]"
+    style="background-image: url('data:image/svg+xml,%3Csvg viewBox=%270 0 256 256%27 xmlns=%27http://www.w3.org/2000/svg%27%3E%3Cfilter id=%27noise%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%270.9%27 numOctaves=%274%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 filter=%27url(%23noise)%27/%3E%3C/svg%3E'); background-repeat: repeat; background-size: 256px 256px;"
+  >
+  </div>
+
+  <!-- Orange Grid Pattern - Top -->
+  <img
+    src={PatternOrangeTop.src}
+    alt=""
+    class="absolute top-0 left-0 w-full h-auto pointer-events-none z-[1] opacity-60"
+  />
+
+  <!-- Orange Grid Pattern - Bottom -->
+  <img
+    src={PatternOrangeBottom.src}
+    alt=""
+    class="absolute bottom-0 right-0 w-full h-auto pointer-events-none z-[1] opacity-40"
+  />
+
+  <!-- Background Glow Effect - Top Center -->
+  <div
+    class="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[320px] pointer-events-none z-[1]"
+  >
+    <div
+      class="w-full h-full"
+      style="background: radial-gradient(ellipse at center, rgba(240,103,24,0.25) 0%, rgba(240,103,24,0.08) 40%, transparent 70%);"
+    >
+    </div>
+  </div>
+
+  <!-- Bottom Gradient Fade -->
+  <div
+    class="absolute bottom-0 left-0 right-0 h-[195px] pointer-events-none z-[2]"
+    style="background: linear-gradient(to top, rgba(25, 7, 3, 1) 0%, transparent 100%);"
+  >
+  </div>
+
+  <img
+    src={TokenIcon.src}
+    alt="Token Icon"
+    class="w-full max-w-[1365px] absolute top-[80px] sm:top-[120px] lg:top-[154px] left-1/2 -translate-x-1/2"
+  />
+
+  <!-- Wave Pattern (decorative bottom) -->
+  <div
+    class="absolute bottom-0 left-0 right-0 h-[331px] pointer-events-none z-[1] opacity-20"
+  >
+    <svg
+      class="w-full h-full"
+      viewBox="0 0 1440 331"
+      fill="none"
+      preserveAspectRatio="none"
+    >
+      <path
+        d="M0 165.5C120 220 360 331 720 165.5C1080 0 1320 110 1440 165.5V331H0V165.5Z"
+        fill="url(#wave-gradient)"
+        opacity="0.1"></path>
+      <defs>
+        <linearGradient id="wave-gradient" x1="0" y1="0" x2="1440" y2="331">
+          <stop offset="0%" stop-color="#F06718" stop-opacity="0.2"></stop>
+          <stop offset="100%" stop-color="#F06718" stop-opacity="0.05"></stop>
+        </linearGradient>
+      </defs>
+    </svg>
+  </div>
+
+  <!-- Main Content -->
+  <div
+    class="relative z-10 flex-1 flex items-end px-4 sm:px-8 lg:px-[100px] pb-10 sm:pb-16 pt-[320px] sm:pt-[450px] lg:pt-[520px]"
+  >
+    <div
+      class="hero-animate-init flex flex-col lg:flex-row items-start lg:items-end justify-between w-full max-w-[1240px] mx-auto gap-8 lg:gap-12"
+    >
+      <!-- Left: Badge + CTA -->
+      <HeroContent client:load>
+        <HeroItem>
+          <div class="flex flex-col gap-2.5 items-start">
+            <!-- Headline -->
+            <h1
+              class="text-[32px] sm:text-[48px] font-body font-medium leading-[48px] sm:leading-[58px] tracking-[-1%] text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60"
+            >
+              The Most Capital Efficient and Safe DApp for Agent and Human
+            </h1>
+          </div>
+        </HeroItem>
+
+        <HeroItem>
+          <!-- CTA Buttons -->
+          <div class="flex items-center gap-3 sm:gap-4">
+            <a
+              href="https://app.scalex.money"
+              target="_blank"
+              rel="noopener"
+              class="btn-primary text-base group"
+            >
+              <svg
+                class="w-6 h-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+              Launch App
+            </a>
+            <a
+              href="https://scalex.mintlify.app/genesis-story"
+              target="_blank"
+              rel="noopener"
+              class="btn-secondary text-base group"
+            >
+              <svg
+                class="w-6 h-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                ></path>
+              </svg>
+              Read Docs
+            </a>
+          </div>
+        </HeroItem>
+      </HeroContent>
+
+      <!-- Right: Description + Stats -->
+      <HeroRight client:load>
+        <HeroRightItem>
+          <p
+            class="text-[#CACACA] text-base sm:text-xl font-body font-normal leading-7 sm:leading-8 tracking-[-1%]"
+          >
+            The DeFi platform built for AI agents. Deploy agents that trade,
+            lend, and predict — secured by Chainlink CRE on-chain policy,
+            identified by ERC-8004, and paid via X402 micropayments.
+          </p>
+        </HeroRightItem>
+
+        <!-- Stats with Vertical Separators -->
+        <HeroRightItem>
+        <div class="flex items-start gap-4 sm:gap-6">
+          <!-- Stat 1 -->
+          <div class="flex flex-col gap-1 flex-1 sm:w-[144px] sm:flex-none">
+            <span
+              class="text-white text-xl sm:text-[28px] font-body font-medium leading-7 sm:leading-9 tracking-[-1%]"
+              >$1.2B</span
+            >
+            <span
+              class="text-[#CACACA] text-sm sm:text-lg font-body font-normal leading-5 sm:leading-[30px] tracking-[-1%]"
+              >Total Volume</span
+            >
+          </div>
+
+          <!-- Separator -->
+          <div class="self-stretch w-px flex items-center">
+            <svg
+              width="1"
+              height="100%"
+              viewBox="0 0 1 70"
+              preserveAspectRatio="none"
+              class="h-full"
+            >
+              <line
+                x1="0.5"
+                y1="0"
+                x2="0.5"
+                y2="70"
+                stroke="rgba(255,255,255,0.2)"
+                stroke-width="1"></line>
+            </svg>
+          </div>
+
+          <!-- Stat 2 -->
+          <div class="flex flex-col gap-1 flex-1 sm:w-[144px] sm:flex-none">
+            <span
+              class="text-white text-xl sm:text-[28px] font-body font-medium leading-7 sm:leading-9 tracking-[-1%]"
+              >100+</span
+            >
+            <span
+              class="text-[#CACACA] text-sm sm:text-lg font-body font-normal leading-5 sm:leading-[30px] tracking-[-1%]"
+              >Active Agents</span
+            >
+          </div>
+
+          <!-- Separator -->
+          <div class="self-stretch w-px flex items-center">
+            <svg
+              width="1"
+              height="100%"
+              viewBox="0 0 1 70"
+              preserveAspectRatio="none"
+              class="h-full"
+            >
+              <line
+                x1="0.5"
+                y1="0"
+                x2="0.5"
+                y2="70"
+                stroke="rgba(255,255,255,0.2)"
+                stroke-width="1"></line>
+            </svg>
+          </div>
+
+          <!-- Stat 3 -->
+          <div class="flex flex-col gap-1 flex-1 sm:w-[144px] sm:flex-none">
+            <span
+              class="text-white text-xl sm:text-[28px] font-body font-medium leading-7 sm:leading-9 tracking-[-1%]"
+              >$450M</span
+            >
+            <span
+              class="text-[#CACACA] text-sm sm:text-lg font-body font-normal leading-5 sm:leading-[30px] tracking-[-1%]"
+              >TVL</span
+            >
+          </div>
+        </div>
+        </HeroRightItem>
+      </HeroRight>
+    </div>
+  </div>
+</section>
+
+<style>
+  .coin-item {
+    transition: transform 0.3s ease;
+  }
+  .coin-item:hover {
+    transform: translateY(-10px) scale(1.05) !important;
+  }
+</style>

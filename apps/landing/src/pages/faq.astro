@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Header from "../components/Header.astro";
+import FAQPageContent from "../components/FAQPageContent";
+import Footer from "../components/Footer.astro";
+import "../styles/global.css";
+---
+
+<Layout title="FAQ - ScaleX Protocol" description="Frequently asked questions about ScaleX Protocol, trading, lending, AI agents, and more.">
+  <Header />
+  <main class="pt-24">
+    <FAQPageContent client:load />
+  </main>
+  <Footer />
+</Layout>

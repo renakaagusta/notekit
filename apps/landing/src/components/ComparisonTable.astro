@@ -1,0 +1,200 @@
+---
+// Comparison Table - The ScaleX Advantage
+import ScaleXLogoWhite from "../assets/images/ScaleX-Logo-White.png";
+import star from "../assets/images/Star.svg";
+
+const features = [
+  {
+    name: "Yield on Open Orders",
+    desc: "Earn yield while orders wait.",
+    scalex: { value: "Yes", detail: "(12.5% avg APY)", hasCheck: true },
+    dex: { value: "No" },
+    lending: { value: "No" },
+  },
+  {
+    name: "Borrow from Portfolio",
+    desc: "Borrow instantly without transfers.",
+    scalex: { value: "1-Click", detail: "(No asset transfer)", hasCheck: true },
+    dex: { value: "No" },
+    lending: { value: "Multi-step", detail: "(Transfer required)" },
+  },
+  {
+    name: "Capital Efficiency",
+    desc: "Higher leverage, smarter capital use.",
+    scalex: { value: "10x Leverage", hasCheck: true },
+    dex: { value: "5x Leverage" },
+    lending: { value: "1.5x", detail: "(Over-collateralized)" },
+  },
+  {
+    name: "Liquidation Protection",
+    desc: "Gradual, softer liquidations.",
+    scalex: { value: "Gradual", detail: "(Soft liquidation)", hasCheck: true },
+    dex: { value: "Instant" },
+    lending: { value: "Instant" },
+  },
+  {
+    name: "Loan Repayment",
+    desc: "Yield automatically repays debt.",
+    scalex: { value: "Automatic", detail: "(Yield pays debt)", hasCheck: true },
+    dex: { value: "Manual" },
+    lending: { value: "Manual" },
+  },
+  {
+    name: "AI Agent Support",
+    desc: "On-chain agent identity and trading.",
+    scalex: { value: "Yes", detail: "(ERC-8004)", hasCheck: true },
+    dex: { value: "No" },
+    lending: { value: "No" },
+  },
+  {
+    name: "Prediction Markets",
+    desc: "Binary price predictions with settlement.",
+    scalex: { value: "Yes", detail: "(CRE-settled)", hasCheck: true },
+    dex: { value: "No" },
+    lending: { value: "No" },
+  },
+  {
+    name: "Agent Payments",
+    desc: "Micropayment protocol for agent services.",
+    scalex: { value: "X402", detail: "(Micropayments)", hasCheck: true },
+    dex: { value: "None" },
+    lending: { value: "None" },
+  },
+  {
+    name: "Agent Policy Engine",
+    desc: "On-chain guardrails for AI agent trading.",
+    scalex: { value: "42+ Rules", detail: "(Circuit breakers)", hasCheck: true },
+    dex: { value: "None" },
+    lending: { value: "None" },
+  },
+];
+---
+
+<section class="py-0 relative overflow-hidden" id="compare" style="background-color: #050505;">
+  <div class="max-w-[1440px] mx-auto px-3">
+    <div class="rounded-[20px] sm:rounded-[32px] py-12 sm:py-[100px] px-4 sm:px-8 lg:px-[108px] bg-gradient-to-b from-[#0C0C0C] to-[#050505]">
+      <!-- Section Header -->
+      <div class="text-center mb-10 sm:mb-[52px] max-w-[534px] mx-auto" data-reveal>
+        <h2 class="text-3xl md:text-4xl lg:text-[52px] leading-[40px] md:leading-[52px] lg:leading-[62px] font-['Schibsted_Grotesk'] font-medium tracking-[-2%] mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60">
+          The ScaleX Advantage
+        </h2>
+        <p class="text-base sm:text-lg text-white/80 font-body font-normal leading-6 sm:leading-7 tracking-[-1%]">
+          See how we stack up against traditional DEXs and<br class="hidden sm:block"/>lending protocols.
+        </p>
+      </div>
+
+      <!-- Desktop Table (md+) -->
+      <div class="hidden md:block w-full">
+        <div class="border border-white/20 rounded-2xl overflow-hidden">
+          <!-- Header Row -->
+          <div class="flex border-b border-white/20">
+            <div class="flex-1 px-6 py-4 flex items-center">
+              <span class="text-white text-lg font-body font-medium leading-7 tracking-[-1%]">Features</span>
+            </div>
+            <div class="flex-1 flex items-center justify-start gap-3 px-6 py-4 border-t-[3px] border-t-primary"
+              style="background-color: rgba(240, 103, 24, 0.1);">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center border border-white/10"
+                style="background: linear-gradient(0deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.16) 46%); background-color: #F97316; box-shadow: 0px 2.77px 11.08px -1.38px rgba(41,43,50,0.5);">
+                <img src={ScaleXLogoWhite.src} alt="ScaleX" class="w-[22px] h-[22px]" />
+              </div>
+              <span class="text-white text-lg font-heading font-medium leading-7">ScaleX</span>
+            </div>
+            <div class="flex-1 flex items-center justify-start gap-3 px-6 py-4">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center border border-white/10"
+                style="background: linear-gradient(0deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.16) 46%); background-color: #2C2C2C; box-shadow: 0px 2.77px 11.08px -1.38px rgba(41,43,50,0.5);">
+                <svg class="w-4 h-5 text-gray-400" viewBox="0 0 16 22" fill="currentColor">
+                  <path d="M8 0L0 4v6c0 5.55 3.41 10.74 8 12 4.59-1.26 8-6.45 8-12V4L8 0z"/>
+                </svg>
+              </div>
+              <span class="text-white text-lg font-heading font-medium leading-7">Standard DEX</span>
+            </div>
+            <div class="flex-1 flex items-center justify-start gap-3 px-6 py-4">
+              <div class="w-9 h-9 rounded-lg flex items-center justify-center border border-white/10"
+                style="background: linear-gradient(0deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.16) 46%); background-color: #2C2C2C; box-shadow: 0px 2.77px 11.08px -1.38px rgba(41,43,50,0.5);">
+                <svg class="w-4 h-5 text-gray-400" viewBox="0 0 16 22" fill="currentColor">
+                  <path d="M8 0L0 4v6c0 5.55 3.41 10.74 8 12 4.59-1.26 8-6.45 8-12V4L8 0z"/>
+                </svg>
+              </div>
+              <span class="text-white text-lg font-heading font-medium leading-7">Lending Protocol</span>
+            </div>
+          </div>
+
+          <!-- Data Rows -->
+          {features.map((feature, index) => (
+            <div class={`flex ${index < features.length - 1 ? 'border-b border-white/20' : ''}`}>
+              <div class="flex-1 px-6 py-4 flex flex-col gap-1.5 justify-center">
+                <span class="text-white text-base font-body font-medium leading-5">{feature.name}</span>
+                <span class="text-white/80 text-sm font-body font-normal leading-5">{feature.desc}</span>
+              </div>
+              <div class="flex-1 px-6 py-4 flex items-center gap-2.5"
+                style="background-color: rgba(240, 103, 24, 0.1);">
+                <div class="flex items-center gap-1 flex-1">
+                  <span class="text-white text-base font-body font-normal leading-5">{feature.scalex.value}</span>
+                  {feature.scalex.detail && (
+                    <span class="text-white/80 text-sm font-body font-normal leading-5">{feature.scalex.detail}</span>
+                  )}
+                </div>
+                {feature.scalex.hasCheck && (
+                  <img src={star.src} alt="Star" class="w-5 h-5" />
+                )}
+              </div>
+              <div class="flex-1 px-6 py-4 flex items-center">
+                <span class="text-white/80 text-base font-body font-normal leading-6">{feature.dex.value}</span>
+              </div>
+              <div class="flex-1 px-6 py-4 flex items-center">
+                <div class="flex items-center gap-1">
+                  <span class="text-white text-base font-body font-normal leading-5">{feature.lending.value}</span>
+                  {feature.lending.detail && (
+                    <span class="text-white/80 text-sm font-body font-normal leading-5">{feature.lending.detail}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <!-- Mobile Card Layout -->
+      <div class="md:hidden flex flex-col gap-3">
+        {features.map((feature) => (
+          <div class="rounded-xl border border-white/10 overflow-hidden">
+            <!-- Feature Name -->
+            <div class="px-4 py-3 border-b border-white/10">
+              <span class="text-white text-sm font-body font-medium leading-5">{feature.name}</span>
+              <span class="text-white/60 text-xs font-body font-normal leading-4 ml-1">{feature.desc}</span>
+            </div>
+            <!-- Values Grid -->
+            <div class="grid grid-cols-3 divide-x divide-white/10">
+              <!-- ScaleX -->
+              <div class="px-3 py-3 flex flex-col gap-1" style="background-color: rgba(240, 103, 24, 0.08);">
+                <div class="flex items-center gap-1">
+                  <span class="text-white text-xs font-body font-semibold leading-4">ScaleX</span>
+                  {feature.scalex.hasCheck && (
+                    <img src={star.src} alt="Star" class="w-3.5 h-3.5" />
+                  )}
+                </div>
+                <span class="text-white text-[11px] font-body font-normal leading-4">{feature.scalex.value}</span>
+                {feature.scalex.detail && (
+                  <span class="text-white/60 text-[10px] font-body leading-3">{feature.scalex.detail}</span>
+                )}
+              </div>
+              <!-- DEX -->
+              <div class="px-3 py-3 flex flex-col gap-1">
+                <span class="text-white/60 text-xs font-body font-semibold leading-4">DEX</span>
+                <span class="text-white/60 text-[11px] font-body font-normal leading-4">{feature.dex.value}</span>
+              </div>
+              <!-- Lending -->
+              <div class="px-3 py-3 flex flex-col gap-1">
+                <span class="text-white/60 text-xs font-body font-semibold leading-4">Lending</span>
+                <span class="text-white/60 text-[11px] font-body font-normal leading-4">{feature.lending.value}</span>
+                {feature.lending.detail && (
+                  <span class="text-white/40 text-[10px] font-body leading-3">{feature.lending.detail}</span>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

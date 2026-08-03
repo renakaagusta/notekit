@@ -1,0 +1,374 @@
+---
+// Header component with ScaleX logo, navigation, and language switcher
+import scaleXLogo from "../assets/images/ScaleX-Logo.png";
+---
+
+<header
+  class="fixed top-0 left-0 right-0 z-50 transition-all duration-300"
+  id="site-header"
+>
+  <div class="max-w-[1440px] mx-auto">
+    <nav
+      class="flex items-center justify-between px-4 sm:px-8 lg:px-[60px] py-6"
+    >
+      <!-- Logo -->
+      <a href="/" class="flex items-center gap-1.5 group z-10">
+        <img src={scaleXLogo.src} alt="ScaleX Logo" class="w-12 h-12" />
+        <span class="text-2xl font-heading font-bold text-white leading-8"
+          >ScaleX</span
+        >
+      </a>
+
+      <!-- Nav Links (center) -->
+      <div class="hidden lg:flex items-center gap-6 z-10">
+        <a
+          href="#features"
+          class="text-white text-base font-body font-normal leading-6 tracking-[-1%] hover:text-primary transition-colors"
+          data-i18n="nav.features">Features</a
+        >
+        <a
+          href="#flywheel"
+          class="text-white text-base font-body font-normal leading-6 tracking-[-1%] hover:text-primary transition-colors"
+          data-i18n="nav.howItWorks">How it works</a
+        >
+        <a
+          href="https://scalex.mintlify.app/genesis-story"
+          target="_blank"
+          rel="noopener"
+          class="text-white text-base font-body font-normal leading-6 tracking-[-1%] hover:text-primary transition-colors"
+          data-i18n="nav.docs">Docs</a
+        >
+        <a
+          href="https://x.com/ScaleX_money"
+          target="_blank"
+          rel="noopener"
+          class="text-white text-base font-body font-normal leading-6 tracking-[-1%] hover:text-primary transition-colors"
+          data-i18n="nav.community">Community</a
+        >
+        <a
+          href="#"
+          class="text-white text-base font-body font-normal leading-6 tracking-[-1%] hover:text-primary transition-colors"
+          data-i18n="nav.blog">Blog</a
+        >
+      </div>
+
+      <!-- Right CTA -->
+      <div class="flex items-center gap-4 sm:gap-6 z-10">
+        <!-- Language Selector -->
+        <div class="hidden md:block relative" id="lang-selector">
+          <button
+            class="flex items-center gap-1.5 cursor-pointer text-white hover:text-primary transition-colors py-1.5 px-2 rounded-lg hover:bg-white/5"
+            id="lang-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-haspopup="listbox"
+          >
+            <svg
+              class="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <path
+                d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"
+              ></path>
+            </svg>
+            <span
+              class="text-sm font-body font-medium leading-5 tracking-[-1%]"
+              id="lang-current">EN</span
+            >
+            <svg
+              class="w-4 h-4 transition-transform duration-200"
+              id="lang-chevron"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M6 9l6 6 6-6"></path>
+            </svg>
+          </button>
+
+          <!-- Dropdown -->
+          <div
+            class="absolute right-0 top-full mt-2 w-[160px] rounded-xl border border-white/10 overflow-hidden opacity-0 invisible translate-y-1 transition-all duration-200"
+            style="background: rgba(10, 10, 10, 0.95); backdrop-filter: blur(20px);"
+            id="lang-dropdown"
+            role="listbox"
+          >
+            <button
+              class="lang-option w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+              data-lang="en"
+              role="option"
+            >
+              <span class="text-xs font-body font-bold text-primary/80 w-6"
+                >EN</span
+              >
+              <span class="text-sm font-body text-white/80">English</span>
+            </button>
+            <button
+              class="lang-option w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+              data-lang="id"
+              role="option"
+            >
+              <span class="text-xs font-body font-bold text-white/40 w-6"
+                >ID</span
+              >
+              <span class="text-sm font-body text-white/80">Indonesia</span>
+            </button>
+            <button
+              class="lang-option w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+              data-lang="zh"
+              role="option"
+            >
+              <span class="text-xs font-body font-bold text-white/40 w-6"
+                >ZH</span
+              >
+              <span class="text-sm font-body text-white/80">中文</span>
+            </button>
+            <button
+              class="lang-option w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+              data-lang="ja"
+              role="option"
+            >
+              <span class="text-xs font-body font-bold text-white/40 w-6"
+                >JA</span
+              >
+              <span class="text-sm font-body text-white/80">日本語</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Launch App Button -->
+        <a
+          href="https://base-sepolia-app.scalex.money"
+          target="_blank"
+          rel="noopener"
+          class="btn-primary text-sm sm:text-base"
+          data-i18n="nav.launchApp"
+        >
+          Launch App
+        </a>
+
+        <!-- Hamburger Button (mobile only) -->
+        <button
+          class="lg:hidden flex flex-col justify-center items-center w-10 h-10 gap-1.5 cursor-pointer"
+          id="mobile-menu-toggle"
+          type="button"
+          aria-label="Toggle mobile menu"
+          aria-expanded="false"
+        >
+          <span class="hamburger-line block w-6 h-0.5 bg-white rounded-full transition-all duration-300 origin-center"></span>
+          <span class="hamburger-line block w-6 h-0.5 bg-white rounded-full transition-all duration-300 origin-center"></span>
+          <span class="hamburger-line block w-6 h-0.5 bg-white rounded-full transition-all duration-300 origin-center"></span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- Mobile Menu Overlay -->
+  <div
+    class="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl flex flex-col opacity-0 invisible transition-all duration-300 lg:hidden"
+    id="mobile-menu"
+  >
+    <div class="flex-1 flex flex-col items-center justify-center gap-8 px-8">
+      <a href="#features" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.features">Features</a>
+      <a href="#flywheel" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.howItWorks">How it works</a>
+      <a href="https://scalex.mintlify.app/genesis-story" target="_blank" rel="noopener" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.docs">Docs</a>
+      <a href="https://x.com/ScaleX_money" target="_blank" rel="noopener" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.community">Community</a>
+      <a href="#" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.blog">Blog</a>
+
+      <!-- Language selector in mobile menu -->
+      <div class="flex items-center gap-3 mt-4">
+        <button class="mobile-lang-option text-lg font-body text-white/60 hover:text-white transition-colors px-3 py-1.5" data-lang="en">EN</button>
+        <span class="text-white/20">|</span>
+        <button class="mobile-lang-option text-lg font-body text-white/60 hover:text-white transition-colors px-3 py-1.5" data-lang="id">ID</button>
+        <span class="text-white/20">|</span>
+        <button class="mobile-lang-option text-lg font-body text-white/60 hover:text-white transition-colors px-3 py-1.5" data-lang="zh">ZH</button>
+        <span class="text-white/20">|</span>
+        <button class="mobile-lang-option text-lg font-body text-white/60 hover:text-white transition-colors px-3 py-1.5" data-lang="ja">JA</button>
+      </div>
+
+      <!-- CTA in mobile menu -->
+      <a
+        href="https://base-sepolia-app.scalex.money"
+        target="_blank"
+        rel="noopener"
+        class="btn-primary text-base mt-4"
+      >
+        Launch App
+      </a>
+    </div>
+  </div>
+</header>
+
+<script>
+  // Header scroll effect
+  const header = document.getElementById("site-header");
+  if (header) {
+    window.addEventListener("scroll", () => {
+      if (window.scrollY > 50) {
+        header.classList.add(
+          "bg-surface-primary/80",
+          "backdrop-blur-xl",
+          "border-b",
+          "border-white/5",
+        );
+      } else {
+        header.classList.remove(
+          "bg-surface-primary/80",
+          "backdrop-blur-xl",
+          "border-b",
+          "border-white/5",
+        );
+      }
+    });
+  }
+
+  // Language dropdown
+  const toggle = document.getElementById("lang-toggle");
+  const dropdown = document.getElementById("lang-dropdown");
+  const chevron = document.getElementById("lang-chevron");
+  const currentLabel = document.getElementById("lang-current");
+  let isOpen = false;
+
+  function openDropdown() {
+    isOpen = true;
+    dropdown?.classList.remove("opacity-0", "invisible", "translate-y-1");
+    dropdown?.classList.add("opacity-100", "visible", "translate-y-0");
+    chevron?.classList.add("rotate-180");
+    toggle?.setAttribute("aria-expanded", "true");
+  }
+
+  function closeDropdown() {
+    isOpen = false;
+    dropdown?.classList.add("opacity-0", "invisible", "translate-y-1");
+    dropdown?.classList.remove("opacity-100", "visible", "translate-y-0");
+    chevron?.classList.remove("rotate-180");
+    toggle?.setAttribute("aria-expanded", "false");
+  }
+
+  toggle?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    isOpen ? closeDropdown() : openDropdown();
+  });
+
+  document.addEventListener("click", (e) => {
+    const selector = document.getElementById("lang-selector");
+    if (selector && !selector.contains(e.target as Node)) {
+      closeDropdown();
+    }
+  });
+
+  // Language selection
+  const langOptions = document.querySelectorAll(".lang-option");
+  const currentLang = localStorage.getItem("scalex-lang") || "en";
+
+  // Highlight active lang on load
+  updateActiveLang(currentLang);
+
+  langOptions.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const lang = (btn as HTMLElement).dataset.lang || "en";
+      localStorage.setItem("scalex-lang", lang);
+      updateActiveLang(lang);
+      closeDropdown();
+
+      // Dispatch custom event for future i18n integration
+      window.dispatchEvent(
+        new CustomEvent("lang-change", { detail: { lang } }),
+      );
+    });
+  });
+
+  function updateActiveLang(lang: string) {
+    if (currentLabel) {
+      currentLabel.textContent = lang.toUpperCase();
+    }
+    langOptions.forEach((btn) => {
+      const btnLang = (btn as HTMLElement).dataset.lang;
+      const codeSpan = btn.querySelector("span:first-child");
+      if (codeSpan) {
+        if (btnLang === lang) {
+          codeSpan.classList.remove("text-white/40");
+          codeSpan.classList.add("text-primary/80");
+        } else {
+          codeSpan.classList.add("text-white/40");
+          codeSpan.classList.remove("text-primary/80");
+        }
+      }
+    });
+    // Update mobile lang selector
+    document.querySelectorAll(".mobile-lang-option").forEach((btn) => {
+      const btnLang = (btn as HTMLElement).dataset.lang;
+      if (btnLang === lang) {
+        btn.classList.remove("text-white/60");
+        btn.classList.add("text-primary");
+      } else {
+        btn.classList.add("text-white/60");
+        btn.classList.remove("text-primary");
+      }
+    });
+  }
+
+  // Mobile menu toggle
+  const mobileMenuToggle = document.getElementById("mobile-menu-toggle");
+  const mobileMenu = document.getElementById("mobile-menu");
+  let menuOpen = false;
+
+  function openMobileMenu() {
+    menuOpen = true;
+    mobileMenu?.classList.remove("opacity-0", "invisible");
+    mobileMenu?.classList.add("opacity-100", "visible");
+    mobileMenuToggle?.setAttribute("aria-expanded", "true");
+    document.body.style.overflow = "hidden";
+    // Animate hamburger to X
+    const lines = mobileMenuToggle?.querySelectorAll(".hamburger-line");
+    if (lines && lines.length === 3) {
+      (lines[0] as HTMLElement).style.transform = "translateY(4px) rotate(45deg)";
+      (lines[1] as HTMLElement).style.opacity = "0";
+      (lines[2] as HTMLElement).style.transform = "translateY(-4px) rotate(-45deg)";
+    }
+  }
+
+  function closeMobileMenu() {
+    menuOpen = false;
+    mobileMenu?.classList.add("opacity-0", "invisible");
+    mobileMenu?.classList.remove("opacity-100", "visible");
+    mobileMenuToggle?.setAttribute("aria-expanded", "false");
+    document.body.style.overflow = "";
+    // Reset hamburger
+    const lines = mobileMenuToggle?.querySelectorAll(".hamburger-line");
+    if (lines && lines.length === 3) {
+      (lines[0] as HTMLElement).style.transform = "";
+      (lines[1] as HTMLElement).style.opacity = "";
+      (lines[2] as HTMLElement).style.transform = "";
+    }
+  }
+
+  mobileMenuToggle?.addEventListener("click", () => {
+    menuOpen ? closeMobileMenu() : openMobileMenu();
+  });
+
+  // Close on nav link click
+  document.querySelectorAll(".mobile-nav-link").forEach((link) => {
+    link.addEventListener("click", () => closeMobileMenu());
+  });
+
+  // Close on Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && menuOpen) closeMobileMenu();
+  });
+
+  // Mobile language selection
+  document.querySelectorAll(".mobile-lang-option").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const lang = (btn as HTMLElement).dataset.lang || "en";
+      localStorage.setItem("scalex-lang", lang);
+      updateActiveLang(lang);
+      window.dispatchEvent(new CustomEvent("lang-change", { detail: { lang } }));
+    });
+  });
+</script>

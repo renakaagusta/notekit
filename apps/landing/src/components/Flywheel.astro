@@ -1,0 +1,333 @@
+---
+// Flywheel/Compounding Engine - Radial Quad Layout with center logo
+import scaleXLogo from "../assets/images/ScaleX.webp";
+---
+
+<section
+  class="py-20 lg:py-[80px] relative overflow-hidden"
+  id="flywheel"
+  style="background-color: #050505;"
+>
+  <div class="max-w-[1200px] mx-auto px-4 sm:px-8 lg:px-[120px]">
+    <!-- Section Header -->
+    <div class="text-center mb-[52px]" data-reveal>
+      <h2
+        class="text-3xl sm:text-4xl lg:text-[52px] leading-[40px] sm:leading-[50px] lg:leading-[62px] font-['Schibsted_Grotesk'] font-medium tracking-[-2%] mb-4 text-transparent bg-clip-text bg-gradient-to-b from-white to-white/60"
+      >
+        The Compounding Engine
+      </h2>
+      <p
+        class="text-lg text-[#CACACA] font-body font-normal leading-7 tracking-[-1%]"
+      >
+        A self-reinforcing cycle that grows your portfolio while you trade.
+      </p>
+    </div>
+
+    <!-- Desktop Radial Layout -->
+    <div
+      class="relative w-full hidden lg:block"
+      style="height: 800px; max-width: 1200px; margin: 0 auto;"
+    >
+      <!-- Radial overlay glow behind center -->
+      <div
+        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[523px] h-[523px] pointer-events-none"
+        style="background: radial-gradient(ellipse at center, rgba(240,103,24,0.12) 0%, transparent 70%);"
+      ></div>
+
+      <!-- Decorative dot pattern -->
+      <div
+        class="absolute inset-0 pointer-events-none opacity-[0.15]"
+        style="background-image: radial-gradient(rgba(255, 255, 255, 0.3) 1px, transparent 1px); background-size: 24px 24px; mask-image: radial-gradient(ellipse at center, black 0%, transparent 80%); -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 80%);"
+      ></div>
+
+      <!-- Concentric Circles -->
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full border border-white/[0.04] radial-circle" style="animation-delay: 0s;"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[750px] rounded-full border border-white/[0.05] radial-circle" style="animation-delay: -2s;"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-white/[0.08] radial-circle" style="animation-delay: -4s;"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] rounded-full border border-[#F06718]/15 radial-circle" style="animation-delay: -6s;"></div>
+      </div>
+
+      <!-- Center Engine Logo -->
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+        <div
+          class="flex items-center justify-center p-6 rounded-full"
+          style="background-color: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(10px);"
+        >
+          <div
+            class="w-[120px] h-[120px] rounded-full flex items-center justify-center engine-pulse"
+            style="background: linear-gradient(135deg, #F5955D 0%, #F06718 100%); box-shadow: 0px 0px 40px rgba(240,103,24,0.4);"
+          >
+            <svg class="w-[48px] h-[48px] text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="none"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step Cards (Desktop) -->
+      <div class="absolute top-[60px] left-[50px] w-[350px] flywheel-step z-10" data-step-index="0">
+        <div class="fw-card">
+          <div class="fw-card-glow"></div>
+          <div class="flex flex-col gap-6 relative z-10">
+            <div class="fw-icon"><span class="text-white text-[16px] font-body font-bold">01</span></div>
+            <div class="flex flex-col gap-2">
+              <span class="text-white text-xl font-heading font-medium">Deposit</span>
+              <span class="text-[#CACACA] text-[15px] font-body leading-relaxed">Your assets immediately start earning yield in lending pools.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="absolute top-[60px] right-[50px] w-[350px] flywheel-step z-10" data-step-index="1">
+        <div class="fw-card">
+          <div class="fw-card-glow"></div>
+          <div class="flex flex-col gap-6 relative z-10">
+            <div class="fw-icon"><span class="text-white text-[16px] font-body font-bold">02</span></div>
+            <div class="flex flex-col gap-2">
+              <span class="text-white text-xl font-heading font-medium">Trade</span>
+              <span class="text-[#CACACA] text-[15px] font-body leading-relaxed">Trade manually or deploy AI agents for automatic strategy execution. Use yield-bearing tokens as margin.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="absolute bottom-[60px] right-[50px] w-[350px] flywheel-step z-10" data-step-index="2">
+        <div class="fw-card">
+          <div class="fw-card-glow"></div>
+          <div class="flex flex-col gap-6 relative z-10">
+            <div class="fw-icon"><span class="text-white text-[16px] font-body font-bold">03</span></div>
+            <div class="flex flex-col gap-2">
+              <span class="text-white text-xl font-heading font-medium">Earn</span>
+              <span class="text-[#CACACA] text-[15px] font-body leading-relaxed">Yield auto-compounds. Prediction rewards accumulate. Loans auto-repay. Collateral grows.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="absolute bottom-[60px] left-[50px] w-[350px] flywheel-step z-10" data-step-index="3">
+        <div class="fw-card">
+          <div class="fw-card-glow"></div>
+          <div class="flex flex-col gap-6 relative z-10">
+            <div class="fw-icon"><span class="text-white text-[16px] font-body font-bold">04</span></div>
+            <div class="flex flex-col gap-2">
+              <span class="text-white text-xl font-heading font-medium">Repeat</span>
+              <span class="text-[#CACACA] text-[15px] font-body leading-relaxed">More collateral = more borrowing power. The cycle compounds.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Layout (2x2 grid) -->
+    <div class="lg:hidden grid grid-cols-2 gap-4 relative">
+      <!-- Center Engine -->
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20">
+        <div
+          class="flex items-center justify-center p-3 rounded-full"
+          style="background-color: rgba(5,5,5,0.9); border: 1px solid rgba(255,255,255,0.05); backdrop-filter: blur(10px);"
+        >
+          <div
+            class="w-[56px] h-[56px] rounded-full flex items-center justify-center engine-pulse"
+            style="background: linear-gradient(135deg, #F5955D 0%, #F06718 100%); box-shadow: 0px 0px 24px rgba(240,103,24,0.4);"
+          >
+            <svg class="w-[24px] h-[24px] text-white" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="none"></path>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="flywheel-step" data-step-index="0">
+        <div class="fw-card fw-card-mobile">
+          <div class="fw-card-glow"></div>
+          <div class="flex flex-col gap-3 relative z-10">
+            <div class="fw-icon fw-icon-sm"><span class="text-white text-[13px] font-body font-bold">01</span></div>
+            <div class="flex flex-col gap-1">
+              <span class="text-white text-base font-heading font-medium">Deposit</span>
+              <span class="text-[#CACACA] text-[12px] font-body leading-relaxed">Your assets immediately start earning yield in lending pools.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flywheel-step" data-step-index="1">
+        <div class="fw-card fw-card-mobile">
+          <div class="fw-card-glow"></div>
+          <div class="flex flex-col gap-3 relative z-10">
+            <div class="fw-icon fw-icon-sm"><span class="text-white text-[13px] font-body font-bold">02</span></div>
+            <div class="flex flex-col gap-1">
+              <span class="text-white text-base font-heading font-medium">Trade</span>
+              <span class="text-[#CACACA] text-[12px] font-body leading-relaxed">Trade manually or deploy AI agents for automatic strategy execution. Use yield-bearing tokens as margin.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flywheel-step" data-step-index="3">
+        <div class="fw-card fw-card-mobile">
+          <div class="fw-card-glow"></div>
+          <div class="flex flex-col gap-3 relative z-10">
+            <div class="fw-icon fw-icon-sm"><span class="text-white text-[13px] font-body font-bold">04</span></div>
+            <div class="flex flex-col gap-1">
+              <span class="text-white text-base font-heading font-medium">Repeat</span>
+              <span class="text-[#CACACA] text-[12px] font-body leading-relaxed">More collateral = more borrowing power. The cycle compounds.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flywheel-step" data-step-index="2">
+        <div class="fw-card fw-card-mobile">
+          <div class="fw-card-glow"></div>
+          <div class="flex flex-col gap-3 relative z-10">
+            <div class="fw-icon fw-icon-sm"><span class="text-white text-[13px] font-body font-bold">03</span></div>
+            <div class="flex flex-col gap-1">
+              <span class="text-white text-base font-heading font-medium">Earn</span>
+              <span class="text-[#CACACA] text-[12px] font-body leading-relaxed">Yield auto-compounds. Prediction rewards accumulate. Loans auto-repay. Collateral grows.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  /* Flywheel Card - static elegant border */
+  .fw-card {
+    position: relative;
+    overflow: hidden;
+    padding: 2rem;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%), #0a0a0a;
+    transition: all 0.5s ease;
+  }
+
+  .fw-card-mobile {
+    padding: 1.25rem;
+    border-radius: 20px;
+  }
+
+  .fw-card-glow {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 8rem;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0.03), transparent);
+    pointer-events: none;
+    transition: background 0.5s ease;
+  }
+
+  .fw-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    transition: all 0.5s ease;
+  }
+
+  .fw-icon-sm {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+  }
+
+  /* Engine pulse glow */
+  .engine-pulse {
+    animation: engineGlow 3s ease-in-out infinite;
+  }
+
+  @keyframes engineGlow {
+    0%, 100% { box-shadow: 0 0 30px rgba(240, 103, 24, 0.2), 0 0 60px rgba(240, 103, 24, 0.1); }
+    50% { box-shadow: 0 0 50px rgba(240, 103, 24, 0.4), 0 0 100px rgba(240, 103, 24, 0.2); }
+  }
+
+  /* Radial Circles Animation */
+  .radial-circle {
+    animation: radialPulse 8s linear infinite;
+  }
+
+  @keyframes radialPulse {
+    0% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.3; }
+    50% { transform: translate(-50%, -50%) scale(1.02); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.3; }
+  }
+
+  /* Flywheel step entrance */
+  .flywheel-step {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: stepFadeIn 0.6s ease-out forwards;
+  }
+  .flywheel-step:nth-child(1) { animation-delay: 0s; }
+  .flywheel-step:nth-child(2) { animation-delay: 0.15s; }
+  .flywheel-step:nth-child(3) { animation-delay: 0.3s; }
+  .flywheel-step:nth-child(4) { animation-delay: 0.45s; }
+
+  @keyframes stepFadeIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Active step state - clean highlight, no spinning borders */
+  .flywheel-step.step-active .fw-card {
+    border-color: rgba(240, 103, 24, 0.35);
+    box-shadow: 0 8px 32px -8px rgba(240, 103, 24, 0.2), inset 0 1px 0 rgba(240, 103, 24, 0.1);
+    transform: translateY(-4px);
+    background: linear-gradient(180deg, rgba(240, 103, 24, 0.06) 0%, rgba(240, 103, 24, 0) 60%), linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%), #0a0a0a;
+  }
+
+  .flywheel-step.step-active .fw-card-glow {
+    background: linear-gradient(to bottom, rgba(240, 103, 24, 0.15), transparent);
+  }
+
+  .flywheel-step.step-active .fw-icon {
+    background-color: #f06718;
+    border-color: #f06718;
+    box-shadow: 0 0 16px rgba(240, 103, 24, 0.35);
+  }
+</style>
+
+<script>
+  // Flywheel auto-cycling
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) { startAutoCycle(); }
+        else { stopAutoCycle(); }
+      });
+    },
+    { threshold: 0.2 },
+  );
+
+  const flywheelSection = document.getElementById("flywheel");
+  if (flywheelSection) { observer.observe(flywheelSection); }
+
+  let currentStep = 0;
+  let cycleInterval: ReturnType<typeof setInterval> | null = null;
+
+  function activateStep(index: number) {
+    document.querySelectorAll(".flywheel-step").forEach((s) => s.classList.remove("step-active"));
+    const el = document.querySelector(`[data-step-index="${index}"]`);
+    if (el) el.classList.add("step-active");
+  }
+
+  function startAutoCycle() {
+    if (cycleInterval) return;
+    activateStep(currentStep);
+    cycleInterval = setInterval(() => {
+      currentStep = (currentStep + 1) % 4;
+      activateStep(currentStep);
+    }, 2500);
+  }
+
+  function stopAutoCycle() {
+    if (cycleInterval) { clearInterval(cycleInterval); cycleInterval = null; }
+  }
+</script>

@@ -13,28 +13,24 @@ COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .
-ENV NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app/apps/landing
 RUN pnpm build
+RUN ls -la dist/server/ && echo "Build output verified"
 
-# Stage 3: Serve with Next.js standalone
-# outputFileTracingRoot=monorepo-root means standalone output is:
-#   .next/standalone/apps/landing/server.js  (relative to /app)
+# Stage 3: Production runtime
 FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
+RUN apk add --no-cache wget
 RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/apps/landing/public ./apps/landing/public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/landing/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/landing/.next/static ./apps/landing/.next/static
-
-USER nextjs
-EXPOSE 3000
+    adduser --system --uid 1001 astro
+WORKDIR /app
+COPY --from=builder --chown=astro:nodejs /app/apps/landing/dist ./dist
+COPY --from=builder --chown=astro:nodejs /app/apps/landing/node_modules ./node_modules
+COPY --from=builder --chown=astro:nodejs /app/apps/landing/package.json ./package.json
+USER astro
+ENV HOST=0.0.0.0
 ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-WORKDIR /app/apps/landing
-CMD ["node", "server.js"]
+ENV NODE_ENV=production
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD wget --quiet --tries=1 --spider http://localhost:3000/api/health || exit 1
+CMD ["node", "./dist/server/entry.mjs"]

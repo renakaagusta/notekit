@@ -86,3 +86,478 @@
     flex-direction: column;
   }
 }
+
+/* ======================================================================
+   Split-screen sign-in — ported from app.notekit.online
+   (packages/core/src/styles.css .nk-auth / .nk-signin). Self-contained:
+   the token shim below supplies the design tokens the generic rules use,
+   so the backoffice needs no dependency on the core package.
+   ====================================================================== */
+.nk-auth {
+  --mono-font: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --gap-2: 8px; --gap-3: 12px; --gap-4: 16px; --gap-5: 24px; --gap-6: 32px;
+  --r-sm: 5px; --r-md: 6px; --r-lg: 8px;
+  --bg: #0a0a0b; --surface: #111113; --surface-2: #17171a;
+  --border: #1f1f24; --border-soft: #18181c;
+  --text: #e4e4e7; --text-2: #a1a1aa; --muted: #6b6b73;
+  --hover: rgba(255, 255, 255, 0.06); --destructive: #f87171;
+}
+/* Brand nod: tint the diagonal slash mark orange (mark reads --accent). */
+.nk-auth { --accent: #ea7317; }
+
+.nk-auth {
+  --auth-ink: #0a0a0b; /* canvas */
+  --auth-card: #0f0f11; /* right panel */
+  --auth-line: #232326; /* hairline */
+  --auth-line2: #303036; /* stronger hairline */
+  --auth-fg: #f4f4f5; /* foreground ink */
+  --auth-muted: #8a8a93; /* secondary text */
+  --auth-dim: #57575e; /* captions */
+  --auth-lead: #a9a9b2; /* lead paragraph */
+  --auth-down: #e5484d; /* error */
+  /* Feed the shared brand mark, which reads var(--accent). */
+  --accent: #f4f4f5;
+
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  background: var(--auth-ink);
+  color: var(--auth-fg);
+  font-family:
+    system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (min-width: 768px) {
+  .nk-auth {
+    grid-template-columns: 1.05fr 1fr;
+  }
+}
+
+/* LEFT · brand + live-data motif on a hairline grid */
+.nk-auth-left {
+  display: none;
+  position: relative;
+  overflow: hidden;
+  border-right: 1px solid var(--auth-line);
+  background-image:
+    radial-gradient(120% 90% at 12% 8%, rgba(255, 255, 255, 0.05), transparent 60%),
+    linear-gradient(var(--auth-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--auth-line) 1px, transparent 1px);
+  background-size:
+    auto,
+    46px 46px,
+    46px 46px;
+}
+
+@media (min-width: 768px) {
+  .nk-auth-left {
+    display: block;
+  }
+}
+
+.nk-auth-stream {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 44px 56px;
+  opacity: 0.1;
+  font-family: var(--mono-font);
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--auth-fg);
+  white-space: pre;
+  pointer-events: none;
+}
+
+.nk-auth-left-inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 44px 56px;
+}
+
+.nk-auth-lockup {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.nk-auth-word {
+  font-family: var(--mono-font);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  font-size: 18px;
+}
+
+.nk-auth-pitch {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.nk-auth-h2 {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.022em;
+  line-height: 1.04;
+  font-size: 44px;
+  max-width: 16ch;
+}
+
+.nk-auth-lead {
+  margin: 0;
+  max-width: 42ch;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--auth-lead);
+}
+
+.nk-auth-tags {
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+  color: var(--auth-dim);
+  letter-spacing: 0.04em;
+}
+
+/* RIGHT · auth panel */
+.nk-auth-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--auth-card);
+  padding: 48px 40px;
+}
+
+.nk-auth-panel {
+  width: 100%;
+  max-width: 372px;
+  display: flex;
+  flex-direction: column;
+}
+
+.nk-auth-lockup-mobile {
+  margin-bottom: 32px;
+}
+
+@media (min-width: 768px) {
+  .nk-auth-lockup-mobile {
+    display: none;
+  }
+}
+
+.nk-auth-overline {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--auth-muted);
+  margin-bottom: 14px;
+}
+
+.nk-auth-h1 {
+  margin: 0 0 10px;
+  font-weight: 800;
+  letter-spacing: -0.022em;
+  line-height: 1.04;
+  font-size: 34px;
+}
+
+.nk-auth-panel .nk-auth-lead {
+  margin: 0 0 28px;
+  font-size: 14.5px;
+}
+
+.nk-auth-rule {
+  height: 1px;
+  background: var(--auth-line);
+  margin: 26px 0 0;
+}
+
+.nk-auth-foot {
+  margin: 20px 0 0;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--auth-dim);
+}
+
+/* ─── Shared sign-in card + buttons (used app-wide: AuthGate, dialogs, ──
+ * calendar, vault pickers). Theme-token based — keep these generic. The
+ * Oracle auth screen re-skins them via `.nk-auth`-scoped overrides below. */
+
+.nk-signin {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--gap-5);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.nk-signin-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--gap-6);
+  text-align: center;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+}
+
+.nk-signin-brand {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin-bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nk-signin-brand svg {
+  color: var(--accent, var(--text));
+}
+
+.nk-signin-tag {
+  color: var(--text-2);
+  font-size: 12.5px;
+  margin: 0 0 var(--gap-5);
+}
+
+.nk-signin-error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--destructive);
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  font-size: 12px;
+  margin-bottom: var(--gap-4);
+  text-align: left;
+}
+
+.nk-signin-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+}
+
+.nk-signin-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    border-color 0.12s;
+}
+
+.nk-signin-btn:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--accent);
+}
+
+.nk-signin-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Apple HIG asks for a white-on-black or black-on-white Sign in with
+ * Apple button that visually leads the stack. Use the active theme's
+ * foreground/background so it inverts naturally between light and dark. */
+.nk-signin-btn-apple {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.nk-signin-btn-apple:hover:not(:disabled) {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--accent);
+  opacity: 0.9;
+}
+
+.nk-signin-hint {
+  margin-top: var(--gap-4);
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.nk-signin-hint code {
+  font-family: var(--mono-font);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  padding: 1px 5px;
+  border-radius: var(--r-sm);
+  font-size: 10.5px;
+}
+
+/* ─── Sign in with token (mobile/native PAT path) ──────────────── */
+
+.nk-signin-btn-ghost {
+  background: transparent;
+  margin-top: var(--gap-3);
+  border-style: dashed;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.nk-signin-token-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-2);
+  margin-top: var(--gap-3);
+}
+
+.nk-signin-token-input {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  padding: 10px 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  outline: none;
+}
+
+.nk-signin-token-input:focus {
+  border-color: var(--accent);
+}
+
+.nk-signin-btn-link {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.nk-signin-btn-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* ─── Oracle auth re-skin — scoped to the split-screen only ─────── */
+
+.nk-auth .nk-signin-error {
+  background: #2a1315;
+  border: 1px solid color-mix(in srgb, var(--auth-down) 55%, transparent);
+  color: var(--auth-fg);
+  padding: 10px 14px;
+  border-radius: 11px;
+  font-size: 12.5px;
+  margin-bottom: 16px;
+}
+
+.nk-auth .nk-signin-buttons {
+  gap: 10px;
+}
+
+.nk-auth .nk-signin-btn {
+  padding: 13px 18px;
+  background: #17171a;
+  color: var(--auth-fg);
+  border: 1px solid var(--auth-line2);
+  border-radius: 11px;
+  font-size: 14.5px;
+  font-weight: 600;
+  transition:
+    background 0.12s,
+    border-color 0.12s,
+    opacity 0.12s;
+}
+
+.nk-auth .nk-signin-btn:hover:not(:disabled) {
+  background: #1e1e22;
+  border-color: #3a3a42;
+}
+
+.nk-auth .nk-signin-btn-apple {
+  background: var(--auth-fg);
+  color: var(--auth-ink);
+  border-color: var(--auth-fg);
+}
+.nk-auth .nk-signin-btn-apple:hover:not(:disabled) {
+  background: var(--auth-fg);
+  color: var(--auth-ink);
+  border-color: var(--auth-fg);
+  opacity: 0.9;
+}
+
+.nk-auth .nk-signin-hint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--auth-muted);
+}
+
+.nk-auth .nk-signin-hint code {
+  background: #17171a;
+  border: 1px solid var(--auth-line2);
+  border-radius: 5px;
+  font-size: 11px;
+}
+
+.nk-auth .nk-signin-btn-ghost {
+  margin-top: 12px;
+  background: transparent;
+  border-color: var(--auth-line2);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--auth-muted);
+}
+
+.nk-auth .nk-signin-token-form {
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.nk-auth .nk-signin-token-input {
+  font-size: 13px;
+  padding: 12px 14px;
+  background: #17171a;
+  color: var(--auth-fg);
+  border: 1px solid var(--auth-line2);
+  border-radius: 11px;
+}
+
+.nk-auth .nk-signin-token-input:focus {
+  border-color: var(--auth-fg);
+}
+
+.nk-auth .nk-signin-btn-link {
+  color: var(--auth-muted);
+  font-size: 12.5px;
+}
+
+.nk-auth .nk-signin-btn-link:hover {
+  color: var(--auth-fg);
+}
+
+/* ─── Modal (vault picker, etc.) ───────────────────────────────── */
+
+
+/* Primary brand CTA (magic-link submit) — the one orange button. */
+.nk-auth .bo-signin-btn-primary { background: #ea7317; color: #0a0a0b; border-color: #ea7317; font-weight: 700; }
+.nk-auth .bo-signin-btn-primary:hover:not(:disabled) { background: #f5903d; border-color: #f5903d; }
+.nk-auth .bo-divider { display: flex; align-items: center; gap: 12px; margin: 16px 0; color: var(--auth-dim); font-family: var(--mono-font); font-size: 11px; letter-spacing: 0.08em; }
+.nk-auth .bo-divider::before, .nk-auth .bo-divider::after { content: ""; flex: 1; height: 1px; background: var(--auth-line); }
+.nk-auth .bo-field-label { display: block; font-family: var(--mono-font); font-size: 11.5px; letter-spacing: 0.04em; color: var(--auth-muted); margin: 0 0 8px; }
+.nk-auth .bo-check-email { background: #17171a; border: 1px solid var(--auth-line2); border-radius: 11px; padding: 20px; text-align: center; }

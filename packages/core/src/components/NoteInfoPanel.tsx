@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ExternalLink, Link, List, Tag } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useLayoutStore } from "../stores/layoutStore";
@@ -85,6 +85,22 @@ export function NoteInfoPanel({ noteId }: Props) {
 
   const note = noteId ? notes[noteId] ?? null : null;
 
+  const backlinks = useMemo(
+    () => (note ? getBacklinks(notes, note) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [noteId, notes],
+  );
+
+  const outlinks = useMemo(
+    () => (note ? getOutlinks(note.body) : []),
+    [note],
+  );
+
+  const outline = useMemo(
+    () => (note ? getOutlineHeadings(note.body) : []),
+    [note],
+  );
+
   const TABS: { id: InfoTab; icon: React.ReactNode; label: string }[] = [
     { id: "backlinks", icon: <Link size={14} aria-hidden />, label: "Backlinks" },
     { id: "outlinks", icon: <ExternalLink size={14} aria-hidden />, label: "Links" },
@@ -98,7 +114,6 @@ export function NoteInfoPanel({ noteId }: Props) {
 
   function renderBacklinks() {
     if (!note) return <p className="nk-info-empty">No note open</p>;
-    const backlinks = getBacklinks(notes, note);
     if (backlinks.length === 0)
       return <p className="nk-info-empty">No linked mentions found</p>;
     return (
@@ -126,11 +141,10 @@ export function NoteInfoPanel({ noteId }: Props) {
 
   function renderOutlinks() {
     if (!note) return <p className="nk-info-empty">No note open</p>;
-    const targets = getOutlinks(note.body);
-    if (targets.length === 0) return <p className="nk-info-empty">No outgoing links</p>;
+    if (outlinks.length === 0) return <p className="nk-info-empty">No outgoing links</p>;
     return (
       <>
-        {targets.map((target) => {
+        {outlinks.map((target) => {
           const targetNote = Object.values(notes).find(
             (n) => noteTitle(n).toLowerCase() === target.toLowerCase(),
           );
@@ -178,11 +192,10 @@ export function NoteInfoPanel({ noteId }: Props) {
 
   function renderOutline() {
     if (!note) return <p className="nk-info-empty">No note open</p>;
-    const headings = getOutlineHeadings(note.body);
-    if (headings.length === 0) return <p className="nk-info-empty">No headings found</p>;
+    if (outline.length === 0) return <p className="nk-info-empty">No headings found</p>;
     return (
       <>
-        {headings.map((h, i) => (
+        {outline.map((h, i) => (
           <button
             key={i}
             className={`nk-outline-item nk-outline-h${Math.min(h.level, 3)}`}

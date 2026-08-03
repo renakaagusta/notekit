@@ -92,20 +92,6 @@ export function TabBar({
         <Plus size={12} aria-hidden />
       </button>
       <div className="nk-tab-bar-actions">
-        {onInfoPanelToggle && (
-          <button
-            className={`nk-iconbtn nk-tab-action${infoPanelOpen ? " is-active" : ""}`}
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onInfoPanelToggle();
-            }}
-            title="Note info panel"
-            aria-label="Toggle note info panel"
-          >
-            <PanelRight size={13} aria-hidden />
-          </button>
-        )}
         <button
           className="nk-iconbtn nk-tab-action"
           onMouseDown={(e) => e.stopPropagation()}
@@ -130,6 +116,20 @@ export function TabBar({
         >
           <Rows2 size={13} aria-hidden />
         </button>
+        {onInfoPanelToggle && (
+          <button
+            className={`nk-iconbtn nk-tab-action${infoPanelOpen ? " is-active" : ""}`}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onInfoPanelToggle();
+            }}
+            title="Note info panel"
+            aria-label="Toggle note info panel"
+          >
+            <PanelRight size={13} aria-hidden />
+          </button>
+        )}
         {canClose && (
           <button
             className="nk-iconbtn nk-tab-action"

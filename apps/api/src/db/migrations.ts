@@ -362,6 +362,66 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    // Tables for the superadmin backoffice's better-auth instance. Kept fully
+    // separate (bo_ prefix) from the app's own users/sessions so the two auth
+    // systems never collide. Columns use better-auth's default camelCase names
+    // (quoted identifiers), so DO NOT lower-case them.
+    id: "013_backoffice_better_auth",
+    up: async (client) => {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS bo_user (
+          "id" TEXT PRIMARY KEY,
+          "name" TEXT,
+          "email" TEXT NOT NULL UNIQUE,
+          "emailVerified" BOOLEAN NOT NULL DEFAULT FALSE,
+          "image" TEXT,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS bo_session (
+          "id" TEXT PRIMARY KEY,
+          "expiresAt" TIMESTAMP NOT NULL,
+          "token" TEXT NOT NULL UNIQUE,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+          "ipAddress" TEXT,
+          "userAgent" TEXT,
+          "userId" TEXT NOT NULL REFERENCES bo_user("id") ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS bo_account (
+          "id" TEXT PRIMARY KEY,
+          "accountId" TEXT NOT NULL,
+          "providerId" TEXT NOT NULL,
+          "userId" TEXT NOT NULL REFERENCES bo_user("id") ON DELETE CASCADE,
+          "accessToken" TEXT,
+          "refreshToken" TEXT,
+          "idToken" TEXT,
+          "accessTokenExpiresAt" TIMESTAMP,
+          "refreshTokenExpiresAt" TIMESTAMP,
+          "scope" TEXT,
+          "password" TEXT,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+
+        CREATE TABLE IF NOT EXISTS bo_verification (
+          "id" TEXT PRIMARY KEY,
+          "identifier" TEXT NOT NULL,
+          "value" TEXT NOT NULL,
+          "expiresAt" TIMESTAMP NOT NULL,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT NOW()
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_bo_session_user_id ON bo_session("userId");
+        CREATE INDEX IF NOT EXISTS idx_bo_account_user_id ON bo_account("userId");
+        CREATE INDEX IF NOT EXISTS idx_bo_verification_identifier ON bo_verification("identifier");
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

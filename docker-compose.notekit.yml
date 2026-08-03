@@ -51,6 +51,32 @@ services:
       - "traefik.http.routers.notekit-web.middlewares=notekit-compress"
       - "traefik.http.routers.notekit-web.priority=10"
 
+  # Superadmin backoffice on admin.<root>. Static SPA (nginx); talks to the API
+  # at api.<root> via better-auth under /backoffice/auth. TLS is covered by the
+  # landing service's wildcard *.<root> cert.
+  notekit-backoffice:
+    image: notekit-backoffice:latest
+    container_name: notekit-backoffice
+    restart: unless-stopped
+    networks:
+      - infrastructure
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=infrastructure"
+      - "traefik.http.services.notekit-backoffice.loadbalancer.server.port=80"
+      - "traefik.http.routers.notekit-backoffice.rule=Host(`admin.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.notekit-backoffice.entrypoints=websecure"
+      - "traefik.http.routers.notekit-backoffice.tls.certresolver=cloudflare"
+      - "traefik.http.routers.notekit-backoffice.service=notekit-backoffice"
+      - "traefik.http.routers.notekit-backoffice.middlewares=notekit-compress"
+      - "traefik.http.routers.notekit-backoffice.priority=10"
+
   notekit-api:
     image: notekit-api:latest
     container_name: notekit-api
@@ -66,6 +92,10 @@ services:
       CORS_EXTRA_ORIGINS: "capacitor://localhost,https://localhost,http://localhost:5173"
       SESSION_SECRET: ${SESSION_SECRET}
       DATABASE_URL: postgresql://notekit:nk_pg_2026_prod@postgres:5432/notekit
+      # Superadmin backoffice gate. Only these emails may sign in and reach
+      # /backoffice/*. Override via Vault (BACKOFFICE_ADMIN_EMAILS) to add admins.
+      BACKOFFICE_ADMIN_EMAILS: ${BACKOFFICE_ADMIN_EMAILS:-renakaagusta28@gmail.com}
+      BACKOFFICE_WEB_URL: https://admin.${ROOT_DOMAIN}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}

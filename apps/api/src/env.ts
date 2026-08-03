@@ -122,8 +122,25 @@ export const env = {
     emailPattern: optional("AGENT_EMAIL_PATTERN"),
     emailDomain: optional("AGENT_EMAIL_DOMAIN") ?? "agents.notekit.app",
   },
+  // Superadmin backoffice (apps/backoffice). better-auth runs under
+  // /backoffice/auth; only these emails may sign in and reach /backoffice/*.
+  backoffice: {
+    // Comma-separated allowlist of platform-admin emails.
+    adminEmails: (optional("BACKOFFICE_ADMIN_EMAILS") ?? "")
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s.length > 0),
+    // Origin of the deployed backoffice SPA (for better-auth trustedOrigins
+    // and magic-link callbacks). Defaults to the Vite dev server.
+    webUrl: required("BACKOFFICE_WEB_URL", "http://localhost:5173"),
+  },
   isProd: process.env.NODE_ENV === "production",
 };
+
+export function isBackofficeAdmin(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return env.backoffice.adminEmails.includes(email.toLowerCase());
+}
 
 export function providerConfigured(name: "github" | "google" | "apple"): boolean {
   if (name === "apple") {

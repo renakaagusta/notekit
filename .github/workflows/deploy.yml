@@ -47,12 +47,25 @@ jobs:
           cache-from: type=local,src=/tmp/.buildx-cache-landing
           cache-to: type=local,dest=/tmp/.buildx-cache-landing-new,mode=max
 
+      - name: Build backoffice image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/backoffice/Dockerfile
+          tags: notekit-backoffice:latest
+          load: true
+          build-args: |
+            VITE_API_URL=https://api.notekit.online
+          cache-from: type=local,src=/tmp/.buildx-cache-backoffice
+          cache-to: type=local,dest=/tmp/.buildx-cache-backoffice-new,mode=max
+
       - name: Rotate build cache
         run: |
-          rm -rf /tmp/.buildx-cache-api /tmp/.buildx-cache-web /tmp/.buildx-cache-landing
+          rm -rf /tmp/.buildx-cache-api /tmp/.buildx-cache-web /tmp/.buildx-cache-landing /tmp/.buildx-cache-backoffice
           mv /tmp/.buildx-cache-api-new /tmp/.buildx-cache-api || true
           mv /tmp/.buildx-cache-web-new /tmp/.buildx-cache-web || true
           mv /tmp/.buildx-cache-landing-new /tmp/.buildx-cache-landing || true
+          mv /tmp/.buildx-cache-backoffice-new /tmp/.buildx-cache-backoffice || true
 
       # Secrets come from HashiCorp Vault (secret/notekit) via AppRole (repo
       # secrets VAULT_ROLE_ID/VAULT_SECRET_ID). The shared host helper renders

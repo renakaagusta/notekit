@@ -16,6 +16,7 @@ import { integrationsRoutes } from "./routes/integrations";
 import { iapRoutes } from "./routes/iap";
 import { avatarRoutes } from "./routes/avatar";
 import { directoryRoutes } from "./routes/directory";
+import { backofficeRoutes } from "./backoffice/routes";
 import { startTelegramPoller } from "./notifications/telegramPoller";
 
 const app = new Hono();
@@ -57,7 +58,7 @@ app.use("*", async (c, next) => {
 // Capacitor (`capacitor://localhost`, `https://localhost`) and E2E origins
 // without recompiling. The list is small and exact-match; we never reflect
 // arbitrary `Origin` headers.
-const allowedOrigins = [env.webUrl, ...env.extraCorsOrigins];
+const allowedOrigins = [env.webUrl, env.backoffice.webUrl, ...env.extraCorsOrigins];
 app.use(
   "*",
   cors({
@@ -100,6 +101,9 @@ app.route("/notifications", notificationRoutes);
 app.route("/integrations", integrationsRoutes);
 app.route("/iap", iapRoutes);
 app.route("/directory", directoryRoutes);
+// Superadmin backoffice: better-auth (/backoffice/auth/*) + admin-gated data
+// endpoints (/backoffice/me, /overview, /users, /billing, /vaults).
+app.route("/backoffice", backofficeRoutes);
 // Public Gravatar-compatible service. Mounted last so its CORS-permissive
 // nature (images served to other origins) is intentional and traceable.
 app.route("/avatar", avatarRoutes);

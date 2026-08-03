@@ -7,6 +7,7 @@ import Devices from '@/app/sections/modern-product-teams'
 import NoteManagement from '@/app/sections/issue-tracking'
 import GitHistory from '@/app/sections/long-term-planning'
 import AgentAccess from '@/app/sections/collaborate'
+import NoLockIn from '@/app/sections/no-lockin'
 import Privacy from '@/app/sections/foundation'
 import PreFooter from '@/app/sections/prefooter'
 import Footer from '@/components/footer'
@@ -22,6 +23,7 @@ const Home: FC = () => (
 			<NoteManagement />
 			<GitHistory />
 			<AgentAccess />
+			<NoLockIn />
 			<Privacy />
 			<PreFooter />
 		</main>

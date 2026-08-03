@@ -1,0 +1,39 @@
+.no__lockin {
+	padding-block: 96px;
+}
+
+.heading__container {
+	@apply mb-12;
+}
+
+.description {
+	@apply text-[var(--color-text-tertiary)] text-[17px] leading-[26px] tracking-[-0.2px] mt-4 max-w-[520px];
+}
+
+.cards__grid {
+	@apply grid grid-cols-1 md:grid-cols-3 gap-4;
+}
+
+.card {
+	@apply rounded-2xl border border-[var(--bento-border)] bg-[var(--color-bg-secondary)] p-6 flex flex-col gap-4;
+}
+
+.card__icon {
+	@apply w-10 h-10 rounded-xl border border-[var(--bento-border)] bg-[var(--color-bg-tertiary)] flex items-center justify-center text-[var(--color-text-secondary)];
+}
+
+.card__title {
+	@apply text-[var(--color-text-primary)] text-[17px] font-semibold tracking-[-0.3px];
+}
+
+.card__description {
+	@apply text-[var(--color-text-tertiary)] text-[14px] leading-[22px] tracking-[-0.1px] flex-1;
+}
+
+.provider__icons {
+	@apply flex flex-wrap gap-2 mt-2;
+}
+
+.provider__pill {
+	@apply flex items-center gap-[6px] text-[12px] text-[var(--color-text-quaternary)] bg-[var(--color-bg-tertiary)] border border-[var(--bento-border)] px-3 py-1 rounded-full;
+}

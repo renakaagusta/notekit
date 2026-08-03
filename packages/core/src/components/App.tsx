@@ -176,7 +176,6 @@ export function App({ user, onSignOut }: AppProps = {}) {
 
   const layout = useLayoutStore((s) => s.layout);
   const openNoteInLayout = useLayoutStore((s) => s.openNote);
-
   const noteHeading = note ? noteTitle(note) : null;
 
   useEffect(() => {

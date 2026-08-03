@@ -92,7 +92,7 @@ const initial: PaneLeaf = {
   outlineOpen: false,
 };
 
-interface LayoutState {
+export interface LayoutState {
   layout: PaneNode;
   activePaneId: string;
   openNote(noteId: string, paneId?: string): void;
@@ -230,3 +230,4 @@ export const useLayoutStore = create<LayoutState>((set, get) => ({
     }));
   },
 }));
+

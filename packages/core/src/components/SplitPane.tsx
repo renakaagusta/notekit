@@ -1,7 +1,9 @@
 import { useCallback, useRef } from "react";
-import type { PaneNode, PaneSplit } from "../stores/layoutStore";
+import type { PaneNode, PaneSplit, LayoutState } from "../stores/layoutStore";
 import { useLayoutStore } from "../stores/layoutStore";
 import { EditorPane } from "./EditorPane";
+
+const selectSetRatio = (s: LayoutState) => s.setRatio;
 
 interface SplitPaneProps {
   node: PaneNode;
@@ -13,27 +15,18 @@ interface SplitPaneProps {
 }
 
 export function SplitPane(props: SplitPaneProps) {
-  const { node } = props;
+  const { node, ...rest } = props;
   if (node.type === "leaf") {
-    return (
-      <EditorPane
-        paneId={node.id}
-        zenMode={props.zenMode}
-        onZenToggle={props.onZenToggle}
-        vimMode={props.vimMode}
-        onVimToggle={props.onVimToggle}
-        onHistoryClick={props.onHistoryClick}
-      />
-    );
+    return <EditorPane paneId={node.id} {...rest} />;
   }
-  return <SplitView split={node} {...props} />;
+  return <SplitView split={node} {...rest} />;
 }
 
 function SplitView({
   split,
   ...rest
 }: { split: PaneSplit } & Omit<SplitPaneProps, "node">) {
-  const setRatio = useLayoutStore((s) => s.setRatio);
+  const setRatio = useLayoutStore(selectSetRatio);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const onDividerMouseDown = useCallback(

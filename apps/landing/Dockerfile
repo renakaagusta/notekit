@@ -1,10 +1,36 @@
-# Minimal static landing page served on the apex (notekit.online).
-# The actual app lives at app.notekit.online (apps/web). No build step —
-# just copy the static HTML into nginx.
-FROM nginx:1.27-alpine AS runner
-COPY apps/landing/nginx.conf /etc/nginx/conf.d/default.conf
-COPY apps/landing/index.html /usr/share/nginx/html/index.html
+# NoteKit landing — Next.js standalone build
+FROM node:20-alpine AS base
+RUN corepack enable && corepack prepare pnpm@9.5.0 --activate
 
-EXPOSE 80
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD wget -qO- http://localhost/health || exit 1
+# --- deps ---
+FROM base AS deps
+WORKDIR /app
+COPY apps/landing/package.json ./
+RUN pnpm install --frozen-lockfile
+
+# --- builder ---
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY apps/landing/ .
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN pnpm build
+
+# --- runner ---
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+CMD ["node", "server.js"]

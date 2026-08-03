@@ -1,0 +1,36 @@
+{
+  "name": "notekit-landing",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "^16.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "gsap": "^3.13.0",
+    "@paper-design/shaders-react": "^0.0.78",
+    "motion": "^12.16.0",
+    "ogl": "^1.0.11",
+    "svg-dotted-map": "^2.0.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.6.0",
+    "lucide-react": "^0.513.0",
+    "@radix-ui/react-slot": "^1.1.1",
+    "class-variance-authority": "^0.7.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5",
+    "tailwindcss": "^4",
+    "@tailwindcss/postcss": "^4",
+    "eslint": "^9",
+    "eslint-config-next": "^16.0.3"
+  }
+}

@@ -61,7 +61,7 @@ export default function FAQPageContent() {
             Frequently Asked Questions
           </h1>
           <p className="text-neutral-400 font-body text-base mt-4 max-w-xl leading-relaxed">
-            Find answers to common questions about ScaleX Protocol, trading, lending, AI agents, and more.
+            Find answers to common questions about NoteKit — encryption, pricing, agent access, self-hosting, and more.
           </p>
         </FadeIn>
       </div>

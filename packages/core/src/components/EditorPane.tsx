@@ -119,6 +119,8 @@ export function EditorPane({
         onSplitV={() => splitPane(paneId, "vertical")}
         onClosePane={() => closePane(paneId)}
         onFocus={handleFocus}
+        infoPanelOpen={infoPanelOpen}
+        onInfoPanelToggle={editorBinding && !isInkNote ? () => setInfoPanelOpen((x) => !x) : undefined}
       />
 
       {editorBinding && !isInkNote && (
@@ -131,8 +133,6 @@ export function EditorPane({
           onOutlineToggle={() => toggleOutline(paneId)}
           vimMode={vimMode}
           onVimToggle={onVimToggle}
-          infoPanelOpen={infoPanelOpen}
-          onInfoPanelToggle={() => setInfoPanelOpen((x) => !x)}
         />
       )}
 

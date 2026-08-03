@@ -1,4 +1,4 @@
-import { Columns2, Link2, Network, CalendarDays, Plus, Rows2, Shield, X } from "lucide-react";
+import { Columns2, Link2, Network, CalendarDays, PanelRight, Plus, Rows2, Shield, X } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useLinksStore } from "../stores/linksStore";
 import { noteTitle } from "../lib/note-display";
@@ -16,6 +16,8 @@ interface TabBarProps {
   onSplitV: () => void;
   onClosePane: () => void;
   onFocus: () => void;
+  infoPanelOpen?: boolean;
+  onInfoPanelToggle?: () => void;
 }
 
 function useTabLabel(tab: TabEntry): string {
@@ -53,6 +55,8 @@ export function TabBar({
   onSplitV,
   onClosePane,
   onFocus,
+  infoPanelOpen,
+  onInfoPanelToggle,
 }: TabBarProps) {
   return (
     <div
@@ -88,6 +92,20 @@ export function TabBar({
         <Plus size={12} aria-hidden />
       </button>
       <div className="nk-tab-bar-actions">
+        {onInfoPanelToggle && (
+          <button
+            className={`nk-iconbtn nk-tab-action${infoPanelOpen ? " is-active" : ""}`}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onInfoPanelToggle();
+            }}
+            title="Note info panel"
+            aria-label="Toggle note info panel"
+          >
+            <PanelRight size={13} aria-hidden />
+          </button>
+        )}
         <button
           className="nk-iconbtn nk-tab-action"
           onMouseDown={(e) => e.stopPropagation()}

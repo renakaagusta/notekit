@@ -13,10 +13,23 @@
  * calls once agentic tools land — the caller wires up per-event callbacks.
  */
 import { createAnthropic } from "@ai-sdk/anthropic";
-import { streamText, stepCountIs, type ModelMessage, type ToolSet } from "ai";
+import { createOpenAI } from "@ai-sdk/openai";
+import {
+  streamText,
+  stepCountIs,
+  type LanguageModel,
+  type ModelMessage,
+  type ToolSet,
+} from "ai";
 import { getSecret } from "./secrets-vault";
 import type { DeviceIdentity } from "./crypto/device-key";
-import { DEFAULT_AGENT_MODEL } from "./agents-api";
+import { DEFAULT_AGENT_MODEL, type AgentProvider } from "./agents-api";
+
+/** Vault secret name holding the key for each provider family. */
+export const PROVIDER_KEY_NAME: Record<AgentProvider, string> = {
+  anthropic: "anthropic",
+  "openai-compatible": "openai-compatible",
+};
 
 export interface AssistantMessage {
   role: "user" | "assistant";
@@ -25,7 +38,11 @@ export interface AssistantMessage {
 
 export interface StreamAssistantOptions {
   device: DeviceIdentity;
-  /** Anthropic model id; falls back to the shared default. */
+  /** API family. Defaults to anthropic. */
+  provider?: AgentProvider;
+  /** Base URL for openai-compatible providers. */
+  baseUrl?: string;
+  /** Model id; falls back to the Anthropic default for anthropic only. */
   model?: string;
   /** Persona / instructions from the selected agent profile. */
   system?: string;
@@ -47,29 +64,49 @@ export interface StreamAssistantResult {
 }
 
 /**
- * Build an Anthropic provider bound to the user's decrypted key, with the
- * browser-direct header the SDK would otherwise omit.
+ * Resolve the language model for the selected provider, binding the user's
+ * decrypted key. Anthropic goes direct (with the browser-direct header);
+ * openai-compatible hits any base URL that speaks the chat-completions API
+ * (e.g. a self-hosted router), forcing `.chat()` since such endpoints may not
+ * implement the newer Responses API.
  */
-async function anthropicFor(device: DeviceIdentity) {
-  const key = await getSecret("anthropic", device);
+async function resolveModel(opts: StreamAssistantOptions): Promise<LanguageModel> {
+  const provider: AgentProvider = opts.provider ?? "anthropic";
+
+  if (provider === "openai-compatible") {
+    const key = await getSecret(PROVIDER_KEY_NAME["openai-compatible"], opts.device);
+    if (!key) {
+      throw new Error(
+        "Belum ada API key OpenAI-compatible. Simpan dulu di pengaturan AI.",
+      );
+    }
+    const baseURL = opts.baseUrl?.trim();
+    if (!baseURL) throw new Error("Base URL kosong untuk provider OpenAI-compatible.");
+    if (!opts.model) throw new Error("Model belum dipilih untuk provider ini.");
+    const openai = createOpenAI({ apiKey: key, baseURL });
+    return openai.chat(opts.model);
+  }
+
+  const key = await getSecret(PROVIDER_KEY_NAME.anthropic, opts.device);
   if (!key) {
     throw new Error(
-      "Belum ada Anthropic key. Simpan dulu di panel AI (Keys) sebelum memakai asisten.",
+      "Belum ada Anthropic key. Simpan dulu di pengaturan AI sebelum memakai asisten.",
     );
   }
-  return createAnthropic({
+  const anthropic = createAnthropic({
     apiKey: key,
     headers: { "anthropic-dangerous-direct-browser-access": "true" },
   });
+  return anthropic(opts.model ?? DEFAULT_AGENT_MODEL);
 }
 
 export async function streamAssistant(
   opts: StreamAssistantOptions,
 ): Promise<StreamAssistantResult> {
-  const anthropic = await anthropicFor(opts.device);
+  const model = await resolveModel(opts);
 
   const result = streamText({
-    model: anthropic(opts.model ?? DEFAULT_AGENT_MODEL),
+    model,
     system: opts.system,
     messages: opts.messages as ModelMessage[],
     tools: opts.tools,

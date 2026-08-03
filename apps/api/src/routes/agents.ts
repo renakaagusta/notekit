@@ -30,19 +30,23 @@ export const agentRoutes = new Hono();
  * field left undefined keeps the previous value; an explicit empty string
  * clears it. Unknown `toolPermissions` values are ignored (fall back to prev).
  */
+type ChatFields = Pick<
+  AgentProfile,
+  "emoji" | "model" | "systemPrompt" | "toolPermissions" | "provider" | "baseUrl"
+>;
+
 function normalizeChatFields(
   body: {
     emoji?: string;
     model?: string;
     systemPrompt?: string;
     toolPermissions?: string;
+    provider?: string;
+    baseUrl?: string;
   },
   prev?: AgentProfile,
-): Pick<AgentProfile, "emoji" | "model" | "systemPrompt" | "toolPermissions"> {
-  const out: Pick<
-    AgentProfile,
-    "emoji" | "model" | "systemPrompt" | "toolPermissions"
-  > = {};
+): ChatFields {
+  const out: ChatFields = {};
 
   if (body.emoji !== undefined) {
     const v = body.emoji.trim();
@@ -62,6 +66,15 @@ function normalizeChatFields(
   if (body.toolPermissions === "read-only" || body.toolPermissions === "read-write") {
     out.toolPermissions = body.toolPermissions;
   } else if (prev?.toolPermissions) out.toolPermissions = prev.toolPermissions;
+
+  if (body.provider === "anthropic" || body.provider === "openai-compatible") {
+    out.provider = body.provider;
+  } else if (prev?.provider) out.provider = prev.provider;
+
+  if (body.baseUrl !== undefined) {
+    const v = body.baseUrl.trim();
+    if (v) out.baseUrl = v;
+  } else if (prev?.baseUrl) out.baseUrl = prev.baseUrl;
 
   return out;
 }
@@ -159,6 +172,8 @@ agentRoutes.post("/", async (c) => {
     model?: string;
     systemPrompt?: string;
     toolPermissions?: string;
+    provider?: string;
+    baseUrl?: string;
   } | null;
   if (!body?.name || typeof body.name !== "string") {
     return c.json({ error: "name_required" }, 400);
@@ -234,6 +249,8 @@ agentRoutes.patch("/:slug", async (c) => {
     model?: string;
     systemPrompt?: string;
     toolPermissions?: string;
+    provider?: string;
+    baseUrl?: string;
   } | null;
   if (!body) return c.json({ error: "invalid_body" }, 400);
 

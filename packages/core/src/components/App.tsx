@@ -121,6 +121,14 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const cryptoPhase = useCryptoStore((s) => s.phase);
   const [view, setView] = useState<MainView>("notes");
   const [agentsOpen, setAgentsOpen] = useState(false);
+  // Bump when the Agents modal closes so the AI panel re-checks its setup
+  // state (key added? profile created?) without needing a full reopen.
+  const [aiSetupTick, setAiSetupTick] = useState(0);
+  const prevAgentsOpen = useRef(false);
+  useEffect(() => {
+    if (prevAgentsOpen.current && !agentsOpen) setAiSetupTick((t) => t + 1);
+    prevAgentsOpen.current = agentsOpen;
+  }, [agentsOpen]);
   const [tokensOpen, setTokensOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -780,7 +788,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
               aria-orientation="vertical"
               aria-label="Resize AI panel"
             />
-            <AIAssistantPanel onOpenAgents={() => setAgentsOpen(true)} />
+            <AIAssistantPanel
+              onOpenAgents={() => setAgentsOpen(true)}
+              refreshTick={aiSetupTick}
+            />
           </>
         )}
 

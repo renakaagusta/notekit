@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.64",
+    "@ai-sdk/openai": "^3.0.90",
     "@capacitor-community/apple-sign-in": "^7.1.0",
     "@iktakahiro/markdown-it-katex": "^4.0.1",
     "@noble/curves": "^2.2.0",

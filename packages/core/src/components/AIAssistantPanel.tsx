@@ -1,18 +1,21 @@
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { Bot, Check, FileText, Loader2, Send, Sparkles, TextSelect, Wrench, X } from "lucide-react";
+import { Check, FileText, Loader2, Lock, Send, Sparkles, TextSelect, Wrench, X } from "lucide-react";
 import { useAIChatStore } from "../stores/aiChatStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { noteTitle } from "../lib/note-display";
 import { listAgents, DEFAULT_AGENT_MODEL, type AgentProfile } from "../lib/agents-api";
+import { listSecretNames } from "../lib/secrets-vault";
 import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
 import { buildAssistantTools } from "../lib/ai-tools";
 
 interface Props {
-  /** Open the Agents manager so the user can create their first profile. */
+  /** Open the Agents manager so the user can create their first profile / add a key. */
   onOpenAgents?: () => void;
+  /** Bumped when the Agents modal closes, so we re-check setup state. */
+  refreshTick?: number;
 }
 
 const DEFAULT_SYSTEM =
@@ -25,7 +28,7 @@ function wordCount(s: string): number {
   return t ? t.split(/\s+/).length : 0;
 }
 
-export function AIAssistantPanel({ onOpenAgents }: Props) {
+export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   const open = useAIChatStore((s) => s.open);
   const setOpen = useAIChatStore((s) => s.setOpen);
   const messages = useAIChatStore((s) => s.messages);
@@ -46,31 +49,43 @@ export function AIAssistantPanel({ onOpenAgents }: Props) {
   const defaultFolder = useVaultStore((s) => s.activeSettings?.defaultFolder ?? null);
 
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
+  const [keyStored, setKeyStored] = useState<Record<string, boolean> | null>(null);
   const [draft, setDraft] = useState("");
   const [selection, setSelection] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const approvalResolver = useRef<((ok: boolean) => void) | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Load agents whenever the panel opens (picks up newly-created profiles).
+  // Load agents + key status when the panel opens or setup state changes
+  // (e.g. after the Agents modal closes). Picks up newly-created profiles/keys.
   useEffect(() => {
     if (!open || cryptoPhase !== "ready") return;
     let cancelled = false;
-    listAgents()
-      .then((res) => {
+    void (async () => {
+      try {
+        const names = await listSecretNames();
+        if (!cancelled)
+          setKeyStored({
+            anthropic: names.includes("anthropic"),
+            "openai-compatible": names.includes("openai-compatible"),
+          });
+      } catch {
+        if (!cancelled) setKeyStored({});
+      }
+      try {
+        const res = await listAgents();
         if (cancelled) return;
         setAgents(res.agents);
-        // Default the picker to the first agent if none chosen yet.
         if (!selectedAgentSlug && res.agents[0]) selectAgent(res.agents[0].slug);
-      })
-      .catch(() => {
+      } catch {
         if (!cancelled) setAgents([]);
-      });
+      }
+    })();
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, cryptoPhase]);
+  }, [open, cryptoPhase, refreshTick]);
 
   // Track the live document selection so we can offer it as scoped context.
   useEffect(() => {
@@ -135,6 +150,8 @@ export function AIAssistantPanel({ onOpenAgents }: Props) {
     try {
       await streamAssistant({
         device,
+        provider: selectedAgent.provider ?? "anthropic",
+        baseUrl: selectedAgent.baseUrl,
         model: selectedAgent.model ?? DEFAULT_AGENT_MODEL,
         system,
         messages: [...prior, { role: "user", content: contextBlock + text }],
@@ -142,7 +159,7 @@ export function AIAssistantPanel({ onOpenAgents }: Props) {
         signal: controller.signal,
         onDelta: (d) => useAIChatStore.getState().appendDelta(assistantId, d),
         onToolCall: (c) =>
-          useAIChatStore.getState().addToolNote(assistantId, `⚙️ ${c.toolName}`),
+          useAIChatStore.getState().addToolNote(assistantId, c.toolName),
       });
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
@@ -176,8 +193,14 @@ export function AIAssistantPanel({ onOpenAgents }: Props) {
     abortRef.current?.abort();
   }
 
-  const noAgents = agents !== null && agents.length === 0;
   const notReady = cryptoPhase !== "ready";
+  const loaded = agents !== null && keyStored !== null;
+  const noAgents = agents !== null && agents.length === 0;
+  // The key that the *selected* profile needs (its provider family).
+  const selectedProvider = selectedAgent?.provider ?? "anthropic";
+  const noKey = keyStored !== null && !keyStored[selectedProvider];
+  // Needs setup if the vault is ready but the right key or a profile is missing.
+  const needsSetup = !notReady && loaded && (noKey || noAgents);
 
   return (
     <aside className="nk-ai-panel">
@@ -213,24 +236,35 @@ export function AIAssistantPanel({ onOpenAgents }: Props) {
 
       {notReady ? (
         <div className="nk-ai-gate">
-          <Bot size={30} aria-hidden />
+          <Sparkles size={30} aria-hidden />
           <p>Vault belum siap.</p>
           <p className="nk-ai-gate-hint">
             Buka & buka-kunci vault terenkripsi dulu untuk memakai asisten AI.
           </p>
         </div>
-      ) : noAgents ? (
+      ) : needsSetup ? (
         <div className="nk-ai-gate">
-          <Bot size={30} aria-hidden />
-          <p>Belum ada profil AI.</p>
+          <Sparkles size={30} aria-hidden />
+          <p>Siapkan AI dulu</p>
           <p className="nk-ai-gate-hint">
-            Buat satu profil agent (nama, model, persona) sebelum mulai chat.
+            {noKey && noAgents
+              ? "Tambahkan API key dan buat satu profil AI untuk mulai."
+              : noKey
+                ? selectedProvider === "openai-compatible"
+                  ? "Profil ini butuh API key OpenAI-compatible. Tambahkan di pengaturan AI."
+                  : "Tambahkan Anthropic API key untuk mulai."
+                : "Buat satu profil AI (nama, model, persona) untuk mulai."}
           </p>
           {onOpenAgents && (
             <button className="nk-btn nk-btn--primary" onClick={onOpenAgents}>
-              <Bot size={14} aria-hidden /> Buat profil AI
+              <Sparkles size={14} aria-hidden />{" "}
+              {noKey ? "Buka pengaturan AI" : "Buat profil AI"}
             </button>
           )}
+        </div>
+      ) : !loaded ? (
+        <div className="nk-ai-gate">
+          <Loader2 size={22} className="nk-ai-spin" aria-hidden />
         </div>
       ) : (
         <>
@@ -270,7 +304,9 @@ export function AIAssistantPanel({ onOpenAgents }: Props) {
               messages.map((m) => (
                 <div key={m.id} className="nk-ai-turn">
                   {m.toolNotes?.map((t, i) => (
-                    <div key={i} className="nk-ai-toolnote">{t}</div>
+                    <div key={i} className="nk-ai-toolnote">
+                      <Wrench size={11} aria-hidden /> {t}
+                    </div>
                   ))}
                   {(m.content || !m.toolNotes?.length) && (
                     <div className={`nk-ai-msg nk-ai-msg--${m.role}`}>
@@ -335,7 +371,8 @@ export function AIAssistantPanel({ onOpenAgents }: Props) {
             )}
           </div>
           <div className="nk-ai-privacy">
-            🔒 Key kamu, langsung ke Anthropic — tanpa relay server NoteKit.
+            <Lock size={11} aria-hidden /> Key kamu, langsung ke provider — tanpa
+            relay server NoteKit.
           </div>
         </>
       )}

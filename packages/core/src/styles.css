@@ -1130,8 +1130,15 @@ body {
   gap: var(--gap-2, 8px);
 }
 .nk-agent-keybox-hint {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
   font-size: 11px;
   color: var(--muted);
+}
+.nk-agent-keybox-hint svg {
+  flex-shrink: 0;
+  transform: translateY(2px);
 }
 
 /* ─── Agent AI-persona form bits ────────────────────────────────── */
@@ -4700,6 +4707,43 @@ a.nk-commit-sha:hover {
   margin: 2px 0 6px;
   line-height: 1.45;
   white-space: pre-wrap;
+}
+
+/* Agent / collaborator rows (AgentsView, VaultSettingsDialog) lay out
+ * horizontally: avatar · body(column) · action buttons. HistoryView commits
+ * don't use .nk-commit-row, so their inline layout is untouched. */
+.nk-commit-row {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+/* Highlight the WHOLE row on hover (avatar + body + actions), not just the
+ * body — the body-only rule below is neutralized inside a row. */
+.nk-commit:hover .nk-commit-row {
+  background: var(--hover);
+}
+.nk-commit-row .nk-commit-body {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 0;
+  overflow: visible;
+  background: transparent;
+}
+.nk-commit:hover .nk-commit-row .nk-commit-body {
+  background: transparent;
+}
+.nk-commit-row .nk-commit-msg {
+  white-space: normal;
+  font-weight: 600;
+}
+.nk-commit-row .nk-commit-meta {
+  flex-wrap: wrap;
+  white-space: normal;
 }
 
 .nk-modal-hd {
@@ -9286,6 +9330,9 @@ a.nk-commit-sha:hover {
 }
 .nk-ai-toolnote {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 11px;
   color: var(--muted);
   font-family: var(--mono-font, monospace);
@@ -9377,10 +9424,17 @@ a.nk-commit-sha:hover {
   }
 }
 .nk-ai-privacy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   padding: 2px 10px 8px;
   font-size: 10.5px;
   color: var(--muted);
   text-align: center;
+  flex-shrink: 0;
+}
+.nk-ai-privacy svg {
   flex-shrink: 0;
 }
 

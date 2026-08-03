@@ -25,6 +25,8 @@ function gitOps(provider: GitProvider) {
 export type AgentModel = string;
 /** Whether an agent may mutate the vault (create/edit/delete) or only read. */
 export type AgentToolPermissions = "read-only" | "read-write";
+/** Which API a profile talks to: Anthropic direct, or any OpenAI-compatible endpoint. */
+export type AgentProvider = "anthropic" | "openai-compatible";
 
 export const DEFAULT_AGENT_MODEL: AgentModel = "claude-3-5-haiku-latest";
 
@@ -36,12 +38,16 @@ export interface AgentProfile {
   createdAt: string;
   /** Emoji shown in the AI assistant's profile picker (git avatar stays Gravatar). */
   emoji?: string;
-  /** Anthropic model the in-app assistant uses for this profile. */
+  /** Model id the in-app assistant uses for this profile. */
   model?: AgentModel;
   /** Persona / instructions injected as the system prompt for chat. */
   systemPrompt?: string;
   /** Read-only agents cannot run create/edit/delete tools. Defaults to read-only. */
   toolPermissions?: AgentToolPermissions;
+  /** API family. Defaults to anthropic. */
+  provider?: AgentProvider;
+  /** Base URL for openai-compatible providers (e.g. a self-hosted router). */
+  baseUrl?: string;
 }
 
 const AGENTS_DIR = "agents";
@@ -81,13 +87,13 @@ export function slugifyAgentName(name: string): string {
  * profiles (created before these fields existed) valid — they just read back
  * without them, and the assistant applies its own defaults.
  */
-function pickChatFields(
-  parsed: Partial<AgentProfile>,
-): Pick<AgentProfile, "emoji" | "model" | "systemPrompt" | "toolPermissions"> {
-  const out: Pick<
-    AgentProfile,
-    "emoji" | "model" | "systemPrompt" | "toolPermissions"
-  > = {};
+type ChatFields = Pick<
+  AgentProfile,
+  "emoji" | "model" | "systemPrompt" | "toolPermissions" | "provider" | "baseUrl"
+>;
+
+function pickChatFields(parsed: Partial<AgentProfile>): ChatFields {
+  const out: ChatFields = {};
   if (typeof parsed.emoji === "string" && parsed.emoji) out.emoji = parsed.emoji;
   if (typeof parsed.model === "string" && parsed.model) out.model = parsed.model;
   if (typeof parsed.systemPrompt === "string" && parsed.systemPrompt) {
@@ -96,6 +102,10 @@ function pickChatFields(
   if (parsed.toolPermissions === "read-only" || parsed.toolPermissions === "read-write") {
     out.toolPermissions = parsed.toolPermissions;
   }
+  if (parsed.provider === "anthropic" || parsed.provider === "openai-compatible") {
+    out.provider = parsed.provider;
+  }
+  if (typeof parsed.baseUrl === "string" && parsed.baseUrl) out.baseUrl = parsed.baseUrl;
   return out;
 }
 

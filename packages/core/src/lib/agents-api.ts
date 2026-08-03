@@ -2,6 +2,8 @@ import { apiFetch } from "./api";
 
 /** Read-only agents cannot run create/edit/delete tools from the assistant. */
 export type AgentToolPermissions = "read-only" | "read-write";
+/** Which API a profile talks to: Anthropic direct, or an OpenAI-compatible endpoint. */
+export type AgentProvider = "anthropic" | "openai-compatible";
 
 /** Default Anthropic model when a profile doesn't pin one. */
 export const DEFAULT_AGENT_MODEL = "claude-3-5-haiku-latest";
@@ -16,12 +18,16 @@ export interface AgentProfile {
   createdAt: string;
   /** Emoji shown in the assistant's profile picker (git avatar stays Gravatar). */
   emoji?: string;
-  /** Anthropic model the in-app assistant uses for this profile. */
+  /** Model id the in-app assistant uses for this profile. */
   model?: string;
   /** Persona / instructions injected as the chat system prompt. */
   systemPrompt?: string;
   /** Whether this profile may mutate the vault. Defaults to read-only. */
   toolPermissions?: AgentToolPermissions;
+  /** API family. Defaults to anthropic. */
+  provider?: AgentProvider;
+  /** Base URL for openai-compatible providers (e.g. a self-hosted router). */
+  baseUrl?: string;
 }
 
 /** Editable chat-persona fields, shared by create and update inputs. */
@@ -30,6 +36,8 @@ export interface AgentChatConfig {
   model?: string;
   systemPrompt?: string;
   toolPermissions?: AgentToolPermissions;
+  provider?: AgentProvider;
+  baseUrl?: string;
 }
 
 export function listAgents(): Promise<{ agents: AgentProfile[] }> {

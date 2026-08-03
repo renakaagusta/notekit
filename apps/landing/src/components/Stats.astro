@@ -1,25 +1,24 @@
 ---
-// Stats section with key metrics
 const stats = [
   {
-    icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>`,
-    label: "24h Volume",
-    value: "$1.2B",
-    change: "+5.2%",
-    positive: true
-  },
-  {
-    icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>`,
-    label: "Current APY",
-    value: "12.5%",
-    change: "+0.5%",
+    icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`,
+    label: "Open Source",
+    value: "100%",
+    sub: "MIT + AGPL",
     positive: true
   },
   {
     icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
-    label: "TVL",
-    value: "$450M",
-    change: "+2.1%",
+    label: "Encryption",
+    value: "E2EE",
+    sub: "Zero-knowledge",
+    positive: true
+  },
+  {
+    icon: `<svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>`,
+    label: "Platforms",
+    value: "5+",
+    sub: "Web, desktop, mobile",
     positive: true
   }
 ];
@@ -35,12 +34,7 @@ const stats = [
             <p class="text-sm text-gray-500 uppercase tracking-wider font-medium">{stat.label}</p>
             <div class="flex items-baseline gap-2">
               <span class="text-2xl md:text-3xl font-heading font-bold text-white">{stat.value}</span>
-              <span class={`text-sm font-medium flex items-center gap-1 ${stat.positive ? 'text-success' : 'text-red-500'}`}>
-                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                  <path d={stat.positive ? "M7 17l5-5 5 5" : "M7 7l5 5 5-5"}/>
-                </svg>
-                {stat.change}
-              </span>
+              <span class="text-sm font-medium text-success">{stat.sub}</span>
             </div>
           </div>
         </div>

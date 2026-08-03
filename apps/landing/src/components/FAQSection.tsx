@@ -16,7 +16,7 @@ export default function FAQSection() {
                 FAQs
               </h2>
               <p className="text-neutral-400 font-body text-sm leading-relaxed max-w-[280px]">
-                Everything you need to know about ScaleX. Can't find what you're looking for?
+                Everything you need to know about NoteKit. Can't find what you're looking for?
               </p>
               {/* <a
                 href="/faq"

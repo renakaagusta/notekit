@@ -1,6 +1,5 @@
 ---
-// Flywheel/Compounding Engine - Radial Quad Layout with center logo
-import scaleXLogo from "../assets/images/ScaleX.webp";
+// Privacy Flywheel - Radial Quad Layout
 ---
 
 <section
@@ -31,7 +30,7 @@ import scaleXLogo from "../assets/images/ScaleX.webp";
       <!-- Radial overlay glow behind center -->
       <div
         class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[523px] h-[523px] pointer-events-none"
-        style="background: radial-gradient(ellipse at center, rgba(240,103,24,0.12) 0%, transparent 70%);"
+        style="background: radial-gradient(ellipse at center, rgba(234,115,23,0.12) 0%, transparent 70%);"
       ></div>
 
       <!-- Decorative dot pattern -->
@@ -45,7 +44,7 @@ import scaleXLogo from "../assets/images/ScaleX.webp";
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[1000px] rounded-full border border-white/[0.04] radial-circle" style="animation-delay: 0s;"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[750px] h-[750px] rounded-full border border-white/[0.05] radial-circle" style="animation-delay: -2s;"></div>
         <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-white/[0.08] radial-circle" style="animation-delay: -4s;"></div>
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] rounded-full border border-[#F06718]/15 radial-circle" style="animation-delay: -6s;"></div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[250px] h-[250px] rounded-full border border-[#ea7317]/15 radial-circle" style="animation-delay: -6s;"></div>
       </div>
 
       <!-- Center Engine Logo -->
@@ -56,7 +55,7 @@ import scaleXLogo from "../assets/images/ScaleX.webp";
         >
           <div
             class="w-[120px] h-[120px] rounded-full flex items-center justify-center engine-pulse"
-            style="background: linear-gradient(135deg, #F5955D 0%, #F06718 100%); box-shadow: 0px 0px 40px rgba(240,103,24,0.4);"
+            style="background: linear-gradient(135deg, #F5955D 0%, #ea7317 100%); box-shadow: 0px 0px 40px rgba(234,115,23,0.4);"
           >
             <svg class="w-[48px] h-[48px] text-white drop-shadow-md" viewBox="0 0 24 24" fill="currentColor">
               <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="none"></path>
@@ -129,7 +128,7 @@ import scaleXLogo from "../assets/images/ScaleX.webp";
         >
           <div
             class="w-[56px] h-[56px] rounded-full flex items-center justify-center engine-pulse"
-            style="background: linear-gradient(135deg, #F5955D 0%, #F06718 100%); box-shadow: 0px 0px 24px rgba(240,103,24,0.4);"
+            style="background: linear-gradient(135deg, #F5955D 0%, #ea7317 100%); box-shadow: 0px 0px 24px rgba(234,115,23,0.4);"
           >
             <svg class="w-[24px] h-[24px] text-white" viewBox="0 0 24 24" fill="currentColor">
               <path d="M13 10V3L4 14h7v7l9-11h-7z" stroke="none"></path>
@@ -245,8 +244,8 @@ import scaleXLogo from "../assets/images/ScaleX.webp";
   }
 
   @keyframes engineGlow {
-    0%, 100% { box-shadow: 0 0 30px rgba(240, 103, 24, 0.2), 0 0 60px rgba(240, 103, 24, 0.1); }
-    50% { box-shadow: 0 0 50px rgba(240, 103, 24, 0.4), 0 0 100px rgba(240, 103, 24, 0.2); }
+    0%, 100% { box-shadow: 0 0 30px rgba(234, 115, 23, 0.2), 0 0 60px rgba(234, 115, 23, 0.1); }
+    50% { box-shadow: 0 0 50px rgba(234, 115, 23, 0.4), 0 0 100px rgba(234, 115, 23, 0.2); }
   }
 
   /* Radial Circles Animation */
@@ -277,20 +276,20 @@ import scaleXLogo from "../assets/images/ScaleX.webp";
 
   /* Active step state - clean highlight, no spinning borders */
   .flywheel-step.step-active .fw-card {
-    border-color: rgba(240, 103, 24, 0.35);
-    box-shadow: 0 8px 32px -8px rgba(240, 103, 24, 0.2), inset 0 1px 0 rgba(240, 103, 24, 0.1);
+    border-color: rgba(234, 115, 23, 0.35);
+    box-shadow: 0 8px 32px -8px rgba(234, 115, 23, 0.2), inset 0 1px 0 rgba(234, 115, 23, 0.1);
     transform: translateY(-4px);
-    background: linear-gradient(180deg, rgba(240, 103, 24, 0.06) 0%, rgba(240, 103, 24, 0) 60%), linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%), #0a0a0a;
+    background: linear-gradient(180deg, rgba(234, 115, 23, 0.06) 0%, rgba(234, 115, 23, 0) 60%), linear-gradient(180deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.02) 100%), #0a0a0a;
   }
 
   .flywheel-step.step-active .fw-card-glow {
-    background: linear-gradient(to bottom, rgba(240, 103, 24, 0.15), transparent);
+    background: linear-gradient(to bottom, rgba(234, 115, 23, 0.15), transparent);
   }
 
   .flywheel-step.step-active .fw-icon {
     background-color: #f06718;
     border-color: #f06718;
-    box-shadow: 0 0 16px rgba(240, 103, 24, 0.35);
+    box-shadow: 0 0 16px rgba(234, 115, 23, 0.35);
   }
 </style>
 

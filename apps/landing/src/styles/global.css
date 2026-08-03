@@ -10,8 +10,8 @@
 }
 
 :root {
-  --brand-orange: #f06718;
-  --brand-orange-muted: #f5955d;
+  --brand-orange: #ea7317;
+  --brand-orange-muted: #f5903d;
   --bg-deep: #050505;
   --ghost-white: #cacaca;
 }
@@ -77,8 +77,8 @@
     @apply inline-flex items-center gap-2 px-7 py-2.5 text-white text-base font-body font-medium tracking-[-1%] rounded-full
            transition-all duration-300 hover:shadow-glow-lg hover:-translate-y-0.5
            focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-surface-primary relative overflow-hidden;
-    background: linear-gradient(-69deg, #f06718 0%, #f5955d 100%);
-    box-shadow: 0px 0px 0px 1px #c05213;
+    background: linear-gradient(-69deg, #ea7317 0%, #f5903d 100%);
+    box-shadow: 0px 0px 0px 1px #b85c10;
   }
 
   .btn-secondary {
@@ -105,7 +105,7 @@
            border border-white/5 rounded-3xl p-8
            before:absolute before:inset-0 before:bg-gradient-to-br before:from-primary/10 before:to-transparent before:opacity-0
            before:transition-opacity before:duration-500 hover:before:opacity-100
-           hover:border-primary/40 hover:shadow-[0_0_30px_-10px_rgba(240,103,24,0.2)] transition-all duration-500;
+           hover:border-primary/40 hover:shadow-[0_0_30px_-10px_rgba(234,115,23,0.2)] transition-all duration-500;
   }
 
   .badge {
@@ -142,8 +142,8 @@
   }
 
   .glass-card-orange {
-    background-color: rgba(240, 103, 24, 0.08);
-    border-color: rgba(240, 103, 24, 0.4);
+    background-color: rgba(234, 115, 23, 0.08);
+    border-color: rgba(234, 115, 23, 0.4);
   }
 
   /* Glow effects */
@@ -178,7 +178,7 @@
     height: 95px;
     background: radial-gradient(
       ellipse at center top,
-      rgba(240, 103, 24, 0.35) 0%,
+      rgba(234, 115, 23, 0.35) 0%,
       transparent 70%
     );
     pointer-events: none;

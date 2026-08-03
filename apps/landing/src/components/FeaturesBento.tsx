@@ -1,22 +1,170 @@
 import { GlowingEffect } from "./ui/glowing-effect";
-import RepayCards from "./RepayCards";
 import { OrbitingCircles } from "./ui/orbiting-circles";
-import { ThreeDMarquee } from "./ui/3d-marquee";
-import TradeBeamHeader from "./TradeBeamHeader";
 import { cn } from "../lib/utils";
 import { motion } from "framer-motion";
 
-import chainlinkIcon from "../assets/icons/chainlink.png";
-import erc8004Icon from "../assets/icons/8004scan.png";
-import openclawIcon from "../assets/icons/openclaw.png";
-import claudeIcon from "../assets/icons/claude.png";
-import openaiIcon from "../assets/icons/openai.svg";
-
-function OrbitIcon({ src, alt }: { src: ImageMetadata | string; alt: string }) {
-  const imgSrc = typeof src === "string" ? src : src.src;
+function EditorVisual() {
+  const lines = [
+    { text: "# Project Roadmap", style: "text-white font-bold" },
+    { text: "## Q3 Goals", style: "text-[#ea7317] font-semibold" },
+    { text: "- [ ] Ship E2EE sharing", style: "text-neutral-300" },
+    { text: "- [x] MCP server", style: "text-neutral-400 line-through" },
+    { text: "", style: "" },
+    { text: "**Deadline**: Aug 15", style: "text-neutral-300" },
+  ];
   return (
-    <div className="flex h-full w-full items-center justify-center rounded-full border border-white/10 bg-neutral-900 overflow-hidden p-2">
-      <img src={imgSrc} alt={alt} className="w-full h-full object-contain" />
+    <div className="relative flex h-full w-full items-start justify-start overflow-hidden p-5" style={{ minHeight: 260 }}>
+      <div className="flex flex-col gap-1 w-full font-mono text-[11px] leading-5 relative z-10">
+        {lines.map((line, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, x: -10 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.3, delay: 0.2 + i * 0.08 }}
+            className={line.style || "text-transparent"}
+          >
+            {line.text || " "}
+          </motion.div>
+        ))}
+        {/* Blinking cursor */}
+        <motion.div
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1, repeat: Infinity }}
+          className="w-2 h-4 bg-[#ea7317] rounded-sm mt-0.5"
+        />
+      </div>
+      <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent" />
+    </div>
+  );
+}
+
+function EncryptionVisual() {
+  return (
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden" style={{ minHeight: 260 }}>
+      {/* Center key icon */}
+      <div
+        className="absolute z-10 w-[80px] h-[80px] rounded-full border border-white/[0.08] flex items-center justify-center"
+        style={{ background: "linear-gradient(189deg, #252525 5.97%, #0E0E0E 92.92%)" }}
+      >
+        <svg className="w-8 h-8 text-[#ea7317]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+        </svg>
+      </div>
+      {/* Inner orbit: device labels */}
+      <OrbitingCircles radius={90} duration={20} speed={1} iconSize={44}>
+        <div className="flex h-full w-full items-center justify-center rounded-full border border-white/10 bg-neutral-900">
+          <span className="text-[8px] font-bold text-white tracking-tight">X25519</span>
+        </div>
+        <div className="flex h-full w-full items-center justify-center rounded-full border border-white/10 bg-neutral-900">
+          <span className="text-[8px] font-bold text-[#ea7317] tracking-tight">age</span>
+        </div>
+      </OrbitingCircles>
+      {/* Outer orbit: device platforms */}
+      <OrbitingCircles radius={140} duration={28} speed={1} reverse iconSize={44}>
+        <div className="flex h-full w-full items-center justify-center rounded-full border border-white/10 bg-neutral-900">
+          <span className="text-[8px] text-white">iOS</span>
+        </div>
+        <div className="flex h-full w-full items-center justify-center rounded-full border border-white/10 bg-neutral-900">
+          <span className="text-[8px] text-white">Desktop</span>
+        </div>
+        <div className="flex h-full w-full items-center justify-center rounded-full border border-white/10 bg-neutral-900">
+          <span className="text-[8px] text-white">Android</span>
+        </div>
+      </OrbitingCircles>
+    </div>
+  );
+}
+
+function GitVisual() {
+  const commits = [
+    { hash: "a3f92c1", msg: "update roadmap Q3", time: "just now", author: "you" },
+    { hash: "7b14e8d", msg: "add meeting notes", time: "2h ago", author: "you" },
+    { hash: "c9012fa", msg: "initial vault commit", time: "3d ago", author: "you" },
+  ];
+  return (
+    <div className="flex flex-1 w-full h-full min-h-[6rem] items-start justify-start p-4 overflow-hidden">
+      <div className="flex flex-col gap-2 w-full">
+        {commits.map((c, i) => (
+          <motion.div
+            key={i}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06]"
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.2 + i * 0.12 }}
+          >
+            <span className="text-[10px] text-[#ea7317] font-mono w-12 flex-shrink-0">{c.hash}</span>
+            <span className="text-[10px] text-neutral-300 font-mono flex-1 truncate">{c.msg}</span>
+            <span className="text-[10px] text-neutral-500">{c.time}</span>
+          </motion.div>
+        ))}
+        <div className="flex items-center gap-2 mt-1 px-1">
+          <svg className="w-3 h-3 text-neutral-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/>
+            <path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/>
+            <path d="M12 12v3"/>
+          </svg>
+          <span className="text-[10px] text-neutral-600 font-mono">on branch main · Forgejo</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MCPVisual() {
+  return (
+    <div className="flex flex-1 w-full h-full min-h-[6rem] items-start justify-start p-4 overflow-hidden">
+      <div className="flex flex-col gap-2 w-full">
+        {[
+          "claude: read_note('roadmap.md')",
+          "notekit: → decrypted content",
+          "claude: write_note('roadmap.md', ...)",
+          "notekit: → committed a3f92c1",
+        ].map((line, i) => (
+          <motion.div
+            key={i}
+            className="flex items-center px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06]"
+            initial={{ opacity: 0, x: -16 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.35, delay: 0.2 + i * 0.15 }}
+          >
+            <span className={`text-[10px] font-mono ${i % 2 === 1 ? "text-[#ea7317]" : "text-neutral-300"}`}>{line}</span>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OfflineVisual() {
+  return (
+    <div className="flex flex-1 w-full h-full min-h-[6rem] items-center justify-center p-4 overflow-hidden">
+      <div className="flex flex-col items-center gap-4 relative z-10">
+        <motion.div
+          animate={{ scale: [1, 1.05, 1] }}
+          transition={{ duration: 2.5, repeat: Infinity }}
+          className="w-14 h-14 rounded-full flex items-center justify-center border border-white/10"
+          style={{ background: "linear-gradient(135deg, #1a1a1a, #0a0a0a)" }}
+        >
+          <svg className="w-7 h-7 text-neutral-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M20.354 15.354A9 9 0 0 1 8.646 3.646 9.003 9.003 0 0 0 12 21a9.003 9.003 0 0 0 8.354-5.646z"/>
+          </svg>
+        </motion.div>
+        <div className="flex flex-col items-center gap-1">
+          <span className="text-xs text-white font-medium">Offline mode</span>
+          <span className="text-[10px] text-neutral-500">12 changes queued</span>
+        </div>
+        <motion.div
+          animate={{ opacity: [0.4, 1, 0.4] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#ea7317]/30 bg-[#ea7317]/5"
+        >
+          <div className="w-1.5 h-1.5 rounded-full bg-[#ea7317]" />
+          <span className="text-[10px] text-[#ea7317] font-mono">Syncing when online...</span>
+        </motion.div>
+      </div>
     </div>
   );
 }
@@ -24,105 +172,57 @@ function OrbitIcon({ src, alt }: { src: ImageMetadata | string; alt: string }) {
 const features = [
   {
     area: "md:[grid-area:1/1/2/4]",
-    title: "Let AI Agents Securely Grow Your Portfolio",
+    title: "Rich Markdown Editor",
     description: (
       <>
-        Subscribe to an AI agent that actively manages your portfolio — executing trades, predictions, borrow, and repay on your behalf to{" "}
-        <span className="text-white font-medium">earn additional yield</span>. Payments run on{" "}
-        <span className="text-white font-medium">X402 micropayments</span>, while a{" "}
-        <span className="text-white font-medium">42+ rule on-chain policy engine</span> via <span className="text-white font-medium">Chainlink CRE</span> keeps every agent action within your risk limits.
+        ProseMirror-powered editor with{" "}
+        <span className="text-white font-medium">slash commands</span>,{" "}
+        <span className="text-white font-medium">tables</span>,{" "}
+        <span className="text-white font-medium">math (KaTeX)</span>,{" "}
+        <span className="text-white font-medium">diagrams</span>, and{" "}
+        <span className="text-white font-medium">code blocks</span> with syntax highlighting. Your notes, your way.
       </>
     ),
-    pillar: "Safety & Trust",
-    header: (
-      <div className="relative flex h-full w-full items-center justify-center overflow-hidden" style={{ minHeight: 280 }}>
-        {/* Center: Chainlink logo */}
-        <div className="absolute z-10 w-[90px] h-[90px] rounded-full border border-white/[0.08] flex items-center justify-center overflow-hidden p-4" style={{ background: "linear-gradient(189deg, #252525 5.97%, #0E0E0E 92.92%)" }}>
-          <img src={typeof chainlinkIcon === "string" ? chainlinkIcon : chainlinkIcon.src} alt="Chainlink" className="w-full h-full object-contain" />
-        </div>
-        {/* Inner orbit */}
-        <OrbitingCircles radius={100} duration={25} speed={1} iconSize={48}>
-          <div className="flex h-full w-full items-center justify-center rounded-full border border-white/10 bg-neutral-900">
-            <span className="text-[9px] font-bold text-white tracking-tight leading-none">ERC-8004</span>
-          </div>
-          <div className="flex h-full w-full items-center justify-center rounded-full border border-white/10 bg-neutral-900">
-            <span className="text-[9px] font-bold text-white tracking-tight leading-none">X402</span>
-          </div>
-          <OrbitIcon src={erc8004Icon} alt="ERC-8004" />
-        </OrbitingCircles>
-        {/* Outer orbit reverse */}
-        <OrbitingCircles radius={155} duration={30} speed={1} reverse iconSize={48}>
-          <OrbitIcon src={openclawIcon} alt="OpenClaw" />
-          <OrbitIcon src={claudeIcon} alt="Claude" />
-          <OrbitIcon src={openaiIcon} alt="OpenAI" />
-        </OrbitingCircles>
-      </div>
-    ),
+    pillar: "Writing",
+    header: <EditorVisual />,
   },
   {
     area: "md:[grid-area:1/4/2/6]",
-    title: "Borrow from Your Portfolio",
+    title: "age Encryption",
     description: (
       <>
-        Borrow instantly against your{" "}
-        <span className="text-white font-medium">open orders</span> and{" "}
-        <span className="text-white font-medium">prediction stakes</span> — without closing positions or interrupting your trades.
+        <span className="text-white font-medium">X25519 key pairs</span> per device. Notes are encrypted{" "}
+        <span className="text-white font-medium">before they leave your device</span>. The server sees only ciphertext it cannot read.
       </>
     ),
-    pillar: "Capital Efficiency",
-    header: (
-      <ThreeDMarquee
-        images={[
-          "/tokens/ethereum-eth-logo.svg",
-          "/tokens/bitcoin-btc-logo.svg",
-          "/tokens/usd-coin-usdc-logo.svg",
-          "/tokens/mantle-mnt-logo.svg",
-          "/tokens/IDRX.svg",
-          "/tokens/XAU.svg",
-          "/tokens/XAG.svg",
-          "/tokens/NVDA.svg",
-          "/tokens/AAPL.svg",
-          "/tokens/GOOGL.svg",
-          "/tokens/sxWETH.svg",
-          "/tokens/sxWBTC.svg",
-          "/tokens/sxUSDC.svg",
-          "/tokens/sxMNT.svg",
-          "/tokens/sxIDRX.svg",
-          "/tokens/sxXAU.svg",
-          "/tokens/sxNVDA.svg",
-          "/tokens/sxAAPL.svg",
-          "/tokens/sxGOOGL.svg",
-          "/tokens/sxXAG.svg",
-        ]}
-      />
-    ),
+    pillar: "Privacy",
+    header: <EncryptionVisual />,
   },
   {
     area: "md:[grid-area:2/1/3/3]",
-    title: "Smart Borrow & Repay",
+    title: "Git-Backed History",
     description: (
       <>
-        Set a <span className="text-white font-medium">strategic limit order</span> and pair it with{" "}
-        <span className="text-white font-medium">auto-repay</span> — your loan gets repaid automatically at a cheaper price. No manual monitoring needed.
+        Every note is a file, every save a{" "}
+        <span className="text-white font-medium">Git commit</span>. Full history, diff, and rollback on your own{" "}
+        <span className="text-white font-medium">Forgejo, GitHub, or GitLab</span>.
       </>
     ),
-    pillar: "Safety",
-    header: <RepayCards />,
+    pillar: "Portability",
+    header: <GitVisual />,
   },
   {
     area: "md:[grid-area:2/3/3/6]",
-    title: "Trading or Betting while Earning",
+    title: "MCP Agent Access",
     description: (
       <>
-        When you deposit, your assets are{" "}
-        <span className="text-white font-medium">automatically lent</span> and you receive{" "}
-        <span className="text-white font-medium">sxTokens</span> — ownership representations that let you{" "}
-        <span className="text-white font-medium">trade or bet</span> as usual, while passively earning{" "}
-        <span className="text-white font-medium">lending yield</span> in the background.
+        Drop the{" "}
+        <span className="text-white font-medium">MCP server</span> into Claude Code or Cursor.{" "}
+        Agents read and write <span className="text-white font-medium">only what you grant</span> — least-privilege by default. Every agent write is a signed commit.
       </>
     ),
-    pillar: "Capital Efficiency",
-    header: <TradeBeamHeader />,
+    pillar: "Agent-Ready",
+    header: <MCPVisual />,
   },
 ];
 

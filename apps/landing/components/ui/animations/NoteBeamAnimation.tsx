@@ -11,7 +11,7 @@ function Circle({
 }: {
   children: React.ReactNode
   className?: string
-  forwardRef?: React.RefObject<HTMLDivElement | null>
+  forwardRef?: React.RefObject<HTMLDivElement>
 }) {
   return (
     <div

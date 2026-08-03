@@ -24,7 +24,7 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 astro
 WORKDIR /app
 COPY --from=builder --chown=astro:nodejs /app/apps/landing/dist ./dist
-COPY --from=builder --chown=astro:nodejs /app/apps/landing/node_modules ./node_modules
+COPY --from=builder --chown=astro:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=astro:nodejs /app/apps/landing/package.json ./package.json
 USER astro
 ENV HOST=0.0.0.0

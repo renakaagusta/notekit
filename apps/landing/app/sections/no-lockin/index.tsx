@@ -70,11 +70,11 @@ const NoLockIn: FC = () => {
 						<div className={styles.card__icon}>
 							<GitStorageIcon />
 						</div>
-						<h3 className={styles.card__title}>BYO Git provider</h3>
+						<h3 className={styles.card__title}>Choose your Git provider</h3>
 						<p className={styles.card__description}>
-							Store your vault on any Git host you trust. NoteKit manages a
-							Forgejo instance for you by default, but you can point it at your
-							own GitHub or GitLab repo with one setting change.
+							Your vault is a plain Git repo. NoteKit hosts one for you on
+							Forgejo by default, but you can point it at your own GitHub or
+							GitLab repository with a single setting change.
 						</p>
 						<GitProviderIcons />
 					</div>
@@ -83,11 +83,11 @@ const NoLockIn: FC = () => {
 						<div className={styles.card__icon}>
 							<AIIcon />
 						</div>
-						<h3 className={styles.card__title}>BYO AI provider</h3>
+						<h3 className={styles.card__title}>Choose your AI provider</h3>
 						<p className={styles.card__description}>
-							MCP is model-agnostic. Connect Claude Code, GPT-4o, or any
-							OpenAI-compatible endpoint. NoteKit never forces a specific AI
-							vendor on you.
+							NoteKit connects to AI agents via MCP, which works with any
+							model. Use Claude, GPT-4o, or any OpenAI-compatible endpoint —
+							no vendor forced on you.
 						</p>
 						<AIProviderIcons />
 					</div>

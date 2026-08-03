@@ -1,15 +1,18 @@
 import { cn } from '@/utils/cn'
 
-// NoteKit backoffice logo — orange rounded square with a white slash mark,
-// echoing the app's NotekitIcon but in the brand's signature orange.
+// NoteKit mark — the diagonal slash, monochrome. Uses currentColor so it
+// adapts to the surrounding text color (near-black on light, near-white on
+// dark), matching app.notekit.online's black/white brand.
 export function BrandMark({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 64 64" className={cn('size-8', className)} aria-hidden>
-      <rect x="0" y="0" width="64" height="64" rx="14.08" fill="#ea7317" />
-      <path
-        d="M40.5 18 L27.5 46"
-        stroke="#ffffff"
-        strokeWidth="6"
+    <svg viewBox="0 0 32 32" className={cn('size-8', className)} fill="none" aria-hidden>
+      <line
+        x1="10.5"
+        y1="26"
+        x2="21.5"
+        y2="6"
+        stroke="currentColor"
+        strokeWidth="6.5"
         strokeLinecap="round"
       />
     </svg>

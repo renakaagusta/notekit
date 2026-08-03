@@ -16,6 +16,10 @@ COPY --from=pruner /app/out/full/ .
 WORKDIR /app/apps/landing
 RUN pnpm build
 RUN ls -la dist/server/ && echo "Build output verified"
+# Create a flat (non-symlinked) production deployment so the runner
+# stage doesn't need the pnpm virtual store.
+WORKDIR /app
+RUN pnpm --filter notekit-landing deploy --prod /app/prod-deploy
 
 # Stage 3: Production runtime
 FROM node:20-alpine AS runner
@@ -24,8 +28,8 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 astro
 WORKDIR /app
 COPY --from=builder --chown=astro:nodejs /app/apps/landing/dist ./dist
-COPY --from=builder --chown=astro:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=astro:nodejs /app/apps/landing/package.json ./package.json
+COPY --from=builder --chown=astro:nodejs /app/prod-deploy/node_modules ./node_modules
+COPY --from=builder --chown=astro:nodejs /app/prod-deploy/package.json ./package.json
 USER astro
 ENV HOST=0.0.0.0
 ENV PORT=3000

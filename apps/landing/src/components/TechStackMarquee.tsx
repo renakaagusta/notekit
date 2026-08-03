@@ -16,7 +16,7 @@ const standards = [
   {
     name: "age",
     abbr: "age",
-    color: "#ea7317",
+    color: "#a1a1aa",
     description: "Modern file encryption — X25519 device keys, zero-knowledge",
     link: "https://age-encryption.org",
   },
@@ -65,7 +65,7 @@ const standards = [
   {
     name: "MCP",
     abbr: "MCP",
-    color: "#ea7317",
+    color: "#a1a1aa",
     description: "Model Context Protocol — grant agents least-privilege note access",
     link: "https://modelcontextprotocol.io",
   },

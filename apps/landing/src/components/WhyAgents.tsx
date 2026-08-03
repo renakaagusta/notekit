@@ -16,7 +16,7 @@ function MCPVisual() {
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.3 + i * 0.2 }}
           >
-            <span className={`text-[10px] font-mono ${i === 1 ? "text-[#ea7317]" : "text-neutral-300"}`}>{line}</span>
+            <span className={`text-[10px] font-mono ${i === 1 ? "text-white" : "text-neutral-300"}`}>{line}</span>
           </motion.div>
         ))}
       </div>
@@ -43,7 +43,7 @@ function GrantVisual() {
             transition={{ duration: 0.4, delay: 0.3 + i * 0.15 }}
           >
             <span className="text-[11px] text-neutral-200 font-mono">{row.note}</span>
-            <span className={`text-[10px] ${i === 0 ? "text-[#ea7317]" : "text-neutral-500"}`}>{row.access}</span>
+            <span className={`text-[10px] ${i === 0 ? "text-white" : "text-neutral-500"}`}>{row.access}</span>
           </motion.div>
         ))}
       </div>
@@ -69,7 +69,7 @@ function GitAuditVisual() {
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.3 + i * 0.15 }}
           >
-            <span className="text-[10px] text-[#ea7317] font-mono w-12 flex-shrink-0">{commit.hash}</span>
+            <span className="text-[10px] text-white font-mono w-12 flex-shrink-0">{commit.hash}</span>
             <span className="text-[10px] text-neutral-300 font-mono flex-1 truncate">{commit.msg}</span>
             <span className="text-[10px] text-neutral-500">{commit.time}</span>
           </motion.div>

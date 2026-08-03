@@ -6,11 +6,11 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#F97316",
-          dark: "#C05213",
-          darker: "#A0480E",
-          light: "#F5955D",
-          lighter: "#FDD5BD",
+          DEFAULT: "#ffffff",
+          dark: "#e4e4e7",
+          darker: "#a1a1aa",
+          light: "#f4f4f5",
+          lighter: "#fafafa",
         },
         success: {
           DEFAULT: "#16A34A",
@@ -35,8 +35,8 @@ export default {
         xl: "0 8px 16px rgba(0,0,0,0.15)",
         "2xl": "0 12px 24px rgba(0,0,0,0.18)",
         "3xl": "0 16px 32px rgba(0,0,0,0.2)",
-        glow: "0 4px 14px rgba(240,103,24,0.3)",
-        "glow-lg": "0 8px 24px rgba(240,103,24,0.4)",
+        glow: "0 4px 14px rgba(255,255,255,0.15)",
+        "glow-lg": "0 8px 24px rgba(255,255,255,0.2)",
         "green-glow": "0 4px 14px rgba(22,163,74,0.3)",
       },
       animation: {
@@ -61,9 +61,9 @@ export default {
         pulseGlow: {
           "0%, 100%": {
             opacity: "1",
-            boxShadow: "0 0 20px rgba(240,103,24,0.4)",
+            boxShadow: "0 0 20px rgba(255,255,255,0.3)",
           },
-          "50%": { opacity: "0.8", boxShadow: "0 0 40px rgba(240,103,24,0.6)" },
+          "50%": { opacity: "0.8", boxShadow: "0 0 40px rgba(255,255,255,0.5)" },
         },
         fadeIn: {
           "0%": { opacity: "0" },
@@ -105,10 +105,10 @@ export default {
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "hero-glow":
-          "radial-gradient(ellipse at center, rgba(240,103,24,0.15) 0%, transparent 70%)",
+          "radial-gradient(ellipse at center, rgba(255,255,255,0.05) 0%, transparent 70%)",
         "card-gradient":
           "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0) 100%)",
-        "btn-gradient": "linear-gradient(-69deg, #F06718 0%, #F5955D 100%)",
+        "btn-gradient": "linear-gradient(-69deg, #3f3f46 0%, #52525b 100%)",
       },
     },
   },

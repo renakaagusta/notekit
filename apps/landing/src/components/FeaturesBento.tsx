@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 function EditorVisual() {
   const lines = [
     { text: "# Project Roadmap", style: "text-white font-bold" },
-    { text: "## Q3 Goals", style: "text-[#ea7317] font-semibold" },
+    { text: "## Q3 Goals", style: "text-white font-semibold" },
     { text: "- [ ] Ship E2EE sharing", style: "text-neutral-300" },
     { text: "- [x] MCP server", style: "text-neutral-400 line-through" },
     { text: "", style: "" },
@@ -31,7 +31,7 @@ function EditorVisual() {
         <motion.div
           animate={{ opacity: [1, 0, 1] }}
           transition={{ duration: 1, repeat: Infinity }}
-          className="w-2 h-4 bg-[#ea7317] rounded-sm mt-0.5"
+          className="w-2 h-4 bg-white/70 rounded-sm mt-0.5"
         />
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 via-transparent to-transparent" />
@@ -47,7 +47,7 @@ function EncryptionVisual() {
         className="absolute z-10 w-[80px] h-[80px] rounded-full border border-white/[0.08] flex items-center justify-center"
         style={{ background: "linear-gradient(189deg, #252525 5.97%, #0E0E0E 92.92%)" }}
       >
-        <svg className="w-8 h-8 text-[#ea7317]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
         </svg>
       </div>
@@ -57,7 +57,7 @@ function EncryptionVisual() {
           <span className="text-[8px] font-bold text-white tracking-tight">X25519</span>
         </div>
         <div className="flex h-full w-full items-center justify-center rounded-full border border-white/10 bg-neutral-900">
-          <span className="text-[8px] font-bold text-[#ea7317] tracking-tight">age</span>
+          <span className="text-[8px] font-bold text-white tracking-tight">age</span>
         </div>
       </OrbitingCircles>
       {/* Outer orbit: device platforms */}
@@ -94,7 +94,7 @@ function GitVisual() {
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.2 + i * 0.12 }}
           >
-            <span className="text-[10px] text-[#ea7317] font-mono w-12 flex-shrink-0">{c.hash}</span>
+            <span className="text-[10px] text-white font-mono w-12 flex-shrink-0">{c.hash}</span>
             <span className="text-[10px] text-neutral-300 font-mono flex-1 truncate">{c.msg}</span>
             <span className="text-[10px] text-neutral-500">{c.time}</span>
           </motion.div>
@@ -130,7 +130,7 @@ function MCPVisual() {
             viewport={{ once: true }}
             transition={{ duration: 0.35, delay: 0.2 + i * 0.15 }}
           >
-            <span className={`text-[10px] font-mono ${i % 2 === 1 ? "text-[#ea7317]" : "text-neutral-300"}`}>{line}</span>
+            <span className={`text-[10px] font-mono ${i % 2 === 1 ? "text-white" : "text-neutral-300"}`}>{line}</span>
           </motion.div>
         ))}
       </div>
@@ -159,10 +159,10 @@ function OfflineVisual() {
         <motion.div
           animate={{ opacity: [0.4, 1, 0.4] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#ea7317]/30 bg-[#ea7317]/5"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/20 bg-white/5"
         >
-          <div className="w-1.5 h-1.5 rounded-full bg-[#ea7317]" />
-          <span className="text-[10px] text-[#ea7317] font-mono">Syncing when online...</span>
+          <div className="w-1.5 h-1.5 rounded-full bg-white/70" />
+          <span className="text-[10px] text-white font-mono">Syncing when online...</span>
         </motion.div>
       </div>
     </div>

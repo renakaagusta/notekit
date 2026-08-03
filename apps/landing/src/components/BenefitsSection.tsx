@@ -74,8 +74,8 @@ function OverlayCard({ card }: { card: BenefitCard }) {
           jitterSpeed={4}
           sampleAverage
           dropoutStrength={0.3}
-          tintColor="#F97316"
-          tintStrength={0.1}
+          tintColor="#ffffff"
+          tintStrength={0.05}
           className="w-full h-full"
         />
       </div>

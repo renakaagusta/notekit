@@ -50,49 +50,12 @@ const Hero: FC = () => {
 				<div className={styles.hero__img__container}>
 					<div className={styles.hero__illustration__container}>
 						<div className={styles.hero__illustration__perspective}>
-							<div className={styles.hero__illustration__base}>
-								<div className={styles.hero__illustration__sidebar}>
-									<div className={styles.sidebar__logo}>
-										<svg viewBox='0 0 32 32' width='20' height='20'>
-											<line
-												x1='10.5'
-												y1='26'
-												x2='21.5'
-												y2='6'
-												stroke='white'
-												strokeWidth='6.5'
-												strokeLinecap='round'
-											/>
-										</svg>
-										<span>My Vault</span>
-									</div>
-									<div className={styles.sidebar__section}>
-										<div className={styles.sidebar__label}>Notes</div>
-										<div className={styles.sidebar__item__active}>Weekly Review</div>
-										<div className={styles.sidebar__item}>Project Ideas</div>
-										<div className={styles.sidebar__item}>Research</div>
-									</div>
-									<div className={styles.sidebar__section}>
-										<div className={styles.sidebar__label}>Surfaces</div>
-										<div className={styles.sidebar__item}>🔒 Secrets</div>
-										<div className={styles.sidebar__item}>🔗 Links</div>
-										<div className={styles.sidebar__item}>📅 Calendar</div>
-									</div>
-								</div>
-								<div className={styles.hero__illustration__main}>
-									<div className={styles.note__header}>
-										<span className={styles.note__title}>Weekly Review</span>
-										<span className={styles.note__badge}>🔐 E2EE</span>
-									</div>
-									<div className={styles.note__body}>
-										<div className={styles.note__h1}>This week&apos;s goals</div>
-										<div className={styles.note__p}>Ship the landing page, review open PRs, plan sprint.</div>
-										<div className={styles.note__h2}>Notes</div>
-										<div className={styles.note__p}>All content encrypted with your device key before syncing.</div>
-										<div className={styles.note__code}>age encrypt -r pubkey note.md</div>
-									</div>
-								</div>
-							</div>
+							<img
+								src='/app-screenshot.png'
+								alt='NoteKit app — note editor with sidebar and backlinks panel'
+								className={styles.hero__screenshot}
+								draggable={false}
+							/>
 						</div>
 					</div>
 				</div>

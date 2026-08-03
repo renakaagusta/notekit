@@ -1,0 +1,83 @@
+# Per-service production deploy. Each service ships independently by pushing to
+# its own branch — a broken build in one service never blocks the others.
+#
+#   prod/api        → notekit-api
+#   prod/web        → notekit-web
+#   prod/landing    → notekit-landing
+#   prod/backoffice → notekit-backoffice
+#
+# Flow: merge/verify on main → fast-forward the service's prod/* branch to
+# release just that service. The full docker-compose.notekit.yml stays the
+# source of truth; we only build + `up -d` the one targeted service.
+name: Deploy (prod, per-service)
+
+on:
+  push:
+    branches:
+      - prod/api
+      - prod/web
+      - prod/landing
+      - prod/backoffice
+
+concurrency:
+  # Serialize deploys of the SAME service; different services deploy in parallel.
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: [self-hosted, notekit, linux, arm64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve service from branch
+        id: cfg
+        run: |
+          svc="${GITHUB_REF_NAME#prod/}"
+          case "$svc" in
+            api)        image=notekit-api;        file=apps/api/Dockerfile;        buildargs="" ;;
+            web)        image=notekit-web;        file=apps/web/Dockerfile;        buildargs="VITE_API_URL=https://api.notekit.online" ;;
+            landing)    image=notekit-landing;    file=apps/landing/Dockerfile;    buildargs="" ;;
+            backoffice) image=notekit-backoffice; file=apps/backoffice/Dockerfile; buildargs="VITE_API_URL=https://api.notekit.online" ;;
+            *) echo "Unknown service: $svc" && exit 1 ;;
+          esac
+          echo "svc=$svc"                 >> "$GITHUB_OUTPUT"
+          echo "image=$image"             >> "$GITHUB_OUTPUT"
+          echo "compose_service=$image"   >> "$GITHUB_OUTPUT"
+          echo "file=$file"               >> "$GITHUB_OUTPUT"
+          echo "buildargs=$buildargs"     >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ steps.cfg.outputs.file }}
+          tags: ${{ steps.cfg.outputs.image }}:latest
+          load: true
+          build-args: ${{ steps.cfg.outputs.buildargs }}
+          cache-from: type=local,src=/tmp/.buildx-cache-${{ steps.cfg.outputs.svc }}
+          cache-to: type=local,dest=/tmp/.buildx-cache-${{ steps.cfg.outputs.svc }}-new,mode=max
+
+      - name: Rotate build cache
+        run: |
+          rm -rf /tmp/.buildx-cache-${{ steps.cfg.outputs.svc }}
+          mv /tmp/.buildx-cache-${{ steps.cfg.outputs.svc }}-new /tmp/.buildx-cache-${{ steps.cfg.outputs.svc }} || true
+
+      # Secrets come from HashiCorp Vault (secret/notekit) via AppRole. Rendered
+      # into $GITHUB_ENV so compose ${VAR} interpolation (env + Traefik host
+      # labels like ${ROOT_DOMAIN}) resolves for the targeted service too.
+      - name: Render secrets from Vault
+        env:
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
+        run: /opt/vault-ci/render-github-env.sh secret/notekit
+
+      - name: Deploy service
+        run: |
+          docker compose -f docker-compose.notekit.yml up -d --no-deps \
+            ${{ steps.cfg.outputs.compose_service }}

@@ -16,33 +16,33 @@ interface BenefitCard {
 const benefits: BenefitCard[] = [
   {
     pillar: "efficiency",
-    title: "Capital Efficient Trading",
-    description: "Agents trade, lend, and predict in a single protocol — no idle capital, every asset works harder.",
-    bgImage: "https://images.unsplash.com/photo-1639762681485-074b7f938ba0?w=600&q=80",
+    title: "End-to-End Encrypted",
+    description: "age encrypts every note on your device before sync. The server sees only ciphertext. Zero-knowledge, always.",
+    bgImage: "https://images.unsplash.com/photo-1614064641938-3bbee52942c7?w=600&q=80",
   },
   {
     pillar: "efficiency",
-    title: "Micropayments via X402",
-    description: "Pay-per-action model means agents only spend on what they use — no pre-funding or locked deposits.",
-    bgImage: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=600&q=80",
+    title: "Offline-First",
+    description: "Write anywhere, no signal needed. NoteKit queues changes locally and Git-syncs the moment you reconnect.",
+    bgImage: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=600&q=80",
   },
   {
     pillar: "safety",
-    title: "On-Chain Identity (ERC-8004)",
-    description: "Every agent has a verified, composable on-chain identity with reputation tracking and validation.",
+    title: "Git-Backed History",
+    description: "Every save is a commit. Full diff, blame, and rollback — on your own repo. No proprietary format, no lock-in.",
+    bgImage: "https://images.unsplash.com/photo-1556075798-4825dfaaf498?w=600&q=80",
+  },
+  {
+    pillar: "safety",
+    title: "MCP Agent Access",
+    description: "Grant Claude or any MCP client access to specific notes. Least-privilege by default. Revoke any time.",
     bgImage: "https://images.unsplash.com/photo-1677442136019-21780ecad995?w=600&q=80",
   },
   {
-    pillar: "safety",
-    title: "On-Chain Policy Engine",
-    description: "Enforced order limits, drawdown caps, and circuit breakers via Chainlink CRE keep agents within safe bounds.",
-    bgImage: "https://images.unsplash.com/photo-1639322537228-f710d846310a?w=600&q=80",
-  },
-  {
     pillar: "transparency",
-    title: "Open Agent Protocols",
-    description: "Built on open standards — MCP, A2A, ERC-8004, X402 — so any agent can integrate and audit the system.",
-    bgImage: "https://images.unsplash.com/photo-1620321023374-d1a68fbc720d?w=600&q=80",
+    title: "Open Standards Only",
+    description: "age encryption, Git, Markdown, MCP — every component is open, auditable, and replaceable. No vendor lock-in.",
+    bgImage: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=600&q=80",
   },
 ]
 
@@ -109,7 +109,7 @@ export default function BenefitsSection() {
     <section style={{ backgroundColor: "#050505" }}>
       {/* Text Reveal */}
       <TextReveal>
-        Agents will be the most active users of web3. ScaleX is built for them — designed around three pillars: efficiency, safety, and transparency.
+        NoteKit is built for writers who want privacy and agents who need context — designed around three pillars: encryption, portability, and openness.
       </TextReveal>
 
       {/* Combined carousel — tall scroll container with sticky pin */}

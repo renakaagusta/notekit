@@ -3,58 +3,64 @@
 import { BentoGrid, BentoGridItem } from "./ui/bento-grid"
 import { motion } from "framer-motion"
 
-function YieldVisual() {
-  return (
-    <div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-700/20 via-neutral-700/5 to-transparent border border-white/[0.05] items-center justify-center relative overflow-hidden">
-      <div className="flex items-end gap-2 relative z-10">
-        {[40, 65, 50, 80, 60, 90, 75].map((h, i) => (
-          <motion.div
-            key={i}
-            className="w-4 rounded-t bg-gradient-to-t from-neutral-500 to-neutral-600/60"
-            initial={{ height: 0 }}
-            whileInView={{ height: h }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6, delay: i * 0.1, ease: "easeOut" }}
-          />
-        ))}
-      </div>
-      <div className="absolute top-3 right-3 text-neutral-500 font-bold text-2xl font-heading opacity-40">APY</div>
-    </div>
-  )
-}
-
-function SubscriptionVisual() {
+function MCPVisual() {
   return (
     <div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-700/20 via-neutral-700/5 to-transparent border border-white/[0.05] items-center justify-center relative overflow-hidden p-4">
       <div className="flex flex-col gap-2 w-full relative z-10">
-        {["Trader_0x4f2...", "Agent_0xa8c...", "Whale_0x7d1..."].map((name, i) => (
+        {["claude: read_note('roadmap.md')", "notekit: → decrypted content", "claude: write_note('roadmap.md', ...)"].map((line, i) => (
           <motion.div
             key={i}
-            className="flex items-center justify-between px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06]"
+            className="flex items-center px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06]"
             initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            transition={{ duration: 0.4, delay: 0.3 + i * 0.15 }}
+            transition={{ duration: 0.4, delay: 0.3 + i * 0.2 }}
           >
-            <span className="text-[11px] text-neutral-300 font-mono">{name}</span>
-            <span className="text-[10px] text-neutral-400 font-medium">subscribed</span>
+            <span className={`text-[10px] font-mono ${i === 1 ? "text-[#ea7317]" : "text-neutral-300"}`}>{line}</span>
           </motion.div>
         ))}
       </div>
-      <div className="absolute top-3 right-3 text-neutral-500 font-bold text-lg font-heading opacity-40">FEES</div>
+      <div className="absolute top-3 right-3 text-neutral-500 font-bold text-lg font-heading opacity-40">MCP</div>
     </div>
   )
 }
 
-function LeaderboardVisual() {
+function GrantVisual() {
   return (
     <div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-700/20 via-neutral-700/5 to-transparent border border-white/[0.05] items-center justify-center relative overflow-hidden p-4">
       <div className="flex flex-col gap-1.5 w-full relative z-10">
         {[
-          { rank: "1", name: "AlphaBot", pnl: "+$142K", share: "18%" },
-          { rank: "2", name: "YieldMax", pnl: "+$98K", share: "14%" },
-          { rank: "3", name: "DeltaHedge", pnl: "+$76K", share: "11%" },
-        ].map((agent, i) => (
+          { note: "roadmap.md", access: "agent:claude ✓" },
+          { note: "journal/", access: "🔒 encrypted" },
+          { note: "secrets.md", access: "🔒 encrypted" },
+        ].map((row, i) => (
+          <motion.div
+            key={i}
+            className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]"
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.3 + i * 0.15 }}
+          >
+            <span className="text-[11px] text-neutral-200 font-mono">{row.note}</span>
+            <span className={`text-[10px] ${i === 0 ? "text-[#ea7317]" : "text-neutral-500"}`}>{row.access}</span>
+          </motion.div>
+        ))}
+      </div>
+      <div className="absolute top-3 right-3 text-neutral-500 font-bold text-lg font-heading opacity-40">ACL</div>
+    </div>
+  )
+}
+
+function GitAuditVisual() {
+  return (
+    <div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-700/20 via-neutral-700/5 to-transparent border border-white/[0.05] items-center justify-center relative overflow-hidden p-4">
+      <div className="flex flex-col gap-1.5 w-full relative z-10">
+        {[
+          { hash: "a3f92c1", msg: "agent:claude: update roadmap Q3", time: "2m ago" },
+          { hash: "7b14e8d", msg: "you: add project notes", time: "1h ago" },
+          { hash: "c9012fa", msg: "you: initial vault commit", time: "2d ago" },
+        ].map((commit, i) => (
           <motion.div
             key={i}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]"
@@ -63,28 +69,27 @@ function LeaderboardVisual() {
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.3 + i * 0.15 }}
           >
-            <span className="text-[11px] text-neutral-400 font-bold w-4">#{agent.rank}</span>
-            <span className="text-[11px] text-neutral-200 font-mono flex-1">{agent.name}</span>
-            <span className="text-[10px] text-neutral-400">{agent.pnl}</span>
-            <span className="text-[10px] text-neutral-500">{agent.share}</span>
+            <span className="text-[10px] text-[#ea7317] font-mono w-12 flex-shrink-0">{commit.hash}</span>
+            <span className="text-[10px] text-neutral-300 font-mono flex-1 truncate">{commit.msg}</span>
+            <span className="text-[10px] text-neutral-500">{commit.time}</span>
           </motion.div>
         ))}
       </div>
-      <div className="absolute top-3 right-3 text-neutral-400 font-bold text-lg font-heading opacity-40">TOP 10</div>
+      <div className="absolute top-3 right-3 text-neutral-500 font-bold text-lg font-heading opacity-40">LOG</div>
     </div>
   )
 }
 
-function MultiActionVisual() {
-  const actions = [
-    { label: "Trade", icon: "⇄" },
-    { label: "Lend", icon: "%" },
-    { label: "Predict", icon: "◎" },
+function E2EEVisual() {
+  const steps = [
+    { label: "Write", icon: "✍" },
+    { label: "Encrypt", icon: "🔐" },
+    { label: "Sync", icon: "↑ Git" },
   ]
   return (
     <div className="flex flex-1 w-full h-full min-h-[6rem] rounded-xl bg-gradient-to-br from-neutral-700/20 via-neutral-700/5 to-transparent border border-white/[0.05] items-center justify-center relative overflow-hidden">
       <div className="flex gap-3 relative z-10">
-        {actions.map((action, i) => (
+        {steps.map((step, i) => (
           <motion.div
             key={i}
             className="flex flex-col items-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06]"
@@ -93,8 +98,8 @@ function MultiActionVisual() {
             viewport={{ once: true }}
             transition={{ duration: 0.4, delay: 0.2 + i * 0.15 }}
           >
-            <span className="text-xl text-neutral-300">{action.icon}</span>
-            <span className="text-[10px] text-neutral-400 font-medium">{action.label}</span>
+            <span className="text-xl">{step.icon}</span>
+            <span className="text-[10px] text-neutral-400 font-medium">{step.label}</span>
           </motion.div>
         ))}
       </div>
@@ -104,27 +109,27 @@ function MultiActionVisual() {
 
 const items = [
   {
-    title: "Instant Yield on Deposit",
-    description: "The moment agents deposit, they start earning yield — before they even place a trade or bet. No idle capital, ever.",
-    header: <YieldVisual />,
+    title: "MCP — Drop-in AI Context",
+    description: "NoteKit ships an MCP server. Drop it into Claude Code, Cursor, or any MCP host. Your granted notes become live context for your AI assistant.",
+    header: <MCPVisual />,
     className: "md:col-span-2",
   },
   {
-    title: "More Than Just Trading",
-    description: "Your agent can trade, lend, predict, and earn — all in one protocol. No need to hop between DApps.",
-    header: <MultiActionVisual />,
+    title: "Least-Privilege Grants",
+    description: "Grant an agent access to one folder or one note. Your other vaults stay encrypted and invisible to it. Revoke any time.",
+    header: <GrantVisual />,
     className: "md:col-span-1",
   },
   {
-    title: "Subscription Revenue",
-    description: "Agents earn fees from every user who subscribes to be copy-traded or managed. Passive income for top performers.",
-    header: <SubscriptionVisual />,
+    title: "Git Audit Trail",
+    description: "Every agent write is a signed Git commit. See exactly what the agent changed, when, and roll it back with one command.",
+    header: <GitAuditVisual />,
     className: "md:col-span-1",
   },
   {
-    title: "Weekly Protocol Revenue Share",
-    description: "Top 10 agents by PnL or volume share protocol fees every week. The better you perform, the more you earn from the protocol itself.",
-    header: <LeaderboardVisual />,
+    title: "E2EE Agent Keys",
+    description: "Agents get their own age key pair — they decrypt only what was encrypted to them. The master phrase never leaves your device.",
+    header: <E2EEVisual />,
     className: "md:col-span-2",
   },
 ]
@@ -141,7 +146,7 @@ export default function WhyAgents() {
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
         >
-          Why should your agent use ScaleX?
+          Why agents need NoteKit
         </motion.h2>
         <motion.div
           initial="hidden"

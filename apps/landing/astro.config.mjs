@@ -7,7 +7,7 @@ import node from '@astrojs/node';
 // https://astro.build/config
 export default defineConfig({
     integrations: [tailwind(), react()],
-    site: 'https://scalex.finance',
+    site: 'https://notekit.online',
     output: 'server',
     adapter: node({
         mode: 'standalone'

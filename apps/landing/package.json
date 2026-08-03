@@ -2,7 +2,7 @@
   "name": "notekit-landing",
   "type": "module",
   "version": "1.0.0",
-  "description": "ScaleX Protocol - Capital-Efficient DeFi Trading Platform Landing Page",
+  "description": "NoteKit - End-to-end encrypted notes for humans and agents",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -22,7 +22,8 @@
     "react-dom": "^18.3.0",
     "react-fast-marquee": "^1.6.5",
     "tailwind-merge": "^3.5.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "@paper-design/shaders-react": "^0.0.78"
   },
   "devDependencies": {
     "autoprefixer": "^10.4.21",

@@ -1,6 +1,5 @@
 ---
-// Header component with ScaleX logo, navigation, and language switcher
-import scaleXLogo from "../assets/images/ScaleX-Logo.png";
+// Header component with NoteKit logo, navigation, and language switcher
 ---
 
 <header
@@ -12,11 +11,12 @@ import scaleXLogo from "../assets/images/ScaleX-Logo.png";
       class="flex items-center justify-between px-4 sm:px-8 lg:px-[60px] py-6"
     >
       <!-- Logo -->
-      <a href="/" class="flex items-center gap-1.5 group z-10">
-        <img src={scaleXLogo.src} alt="ScaleX Logo" class="w-12 h-12" />
-        <span class="text-2xl font-heading font-bold text-white leading-8"
-          >ScaleX</span
-        >
+      <a href="/" class="flex items-center gap-2 group z-10">
+        <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="8" fill="#ea7317"/>
+          <path d="M8 10h10M8 16h16M8 22h12" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span class="text-2xl font-heading font-bold text-white leading-8">NoteKit</span>
       </a>
 
       <!-- Nav Links (center) -->
@@ -32,14 +32,14 @@ import scaleXLogo from "../assets/images/ScaleX-Logo.png";
           data-i18n="nav.howItWorks">How it works</a
         >
         <a
-          href="https://scalex.mintlify.app/genesis-story"
+          href="https://github.com/notekit-io/notekit"
           target="_blank"
           rel="noopener"
           class="text-white text-base font-body font-normal leading-6 tracking-[-1%] hover:text-primary transition-colors"
           data-i18n="nav.docs">Docs</a
         >
         <a
-          href="https://x.com/ScaleX_money"
+          href="https://github.com/notekit-io/notekit/discussions"
           target="_blank"
           rel="noopener"
           class="text-white text-base font-body font-normal leading-6 tracking-[-1%] hover:text-primary transition-colors"
@@ -118,38 +118,18 @@ import scaleXLogo from "../assets/images/ScaleX-Logo.png";
               >
               <span class="text-sm font-body text-white/80">Indonesia</span>
             </button>
-            <button
-              class="lang-option w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
-              data-lang="zh"
-              role="option"
-            >
-              <span class="text-xs font-body font-bold text-white/40 w-6"
-                >ZH</span
-              >
-              <span class="text-sm font-body text-white/80">中文</span>
-            </button>
-            <button
-              class="lang-option w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
-              data-lang="ja"
-              role="option"
-            >
-              <span class="text-xs font-body font-bold text-white/40 w-6"
-                >JA</span
-              >
-              <span class="text-sm font-body text-white/80">日本語</span>
-            </button>
           </div>
         </div>
 
-        <!-- Launch App Button -->
+        <!-- Open App Button -->
         <a
-          href="https://base-sepolia-app.scalex.money"
+          href="https://app.notekit.online"
           target="_blank"
           rel="noopener"
           class="btn-primary text-sm sm:text-base"
           data-i18n="nav.launchApp"
         >
-          Launch App
+          Open App
         </a>
 
         <!-- Hamburger Button (mobile only) -->
@@ -176,8 +156,8 @@ import scaleXLogo from "../assets/images/ScaleX-Logo.png";
     <div class="flex-1 flex flex-col items-center justify-center gap-8 px-8">
       <a href="#features" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.features">Features</a>
       <a href="#flywheel" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.howItWorks">How it works</a>
-      <a href="https://scalex.mintlify.app/genesis-story" target="_blank" rel="noopener" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.docs">Docs</a>
-      <a href="https://x.com/ScaleX_money" target="_blank" rel="noopener" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.community">Community</a>
+      <a href="https://github.com/notekit-io/notekit" target="_blank" rel="noopener" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.docs">Docs</a>
+      <a href="https://github.com/notekit-io/notekit/discussions" target="_blank" rel="noopener" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.community">Community</a>
       <a href="#" class="mobile-nav-link text-white text-2xl font-body font-medium hover:text-primary transition-colors" data-i18n="nav.blog">Blog</a>
 
       <!-- Language selector in mobile menu -->
@@ -185,20 +165,16 @@ import scaleXLogo from "../assets/images/ScaleX-Logo.png";
         <button class="mobile-lang-option text-lg font-body text-white/60 hover:text-white transition-colors px-3 py-1.5" data-lang="en">EN</button>
         <span class="text-white/20">|</span>
         <button class="mobile-lang-option text-lg font-body text-white/60 hover:text-white transition-colors px-3 py-1.5" data-lang="id">ID</button>
-        <span class="text-white/20">|</span>
-        <button class="mobile-lang-option text-lg font-body text-white/60 hover:text-white transition-colors px-3 py-1.5" data-lang="zh">ZH</button>
-        <span class="text-white/20">|</span>
-        <button class="mobile-lang-option text-lg font-body text-white/60 hover:text-white transition-colors px-3 py-1.5" data-lang="ja">JA</button>
       </div>
 
       <!-- CTA in mobile menu -->
       <a
-        href="https://base-sepolia-app.scalex.money"
+        href="https://app.notekit.online"
         target="_blank"
         rel="noopener"
         class="btn-primary text-base mt-4"
       >
-        Launch App
+        Open App
       </a>
     </div>
   </div>
@@ -264,7 +240,7 @@ import scaleXLogo from "../assets/images/ScaleX-Logo.png";
 
   // Language selection
   const langOptions = document.querySelectorAll(".lang-option");
-  const currentLang = localStorage.getItem("scalex-lang") || "en";
+  const currentLang = localStorage.getItem("notekit-lang") || "en";
 
   // Highlight active lang on load
   updateActiveLang(currentLang);
@@ -272,7 +248,7 @@ import scaleXLogo from "../assets/images/ScaleX-Logo.png";
   langOptions.forEach((btn) => {
     btn.addEventListener("click", () => {
       const lang = (btn as HTMLElement).dataset.lang || "en";
-      localStorage.setItem("scalex-lang", lang);
+      localStorage.setItem("notekit-lang", lang);
       updateActiveLang(lang);
       closeDropdown();
 
@@ -366,7 +342,7 @@ import scaleXLogo from "../assets/images/ScaleX-Logo.png";
   document.querySelectorAll(".mobile-lang-option").forEach((btn) => {
     btn.addEventListener("click", () => {
       const lang = (btn as HTMLElement).dataset.lang || "en";
-      localStorage.setItem("scalex-lang", lang);
+      localStorage.setItem("notekit-lang", lang);
       updateActiveLang(lang);
       window.dispatchEvent(new CustomEvent("lang-change", { detail: { lang } }));
     });

@@ -64,6 +64,7 @@
   --surface-2: #17171a;
   --border: #1f1f24;
   --border-soft: #18181c;
+  --border-guide: #2e2e35;
   --text: #e4e4e7;
   --text-2: #a1a1aa;
   --muted: #6b6b73;
@@ -95,6 +96,7 @@
   --surface-2: #f4f4f5;
   --border: #e4e4e7;
   --border-soft: #ececef;
+  --border-guide: #d4d4d8;
   --text: #18181b;
   --text-2: #52525b;
   --muted: #a1a1aa;
@@ -783,14 +785,12 @@ body {
   transition: background 120ms, color 120ms;
 }
 
-.nk-tree-item::before {
-  content: '';
+.nk-guide {
   position: absolute;
-  left: var(--nk-guide, -9999px);
   top: 0;
   bottom: 0;
   width: 1px;
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--border);
   pointer-events: none;
 }
 
@@ -1074,6 +1074,120 @@ body {
 .nk-popover-item svg {
   opacity: 0.7;
   flex-shrink: 0;
+}
+
+/* ─── Theme picker row in avatar popover ───────────────────────── */
+.nk-popover-theme-row {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+.nk-popover-theme-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm, 4px);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  transition: background 100ms, color 100ms, border-color 100ms;
+}
+.nk-popover-theme-btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.nk-popover-theme-btn.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--primary-foreground);
+}
+.nk-popover-theme-btn svg { opacity: 1; }
+
+/* ─── Anthropic key box in Agents modal ─────────────────────────── */
+.nk-agent-keybox {
+  padding: var(--gap-3, 12px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nk-agent-keybox-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.nk-agent-keybox-row {
+  display: flex;
+  gap: var(--gap-2, 8px);
+}
+.nk-agent-keybox-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ─── Agent AI-persona form bits ────────────────────────────────── */
+.nk-agent-section-label {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+.nk-agent-perm {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap-2, 8px);
+  flex-wrap: wrap;
+}
+.nk-agent-perm-label {
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  color: var(--text);
+}
+.nk-agent-perm-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+/* Segmented control — reused by permissions toggle */
+.nk-seg {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm, 6px);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.nk-seg-btn {
+  padding: 5px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 100ms, color 100ms;
+}
+.nk-seg-btn + .nk-seg-btn {
+  border-left: 1px solid var(--border);
+}
+.nk-seg-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.nk-seg-btn.is-active {
+  background: var(--accent);
+  color: var(--primary-foreground);
 }
 
 /* ─── History view ──────────────────────────────────────────────── */
@@ -1876,13 +1990,70 @@ a.nk-commit-sha:hover {
   color: var(--accent, #6366f1);
   pointer-events: none;
 }
-.nk-editor-wrap { position: relative; }
+/* nk-pane-body: fills the space below the tab bar; becomes a grid when a right panel is open */
+.nk-pane-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.nk-pane-body--with-panel {
+  display: grid;
+  grid-template-columns: 1fr auto;
+}
+/* Left column: toolbar + editor content */
+.nk-editor-col {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.nk-editor-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+/* ─── Resizable right panel container ───────────────────────────── */
+.nk-right-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+.nk-right-panel-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 6px;
+  transform: translateX(-50%);
+  cursor: col-resize;
+  z-index: 200;
+  user-select: none;
+  transition: background 120ms;
+}
+.nk-right-panel-resizer:hover,
+.nk-right-panel-resizer:active {
+  background: var(--accent);
+  opacity: 0.35;
+}
+/* Panels inside the container fill its full width */
+.nk-right-panel .nk-outline-panel,
+.nk-right-panel .nk-info-panel {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+}
 
 /* ─── Outline panel ─────────────────────────────────────────────── */
-.nk-editor-wrap--outlined {
-  display: grid;
-  grid-template-columns: 1fr 220px;
-}
 .nk-outline-panel {
   border-left: 1px solid var(--border, #2a2a2a);
   display: flex;
@@ -1909,6 +2080,7 @@ a.nk-commit-sha:hover {
   padding: 4px 0;
 }
 .nk-outline-item {
+  position: relative;
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -2210,20 +2382,24 @@ a.nk-commit-sha:hover {
 }
 
 .nk-wikilink {
-  display: inline-block;
-  padding: 1px 6px;
-  border-radius: 4px;
-  background: rgba(255, 200, 0, 0.10);
-  color: var(--accent);
-  text-decoration: none;
+  display: inline;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: #c8960a;
+  text-decoration: underline;
+  text-decoration-color: rgba(200, 150, 10, 0.5);
+  text-underline-offset: 2px;
   cursor: pointer;
-  border: 1px solid rgba(255, 200, 0, 0.25);
-  font-size: 0.95em;
-  line-height: 1.4;
+  border: none;
+  font-size: inherit;
+  line-height: inherit;
 }
 .nk-wikilink:hover {
-  background: rgba(255, 200, 0, 0.18);
-  border-color: rgba(255, 200, 0, 0.45);
+  color: #a87800;
+  text-decoration-color: rgba(168, 120, 0, 0.8);
+  background: none;
+  border-color: transparent;
 }
 
 /* Link wikilinks — blue tint */
@@ -8823,6 +8999,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-outline-item {
+  position: relative;
   display: block;
   width: 100%;
   text-align: left;
@@ -8836,6 +9013,447 @@ a.nk-commit-sha:hover {
 }
 
 .nk-outline-item:hover { color: var(--text); }
-.nk-outline-h1 { font-weight: 600; padding-left: 0; }
-.nk-outline-h2 { padding-left: 14px; }
-.nk-outline-h3 { padding-left: 28px; font-size: 11.5px; }
+
+.nk-outline-h1 { font-weight: 600; padding-left: 8px; }
+.nk-outline-h2 { padding-left: 20px; }
+.nk-outline-h3 { padding-left: 32px; font-size: 11.5px; }
+.nk-outline-h4 { padding-left: 44px; font-size: 11.5px; }
+.nk-outline-h5 { padding-left: 56px; font-size: 11px; }
+.nk-outline-h6 { padding-left: 68px; font-size: 11px; }
+
+/* Guide line for H2 and deeper: one line at the H1 indent */
+.nk-outline-h2::before,
+.nk-outline-h3::before,
+.nk-outline-h4::before,
+.nk-outline-h5::before,
+.nk-outline-h6::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-guide, #ccc);
+  pointer-events: none;
+}
+
+/* Second guide line for H3 and deeper: H2 indent */
+.nk-outline-h3::after,
+.nk-outline-h4::after,
+.nk-outline-h5::after,
+.nk-outline-h6::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--border-guide, #ccc);
+  pointer-events: none;
+}
+
+/* ═══ AI Assistant ══════════════════════════════════════════════════
+ * A right-docked panel (third grid column of .nk-app) plus a floating
+ * ✨ entry button. Mirrors the sidebar's resizer ergonomics. */
+
+/* Floating action button — bottom-right of the document area. */
+.nk-ai-fab {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 60;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent, #6366f1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+.nk-ai-fab:hover {
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.24);
+  background: var(--hover);
+}
+.nk-ai-fab:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* The dock column itself: full height, own left border. */
+.nk-ai-panel {
+  grid-column: 3;
+  grid-row: 1 / -1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+}
+
+/* Left-edge drag handle, mirrors .nk-sidebar-resizer. */
+.nk-ai-resizer {
+  position: absolute;
+  top: 0;
+  bottom: 28px;
+  width: 6px;
+  transform: translateX(50%);
+  cursor: col-resize;
+  z-index: 200;
+  user-select: none;
+  transition: background 120ms;
+}
+.nk-ai-resizer:hover,
+.nk-ai-resizer:active {
+  background: var(--accent);
+  opacity: 0.35;
+}
+
+.nk-ai-panel-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.nk-ai-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.nk-ai-panel-title svg {
+  color: var(--accent, #6366f1);
+}
+.nk-ai-agent-picker {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm, 6px);
+  cursor: pointer;
+}
+
+/* Gate states (vault not ready / no profiles). */
+.nk-ai-gate {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text);
+}
+.nk-ai-gate svg {
+  color: var(--muted);
+  opacity: 0.5;
+}
+.nk-ai-gate-hint {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 240px;
+}
+.nk-ai-gate .nk-btn {
+  margin-top: 6px;
+}
+
+/* Context chips row. */
+.nk-ai-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.nk-ai-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nk-ai-chip.is-on {
+  border-color: var(--accent, #6366f1);
+  color: var(--text);
+  background: var(--accent-soft, rgba(99, 102, 241, 0.1));
+}
+.nk-ai-chip.is-selection {
+  border-color: #c8960a;
+  color: #a87800;
+  background: rgba(200, 150, 10, 0.1);
+  cursor: default;
+}
+.nk-ai-chip.is-empty {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* Transcript. */
+.nk-ai-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.nk-ai-empty {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+.nk-ai-empty svg {
+  color: var(--accent, #6366f1);
+  opacity: 0.6;
+}
+.nk-ai-msg {
+  font-size: 13.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 10px;
+  padding: 8px 11px;
+  max-width: 100%;
+}
+.nk-ai-msg--user {
+  align-self: flex-end;
+  background: var(--accent-soft, rgba(99, 102, 241, 0.12));
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.nk-ai-msg--assistant {
+  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.nk-ai-caret {
+  color: var(--accent, #6366f1);
+  animation: nk-ai-blink 1s steps(2) infinite;
+}
+@keyframes nk-ai-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.nk-ai-error {
+  font-size: 12px;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 6px 9px;
+}
+
+/* A turn groups an assistant message with its tool-activity lines. */
+.nk-ai-turn {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.nk-ai-toolnote {
+  align-self: flex-start;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono-font, monospace);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
+
+/* Approval card for vault-mutating tools. */
+.nk-ai-approval {
+  border: 1px solid var(--accent, #6366f1);
+  background: var(--accent-soft, rgba(99, 102, 241, 0.08));
+  border-radius: 10px;
+  padding: 10px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nk-ai-approval-hd {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent, #6366f1);
+}
+.nk-ai-approval-summary {
+  font-size: 13px;
+  color: var(--text);
+}
+.nk-ai-approval-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Composer. */
+.nk-ai-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 8px 10px 4px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.nk-ai-input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+.nk-ai-input:focus {
+  outline: none;
+  border-color: var(--accent, #6366f1);
+}
+.nk-ai-send {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--accent, #6366f1);
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 120ms;
+}
+.nk-ai-send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.nk-ai-spin {
+  animation: nk-ai-spin 0.9s linear infinite;
+}
+@keyframes nk-ai-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.nk-ai-privacy {
+  padding: 2px 10px 8px;
+  font-size: 10.5px;
+  color: var(--muted);
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* Inline ⌘⇧K transform popover — floats at the selection. */
+.nk-inline-ai {
+  z-index: 9999;
+  width: 300px;
+  max-width: 92vw;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+}
+.nk-inline-ai-hd {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.nk-inline-ai-hd svg {
+  color: var(--accent, #6366f1);
+}
+.nk-inline-ai-input {
+  width: 100%;
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg);
+  color: var(--text);
+}
+.nk-inline-ai-input:focus {
+  outline: none;
+  border-color: var(--accent, #6366f1);
+}
+.nk-inline-ai-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.nk-inline-ai-preset {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: background 100ms, border-color 100ms;
+}
+.nk-inline-ai-preset:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--accent, #6366f1);
+}
+.nk-inline-ai-preset:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.nk-inline-ai-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.nk-inline-ai-error {
+  font-size: 11.5px;
+  color: #ef4444;
+}

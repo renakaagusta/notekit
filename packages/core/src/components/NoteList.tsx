@@ -311,18 +311,19 @@ export function NoteList({
     const isRoot = node.path === "";
     const rows: React.ReactElement[] = [];
 
+    // All guide positions for items at a given effective depth D:
+    // depths 1..D each get a guide line at 8 + (d-1)*16 + 7
+    function guidesFor(d: number) {
+      return Array.from({ length: d }, (_, i) => 8 + i * 16 + 7);
+    }
+
     if (!isRoot) {
-      const guideLeft = depth > 0 ? 8 + (depth - 1) * 16 + 7 : undefined;
+      const guides = guidesFor(depth);
       rows.push(
         <li
           key={`folder:${node.path}`}
           className={`nk-tree-item nk-tree-item--folder${dropClass}`}
-          style={{
-            paddingLeft: 8 + depth * 16,
-            ...(guideLeft !== undefined
-              ? ({ "--nk-guide": `${guideLeft}px` } as React.CSSProperties)
-              : {}),
-          }}
+          style={{ paddingLeft: 8 + depth * 16 }}
           onClick={() => toggle(node.path)}
           onDragOver={(e) => {
             if (!dragId) return;
@@ -341,6 +342,7 @@ export function NoteList({
             onDropTo(node.path);
           }}
         >
+          {guides.map((x) => <span key={x} className="nk-guide" style={{ left: x }} aria-hidden />)}
           <span className={"nk-disclosure" + (isCollapsed ? "" : " open")} aria-hidden>
             <ChevronRight size={12} />
           </span>
@@ -393,8 +395,7 @@ export function NoteList({
     for (const n of node.notes) {
       const title = noteTitle(n);
       const preview = notePreview(n);
-      const noteGuideLeft =
-        childDepth > 0 ? 8 + (childDepth - 1) * 16 + 7 : undefined;
+      const noteGuides = guidesFor(childDepth);
       rows.push(
         <li
           key={n.id}
@@ -403,12 +404,7 @@ export function NoteList({
             "nk-tree-item nk-tree-item--note" +
             (n.id === activeNoteId ? " active" : "")
           }
-          style={{
-            paddingLeft: 8 + childDepth * 16,
-            ...(noteGuideLeft !== undefined
-              ? ({ "--nk-guide": `${noteGuideLeft}px` } as React.CSSProperties)
-              : {}),
-          }}
+          style={{ paddingLeft: 8 + childDepth * 16 }}
           onClick={() => setActive(n.id)}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -424,6 +420,7 @@ export function NoteList({
             setDropTarget(null);
           }}
         >
+          {noteGuides.map((x) => <span key={x} className="nk-guide" style={{ left: x }} aria-hidden />)}
           <FileText size={14} className="nk-tree-icon" aria-hidden />
           <span className="nk-tree-stack">
             <span className="nk-tree-label">

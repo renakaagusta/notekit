@@ -25,6 +25,47 @@ import {
 
 export const agentRoutes = new Hono();
 
+/**
+ * Sanitize the optional chat-persona fields from a request body. On PATCH, a
+ * field left undefined keeps the previous value; an explicit empty string
+ * clears it. Unknown `toolPermissions` values are ignored (fall back to prev).
+ */
+function normalizeChatFields(
+  body: {
+    emoji?: string;
+    model?: string;
+    systemPrompt?: string;
+    toolPermissions?: string;
+  },
+  prev?: AgentProfile,
+): Pick<AgentProfile, "emoji" | "model" | "systemPrompt" | "toolPermissions"> {
+  const out: Pick<
+    AgentProfile,
+    "emoji" | "model" | "systemPrompt" | "toolPermissions"
+  > = {};
+
+  if (body.emoji !== undefined) {
+    const v = body.emoji.trim();
+    if (v) out.emoji = v;
+  } else if (prev?.emoji) out.emoji = prev.emoji;
+
+  if (body.model !== undefined) {
+    const v = body.model.trim();
+    if (v) out.model = v;
+  } else if (prev?.model) out.model = prev.model;
+
+  if (body.systemPrompt !== undefined) {
+    const v = body.systemPrompt.trim();
+    if (v) out.systemPrompt = v;
+  } else if (prev?.systemPrompt) out.systemPrompt = prev.systemPrompt;
+
+  if (body.toolPermissions === "read-only" || body.toolPermissions === "read-write") {
+    out.toolPermissions = body.toolPermissions;
+  } else if (prev?.toolPermissions) out.toolPermissions = prev.toolPermissions;
+
+  return out;
+}
+
 function ghErr(c: Context, err: unknown) {
   if (err instanceof GhError) {
     return c.json(
@@ -114,6 +155,10 @@ agentRoutes.post("/", async (c) => {
     name?: string;
     email?: string;
     description?: string;
+    emoji?: string;
+    model?: string;
+    systemPrompt?: string;
+    toolPermissions?: string;
   } | null;
   if (!body?.name || typeof body.name !== "string") {
     return c.json({ error: "name_required" }, 400);
@@ -142,6 +187,7 @@ agentRoutes.post("/", async (c) => {
       email: resolvedEmail,
       description: body.description?.trim() ?? "",
       createdAt: new Date().toISOString(),
+      ...normalizeChatFields(body),
     };
 
     await writeAgent(
@@ -184,6 +230,10 @@ agentRoutes.patch("/:slug", async (c) => {
     name?: string;
     email?: string;
     description?: string;
+    emoji?: string;
+    model?: string;
+    systemPrompt?: string;
+    toolPermissions?: string;
   } | null;
   if (!body) return c.json({ error: "invalid_body" }, 400);
 
@@ -206,6 +256,7 @@ agentRoutes.patch("/:slug", async (c) => {
         body.description !== undefined
           ? body.description.trim()
           : found.profile.description,
+      ...normalizeChatFields(body, found.profile),
     };
 
     await writeAgent(

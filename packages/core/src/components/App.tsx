@@ -42,6 +42,9 @@ import { GraphView } from "./GraphView";
 import { TasksView } from "./TasksView";
 import { HistoryView } from "./HistoryView";
 import { AgentsView } from "./AgentsView";
+import { AIAssistantPanel } from "./AIAssistantPanel";
+import { AIAssistantFab } from "./AIAssistantFab";
+import { useAIChatStore } from "../stores/aiChatStore";
 import { AccessTokensView } from "./AccessTokensView";
 import { DevicesPanel } from "./DevicesPanel";
 import { NotificationsInbox } from "./NotificationsInbox";
@@ -155,6 +158,36 @@ export function App({ user, onSignOut }: AppProps = {}) {
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }
+  // ── AI assistant panel — third dock column, resizable like the sidebar ──
+  const aiOpen = useAIChatStore((s) => s.open);
+  const [aiWidth, setAiWidth] = useState(
+    () => Number(localStorage.getItem("nk:ai-panel-width") || 0) || 340,
+  );
+  useEffect(() => {
+    localStorage.setItem("nk:ai-panel-width", String(aiWidth));
+  }, [aiWidth]);
+  const aiDragRef = useRef<{ startX: number; startW: number } | null>(null);
+  function onAiDragStart(e: React.MouseEvent) {
+    e.preventDefault();
+    aiDragRef.current = { startX: e.clientX, startW: aiWidth };
+    function onMove(ev: MouseEvent) {
+      if (!aiDragRef.current) return;
+      // Drag the LEFT edge: moving left widens the panel.
+      const w = Math.min(
+        560,
+        Math.max(260, aiDragRef.current.startW + (aiDragRef.current.startX - ev.clientX)),
+      );
+      setAiWidth(w);
+    }
+    function onUp() {
+      aiDragRef.current = null;
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }
+
   const [zenMode, setZenMode] = useState(false);
   const [vimMode, setVimMode] = useState(
     () => localStorage.getItem("nk:vim-mode") === "1",
@@ -594,10 +627,14 @@ export function App({ user, onSignOut }: AppProps = {}) {
           !isMobile && sidebarCollapsed ? "true" : undefined
         }
         data-zen={zenMode ? "true" : undefined}
+        data-ai-open={!isMobile && !zenMode && aiOpen ? "true" : undefined}
         style={
-          !isMobile && !sidebarCollapsed && !zenMode
+          !isMobile && !zenMode
             ? {
-                gridTemplateColumns: `${sidebarWidth}px 1fr`,
+                // sidebar | document | (optional) AI dock
+                gridTemplateColumns: `${sidebarCollapsed ? 0 : sidebarWidth}px 1fr${
+                  aiOpen ? ` ${aiWidth}px` : ""
+                }`,
                 transition: sidebarDragging ? "none" : undefined,
               }
             : undefined
@@ -728,7 +765,24 @@ export function App({ user, onSignOut }: AppProps = {}) {
           )}
           {view === "secrets" && <SecretsView />}
           {view === "links" && <LinksView />}
+          {!isMobile && !zenMode && <AIAssistantFab />}
         </main>
+
+        {/* AI assistant — third dock column. Its own left-edge resizer mirrors
+         * the sidebar's. Desktop only for now (mobile shell comes later). */}
+        {!isMobile && !zenMode && aiOpen && (
+          <>
+            <div
+              className="nk-ai-resizer"
+              style={{ right: aiWidth }}
+              onMouseDown={onAiDragStart}
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize AI panel"
+            />
+            <AIAssistantPanel onOpenAgents={() => setAgentsOpen(true)} />
+          </>
+        )}
 
         {/* Sync status belongs to the sidebar column — it reads as the
          * sidebar's footer. Clicking the sync indicator triggers a manual

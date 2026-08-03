@@ -6,7 +6,6 @@ import {
   History as LucideHistory,
   Image as LucideImage,
   ListChecks,
-  List as LucideList,
   Lock as LucideLock,
   Maximize2 as LucideMaximize,
   Minimize2 as LucideMinimize,
@@ -40,13 +39,11 @@ interface EditorToolbarProps {
   onHistoryClick?(): void;
   zenMode?: boolean;
   onZenToggle?(): void;
-  outlineOpen?: boolean;
-  onOutlineToggle?(): void;
   vimMode?: boolean;
   onVimToggle?(): void;
 }
 
-export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle, outlineOpen, onOutlineToggle, vimMode, onVimToggle }: EditorToolbarProps) {
+export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle, vimMode, onVimToggle }: EditorToolbarProps) {
   const [aaOpen, setAaOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -346,15 +343,6 @@ export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle,
         onClick={onVimToggle}
       >
         <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "monospace" }}>VIM</span>
-      </button>
-
-      <button
-        className={`nk-tb-btn${outlineOpen ? " is-active" : ""}`}
-        title="Outline (⌘⇧O)"
-        aria-label="Toggle outline panel"
-        onClick={onOutlineToggle}
-      >
-        <LucideList size={16} aria-hidden />
       </button>
 
       <button

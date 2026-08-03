@@ -6,9 +6,13 @@ import {
   createAgent,
   updateAgent,
   deleteAgent,
+  DEFAULT_AGENT_MODEL,
   type AgentProfile,
+  type AgentToolPermissions,
 } from "../lib/agents-api";
 import { gravatarUrlFor } from "../lib/gravatar";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { listSecretNames, setSecret, removeSecret } from "../lib/secrets-vault";
 
 export interface AgentFocusPulse {
   slug: string;
@@ -20,11 +24,32 @@ interface AgentsViewProps {
   focusAgent?: AgentFocusPulse | null;
 }
 
+/** Anthropic models offered in the profile picker. Keep labels human-friendly. */
+export const AGENT_MODELS: { value: string; label: string; hint: string }[] = [
+  { value: "claude-3-5-haiku-latest", label: "Haiku 3.5", hint: "Cepat & murah" },
+  { value: "claude-sonnet-4-5", label: "Sonnet 4.5", hint: "Seimbang" },
+  { value: "claude-opus-4-1", label: "Opus 4.1", hint: "Paling pintar" },
+];
+
 interface DraftFields {
   name: string;
   email: string;
   description: string;
+  emoji: string;
+  model: string;
+  systemPrompt: string;
+  toolPermissions: AgentToolPermissions;
 }
+
+const EMPTY_DRAFT: DraftFields = {
+  name: "",
+  email: "",
+  description: "",
+  emoji: "",
+  model: DEFAULT_AGENT_MODEL,
+  systemPrompt: "",
+  toolPermissions: "read-only",
+};
 
 export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
@@ -41,17 +66,9 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   }, [focusAgent, agents]);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [newDraft, setNewDraft] = useState<DraftFields>({
-    name: "",
-    email: "",
-    description: "",
-  });
+  const [newDraft, setNewDraft] = useState<DraftFields>(EMPTY_DRAFT);
   const [editingSlug, setEditingSlug] = useState<string | null>(null);
-  const [editDraft, setEditDraft] = useState<DraftFields>({
-    name: "",
-    email: "",
-    description: "",
-  });
+  const [editDraft, setEditDraft] = useState<DraftFields>(EMPTY_DRAFT);
   const [reveal, setReveal] = useState<{
     slug: string;
     token: string;
@@ -61,6 +78,58 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   } | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // ── Anthropic API key (shared by all profiles; stored in the E2EE vault) ──
+  const device = useCryptoStore((s) => s.device);
+  const cryptoPhase = useCryptoStore((s) => s.phase);
+  const [keyStored, setKeyStored] = useState(false);
+  const [keyDraft, setKeyDraft] = useState("");
+  const [keyBusy, setKeyBusy] = useState(false);
+
+  async function refreshKey() {
+    if (!device || cryptoPhase !== "ready") return;
+    try {
+      const names = await listSecretNames();
+      setKeyStored(names.includes("anthropic"));
+    } catch {
+      /* vault not readable yet — leave as unknown */
+    }
+  }
+
+  useEffect(() => {
+    void refreshKey();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [device, cryptoPhase]);
+
+  async function onSaveKey() {
+    const value = keyDraft.trim();
+    if (!value || !device) return;
+    setKeyBusy(true);
+    setError(null);
+    try {
+      await setSecret("anthropic", value, device);
+      setKeyDraft("");
+      await refreshKey();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setKeyBusy(false);
+    }
+  }
+
+  async function onRemoveKey() {
+    if (!device) return;
+    if (!window.confirm("Hapus Anthropic key dari vault?")) return;
+    setKeyBusy(true);
+    try {
+      await removeSecret("anthropic", device);
+      await refreshKey();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setKeyBusy(false);
+    }
+  }
 
   async function refresh() {
     try {
@@ -77,7 +146,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   }, []);
 
   function resetNewDraft() {
-    setNewDraft({ name: "", email: "", description: "" });
+    setNewDraft(EMPTY_DRAFT);
   }
 
   async function onCreate() {
@@ -90,6 +159,10 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
         name,
         email: newDraft.email.trim() || undefined,
         description: newDraft.description.trim() || undefined,
+        emoji: newDraft.emoji.trim() || undefined,
+        model: newDraft.model,
+        systemPrompt: newDraft.systemPrompt.trim() || undefined,
+        toolPermissions: newDraft.toolPermissions,
       });
       setReveal({
         slug: res.agent.slug,
@@ -112,6 +185,10 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
       name: a.name,
       email: a.email,
       description: a.description ?? "",
+      emoji: a.emoji ?? "",
+      model: a.model ?? DEFAULT_AGENT_MODEL,
+      systemPrompt: a.systemPrompt ?? "",
+      toolPermissions: a.toolPermissions ?? "read-only",
     });
   }
 
@@ -124,6 +201,10 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
         name: editDraft.name.trim() || undefined,
         email: editDraft.email.trim() || undefined,
         description: editDraft.description,
+        emoji: editDraft.emoji.trim(),
+        model: editDraft.model,
+        systemPrompt: editDraft.systemPrompt.trim(),
+        toolPermissions: editDraft.toolPermissions,
       });
       setEditingSlug(null);
       await refresh();
@@ -185,6 +266,51 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
         . Register an agent's email at gravatar.com to give it a real photo
         everywhere — NoteKit, GitHub commit pages, and Forgejo. Otherwise
         Gravatar's deterministic identicon is shown.
+      </div>
+
+      {/* Anthropic key — one key shared by every profile, decrypted on-device
+          and posted straight to Anthropic (never through NoteKit servers). */}
+      <div className="nk-agent-keybox">
+        <div className="nk-agent-keybox-hd">
+          <strong>Anthropic API key</strong>
+          {keyStored && <span className="nk-pill">tersimpan</span>}
+        </div>
+        {cryptoPhase !== "ready" ? (
+          <p className="nk-agent-keybox-hint">
+            Buka & buka-kunci vault terenkripsi dulu untuk menyimpan key.
+          </p>
+        ) : (
+          <>
+            <div className="nk-agent-keybox-row">
+              <input
+                className="nk-input"
+                type="password"
+                autoComplete="off"
+                placeholder={keyStored ? "Ganti key… (sk-ant-…)" : "sk-ant-…"}
+                value={keyDraft}
+                onChange={(e) => setKeyDraft(e.target.value)}
+                disabled={keyBusy}
+                style={{ flex: 1 }}
+              />
+              <button
+                className="nk-btn nk-btn--primary"
+                onClick={onSaveKey}
+                disabled={keyBusy || !keyDraft.trim()}
+              >
+                {keyStored ? "Ganti" : "Simpan"}
+              </button>
+              {keyStored && (
+                <button className="nk-btn" onClick={onRemoveKey} disabled={keyBusy}>
+                  Hapus
+                </button>
+              )}
+            </div>
+            <p className="nk-agent-keybox-hint">
+              🔒 Disimpan terenkripsi di vault, dipakai semua profil AI. Langsung
+              ke Anthropic — tanpa relay server NoteKit.
+            </p>
+          </>
+        )}
       </div>
 
       {reveal && (
@@ -433,9 +559,79 @@ function AgentForm({
         value={draft.description}
         onChange={(e) => onChange({ ...draft, description: e.target.value })}
         disabled={disabled}
+        rows={2}
+        style={{ resize: "vertical", fontFamily: "inherit" }}
+      />
+
+      {/* ── AI chat persona ─────────────────────────────────────────
+       * These fields drive the in-app AI assistant when this agent is
+       * the selected profile: which model runs, how it behaves, and
+       * whether it may modify the vault. */}
+      <div className="nk-agent-section-label">AI assistant</div>
+      <div style={{ display: "flex", gap: "var(--gap-2)" }}>
+        <input
+          className="nk-input"
+          placeholder="✍️"
+          aria-label="Emoji"
+          value={draft.emoji}
+          onChange={(e) => onChange({ ...draft, emoji: e.target.value })}
+          disabled={disabled}
+          maxLength={4}
+          style={{ width: 56, textAlign: "center", flexShrink: 0 }}
+        />
+        <select
+          className="nk-input"
+          aria-label="Model"
+          value={draft.model}
+          onChange={(e) => onChange({ ...draft, model: e.target.value })}
+          disabled={disabled}
+          style={{ flex: 1 }}
+        >
+          {AGENT_MODELS.map((m) => (
+            <option key={m.value} value={m.value}>
+              {m.label} — {m.hint}
+            </option>
+          ))}
+        </select>
+      </div>
+      <textarea
+        className="nk-input"
+        placeholder="System prompt — persona & rules (e.g. “Kamu asisten penulisan bahasa Indonesia yang ringkas dan tidak bertele-tele.”)"
+        value={draft.systemPrompt}
+        onChange={(e) => onChange({ ...draft, systemPrompt: e.target.value })}
+        disabled={disabled}
         rows={3}
         style={{ resize: "vertical", fontFamily: "inherit" }}
       />
+      <div className="nk-agent-perm">
+        <span className="nk-agent-perm-label">
+          Permissions
+          <span className="nk-agent-perm-hint">
+            {draft.toolPermissions === "read-write"
+              ? "Can create, edit & delete notes (with your approval)"
+              : "Can only read & search — cannot change your vault"}
+          </span>
+        </span>
+        <div className="nk-seg" role="group" aria-label="Tool permissions">
+          <button
+            type="button"
+            className={`nk-seg-btn${draft.toolPermissions === "read-only" ? " is-active" : ""}`}
+            onClick={() => onChange({ ...draft, toolPermissions: "read-only" })}
+            disabled={disabled}
+          >
+            Read-only
+          </button>
+          <button
+            type="button"
+            className={`nk-seg-btn${draft.toolPermissions === "read-write" ? " is-active" : ""}`}
+            onClick={() => onChange({ ...draft, toolPermissions: "read-write" })}
+            disabled={disabled}
+          >
+            Read &amp; write
+          </button>
+        </div>
+      </div>
+
       {/* Live preview of the avatar the agent will render with, sourced
           from Gravatar by email hash. Until the email is filled in (or
           defaulted by the server on submit), show the placeholder. */}

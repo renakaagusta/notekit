@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Bell,
   Bookmark,
@@ -10,16 +11,20 @@ import {
   Link2,
   LogOut,
   Menu,
+  Monitor,
   MonitorSmartphone,
+  Moon,
   Network,
   PanelLeft,
   Plus,
   Search,
   Shield,
+  Sun,
 } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
+import * as vaultApi from "../lib/vault-api";
 import type { User } from "../types/user";
 import { CreateMenu } from "./CreateMenu";
 import { NoteList } from "./NoteList";
@@ -73,16 +78,29 @@ export function Sidebar({
   const notesCount = useNotesStore((s) => s.all().length);
   const ticketsCount = useTicketsStore((s) => s.all().length);
   const vaultReady = useVaultStore((s) => s.phase === "ready");
+  const activeVaultId = useVaultStore((s) => s.activeId);
+  const activeSettings = useVaultStore((s) => s.activeSettings);
+  const setActiveSettings = useVaultStore((s) => s.setActiveSettings);
+
+  async function setTheme(theme: "light" | "dark" | "auto") {
+    if (!activeVaultId || !activeSettings) return;
+    const updated = { ...activeSettings, theme };
+    setActiveSettings(updated);
+    await vaultApi.patchVaultSettings(activeVaultId, updated).catch(() => {});
+  }
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const avatarBtnRef = useRef<HTMLButtonElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const mobileShell = !!onOpenMenu;
 
   useEffect(() => {
     if (!userMenuOpen) return;
     function onDocClick(e: MouseEvent) {
-      if (!userMenuRef.current) return;
-      if (userMenuRef.current.contains(e.target as Node)) return;
+      const t = e.target as Node;
+      if (avatarBtnRef.current?.contains(t)) return;
+      if (userMenuRef.current?.contains(t)) return;
       setUserMenuOpen(false);
     }
     function onKey(e: KeyboardEvent) {
@@ -95,6 +113,14 @@ export function Sidebar({
       document.removeEventListener("keydown", onKey);
     };
   }, [userMenuOpen]);
+
+  function toggleUserMenu() {
+    if (!userMenuOpen && avatarBtnRef.current) {
+      const r = avatarBtnRef.current.getBoundingClientRect();
+      setMenuPos({ x: r.right + 6, y: r.top });
+    }
+    setUserMenuOpen((v) => !v);
+  }
 
   function onAdd() {
     if (view === "notes") setCreateMenuOpen((v) => !v);
@@ -139,11 +165,12 @@ export function Sidebar({
 
         <div className="nk-rail-foot">
           {user && (
-            <div className="nk-rail-avatar-wrap" ref={userMenuRef}>
+            <>
               <button
+                ref={avatarBtnRef}
                 type="button"
                 className="nk-rail-avatar-btn"
-                onClick={() => setUserMenuOpen((v) => !v)}
+                onClick={toggleUserMenu}
                 title={user.name ?? user.email}
                 aria-label="Account menu"
                 aria-haspopup="menu"
@@ -157,8 +184,13 @@ export function Sidebar({
                   </div>
                 )}
               </button>
-              {userMenuOpen && (
-                <div className="nk-popover nk-popover--rail" role="menu">
+              {userMenuOpen && menuPos && createPortal(
+                <div
+                  ref={userMenuRef}
+                  className="nk-popover"
+                  role="menu"
+                  style={{ position: "fixed", left: menuPos.x, top: menuPos.y, right: "auto", minWidth: 180, zIndex: 9999, transform: "translateY(-100%)" }}
+                >
                   {onOpenHistory && (
                     <button
                       className="nk-popover-item"
@@ -209,6 +241,37 @@ export function Sidebar({
                       <span>Devices</span>
                     </button>
                   )}
+                  {activeSettings && (
+                    <div className="nk-popover-theme-row" role="group" aria-label="Theme">
+                      <button
+                        className={`nk-popover-theme-btn${activeSettings.theme === "light" ? " is-active" : ""}`}
+                        onClick={() => setTheme("light")}
+                        title="Light"
+                        aria-label="Light mode"
+                      >
+                        <Sun size={13} aria-hidden />
+                        <span>Light</span>
+                      </button>
+                      <button
+                        className={`nk-popover-theme-btn${activeSettings.theme === "dark" ? " is-active" : ""}`}
+                        onClick={() => setTheme("dark")}
+                        title="Dark"
+                        aria-label="Dark mode"
+                      >
+                        <Moon size={13} aria-hidden />
+                        <span>Dark</span>
+                      </button>
+                      <button
+                        className={`nk-popover-theme-btn${activeSettings.theme === "auto" ? " is-active" : ""}`}
+                        onClick={() => setTheme("auto")}
+                        title="System"
+                        aria-label="Follow system"
+                      >
+                        <Monitor size={13} aria-hidden />
+                        <span>System</span>
+                      </button>
+                    </div>
+                  )}
                   {onSignOut && (
                     <button
                       className="nk-popover-item"
@@ -219,9 +282,10 @@ export function Sidebar({
                       <span>Sign out</span>
                     </button>
                   )}
-                </div>
+                </div>,
+                document.body
               )}
-            </div>
+            </>
           )}
         </div>
       </div>

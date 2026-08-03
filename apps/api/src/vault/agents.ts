@@ -21,12 +21,27 @@ function gitOps(provider: GitProvider) {
   return provider === "notekit" ? fj : gh;
 }
 
+/** Chat model an agent uses when driven from the in-app AI assistant. */
+export type AgentModel = string;
+/** Whether an agent may mutate the vault (create/edit/delete) or only read. */
+export type AgentToolPermissions = "read-only" | "read-write";
+
+export const DEFAULT_AGENT_MODEL: AgentModel = "claude-3-5-haiku-latest";
+
 export interface AgentProfile {
   slug: string;
   name: string;
   email: string;
   description: string;
   createdAt: string;
+  /** Emoji shown in the AI assistant's profile picker (git avatar stays Gravatar). */
+  emoji?: string;
+  /** Anthropic model the in-app assistant uses for this profile. */
+  model?: AgentModel;
+  /** Persona / instructions injected as the system prompt for chat. */
+  systemPrompt?: string;
+  /** Read-only agents cannot run create/edit/delete tools. Defaults to read-only. */
+  toolPermissions?: AgentToolPermissions;
 }
 
 const AGENTS_DIR = "agents";
@@ -60,6 +75,30 @@ export function slugifyAgentName(name: string): string {
     .slice(0, 60);
 }
 
+/**
+ * Extract the optional chat-persona fields from a parsed profile, omitting any
+ * that are absent so we never write `undefined` into the JSON. Keeps old
+ * profiles (created before these fields existed) valid — they just read back
+ * without them, and the assistant applies its own defaults.
+ */
+function pickChatFields(
+  parsed: Partial<AgentProfile>,
+): Pick<AgentProfile, "emoji" | "model" | "systemPrompt" | "toolPermissions"> {
+  const out: Pick<
+    AgentProfile,
+    "emoji" | "model" | "systemPrompt" | "toolPermissions"
+  > = {};
+  if (typeof parsed.emoji === "string" && parsed.emoji) out.emoji = parsed.emoji;
+  if (typeof parsed.model === "string" && parsed.model) out.model = parsed.model;
+  if (typeof parsed.systemPrompt === "string" && parsed.systemPrompt) {
+    out.systemPrompt = parsed.systemPrompt;
+  }
+  if (parsed.toolPermissions === "read-only" || parsed.toolPermissions === "read-write") {
+    out.toolPermissions = parsed.toolPermissions;
+  }
+  return out;
+}
+
 export async function readAgent(
   provider: GitProvider,
   token: string,
@@ -84,6 +123,7 @@ export async function readAgent(
       email: parsed.email ?? defaultEmailFor(slug),
       description: parsed.description ?? "",
       createdAt: parsed.createdAt ?? "",
+      ...pickChatFields(parsed),
     };
     return { profile, sha: file.sha };
   } catch {
@@ -114,6 +154,7 @@ export async function listAgents(
         email: parsed.email ?? defaultEmailFor(slug),
         description: parsed.description ?? "",
         createdAt: parsed.createdAt ?? "",
+        ...pickChatFields(parsed),
       });
     } catch {
       // skip malformed entries

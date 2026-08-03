@@ -22,6 +22,7 @@ function extractHeadings(editor: TipTapEditor): Heading[] {
   return headings;
 }
 
+
 export function OutlinePanel({ getEditor, onClose }: Props) {
   const [headings, setHeadings] = useState<Heading[]>([]);
 
@@ -38,10 +39,7 @@ export function OutlinePanel({ getEditor, onClose }: Props) {
   function jumpTo(pos: number) {
     const editor = getEditor();
     if (!editor) return;
-    editor.chain().focus().setTextSelection(pos + 1).run();
-    // Scroll the heading into view
-    const domPos = editor.view.domAtPos(pos + 1);
-    (domPos.node as HTMLElement).closest?.("h1,h2,h3,h4,h5,h6")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    editor.chain().focus().setTextSelection(pos + 1).scrollIntoView().run();
   }
 
   return (
@@ -57,8 +55,7 @@ export function OutlinePanel({ getEditor, onClose }: Props) {
           headings.map((h, i) => (
             <button
               key={i}
-              className="nk-outline-item"
-              style={{ paddingLeft: `${(h.level - 1) * 12 + 8}px` }}
+              className={`nk-outline-item nk-outline-h${h.level}`}
               onClick={() => jumpTo(h.pos)}
             >
               <span className="nk-outline-level">H{h.level}</span>

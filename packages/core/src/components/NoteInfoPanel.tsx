@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import type { Editor as TipTapEditor } from "@tiptap/react";
 import { ExternalLink, Link, List, Tag } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useLayoutStore } from "../stores/layoutStore";
@@ -75,9 +76,10 @@ function SnippetHighlight({ text, titleToHighlight }: { text: string; titleToHig
 
 interface Props {
   noteId: string | null;
+  getEditor?: () => TipTapEditor | null;
 }
 
-export function NoteInfoPanel({ noteId }: Props) {
+export function NoteInfoPanel({ noteId, getEditor }: Props) {
   const [activeTab, setActiveTab] = useState<InfoTab>("backlinks");
   const notes = useNotesStore((s) => s.notes);
   const openNote = useLayoutStore((s) => s.openNote);
@@ -190,6 +192,21 @@ export function NoteInfoPanel({ noteId }: Props) {
     );
   }
 
+  function jumpToHeading(level: number, text: string) {
+    const editor = getEditor?.();
+    if (!editor) return;
+    let found: number | null = null;
+    editor.state.doc.descendants((node, pos) => {
+      if (found !== null) return false;
+      if (node.type.name === "heading" && node.attrs.level === level && node.textContent === text) {
+        found = pos;
+      }
+    });
+    if (found !== null) {
+      editor.chain().focus().setTextSelection((found as number) + 1).scrollIntoView().run();
+    }
+  }
+
   function renderOutline() {
     if (!note) return <p className="nk-info-empty">No note open</p>;
     if (outline.length === 0) return <p className="nk-info-empty">No headings found</p>;
@@ -199,6 +216,7 @@ export function NoteInfoPanel({ noteId }: Props) {
           <button
             key={i}
             className={`nk-outline-item nk-outline-h${Math.min(h.level, 3)}`}
+            onClick={() => jumpToHeading(h.level, h.text)}
           >
             {h.text}
           </button>

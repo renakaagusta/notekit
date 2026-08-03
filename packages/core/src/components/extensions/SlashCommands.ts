@@ -1,5 +1,6 @@
 import { Extension, ReactRenderer } from "@tiptap/react";
 import Suggestion, { type SuggestionProps } from "@tiptap/suggestion";
+import { PluginKey } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import tippy, { type Instance } from "tippy.js";
 import { SlashCommandMenu, type SlashCommandMenuHandle } from "../SlashCommandMenu";
@@ -182,6 +183,7 @@ export const SlashCommands = Extension.create<SlashCommandsOptions>({
     const commands = this.options.commands;
     return [
       Suggestion<SlashCommand>({
+        pluginKey: new PluginKey("slashCommands"),
         editor: this.editor,
         char: "/",
         startOfLine: false,

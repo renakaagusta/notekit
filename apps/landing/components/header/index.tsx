@@ -37,10 +37,8 @@ const Header: FC = () => {
 							</Link>
 						</li>
 						<li className={`${styles.header__item} ${styles.hide__tablet}`}>
-							<Link
-								href='https://github.com/notekit-io/notekit'
-								className={styles.header__link}>
-								GitHub
+							<Link href='#' className={styles.header__link}>
+								Docs
 							</Link>
 						</li>
 

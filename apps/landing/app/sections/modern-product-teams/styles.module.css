@@ -1,0 +1,61 @@
+.modern__product__teams {
+	@apply py-12 sm:py-[160px] isolate;
+	background: linear-gradient(
+		180deg,
+		transparent,
+		rgba(97, 106, 115, 0.12) 40%,
+		rgba(97, 106, 115, 0.12) 60%,
+		rgba(97, 106, 115, 0)
+	);
+}
+
+.top__container {
+	@apply grid grid-cols-4 md:grid-cols-12 gap-6 mb-12;
+}
+
+.top__container .heading {
+	@apply col-start-1 col-end-5 md:col-end-13 lg:col-end-7;
+}
+
+.top__container .heading h2 {
+	@apply text-balance text-[40px] sm:text-[56px] leading-[44px] sm:leading-[1.1] font-medium tracking-[-0.015em] sm:tracking-[-0.0325em] text-[var(--color-text-primary)];
+	font-variation-settings: 'opsz' 28;
+}
+
+.top__container .description {
+	@apply col-start-1 col-end-5 md:col-end-9 lg:col-start-7 lg:col-end-13 self-end;
+}
+
+.top__container .description p {
+	@apply text-balance text-[17px] leading-[24.5px] font-medium text-[var(--color-text-tertiary)];
+}
+
+.carousel__container {
+	--Carousel-gap: 8px;
+	@apply overflow-x-auto;
+	scrollbar-width: none;
+	scroll-snap-type: x mandatory;
+	overscroll-behavior-x: contain;
+	padding-block: 4px;
+}
+
+.carousel__inner {
+	@apply grid grid-flow-col gap-2 min-w-fit px-8;
+}
+
+.device__card {
+	@apply snap-center flex flex-col gap-3 w-[336px];
+}
+
+.device__placeholder {
+	@apply w-full aspect-[336/360] rounded-[30px] bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)];
+	background: linear-gradient(
+		135deg,
+		var(--color-bg-secondary) 0%,
+		var(--color-bg-tertiary) 100%
+	);
+}
+
+.device__title {
+	@apply text-sm text-[var(--color-text-tertiary)] leading-[21px] tracking-[-0.16px] px-2;
+}

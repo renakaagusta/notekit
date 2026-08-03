@@ -1,0 +1,65 @@
+.long__term__planning {
+	@apply overflow-x-hidden py-12 sm:py-[160px] isolate block;
+}
+
+.heading__container {
+	@apply grid grid-cols-8 md:grid-cols-12 gap-4 sm:gap-6;
+}
+
+.heading__inner__container {
+	@apply col-span-full md:col-span-8 flex flex-col gap-6;
+}
+
+.description__container {
+	@apply col-span-full md:col-span-5;
+}
+
+.description__container p {
+	@apply text-[17px] leading-[24.5px] tracking-normal font-medium text-[var(--color-text-tertiary)];
+}
+
+.description__container p span {
+	@apply text-[var(--color-text-primary)];
+}
+
+.hero__img__wrapper {
+	@apply relative pointer-events-none flex flex-col justify-center items-center my-12;
+}
+
+.git__log {
+	@apply w-[90vw] max-w-[700px] bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border-primary)] overflow-hidden;
+	mask-image: radial-gradient(
+		90% 50% at 50% 50%,
+		#d9d9d9 0,
+		hsla(0, 0%, 45%, 0) 100%
+	);
+}
+
+.git__commit {
+	@apply flex items-center gap-4 px-4 py-3 border-b border-[var(--color-border-primary)] last:border-0;
+}
+
+.commit__hash {
+	@apply text-[var(--color-text-quaternary)] font-mono text-xs w-16 flex-shrink-0;
+}
+
+.commit__msg {
+	@apply text-[var(--color-text-primary)] text-sm flex-1;
+}
+
+.commit__time {
+	@apply text-[var(--color-text-quaternary)] text-xs flex-shrink-0;
+}
+
+.bento__placeholder {
+	@apply w-full h-48 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)];
+	background: linear-gradient(
+		135deg,
+		var(--color-bg-secondary) 0%,
+		var(--color-bg-tertiary) 100%
+	);
+}
+
+.wide__placeholder {
+	@apply w-full h-24 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)];
+}

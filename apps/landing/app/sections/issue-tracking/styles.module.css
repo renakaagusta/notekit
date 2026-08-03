@@ -1,0 +1,65 @@
+.issue__tracking {
+	@apply block isolate overflow-hidden py-[48px] sm:py-[160px];
+}
+
+.heading__container {
+	@apply grid grid-cols-1 md:grid-cols-12;
+}
+
+.heading__inner__container {
+	@apply md:col-span-8 lg:col-span-6 flex flex-col gap-6;
+}
+
+.heading__inner__container p {
+	@apply text-balance text-[17px] leading-[24.5px] tracking-normal font-medium text-[var(--color-text-tertiary)];
+}
+
+.heading__inner__container p span {
+	@apply text-[var(--color-text-primary)];
+}
+
+.hero__img__wrapper {
+	@apply relative pointer-events-none flex flex-col justify-center items-center my-12;
+}
+
+.editor__preview {
+	@apply w-[90vw] max-w-[800px] bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border-primary)] overflow-hidden;
+	mask-image: radial-gradient(
+		83.83% 83.84% at 50% 16.17%,
+		#d9d9d9 0,
+		hsla(0, 0%, 45%, 0) 80%
+	);
+}
+
+.editor__toolbar {
+	@apply flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border-primary)] text-[var(--color-text-quaternary)] text-sm font-mono;
+}
+
+.editor__content {
+	@apply p-6 space-y-3;
+}
+
+.editor__h1 {
+	@apply text-[var(--color-text-primary)] text-xl font-semibold;
+}
+
+.editor__p {
+	@apply text-[var(--color-text-tertiary)] text-sm leading-relaxed;
+}
+
+.editor__code {
+	@apply text-[var(--color-text-tertiary)] text-xs font-mono bg-[var(--color-bg-tertiary)] px-4 py-3 rounded-lg whitespace-pre;
+}
+
+.bento__placeholder {
+	@apply w-full h-48 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)];
+	background: linear-gradient(
+		135deg,
+		var(--color-bg-secondary) 0%,
+		var(--color-bg-tertiary) 100%
+	);
+}
+
+.wide__placeholder {
+	@apply w-full h-32 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)];
+}

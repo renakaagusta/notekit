@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { ExternalLink, FileText, Pencil, Plus, Shield, X } from "lucide-react";
 import { HomePane } from "./HomePane";
 import { useNotesStore } from "../stores/notesStore";
@@ -16,6 +16,7 @@ import { InkCanvas } from "./InkCanvas";
 import { TabBar } from "./TabBar";
 import { GraphView } from "./GraphView";
 import { TasksView } from "./TasksView";
+import { NoteInfoPanel } from "./NoteInfoPanel";
 import type { TabEntry } from "../stores/layoutStore";
 
 interface EditorPaneProps {
@@ -36,6 +37,7 @@ export function EditorPane({
   onHistoryClick,
 }: EditorPaneProps) {
   const editorRef = useRef<EditorHandle>(null);
+  const [infoPanelOpen, setInfoPanelOpen] = useState(false);
 
   const pane = useLayoutStore((s) => findLeaf(s.layout, paneId));
   const activePaneId = useLayoutStore((s) => s.activePaneId);
@@ -129,6 +131,8 @@ export function EditorPane({
           onOutlineToggle={() => toggleOutline(paneId)}
           vimMode={vimMode}
           onVimToggle={onVimToggle}
+          infoPanelOpen={infoPanelOpen}
+          onInfoPanelToggle={() => setInfoPanelOpen((x) => !x)}
         />
       )}
 
@@ -141,6 +145,7 @@ export function EditorPane({
             onClose={() => toggleOutline(paneId)}
           />
         )}
+        <div className="nk-editor-main">
         {editorBinding && isInkNote && activeNoteId ? (
           <div className="nk-ink-wrap">
             <InkCanvas
@@ -204,6 +209,10 @@ export function EditorPane({
             onOpenNote={(id) => openNote(id, paneId)}
             onToggleTicket={(id) => setTicketStatus(id, "done")}
           />
+        )}
+        </div>
+        {infoPanelOpen && editorBinding && !isInkNote && (
+          <NoteInfoPanel noteId={activeNoteId} />
         )}
       </div>
     </div>

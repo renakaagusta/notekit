@@ -10,6 +10,7 @@ import {
   Lock as LucideLock,
   Maximize2 as LucideMaximize,
   Minimize2 as LucideMinimize,
+  PanelRight as LucidePanelRight,
   Redo2,
   Share2 as LucideShare,
   Table as LucideTable,
@@ -44,9 +45,11 @@ interface EditorToolbarProps {
   onOutlineToggle?(): void;
   vimMode?: boolean;
   onVimToggle?(): void;
+  infoPanelOpen?: boolean;
+  onInfoPanelToggle?(): void;
 }
 
-export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle, outlineOpen, onOutlineToggle, vimMode, onVimToggle }: EditorToolbarProps) {
+export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle, outlineOpen, onOutlineToggle, vimMode, onVimToggle, infoPanelOpen, onInfoPanelToggle }: EditorToolbarProps) {
   const [aaOpen, setAaOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -355,6 +358,15 @@ export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle,
         onClick={onOutlineToggle}
       >
         <LucideList size={16} aria-hidden />
+      </button>
+
+      <button
+        className={`nk-tb-btn${infoPanelOpen ? " is-active" : ""}`}
+        title="Note info panel"
+        aria-label="Toggle note info panel"
+        onClick={onInfoPanelToggle}
+      >
+        <LucidePanelRight size={16} aria-hidden />
       </button>
 
       <button

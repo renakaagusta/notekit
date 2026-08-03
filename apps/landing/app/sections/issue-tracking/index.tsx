@@ -5,7 +5,6 @@ import {
 	BentoGridFeatureLookupWrapper,
 	BentoGridSeperator,
 	BentoGridTopLayer,
-	BentoGridWideCardWrapper,
 } from '@/components/bento-grid'
 import styles from './styles.module.css'
 import BentoCardLeft from '@/components/bento-grid/components/bento-grid-card-left'
@@ -108,18 +107,57 @@ const NoteManagement: FC = () => {
 						<BentoCardLeft
 							title='Write with focus'
 							description='Clean Markdown editor with slash commands, code blocks, and math support.'>
-							<div className={styles.bento__placeholder} />
+							<div className={styles.editor__mockup}>
+								<div className={styles.mockup__toolbar}>
+									<span className={styles.mockup__tool}>B</span>
+									<span className={styles.mockup__tool}>I</span>
+									<span className={styles.mockup__tool}>H1</span>
+									<span className={styles.mockup__tool__sep} />
+									<span className={styles.mockup__tool}>{'</>'}</span>
+									<span className={styles.mockup__tool}>⌘K</span>
+									<span className={styles.mockup__slash}>/</span>
+								</div>
+								<div className={styles.mockup__content}>
+									<div className={styles.mockup__heading}>Weekly Review</div>
+									<div className={styles.mockup__text} style={{ width: '82%' }} />
+									<div className={styles.mockup__text} style={{ width: '65%' }} />
+									<div className={styles.mockup__code__block}>
+										<span className={styles.mockup__code__kw}>const</span>
+										<span className={styles.mockup__code__var}> note</span>
+										<span className={styles.mockup__code__op}> =</span>
+										<span className={styles.mockup__code__str}> &ldquo;...&rdquo;</span>
+									</div>
+									<div className={styles.mockup__text} style={{ width: '70%' }} />
+									<div className={styles.mockup__text} style={{ width: '45%' }} />
+								</div>
+							</div>
 						</BentoCardLeft>
 						<BentoGridCardRight
 							title='Encrypted by default'
 							description='Every note is age-encrypted before it syncs. The server never sees plaintext.'>
-							<div className={styles.bento__placeholder} />
+							<div className={styles.encrypt__mockup}>
+								<div className={styles.encrypt__before}>
+									<div className={styles.encrypt__label}>plaintext</div>
+									<div className={styles.encrypt__text}>Weekly Review</div>
+									<div className={styles.encrypt__line} style={{ width: '80%' }} />
+									<div className={styles.encrypt__line} style={{ width: '60%' }} />
+								</div>
+								<div className={styles.encrypt__arrow}>
+									<svg width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round'>
+										<rect x='3' y='11' width='18' height='11' rx='2' />
+										<path d='M7 11V7a5 5 0 0 1 10 0v4' />
+									</svg>
+									<span>age</span>
+								</div>
+								<div className={styles.encrypt__after}>
+									<div className={styles.encrypt__label}>ciphertext</div>
+									<div className={styles.encrypt__cipher}>AGE1YT3...</div>
+									<div className={styles.encrypt__cipher__line} style={{ width: '85%' }} />
+									<div className={styles.encrypt__cipher__line} style={{ width: '70%' }} />
+								</div>
+							</div>
 						</BentoGridCardRight>
 					</BentoGridTopLayer>
-
-					<BentoGridWideCardWrapper>
-						<div className={styles.wide__placeholder} />
-					</BentoGridWideCardWrapper>
 
 					<BentoGridSeperator />
 

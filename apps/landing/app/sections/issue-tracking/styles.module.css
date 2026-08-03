@@ -51,15 +51,85 @@
 	@apply text-[var(--color-text-tertiary)] text-xs font-mono bg-[var(--color-bg-tertiary)] px-4 py-3 rounded-lg whitespace-pre;
 }
 
-.bento__placeholder {
-	@apply w-full h-48 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)];
-	background: linear-gradient(
-		135deg,
-		var(--color-bg-secondary) 0%,
-		var(--color-bg-tertiary) 100%
-	);
+/* Editor mockup */
+.editor__mockup {
+	@apply w-full rounded-xl border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] overflow-hidden mt-4;
 }
 
-.wide__placeholder {
-	@apply w-full h-32 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)];
+.mockup__toolbar {
+	@apply flex items-center gap-2 px-4 py-2 border-b border-white/[0.06] text-[11px] text-white/25 font-mono;
+}
+
+.mockup__tool {
+	@apply hover:text-white/50 cursor-default;
+}
+
+.mockup__tool__sep {
+	@apply w-px h-3 bg-white/10 mx-1;
+}
+
+.mockup__slash {
+	@apply ml-auto text-white/40 font-semibold;
+}
+
+.mockup__content {
+	@apply p-5 flex flex-col gap-2;
+}
+
+.mockup__heading {
+	@apply text-white/70 text-[13px] font-semibold mb-2;
+}
+
+.mockup__text {
+	@apply h-2 rounded-full bg-white/[0.08];
+}
+
+.mockup__code__block {
+	@apply rounded-lg bg-white/[0.04] border border-white/[0.06] px-4 py-3 text-[11px] font-mono my-1;
+}
+
+.mockup__code__kw { @apply text-[#7dd3fc]; }
+.mockup__code__var { @apply text-white/60; }
+.mockup__code__op { @apply text-white/30; }
+.mockup__code__str { @apply text-[#86efac]; }
+
+/* Encryption mockup */
+.encrypt__mockup {
+	@apply w-full flex items-center gap-3 mt-4 px-2;
+}
+
+.encrypt__before, .encrypt__after {
+	@apply flex-1 rounded-xl border border-white/[0.08] bg-white/[0.03] p-4 flex flex-col gap-2;
+}
+
+.encrypt__label {
+	@apply text-[9px] uppercase tracking-widest text-white/25 mb-1;
+}
+
+.encrypt__text {
+	@apply text-[12px] text-white/60 font-medium;
+}
+
+.encrypt__line {
+	@apply h-2 rounded-full bg-white/[0.08];
+}
+
+.encrypt__after {
+	@apply border-white/[0.12] bg-white/[0.05];
+}
+
+.encrypt__cipher {
+	@apply text-[11px] text-white/40 font-mono tracking-tight;
+}
+
+.encrypt__cipher__line {
+	@apply h-2 rounded-full bg-white/[0.12];
+}
+
+.encrypt__arrow {
+	@apply flex flex-col items-center gap-1 text-white/30 flex-shrink-0;
+}
+
+.encrypt__arrow span {
+	@apply text-[9px] font-mono;
 }

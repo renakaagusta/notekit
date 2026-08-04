@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { Check, FileText, ListChecks, Loader2, Lock, MessagesSquare, Plus, Send, Sparkles, TextSelect, Trash2, Wrench, X } from "lucide-react";
+import { Check, FileText, History, ListChecks, Loader2, Lock, Plus, Search, Send, Sparkles, TextSelect, Trash2, Wrench, X } from "lucide-react";
 import { useAIChatStore, messageText } from "../stores/aiChatStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useNotesStore } from "../stores/notesStore";
@@ -92,7 +92,8 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   const [selection, setSelection] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyQuery, setHistoryQuery] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   // Remember createdAt across saves of the same session (title stays derived).
   const sessionCreatedRef = useRef<string | null>(null);
@@ -299,7 +300,8 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   /** Open a saved conversation from the history list. */
   async function openSession(id: string) {
     if (!device) return;
-    setHistoryOpen(false);
+    setShowHistory(false);
+    setHistoryQuery("");
     try {
       const session = await readChatSession(id, device);
       if (session) {
@@ -315,7 +317,8 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   function newChat() {
     startNewSession();
     sessionCreatedRef.current = null;
-    setHistoryOpen(false);
+    setShowHistory(false);
+    setHistoryQuery("");
   }
 
   /** Delete a saved conversation. If it's the open one, reset to a fresh chat. */
@@ -412,47 +415,14 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
             >
               <Plus size={15} aria-hidden />
             </button>
-            <div className="nk-ai-history-wrap">
-              <button
-                className={`nk-iconbtn${historyOpen ? " is-on" : ""}`}
-                onClick={() => setHistoryOpen((v) => !v)}
-                aria-label="Riwayat obrolan"
-                title="Riwayat"
-              >
-                <MessagesSquare size={15} aria-hidden />
-              </button>
-              {historyOpen && (
-                <div className="nk-ai-history">
-                  {sessions.length === 0 ? (
-                    <div className="nk-ai-ctx-empty">Belum ada riwayat</div>
-                  ) : (
-                    sessions.map((s) => (
-                      <div
-                        key={s.id}
-                        className={`nk-ai-history-row${s.id === currentSessionId ? " is-active" : ""}`}
-                      >
-                        <button
-                          className="nk-ai-history-open"
-                          onClick={() => void openSession(s.id)}
-                          title={s.title}
-                        >
-                          <span className="nk-ai-history-title">{s.title}</span>
-                          <span className="nk-ai-history-time">{relTime(s.updatedAt)}</span>
-                        </button>
-                        <button
-                          className="nk-ai-history-del"
-                          onClick={() => void removeSession(s.id)}
-                          aria-label="Hapus obrolan"
-                          title="Hapus"
-                        >
-                          <Trash2 size={12} aria-hidden />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
+            <button
+              className={`nk-iconbtn${showHistory ? " is-on" : ""}`}
+              onClick={() => setShowHistory((v) => !v)}
+              aria-label="Riwayat obrolan"
+              title="Riwayat"
+            >
+              <History size={15} aria-hidden />
+            </button>
           </>
         )}
         <button
@@ -492,6 +462,69 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
       ) : !loaded ? (
         <div className="nk-ai-gate">
           <Loader2 size={22} className="nk-ai-spin" aria-hidden />
+        </div>
+      ) : showHistory ? (
+        <div className="nk-ai-history-page">
+          <div className="nk-ai-history-search">
+            <Search size={14} aria-hidden />
+            <input
+              className="nk-ai-history-search-input"
+              placeholder="Cari riwayat obrolan…"
+              value={historyQuery}
+              onChange={(e) => setHistoryQuery(e.target.value)}
+              autoFocus
+            />
+            {historyQuery && (
+              <button
+                className="nk-ai-history-search-clear"
+                onClick={() => setHistoryQuery("")}
+                aria-label="Bersihkan pencarian"
+              >
+                <X size={13} aria-hidden />
+              </button>
+            )}
+          </div>
+          <div className="nk-ai-history-list">
+            {(() => {
+              const q = historyQuery.trim().toLowerCase();
+              const hits = q
+                ? sessions.filter((s) => (s.title || "").toLowerCase().includes(q))
+                : sessions;
+              if (sessions.length === 0)
+                return (
+                  <div className="nk-ai-history-empty">
+                    <History size={26} aria-hidden />
+                    <p>Belum ada riwayat obrolan.</p>
+                  </div>
+                );
+              if (hits.length === 0)
+                return <div className="nk-ai-history-empty"><p>Tak ada yang cocok.</p></div>;
+              return hits.map((s) => (
+                <div
+                  key={s.id}
+                  className={`nk-ai-history-row${s.id === currentSessionId ? " is-active" : ""}`}
+                >
+                  <button
+                    className="nk-ai-history-open"
+                    onClick={() => void openSession(s.id)}
+                    title={s.title}
+                  >
+                    <History size={13} aria-hidden />
+                    <span className="nk-ai-history-title">{s.title}</span>
+                    <span className="nk-ai-history-time">{relTime(s.updatedAt)}</span>
+                  </button>
+                  <button
+                    className="nk-ai-history-del"
+                    onClick={() => void removeSession(s.id)}
+                    aria-label="Hapus obrolan"
+                    title="Hapus"
+                  >
+                    <Trash2 size={13} aria-hidden />
+                  </button>
+                </div>
+              ));
+            })()}
+          </div>
         </div>
       ) : (
         <>

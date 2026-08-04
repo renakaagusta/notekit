@@ -9211,33 +9211,64 @@ a.nk-commit-sha:hover {
   cursor: pointer;
 }
 
-/* Chat history dropdown. */
-.nk-ai-history-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
 .nk-iconbtn.is-on {
   color: var(--accent, #6366f1);
 }
-.nk-ai-history {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 60;
-  width: 280px;
-  max-width: 85vw;
-  max-height: 340px;
+
+/* Full-panel chat history page (replaces the transcript when toggled). */
+.nk-ai-history-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.nk-ai-history-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.nk-ai-history-search svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.nk-ai-history-search-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+.nk-ai-history-search-clear {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+}
+.nk-ai-history-search-clear:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+.nk-ai-history-list {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 4px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  padding: 6px;
 }
 .nk-ai-history-row {
   display: flex;
   align-items: center;
-  border-radius: 6px;
+  border-radius: 7px;
 }
 .nk-ai-history-row:hover {
   background: var(--hover);
@@ -9249,16 +9280,20 @@ a.nk-commit-sha:hover {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: baseline;
-  gap: 8px;
+  align-items: center;
+  gap: 9px;
   border: 0;
   background: none;
   color: var(--text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   text-align: left;
-  padding: 7px 8px;
+  padding: 10px 10px;
   cursor: pointer;
+}
+.nk-ai-history-open > svg {
+  flex-shrink: 0;
+  color: var(--muted);
 }
 .nk-ai-history-title {
   flex: 1;
@@ -9280,16 +9315,30 @@ a.nk-commit-sha:hover {
   border: 0;
   background: none;
   color: var(--muted);
-  padding: 6px 8px;
+  padding: 8px 10px;
   cursor: pointer;
   opacity: 0;
-  border-radius: 5px;
+  border-radius: 6px;
 }
 .nk-ai-history-row:hover .nk-ai-history-del {
   opacity: 1;
 }
 .nk-ai-history-del:hover {
   color: var(--danger, #ef4444);
+}
+.nk-ai-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.nk-ai-history-empty svg {
+  opacity: 0.5;
 }
 
 /* Gate states (vault not ready / no profiles). */

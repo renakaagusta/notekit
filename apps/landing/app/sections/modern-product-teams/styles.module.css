@@ -30,24 +30,19 @@
 	@apply text-balance text-[17px] leading-[24.5px] font-medium text-[var(--color-text-tertiary)];
 }
 
-.carousel__container {
-	@apply overflow-x-auto;
-	scrollbar-width: none;
-	scroll-snap-type: x mandatory;
-	overscroll-behavior-x: contain;
-	padding-block: 4px;
-}
-
-.carousel__inner {
-	@apply grid grid-flow-col gap-3 min-w-fit px-8;
+.cards__grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
 }
 
 .device__card {
-	@apply snap-center flex flex-col gap-4 w-[280px] sm:w-[300px];
+	@apply flex flex-col gap-4;
 }
 
 .device__visual {
-	@apply w-full aspect-[300/240] rounded-[24px] bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)] flex items-center justify-center;
+	@apply w-full rounded-[18px] bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)] flex items-center justify-center;
+	height: 140px;
 }
 
 .icon__group {

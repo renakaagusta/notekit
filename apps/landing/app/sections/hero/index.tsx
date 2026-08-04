@@ -7,17 +7,22 @@ import BlurPopUp from '@/components/blur-pop-up'
 import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
 
-const EyeIcon = () => (
+const ShieldIcon = () => (
 	<svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
-		<path d='M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z' />
-		<circle cx='12' cy='12' r='3' />
+		<path d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' />
 	</svg>
 )
 
-const CodeIcon = () => (
+const PlatformIcon = () => (
 	<svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
-		<polyline points='16 18 22 12 16 6' />
-		<polyline points='8 6 2 12 8 18' />
+		<rect x='2' y='3' width='20' height='14' rx='2' />
+		<path d='M8 21h8M12 17v4' />
+	</svg>
+)
+
+const LogIcon = () => (
+	<svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>
+		<path d='M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22' />
 	</svg>
 )
 
@@ -35,21 +40,20 @@ const Hero: FC = () => {
 		<section className={styles.hero}>
 			<LayoutWrapper>
 				<h1 className={cn(styles.heading, styles.hide__mobile)}>
-					<BlurPopUpByWord text='Notes only you can read.' />
+					<BlurPopUpByWord text='A second brain you actually own.' />
 				</h1>
 
 				<h1 className={cn(styles.heading, styles.show__mobile, 'text-center')}>
-					<BlurPopUpByWord text='Notes only you can read.' />
+					<BlurPopUpByWord text='A second brain you actually own.' />
 				</h1>
 
 				<BlurPopUp delay={1}>
 					<h2 className={cn(styles.sub__heading, styles.hide__mobile)}>
-						A note-taking app that doesn&apos;t ask you to trust us.
-						You can see where your notes are stored, how they&apos;re protected,
-						and run the whole thing yourself if you want.
+						Encrypted on your device. Synced via Git. Available on every platform.
+						Every change is logged. Every note is always yours.
 					</h2>
 					<h2 className={cn(styles.sub__heading, styles.show__mobile)}>
-						A note-taking app that doesn&apos;t ask you to trust us. Fully open, fully yours.
+						Encrypted on your device. Synced via Git. Available everywhere. Fully yours.
 					</h2>
 				</BlurPopUp>
 
@@ -75,16 +79,20 @@ const Hero: FC = () => {
 				<BlurPopUp delay={1.3}>
 					<div className={styles.trust__pills}>
 						<span className={styles.trust__pill}>
-							<EyeIcon />
-							See exactly where your notes are stored
+							<ShieldIcon />
+							Encrypted before it leaves your device
 						</span>
 						<span className={styles.trust__pill}>
-							<CodeIcon />
-							Verify the encryption yourself — it&apos;s open source
+							<PlatformIcon />
+							Web, desktop, mobile &amp; CLI
+						</span>
+						<span className={styles.trust__pill}>
+							<LogIcon />
+							Full audit log — every change is a commit
 						</span>
 						<span className={styles.trust__pill}>
 							<ServerIcon />
-							Self-host the whole stack if you prefer
+							Self-host or bring your own Git
 						</span>
 					</div>
 				</BlurPopUp>

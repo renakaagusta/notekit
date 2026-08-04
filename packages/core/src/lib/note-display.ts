@@ -2,11 +2,23 @@ import type { Note } from "../types/note";
 
 /** First non-empty line of the body, with leading "# " stripped. Falls back to "Untitled". */
 export function noteTitle(note: Pick<Note, "body" | "title">): string {
-  const firstLine = note.body
-    .split("\n")
-    .map((l) => l.trim())
-    .find((l) => l.length > 0);
-  if (!firstLine) return note.title || "Untitled";
+  const lines = note.body.split("\n").map((l) => l.trim());
+  const first = lines.findIndex((l) => l.length > 0);
+  if (first === -1) return note.title || "Untitled";
+  const firstLine = lines[first] ?? "";
+  // A body that opens with a code fence (```interactive, ```html, …) has no
+  // meaningful heading on line 1 — the fence marker itself is not a title.
+  // Prefer the explicit title, else the first text line AFTER the fenced block.
+  if (firstLine.startsWith("```")) {
+    if (note.title && note.title.trim()) return note.title.trim().slice(0, 120);
+    let j = first + 1;
+    while (j < lines.length && !(lines[j] ?? "").startsWith("```")) j++; // closing fence
+    for (let k = j + 1; k < lines.length; k++) {
+      const l = lines[k] ?? "";
+      if (l.length > 0) return l.replace(/^#+\s+/, "").slice(0, 120) || "Untitled";
+    }
+    return "Untitled";
+  }
   return firstLine.replace(/^#+\s+/, "").slice(0, 120) || "Untitled";
 }
 

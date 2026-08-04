@@ -44,6 +44,24 @@ function snippet(body: string, max = 140): string {
 }
 
 /**
+ * A note's title IS the first line of its body (see {@link noteTitle}); the
+ * `title` field isn't persisted. So a body that opens with a ```interactive /
+ * ```html fence (or raw HTML) would be titled with that marker. Bake the
+ * requested title in as a leading heading unless the body already starts with
+ * one, so interactive/quiz notes get a real, findable title.
+ */
+function withTitleHeading(title: string, body: string): string {
+  const t = title.trim();
+  if (!t) return body;
+  const firstLine = body
+    .split("\n")
+    .map((l) => l.trim())
+    .find((l) => l.length > 0);
+  if (firstLine && /^#{1,6}\s+/.test(firstLine)) return body; // already has a heading
+  return `# ${t}\n\n${body.replace(/^\s+/, "")}`;
+}
+
+/**
  * Human-readable label for a tool call, including which note it touches — shown
  * as an activity chip in the transcript (e.g. `Menghapus "Ideas"`).
  */
@@ -301,7 +319,7 @@ export function buildAssistantTools(
         if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
         const note = useNotesStore.getState().upsert({
           title,
-          body: body ?? "",
+          body: withTitleHeading(title, body ?? ""),
           folder: folder ?? ctx.defaultFolder ?? null,
         });
         useLayoutStore.getState().openNote(note.id);

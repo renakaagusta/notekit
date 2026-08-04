@@ -42,6 +42,18 @@
 	@apply text-[var(--color-text-quaternary)];
 }
 
+.hero .trust__pills {
+	@apply flex flex-wrap gap-2 mt-8 sm:mt-10;
+}
+
+.hero .trust__pill {
+	@apply flex items-center gap-2 text-[13px] text-white/40 border border-white/[0.08] bg-white/[0.03] px-3 py-2 rounded-full;
+}
+
+.hero .trust__pill svg {
+	@apply flex-shrink-0 text-white/30;
+}
+
 .hero .hero__img__container {
 	@apply pointer-events-none select-none relative;
 	width: 100vw;

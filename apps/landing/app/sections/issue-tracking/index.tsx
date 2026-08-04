@@ -57,7 +57,7 @@ const featureLookup = [
 
 const NoteManagement: FC = () => {
 	return (
-		<section className={styles.issue__tracking}>
+		<section id='features' className={styles.issue__tracking}>
 			<LayoutWrapper>
 				<div className={styles.heading__container}>
 					<div className={styles.heading__inner__container}>

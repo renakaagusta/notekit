@@ -11,7 +11,7 @@
 
 .header .header__wrapper {
 	@apply block select-none isolate overflow-hidden fixed px-3 max-w-[var(--header-max-width)] z-[var(--layer-header)] backdrop-blur-xl backdrop-saturate-[140%] rounded-[var(--header-radius)];
-	background: hsla(0, 0%, 4%, 0.85);
+	background: hsla(0, 0%, 4%, 0.55);
 	--clip: inset(
 		0 0 calc(100% - var(--header-height) + var(--header-top)) 0 round
 			var(--header-radius)

@@ -1,8 +1,15 @@
+'use client'
+
 import { type FC } from 'react'
 import Link from 'next/link'
 import styles from './styles.module.css'
 
 const Header: FC = () => {
+	const scrollTo = (id: string) => (e: React.MouseEvent) => {
+		e.preventDefault()
+		document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+	}
+
 	return (
 		<header className={styles.header}>
 			<div className={styles.header__blur__mask} />
@@ -27,22 +34,16 @@ const Header: FC = () => {
 						</li>
 
 						<li className={`${styles.header__item} ${styles.hide__mobile}`}>
-							<Link href='#' className={styles.header__link}>
+							<a href='#features' onClick={scrollTo('features')} className={styles.header__link}>
 								Features
-							</Link>
+							</a>
 						</li>
 						<li className={`${styles.header__item} ${styles.hide__mobile}`}>
-							<Link href='#' className={styles.header__link}>
+							<a href='#pricing' onClick={scrollTo('pricing')} className={styles.header__link}>
 								Pricing
-							</Link>
+							</a>
 						</li>
-						<li className={styles.header__login}>
-							<Link
-								href='https://app.notekit.online'
-								className={styles.button__login}>
-								Sign in
-							</Link>
-						</li>
+
 						<li className={styles.header__signup}>
 							<Link
 								href='https://app.notekit.online'

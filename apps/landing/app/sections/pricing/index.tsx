@@ -66,7 +66,7 @@ const CheckIcon = () => (
 
 const Pricing: FC = () => {
 	return (
-		<section className={styles.pricing}>
+		<section id='pricing' className={styles.pricing}>
 			<LayoutWrapper>
 				<div className={styles.heading__container}>
 					<p className={styles.badge}>Pricing</p>

@@ -1,15 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
 import { Check, FileText, Loader2, Lock, Send, Sparkles, TextSelect, Wrench, X } from "lucide-react";
-import { useAIChatStore } from "../stores/aiChatStore";
+import { useAIChatStore, messageText } from "../stores/aiChatStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { noteTitle } from "../lib/note-display";
-import { listAgents, DEFAULT_AGENT_MODEL, type AgentProfile } from "../lib/agents-api";
+import {
+  listAgents,
+  agentKeySecretName,
+  DEFAULT_AGENT_MODEL,
+  DEFAULT_SYSTEM_PROMPT,
+  type AgentProfile,
+} from "../lib/agents-api";
 import { listSecretNames } from "../lib/secrets-vault";
 import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
-import { buildAssistantTools } from "../lib/ai-tools";
+import { buildAssistantTools, describeToolCall } from "../lib/ai-tools";
+import { renderAssistantHtml } from "../lib/chat-markdown";
 
 interface Props {
   /** Open the Agents manager so the user can create their first profile / add a key. */
@@ -18,10 +25,6 @@ interface Props {
   refreshTick?: number;
 }
 
-const DEFAULT_SYSTEM =
-  "Kamu adalah asisten AI di dalam NoteKit, aplikasi catatan lokal-first. " +
-  "Jawab ringkas, jelas, dan membantu. Bila diberi konteks catatan, gunakan itu " +
-  "sebagai rujukan. Gunakan bahasa yang sama dengan pengguna.";
 
 function wordCount(s: string): number {
   const t = s.trim();
@@ -49,11 +52,16 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   const defaultFolder = useVaultStore((s) => s.activeSettings?.defaultFolder ?? null);
 
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
-  const [keyStored, setKeyStored] = useState<Record<string, boolean> | null>(null);
+  const [keyStoredSlugs, setKeyStoredSlugs] = useState<Set<string> | null>(null);
   const [draft, setDraft] = useState("");
   const [selection, setSelection] = useState("");
   const abortRef = useRef<AbortController | null>(null);
-  const approvalResolver = useRef<((ok: boolean) => void) | null>(null);
+  // Queue of approvals — the model may fire several mutating tools (even in
+  // parallel), and each needs its own confirmation. A single slot would let
+  // later requests clobber earlier ones and deadlock the stream.
+  const approvalQueue = useRef<
+    Array<{ id: string; toolName: string; summary: string; input: unknown; resolve: (ok: boolean) => void }>
+  >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Load agents + key status when the panel opens or setup state changes
@@ -65,12 +73,15 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
       try {
         const names = await listSecretNames();
         if (!cancelled)
-          setKeyStored({
-            anthropic: names.includes("anthropic"),
-            "openai-compatible": names.includes("openai-compatible"),
-          });
+          setKeyStoredSlugs(
+            new Set(
+              names
+                .filter((n) => n.startsWith("agentkey-"))
+                .map((n) => n.slice("agentkey-".length)),
+            ),
+          );
       } catch {
-        if (!cancelled) setKeyStored({});
+        if (!cancelled) setKeyStoredSlugs(new Set());
       }
       try {
         const res = await listAgents();
@@ -116,7 +127,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     const store = useAIChatStore.getState();
     const prior: AssistantMessage[] = store.messages.map((m) => ({
       role: m.role,
-      content: m.content,
+      content: messageText(m),
     }));
 
     // Build the scoped context block: selection wins over whole-note.
@@ -139,67 +150,100 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     const permissions = selectedAgent.toolPermissions ?? "read-only";
     const tools = buildAssistantTools({ requestApproval, defaultFolder }, permissions);
 
-    let system = selectedAgent.systemPrompt?.trim() || DEFAULT_SYSTEM;
+    let system = selectedAgent.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT;
     system +=
-      "\n\nKamu punya tools untuk mencari, membaca, membuka, dan menutup catatan" +
+      "\n\nKamu punya tools untuk: catatan (list_notes, search_notes, read_note), folder (list_folders), link (list_links), task/tiket (list_tasks), nama secret (list_secrets — TANPA nilai), riwayat commit git (recent_activity), serta membuka/menutup tab" +
       (permissions === "read-write"
-        ? ", serta membuat, mengubah, dan menghapus catatan (perubahan minta persetujuan pengguna dulu)."
+        ? ". Kamu juga bisa membuat/mengubah/menghapus catatan, menyimpan link, membuat task & ubah statusnya — setiap perubahan minta persetujuan pengguna dulu."
         : ".") +
-      " Gunakan tools bila relevan dengan permintaan.";
+      " Saat ditanya isi vault secara menyeluruh, gunakan list_notes (bukan search_notes). Kamu TIDAK PERNAH bisa membaca NILAI secret, hanya namanya. Gunakan tools bila relevan.";
 
     try {
       await streamAssistant({
         device,
+        keySecretName: agentKeySecretName(selectedAgent.slug),
         provider: selectedAgent.provider ?? "anthropic",
         baseUrl: selectedAgent.baseUrl,
         model: selectedAgent.model ?? DEFAULT_AGENT_MODEL,
         system,
         messages: [...prior, { role: "user", content: contextBlock + text }],
         tools,
+        maxSteps: 16,
         signal: controller.signal,
         onDelta: (d) => useAIChatStore.getState().appendDelta(assistantId, d),
         onToolCall: (c) =>
-          useAIChatStore.getState().addToolNote(assistantId, c.toolName),
+          useAIChatStore
+            .getState()
+            .addToolNote(assistantId, describeToolCall(c.toolName, c.input)),
+        onToolsUnsupported: () =>
+          useAIChatStore
+            .getState()
+            .addToolNote(assistantId, "Model ini tak mendukung tools — dijawab sebagai chat biasa"),
       });
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
         useAIChatStore.getState().setError((e as Error).message);
       }
     } finally {
+      drainApprovals(); // clear any approvals left dangling if the run ended early
+      // If tools ran but the model gave no closing text, don't leave it hanging.
+      const msg = useAIChatStore.getState().messages.find((m) => m.id === assistantId);
+      if (msg && !messageText(msg).trim() && msg.parts.some((p) => p.kind === "tool")) {
+        useAIChatStore.getState().appendDelta(assistantId, "Selesai.");
+      }
       useAIChatStore.getState().finishAssistant(assistantId);
       useAIChatStore.getState().setStreaming(false);
       abortRef.current = null;
     }
   }
 
-  /** Promise-based approval gate: a mutating tool awaits this until the user
-   *  clicks Approve/Reject on the card rendered below. */
+  /** Show the head of the approval queue (or clear it). */
+  function showNextApproval() {
+    const next = approvalQueue.current[0];
+    useAIChatStore
+      .getState()
+      .setPendingApproval(
+        next
+          ? { id: next.id, toolName: next.toolName, summary: next.summary, input: next.input }
+          : null,
+      );
+  }
+
+  /** A mutating tool awaits this until the user clicks Approve/Reject. Multiple
+   *  requests queue up and are shown one at a time. */
   function requestApproval(toolName: string, summary: string, input: unknown): Promise<boolean> {
     return new Promise((resolve) => {
-      approvalResolver.current = resolve;
-      useAIChatStore.getState().setPendingApproval({ id: nanoid(), toolName, summary, input });
+      approvalQueue.current.push({ id: nanoid(), toolName, summary, input, resolve });
+      if (approvalQueue.current.length === 1) showNextApproval();
     });
   }
 
   function resolveApproval(ok: boolean) {
-    const r = approvalResolver.current;
-    approvalResolver.current = null;
+    const item = approvalQueue.current.shift();
+    item?.resolve(ok);
+    showNextApproval();
+  }
+
+  /** Reject everything still queued — used when the run is stopped/aborted. */
+  function drainApprovals() {
+    const q = approvalQueue.current;
+    approvalQueue.current = [];
+    q.forEach((i) => i.resolve(false));
     useAIChatStore.getState().setPendingApproval(null);
-    r?.(ok);
   }
 
   function onStop() {
-    resolveApproval(false); // release any pending tool so the loop can unwind
+    drainApprovals(); // release every pending tool so the loop can unwind
     abortRef.current?.abort();
   }
 
   const notReady = cryptoPhase !== "ready";
-  const loaded = agents !== null && keyStored !== null;
+  const loaded = agents !== null && keyStoredSlugs !== null;
   const noAgents = agents !== null && agents.length === 0;
-  // The key that the *selected* profile needs (its provider family).
-  const selectedProvider = selectedAgent?.provider ?? "anthropic";
-  const noKey = keyStored !== null && !keyStored[selectedProvider];
-  // Needs setup if the vault is ready but the right key or a profile is missing.
+  // The selected profile needs its own key saved.
+  const noKey =
+    keyStoredSlugs !== null && !!selectedAgent && !keyStoredSlugs.has(selectedAgent.slug);
+  // Needs setup if the vault is ready but the selected profile's key or a profile is missing.
   const needsSetup = !notReady && loaded && (noKey || noAgents);
 
   return (
@@ -247,13 +291,9 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
           <Sparkles size={30} aria-hidden />
           <p>Siapkan AI dulu</p>
           <p className="nk-ai-gate-hint">
-            {noKey && noAgents
-              ? "Tambahkan API key dan buat satu profil AI untuk mulai."
-              : noKey
-                ? selectedProvider === "openai-compatible"
-                  ? "Profil ini butuh API key OpenAI-compatible. Tambahkan di pengaturan AI."
-                  : "Tambahkan Anthropic API key untuk mulai."
-                : "Buat satu profil AI (nama, model, persona) untuk mulai."}
+            {noAgents
+              ? "Buat satu profil AI (provider, key, model) untuk mulai."
+              : "Profil ini belum punya API key. Buka profil di pengaturan AI untuk mengisinya."}
           </p>
           {onOpenAgents && (
             <button className="nk-btn nk-btn--primary" onClick={onOpenAgents}>
@@ -301,21 +341,38 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
                 <p>Tanya apa saja tentang catatanmu.</p>
               </div>
             ) : (
-              messages.map((m) => (
-                <div key={m.id} className="nk-ai-turn">
-                  {m.toolNotes?.map((t, i) => (
-                    <div key={i} className="nk-ai-toolnote">
-                      <Wrench size={11} aria-hidden /> {t}
-                    </div>
-                  ))}
-                  {(m.content || !m.toolNotes?.length) && (
-                    <div className={`nk-ai-msg nk-ai-msg--${m.role}`}>
-                      {m.content || (m.pending ? <span className="nk-ai-caret">▍</span> : "")}
-                      {m.pending && m.content && <span className="nk-ai-caret">▍</span>}
-                    </div>
-                  )}
-                </div>
-              ))
+              messages.map((m) => {
+                const last = m.parts[m.parts.length - 1];
+                const showCaret = m.pending && (!last || last.kind === "tool");
+                return (
+                  <div key={m.id} className="nk-ai-turn">
+                    {m.parts.map((p, i) =>
+                      p.kind === "tool" ? (
+                        <div key={i} className="nk-ai-toolnote">
+                          <Wrench size={11} aria-hidden /> {p.label}
+                        </div>
+                      ) : m.role === "assistant" ? (
+                        <div key={i} className="nk-ai-msg nk-ai-msg--assistant nk-ai-prose">
+                          <div
+                            dangerouslySetInnerHTML={{
+                              __html: renderAssistantHtml(p.text),
+                            }}
+                          />
+                        </div>
+                      ) : (
+                        <div key={i} className="nk-ai-msg nk-ai-msg--user">
+                          {p.text}
+                        </div>
+                      ),
+                    )}
+                    {showCaret && (
+                      <div className="nk-ai-msg nk-ai-msg--assistant">
+                        <span className="nk-ai-caret">▍</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
             )}
             {pendingApproval && (
               <div className="nk-ai-approval">
@@ -351,7 +408,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
                   void onSend();
                 }
               }}
-              rows={2}
+              rows={1}
               disabled={streaming}
             />
             {streaming ? (

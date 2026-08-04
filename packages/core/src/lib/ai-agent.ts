@@ -16,6 +16,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
   streamText,
+  generateText,
   stepCountIs,
   type LanguageModel,
   type ModelMessage,
@@ -25,11 +26,6 @@ import { getSecret } from "./secrets-vault";
 import type { DeviceIdentity } from "./crypto/device-key";
 import { DEFAULT_AGENT_MODEL, type AgentProvider } from "./agents-api";
 
-/** Vault secret name holding the key for each provider family. */
-export const PROVIDER_KEY_NAME: Record<AgentProvider, string> = {
-  anthropic: "anthropic",
-  "openai-compatible": "openai-compatible",
-};
 
 export interface AssistantMessage {
   role: "user" | "assistant";
@@ -38,6 +34,8 @@ export interface AssistantMessage {
 
 export interface StreamAssistantOptions {
   device: DeviceIdentity;
+  /** Vault secret name holding this profile's API key (see agentKeySecretName). */
+  keySecretName: string;
   /** API family. Defaults to anthropic. */
   provider?: AgentProvider;
   /** Base URL for openai-compatible providers. */
@@ -56,11 +54,15 @@ export interface StreamAssistantOptions {
   onDelta?: (text: string) => void;
   /** Fired when the model decides to call a tool (phase 2). */
   onToolCall?: (call: { toolName: string; input: unknown; toolCallId: string }) => void;
+  /** Fired when tools were dropped because the model/endpoint rejected them. */
+  onToolsUnsupported?: () => void;
 }
 
 export interface StreamAssistantResult {
   /** The full assembled assistant text. */
   text: string;
+  /** True if tools were dropped mid-run (model rejected them). */
+  toolsDropped: boolean;
 }
 
 /**
@@ -73,26 +75,21 @@ export interface StreamAssistantResult {
 async function resolveModel(opts: StreamAssistantOptions): Promise<LanguageModel> {
   const provider: AgentProvider = opts.provider ?? "anthropic";
 
+  const key = await getSecret(opts.keySecretName, opts.device);
+  if (!key) {
+    throw new Error("API key profil ini belum diisi. Buka profil di pengaturan AI.");
+  }
+
   if (provider === "openai-compatible") {
-    const key = await getSecret(PROVIDER_KEY_NAME["openai-compatible"], opts.device);
-    if (!key) {
-      throw new Error(
-        "Belum ada API key OpenAI-compatible. Simpan dulu di pengaturan AI.",
-      );
-    }
     const baseURL = opts.baseUrl?.trim();
-    if (!baseURL) throw new Error("Base URL kosong untuk provider OpenAI-compatible.");
-    if (!opts.model) throw new Error("Model belum dipilih untuk provider ini.");
+    if (!baseURL) {
+      throw new Error("Base URL kosong. Isi Base URL di profil ini.");
+    }
+    if (!opts.model) throw new Error("Model belum dipilih untuk profil ini.");
     const openai = createOpenAI({ apiKey: key, baseURL });
     return openai.chat(opts.model);
   }
 
-  const key = await getSecret(PROVIDER_KEY_NAME.anthropic, opts.device);
-  if (!key) {
-    throw new Error(
-      "Belum ada Anthropic key. Simpan dulu di pengaturan AI sebelum memakai asisten.",
-    );
-  }
   const anthropic = createAnthropic({
     apiKey: key,
     headers: { "anthropic-dangerous-direct-browser-access": "true" },
@@ -100,57 +97,116 @@ async function resolveModel(opts: StreamAssistantOptions): Promise<LanguageModel
   return anthropic(opts.model ?? DEFAULT_AGENT_MODEL);
 }
 
+/** True when an error looks like the provider rejecting the tool payload. */
+function isToolFormatError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /tool/i.test(msg);
+}
+
 export async function streamAssistant(
   opts: StreamAssistantOptions,
 ): Promise<StreamAssistantResult> {
   const model = await resolveModel(opts);
 
-  const result = streamText({
-    model,
-    system: opts.system,
-    messages: opts.messages as ModelMessage[],
-    tools: opts.tools,
-    // Only bound the agent loop when tools are in play; a plain chat is one step.
-    stopWhen: opts.tools ? stepCountIs(opts.maxSteps ?? 8) : undefined,
-    abortSignal: opts.signal,
-  });
-
   let text = "";
-  for await (const part of result.fullStream) {
-    switch (part.type) {
-      case "text-delta": {
-        // AI SDK v6 names the chunk field `delta`; older builds used `textDelta`/`text`.
-        const chunk =
-          (part as { delta?: string }).delta ??
-          (part as { text?: string }).text ??
-          (part as { textDelta?: string }).textDelta ??
-          "";
-        if (chunk) {
-          text += chunk;
-          opts.onDelta?.(chunk);
+
+  // A single pass. `useTools` lets us retry without tools if the endpoint
+  // rejects them (some OpenAI-compatible models, e.g. MiniMax-M3 via 9router,
+  // don't accept the tool schema).
+  async function pass(useTools: boolean): Promise<void> {
+    text = "";
+    const result = streamText({
+      model,
+      system: opts.system,
+      // Fresh copy per pass — the SDK may append tool/step messages, which
+      // would taint a tools-off retry and trip "invalid tool type" again.
+      messages: opts.messages.map((m) => ({ ...m })) as ModelMessage[],
+      tools: useTools ? opts.tools : undefined,
+      stopWhen: useTools && opts.tools ? stepCountIs(opts.maxSteps ?? 8) : undefined,
+      abortSignal: opts.signal,
+    });
+
+    for await (const part of result.fullStream) {
+      switch (part.type) {
+        case "text-delta": {
+          // AI SDK v6 names the chunk field `delta`; older builds used `textDelta`/`text`.
+          const chunk =
+            (part as { delta?: string }).delta ??
+            (part as { text?: string }).text ??
+            (part as { textDelta?: string }).textDelta ??
+            "";
+          if (chunk) {
+            text += chunk;
+            opts.onDelta?.(chunk);
+          }
+          break;
         }
-        break;
+        case "tool-call": {
+          const call = part as unknown as {
+            toolName: string;
+            input?: unknown;
+            args?: unknown;
+            toolCallId: string;
+          };
+          opts.onToolCall?.({
+            toolName: call.toolName,
+            input: call.input ?? call.args,
+            toolCallId: call.toolCallId,
+          });
+          break;
+        }
+        case "error":
+          throw (part as { error: unknown }).error;
+        default:
+          break;
       }
-      case "tool-call": {
-        const call = part as unknown as {
-          toolName: string;
-          input?: unknown;
-          args?: unknown;
-          toolCallId: string;
-        };
-        opts.onToolCall?.({
-          toolName: call.toolName,
-          input: call.input ?? call.args,
-          toolCallId: call.toolCallId,
-        });
-        break;
-      }
-      case "error":
-        throw (part as { error: unknown }).error;
-      default:
-        break;
     }
   }
 
-  return { text };
+  let toolsDropped = false;
+  try {
+    await pass(!!opts.tools);
+  } catch (err) {
+    // If the model rejected the tools (and nothing was streamed yet), degrade
+    // gracefully to a plain-chat answer rather than a hard error. The retry is
+    // best-effort — some endpoints lock out briefly after an error.
+    if (opts.tools && !text && isToolFormatError(err)) {
+      toolsDropped = true;
+      opts.onToolsUnsupported?.();
+      try {
+        await pass(false);
+      } catch {
+        /* fall through to the non-stream attempt below */
+      }
+    } else {
+      throw err;
+    }
+  }
+
+  // Some OpenAI-compatible models (e.g. MiniMax-M3 via 9router) yield nothing
+  // over SSE. If streaming produced no text, try a single-shot generate.
+  if (!text.trim()) {
+    try {
+      const g = await generateText({
+        model,
+        system: opts.system,
+        messages: opts.messages.map((m) => ({ ...m })) as ModelMessage[],
+      });
+      if (g.text) {
+        text = g.text;
+        opts.onDelta?.(g.text);
+      }
+    } catch {
+      /* endpoint incompatible with a plain generate too */
+    }
+  }
+
+  // Nothing worked — surface a clean, actionable message instead of raw JSON.
+  if (!text.trim()) {
+    throw new Error(
+      "Model tak memberi jawaban — kemungkinan tak kompatibel dengan endpoint ini. Coba model lain (mis. MiniMax-M2.1).",
+    );
+  }
+
+  return { text, toolsDropped };
 }

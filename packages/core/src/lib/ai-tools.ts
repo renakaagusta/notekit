@@ -13,9 +13,23 @@
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { useNotesStore } from "../stores/notesStore";
+import { useLinksStore } from "../stores/linksStore";
+import { useTicketsStore } from "../stores/ticketsStore";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";
 import { noteTitle } from "./note-display";
+import { listCommits } from "./vault-api";
+import { listSecretNames, listSecretVaults } from "./secrets-vault";
 import type { AgentToolPermissions } from "./agents-api";
+
+/** Vault-internal secrets that power the assistant itself — never shown as "user secrets". */
+function isInternalSecret(name: string): boolean {
+  return (
+    name.startsWith("agentkey-") ||
+    name === "anthropic" ||
+    name === "openai-compatible" ||
+    name === "openai-compatible-baseurl"
+  );
+}
 
 export interface ToolContext {
   /** Ask the user to confirm a mutating action. Resolves true if approved. */
@@ -29,33 +43,113 @@ function snippet(body: string, max = 140): string {
   return flat.length > max ? flat.slice(0, max) + "…" : flat;
 }
 
+/**
+ * Human-readable label for a tool call, including which note it touches — shown
+ * as an activity chip in the transcript (e.g. `Menghapus "Ideas"`).
+ */
+export function describeToolCall(toolName: string, input: unknown): string {
+  const inp = (input ?? {}) as Record<string, unknown>;
+  const titleById = (id: unknown): string => {
+    if (typeof id !== "string") return "";
+    const n = useNotesStore.getState().notes[id];
+    return n ? noteTitle(n) : id;
+  };
+  switch (toolName) {
+    case "list_notes":
+      return "Melihat semua catatan";
+    case "list_folders":
+      return "Melihat daftar folder";
+    case "recent_activity":
+      return inp.path ? `Melihat riwayat "${String(inp.path)}"` : "Melihat riwayat commit";
+    case "list_links":
+      return "Melihat semua link";
+    case "list_tasks":
+      return "Melihat semua task";
+    case "list_secrets":
+      return "Melihat nama secret";
+    case "create_link":
+      return `Menyimpan link "${String(inp.title ?? inp.url ?? "")}"`;
+    case "create_task":
+      return `Membuat task "${String(inp.title ?? "")}"`;
+    case "set_task_status":
+      return `Ubah status task → ${String(inp.status ?? "")}`;
+    case "search_notes":
+      return `Mencari "${String(inp.query ?? "")}"`;
+    case "get_current_note":
+      return "Membaca catatan aktif";
+    case "read_note":
+      return `Membaca "${titleById(inp.id)}"`;
+    case "open_note":
+      return `Membuka "${titleById(inp.id)}"`;
+    case "close_current_tab":
+      return "Menutup tab";
+    case "create_note":
+      return `Membuat "${String(inp.title ?? "")}"`;
+    case "update_note":
+      return `Mengubah "${titleById(inp.id)}"`;
+    case "delete_note":
+      return `Menghapus "${titleById(inp.id)}"`;
+    default:
+      return toolName;
+  }
+}
+
 export function buildAssistantTools(
   ctx: ToolContext,
   permissions: AgentToolPermissions,
 ): ToolSet {
   const read: ToolSet = {
+    list_notes: tool({
+      description:
+        "Daftar SEMUA catatan di vault (judul, id, folder, waktu dibuat & diubah dalam ISO 8601). Gunakan ini untuk melihat isi vault menyeluruh atau menentukan catatan terbaru/terlama (urutkan berdasarkan updatedAt/createdAt). JANGAN pakai search_notes untuk itu.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const all = useNotesStore.getState().all();
+        // Newest-updated first, so "catatan terbaru" is trivially the first row.
+        const sorted = [...all].sort((a, b) =>
+          (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""),
+        );
+        const notes = sorted.slice(0, 300).map((n) => ({
+          id: n.id,
+          title: noteTitle(n),
+          folder: n.folder ?? null,
+          createdAt: n.createdAt ?? null,
+          updatedAt: n.updatedAt ?? null,
+        }));
+        return { total: all.length, returned: notes.length, sortedBy: "updatedAt desc", notes };
+      },
+    }),
     search_notes: tool({
       description:
-        "Cari catatan berdasarkan kata kunci di judul, tag, atau isi. Kembalikan hasil teratas dengan cuplikan.",
+        "Cari catatan berdasarkan kata kunci di judul atau isi. Untuk melihat SEMUA catatan pakai list_notes, bukan ini.",
       inputSchema: z.object({ query: z.string().describe("Kata kunci pencarian") }),
       execute: async ({ query }) => {
         const q = query.toLowerCase();
-        const hits = useNotesStore
+        const matches = useNotesStore
           .getState()
           .all()
-          .filter((n) => (noteTitle(n) + " " + n.body).toLowerCase().includes(q))
-          .slice(0, 8)
+          .filter((n) => (noteTitle(n) + " " + n.body).toLowerCase().includes(q));
+        const hits = matches
+          .slice(0, 25)
           .map((n) => ({ id: n.id, title: noteTitle(n), snippet: snippet(n.body) }));
-        return { count: hits.length, results: hits };
+        return { total: matches.length, returned: hits.length, results: hits };
       },
     }),
     read_note: tool({
-      description: "Baca isi lengkap satu catatan berdasarkan id (dari search_notes).",
+      description: "Baca isi lengkap satu catatan berdasarkan id (dari list_notes / search_notes).",
       inputSchema: z.object({ id: z.string() }),
       execute: async ({ id }) => {
         const n = useNotesStore.getState().notes[id];
         if (!n) return { found: false as const };
-        return { found: true as const, id: n.id, title: noteTitle(n), body: n.body };
+        return {
+          found: true as const,
+          id: n.id,
+          title: noteTitle(n),
+          body: n.body,
+          folder: n.folder ?? null,
+          createdAt: n.createdAt ?? null,
+          updatedAt: n.updatedAt ?? null,
+        };
       },
     }),
     get_current_note: tool({
@@ -73,6 +167,30 @@ export function buildAssistantTools(
       description: "Daftar folder yang ada di vault.",
       inputSchema: z.object({}),
       execute: async () => ({ folders: useNotesStore.getState().folders }),
+    }),
+    recent_activity: tool({
+      description:
+        "Riwayat commit Git dari vault — siapa mengubah apa dan kapan. Gunakan untuk pertanyaan tentang aktivitas, riwayat perubahan, atau siapa yang mengedit. Opsional filter `path` (mis. sebuah file) dan `limit`.",
+      inputSchema: z.object({
+        path: z.string().optional().describe("Filter ke path/file tertentu"),
+        limit: z.number().optional().describe("Jumlah commit (default 30, maks 100)"),
+      }),
+      execute: async ({ path, limit }) => {
+        try {
+          const res = await listCommits(path, Math.min(Math.max(limit ?? 30, 1), 100));
+          return {
+            count: res.commits.length,
+            commits: res.commits.map((c) => ({
+              sha: c.sha.slice(0, 7),
+              message: c.message,
+              author: c.authorName || c.authorLogin || "unknown",
+              at: c.authoredAt,
+            })),
+          };
+        } catch (e) {
+          return { error: (e as Error).message };
+        }
+      },
     }),
     open_note: tool({
       description: "Buka catatan (berdasarkan id) di tab aktif.",
@@ -93,6 +211,67 @@ export function buildAssistantTools(
         if (!pane?.activeTab) return { ok: false as const, reason: "no_active_tab" };
         ls.closeTab(pane.activeTab, ls.activePaneId);
         return { ok: true as const };
+      },
+    }),
+    list_links: tool({
+      description: "Daftar semua link/bookmark tersimpan (judul, url, platform, tag).",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const links = useLinksStore.getState().all();
+        return {
+          total: links.length,
+          links: links.slice(0, 200).map((l) => ({
+            id: l.id,
+            title: l.title || l.url,
+            url: l.url,
+            platform: l.platform,
+            tags: l.tags,
+          })),
+        };
+      },
+    }),
+    list_tasks: tool({
+      description: "Daftar semua task/tiket (judul, status, prioritas, jatuh tempo).",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const tickets = useTicketsStore.getState().all();
+        return {
+          total: tickets.length,
+          tasks: tickets.slice(0, 200).map((t) => ({
+            id: t.id,
+            title: t.title,
+            status: t.status,
+            priority: t.priority,
+            dueDate: t.dueDate,
+            updatedAt: t.updatedAt,
+          })),
+        };
+      },
+    }),
+    list_secrets: tool({
+      description:
+        "Daftar NAMA secret di vault terenkripsi. PENTING: hanya nama — NILAI/ISI secret tidak pernah bisa diakses AI (keamanan E2EE). Jangan pernah mengaku bisa membaca nilai secret.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        try {
+          const [defaultNames, vaults] = await Promise.all([
+            listSecretNames(""),
+            listSecretVaults(),
+          ]);
+          const named = await Promise.all(
+            vaults.map(async (v) => ({
+              vault: v.label,
+              names: (await listSecretNames(v.slug)).filter((n) => !isInternalSecret(n)),
+            })),
+          );
+          return {
+            note: "Hanya nama yang ditampilkan — nilai secret tidak pernah diakses AI.",
+            default: defaultNames.filter((n) => !isInternalSecret(n)),
+            vaults: named,
+          };
+        } catch (e) {
+          return { error: (e as Error).message };
+        }
       },
     }),
   };
@@ -154,6 +333,62 @@ export function buildAssistantTools(
         );
         if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
         useNotesStore.getState().remove(id);
+        return { ok: true as const };
+      },
+    }),
+    create_link: tool({
+      description: "Simpan link/bookmark baru. Minta persetujuan dulu.",
+      inputSchema: z.object({
+        url: z.string(),
+        title: z.string().optional(),
+        tags: z.array(z.string()).optional(),
+      }),
+      execute: async ({ url, title, tags }) => {
+        const ok = await ctx.requestApproval("create_link", `Simpan link “${title || url}”`, {
+          url,
+          title,
+          tags,
+        });
+        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        const link = useLinksStore.getState().upsert({ url, title, tags });
+        return { ok: true as const, id: link.id };
+      },
+    }),
+    create_task: tool({
+      description: "Buat task/tiket baru. Minta persetujuan dulu.",
+      inputSchema: z.object({
+        title: z.string(),
+        body: z.string().optional(),
+        priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
+      }),
+      execute: async ({ title, body, priority }) => {
+        const ok = await ctx.requestApproval("create_task", `Buat task “${title}”`, {
+          title,
+          body,
+          priority,
+        });
+        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        const t = useTicketsStore.getState().upsert({ title, body, priority });
+        return { ok: true as const, id: t.id };
+      },
+    }),
+    set_task_status: tool({
+      description:
+        "Ubah status task/tiket (todo, in_progress, blocked, done, archived). Minta persetujuan dulu.",
+      inputSchema: z.object({
+        id: z.string(),
+        status: z.enum(["todo", "in_progress", "blocked", "done", "archived"]),
+      }),
+      execute: async ({ id, status }) => {
+        const t = useTicketsStore.getState().all().find((x) => x.id === id);
+        if (!t) return { ok: false as const, reason: "not_found" };
+        const ok = await ctx.requestApproval(
+          "set_task_status",
+          `Ubah status “${t.title}” → ${status}`,
+          { id, status },
+        );
+        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        useTicketsStore.getState().setStatus(id, status);
         return { ok: true as const };
       },
     }),

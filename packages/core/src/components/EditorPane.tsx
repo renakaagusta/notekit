@@ -14,7 +14,6 @@ import { EditorToolbar } from "./EditorToolbar";
 import { OutlinePanel } from "./OutlinePanel";
 import { InlineAIMenu, type InlineSelection } from "./InlineAIMenu";
 import { useCryptoStore } from "../stores/cryptoStore";
-import { DEFAULT_AGENT_MODEL } from "../lib/agents-api";
 import { InkCanvas } from "./InkCanvas";
 import { TabBar } from "./TabBar";
 import { GraphView } from "./GraphView";
@@ -275,7 +274,6 @@ export function EditorPane({
         <InlineAIMenu
           editor={editorRef.current.editor}
           device={aiDevice}
-          model={DEFAULT_AGENT_MODEL}
           sel={inlineAI}
           onClose={() => setInlineAI(null)}
         />

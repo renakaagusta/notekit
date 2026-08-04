@@ -8,6 +8,22 @@ export type AgentProvider = "anthropic" | "openai-compatible";
 /** Default Anthropic model when a profile doesn't pin one. */
 export const DEFAULT_AGENT_MODEL = "claude-3-5-haiku-latest";
 
+/** Default persona used to pre-fill new profiles and as a chat fallback. */
+export const DEFAULT_SYSTEM_PROMPT =
+  "Kamu adalah asisten AI di dalam NoteKit, aplikasi catatan lokal-first. " +
+  "Jawab ringkas, jelas, dan membantu. Bila diberi konteks catatan, gunakan itu " +
+  "sebagai rujukan. Gunakan bahasa yang sama dengan pengguna. Gunakan Markdown " +
+  "untuk memformat jawaban bila membantu.";
+
+/**
+ * Vault secret name that holds a profile's API key. Keys live in the E2EE
+ * secrets vault (encrypted) — never in the profile's plaintext JSON — keyed
+ * per profile so each agent is self-contained.
+ */
+export function agentKeySecretName(slug: string): string {
+  return `agentkey-${slug}`;
+}
+
 export interface AgentProfile {
   slug: string;
   name: string;

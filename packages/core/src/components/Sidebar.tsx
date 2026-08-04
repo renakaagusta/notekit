@@ -21,6 +21,8 @@ import {
   Shield,
   Sun,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { LOCALES, setLocale } from "../i18n";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
@@ -75,6 +77,7 @@ export function Sidebar({
   onOpenMenu,
   onCollapse,
 }: SidebarProps) {
+  const { i18n } = useTranslation();
   const notesCount = useNotesStore((s) => s.all().length);
   const ticketsCount = useTicketsStore((s) => s.all().length);
   const vaultReady = useVaultStore((s) => s.phase === "ready");
@@ -272,6 +275,19 @@ export function Sidebar({
                       </button>
                     </div>
                   )}
+                  <div className="nk-popover-theme-row" role="group" aria-label="Language">
+                    {LOCALES.map((l) => (
+                      <button
+                        key={l.code}
+                        className={`nk-popover-theme-btn${i18n.language === l.code ? " is-active" : ""}`}
+                        onClick={() => setLocale(l.code)}
+                        title={l.label}
+                        aria-label={l.label}
+                      >
+                        <span>{l.code.toUpperCase()}</span>
+                      </button>
+                    ))}
+                  </div>
                   {onSignOut && (
                     <button
                       className="nk-popover-item"

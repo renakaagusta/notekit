@@ -1,3 +1,4 @@
+import "../i18n"; // initialize i18next before any component renders
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,

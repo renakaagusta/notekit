@@ -18,14 +18,29 @@ import { nanoid } from "nanoid";
 
 export type ChatRole = "user" | "assistant";
 
+/**
+ * A message is an ordered list of parts so text and tool-activity interleave in
+ * the exact order the model produced them (text → tool → text …), rather than
+ * bucketing all tools above/below the text.
+ */
+export type ChatPart =
+  | { kind: "text"; text: string }
+  | { kind: "tool"; label: string };
+
 export interface ChatMessage {
   id: string;
   role: ChatRole;
-  content: string;
+  parts: ChatPart[];
   /** Assistant message still receiving stream deltas. */
   pending?: boolean;
-  /** Human-readable tool activity lines shown under the message (phase 2). */
-  toolNotes?: string[];
+}
+
+/** Reconstruct the plain text of a message (all text parts joined). */
+export function messageText(m: ChatMessage): string {
+  return m.parts
+    .filter((p): p is { kind: "text"; text: string } => p.kind === "text")
+    .map((p) => p.text)
+    .join("");
 }
 
 /** A vault-mutating action the assistant proposed, awaiting user approval. */
@@ -57,7 +72,8 @@ interface AIChatState {
   /** Create an empty assistant message and return its id for streaming. */
   startAssistant(): string;
   appendDelta(id: string, delta: string): void;
-  addToolNote(id: string, note: string): void;
+  /** Append a tool-activity label as its own part, in chronological order. */
+  addToolNote(id: string, label: string): void;
   finishAssistant(id: string): void;
 
   setStreaming(v: boolean): void;
@@ -100,27 +116,34 @@ export const useAIChatStore = create<AIChatState>()(
 
       pushUser(content) {
         set((s) => {
-          s.messages.push({ id: nanoid(), role: "user", content });
+          s.messages.push({
+            id: nanoid(),
+            role: "user",
+            parts: [{ kind: "text", text: content }],
+          });
           s.error = null;
         });
       },
       startAssistant() {
         const id = nanoid();
         set((s) => {
-          s.messages.push({ id, role: "assistant", content: "", pending: true });
+          s.messages.push({ id, role: "assistant", parts: [], pending: true });
         });
         return id;
       },
       appendDelta(id, delta) {
         set((s) => {
           const m = s.messages.find((x) => x.id === id);
-          if (m) m.content += delta;
+          if (!m) return;
+          const last = m.parts[m.parts.length - 1];
+          if (last && last.kind === "text") last.text += delta;
+          else m.parts.push({ kind: "text", text: delta });
         });
       },
-      addToolNote(id, note) {
+      addToolNote(id, label) {
         set((s) => {
           const m = s.messages.find((x) => x.id === id);
-          if (m) (m.toolNotes ??= []).push(note);
+          if (m) m.parts.push({ kind: "tool", label });
         });
       },
       finishAssistant(id) {

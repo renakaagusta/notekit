@@ -7,6 +7,8 @@ import {
   updateAgent,
   deleteAgent,
   DEFAULT_AGENT_MODEL,
+  DEFAULT_SYSTEM_PROMPT,
+  agentKeySecretName,
   type AgentProfile,
   type AgentToolPermissions,
   type AgentProvider,
@@ -32,21 +34,6 @@ export const AGENT_MODELS: { value: string; label: string; hint: string }[] = [
   { value: "claude-opus-4-1", label: "Opus 4.1", hint: "Paling pintar" },
 ];
 
-/** Provider key slots shown in the Agents modal. Names map to vault secrets. */
-const KEY_PROVIDERS: { name: string; label: string; placeholder: string; hint: string }[] = [
-  {
-    name: "anthropic",
-    label: "Anthropic API key",
-    placeholder: "sk-ant-…",
-    hint: "Untuk profil provider Anthropic.",
-  },
-  {
-    name: "openai-compatible",
-    label: "OpenAI-compatible key",
-    placeholder: "sk-…",
-    hint: "Untuk profil provider OpenAI-compatible (mis. 9router / MiniMax).",
-  },
-];
 
 interface DraftFields {
   name: string;
@@ -58,6 +45,7 @@ interface DraftFields {
   toolPermissions: AgentToolPermissions;
   provider: AgentProvider;
   baseUrl: string;
+  apiKey: string;
 }
 
 const EMPTY_DRAFT: DraftFields = {
@@ -66,10 +54,11 @@ const EMPTY_DRAFT: DraftFields = {
   description: "",
   emoji: "",
   model: DEFAULT_AGENT_MODEL,
-  systemPrompt: "",
+  systemPrompt: DEFAULT_SYSTEM_PROMPT,
   toolPermissions: "read-only",
   provider: "anthropic",
   baseUrl: "",
+  apiKey: "",
 };
 
 export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
@@ -100,59 +89,36 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  // ── Provider API keys (shared by all profiles; stored in the E2EE vault) ──
+  // Per-profile API keys live encrypted in the vault under agentkey-<slug>.
   const device = useCryptoStore((s) => s.device);
   const cryptoPhase = useCryptoStore((s) => s.phase);
-  const [keyStored, setKeyStored] = useState<Record<string, boolean>>({});
-  const [keyDraft, setKeyDraft] = useState<Record<string, string>>({});
-  const [keyBusy, setKeyBusy] = useState(false);
+  const [keyStoredSlugs, setKeyStoredSlugs] = useState<Set<string>>(new Set());
 
-  async function refreshKey() {
+  async function refreshKeyStatus() {
     if (!device || cryptoPhase !== "ready") return;
     try {
       const names = await listSecretNames();
-      setKeyStored({
-        anthropic: names.includes("anthropic"),
-        "openai-compatible": names.includes("openai-compatible"),
-      });
+      const slugs = names
+        .filter((n) => n.startsWith("agentkey-"))
+        .map((n) => n.slice("agentkey-".length));
+      setKeyStoredSlugs(new Set(slugs));
     } catch {
-      /* vault not readable yet — leave as unknown */
+      /* vault not readable yet */
     }
   }
 
   useEffect(() => {
-    void refreshKey();
+    void refreshKeyStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [device, cryptoPhase]);
 
-  async function onSaveKey(name: string) {
-    const value = keyDraft[name]?.trim();
-    if (!value || !device) return;
-    setKeyBusy(true);
-    setError(null);
-    try {
-      await setSecret(name, value, device);
-      setKeyDraft((d) => ({ ...d, [name]: "" }));
-      await refreshKey();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setKeyBusy(false);
-    }
-  }
-
-  async function onRemoveKey(name: string) {
+  /** Persist (or clear) a profile's key in the encrypted vault. */
+  async function saveProfileKey(slug: string, key: string) {
     if (!device) return;
-    if (!window.confirm(`Hapus "${name}" key dari vault?`)) return;
-    setKeyBusy(true);
-    try {
-      await removeSecret(name, device);
-      await refreshKey();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setKeyBusy(false);
-    }
+    const trimmed = key.trim();
+    if (!trimmed) return; // empty on edit means "keep existing"
+    await setSecret(agentKeySecretName(slug), trimmed, device);
+    await refreshKeyStatus();
   }
 
   async function refresh() {
@@ -190,6 +156,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
         provider: newDraft.provider,
         baseUrl: newDraft.baseUrl.trim() || undefined,
       });
+      await saveProfileKey(res.agent.slug, newDraft.apiKey);
       setReveal({
         slug: res.agent.slug,
         token: res.token,
@@ -217,6 +184,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
       toolPermissions: a.toolPermissions ?? "read-only",
       provider: a.provider ?? "anthropic",
       baseUrl: a.baseUrl ?? "",
+      apiKey: "",
     });
   }
 
@@ -236,6 +204,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
         provider: editDraft.provider,
         baseUrl: editDraft.baseUrl.trim(),
       });
+      await saveProfileKey(editingSlug, editDraft.apiKey);
       setEditingSlug(null);
       await refresh();
     } catch (e) {
@@ -255,6 +224,10 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
     try {
       setError(null);
       await deleteAgent(slug);
+      if (device && keyStoredSlugs.has(slug)) {
+        await removeSecret(agentKeySecretName(slug), device).catch(() => {});
+      }
+      await refreshKeyStatus();
       await refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -302,56 +275,6 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
         everywhere — NoteKit, GitHub commit pages, and Forgejo. Otherwise
         Gravatar's deterministic identicon is shown.
         </span>
-      </div>
-
-      {/* Provider keys — shared by all profiles, decrypted on-device and posted
-          straight to the provider (never through NoteKit servers). */}
-      <div className="nk-agent-keybox">
-        {cryptoPhase !== "ready" ? (
-          <p className="nk-agent-keybox-hint">
-            Buka & buka-kunci vault terenkripsi dulu untuk menyimpan key.
-          </p>
-        ) : (
-          <>
-            {KEY_PROVIDERS.map((p) => (
-              <div key={p.name}>
-                <div className="nk-agent-keybox-hd">
-                  <strong>{p.label}</strong>
-                  {keyStored[p.name] && <span className="nk-pill">tersimpan</span>}
-                </div>
-                <div className="nk-agent-keybox-row">
-                  <input
-                    className="nk-input"
-                    type="password"
-                    autoComplete="off"
-                    placeholder={keyStored[p.name] ? `Ganti key… (${p.placeholder})` : p.placeholder}
-                    value={keyDraft[p.name] ?? ""}
-                    onChange={(e) => setKeyDraft((d) => ({ ...d, [p.name]: e.target.value }))}
-                    disabled={keyBusy}
-                    style={{ flex: 1 }}
-                  />
-                  <button
-                    className="nk-btn nk-btn--primary"
-                    onClick={() => onSaveKey(p.name)}
-                    disabled={keyBusy || !keyDraft[p.name]?.trim()}
-                  >
-                    {keyStored[p.name] ? "Ganti" : "Simpan"}
-                  </button>
-                  {keyStored[p.name] && (
-                    <button className="nk-btn" onClick={() => onRemoveKey(p.name)} disabled={keyBusy}>
-                      Hapus
-                    </button>
-                  )}
-                </div>
-                <p className="nk-agent-keybox-hint">{p.hint}</p>
-              </div>
-            ))}
-            <p className="nk-agent-keybox-hint">
-              <Lock size={12} aria-hidden /> Semua key disimpan terenkripsi di vault
-              dan dipanggil langsung ke provider — tanpa relay server NoteKit.
-            </p>
-          </>
-        )}
       </div>
 
       {reveal && (
@@ -477,6 +400,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
                   submitLabel={busy ? "Saving…" : "Save"}
                   disabled={busy}
                   emailHint={`Slug stays "${a.slug}" — vault path doesn't change.`}
+                  keyStored={keyStoredSlugs.has(a.slug)}
                   autoFocus
                 />
               </li>
@@ -551,6 +475,8 @@ interface AgentFormProps {
   disabled?: boolean;
   emailHint?: string;
   autoFocus?: boolean;
+  /** Whether this profile already has a key saved (edit mode). */
+  keyStored?: boolean;
 }
 
 function AgentForm({
@@ -562,7 +488,52 @@ function AgentForm({
   disabled,
   emailHint,
   autoFocus,
+  keyStored,
 }: AgentFormProps) {
+  // For OpenAI-compatible endpoints we can list models from the standard
+  // `/models` route, so the user picks from a dropdown instead of typing an id.
+  const [models, setModels] = useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = useState(false);
+  const [modelError, setModelError] = useState<string | null>(null);
+
+  async function loadModels() {
+    const base = draft.baseUrl.trim().replace(/\/+$/, "");
+    const key = draft.apiKey.trim();
+    if (!base) return setModelError("Isi Base URL dulu.");
+    if (!key) return setModelError("Isi API key dulu (untuk memuat daftar model).");
+    setLoadingModels(true);
+    setModelError(null);
+    try {
+      const res = await fetch(`${base}/models`, {
+        headers: { authorization: `Bearer ${key}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = (await res.json()) as { data?: { id?: string }[] };
+      const ids = (data.data ?? [])
+        .map((m) => m.id)
+        .filter((id): id is string => !!id);
+      if (!ids.length) throw new Error("Endpoint tak mengembalikan model.");
+      setModels(ids);
+      if (!draft.model || !ids.includes(draft.model)) {
+        onChange({ ...draft, model: ids[0]! });
+      }
+    } catch (e) {
+      setModelError((e as Error).message);
+    } finally {
+      setLoadingModels(false);
+    }
+  }
+
+  // Auto-load models once both Base URL and API key are filled — no button click
+  // needed. Debounced so it fires after the user finishes pasting/typing.
+  useEffect(() => {
+    if (draft.provider !== "openai-compatible") return;
+    if (!draft.baseUrl.trim() || !draft.apiKey.trim()) return;
+    const id = setTimeout(() => void loadModels(), 600);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft.provider, draft.baseUrl, draft.apiKey]);
+
   return (
     <div
       style={{
@@ -609,35 +580,22 @@ function AgentForm({
        * the selected profile: which model runs, how it behaves, and
        * whether it may modify the vault. */}
       <div className="nk-agent-section-label">AI assistant</div>
-      <div style={{ display: "flex", gap: "var(--gap-2)" }}>
-        <input
-          className="nk-input"
-          placeholder="ikon"
-          aria-label="Emoji"
-          value={draft.emoji}
-          onChange={(e) => onChange({ ...draft, emoji: e.target.value })}
-          disabled={disabled}
-          maxLength={4}
-          style={{ width: 56, textAlign: "center", flexShrink: 0 }}
-        />
-        <select
-          className="nk-input"
-          aria-label="Provider"
-          value={draft.provider}
-          onChange={(e) => {
-            const provider = e.target.value as AgentProvider;
-            // Reset the model to a sensible default when switching family.
-            const model =
-              provider === "anthropic" ? DEFAULT_AGENT_MODEL : "";
-            onChange({ ...draft, provider, model });
-          }}
-          disabled={disabled}
-          style={{ flex: 1 }}
-        >
-          <option value="anthropic">Anthropic</option>
-          <option value="openai-compatible">OpenAI-compatible</option>
-        </select>
-      </div>
+      <select
+        className="nk-input"
+        aria-label="Provider"
+        value={draft.provider}
+        onChange={(e) => {
+          const provider = e.target.value as AgentProvider;
+          // Reset the model to a sensible default when switching family.
+          const model = provider === "anthropic" ? DEFAULT_AGENT_MODEL : "";
+          onChange({ ...draft, provider, model });
+        }}
+        disabled={disabled}
+      >
+        <option value="anthropic">Anthropic</option>
+        <option value="openai-compatible">OpenAI-compatible</option>
+      </select>
+
       {draft.provider === "openai-compatible" && (
         <input
           className="nk-input"
@@ -647,6 +605,29 @@ function AgentForm({
           disabled={disabled}
         />
       )}
+
+      {/* API key comes before model — for openai-compatible we need the key to
+          fetch the model list. */}
+      <input
+        className="nk-input"
+        type="password"
+        autoComplete="off"
+        placeholder={
+          keyStored
+            ? "API key tersimpan — isi untuk mengganti"
+            : draft.provider === "anthropic"
+              ? "API key — sk-ant-…"
+              : "API key — sk-…"
+        }
+        value={draft.apiKey}
+        onChange={(e) => onChange({ ...draft, apiKey: e.target.value })}
+        disabled={disabled}
+      />
+      <p className="nk-agent-keybox-hint">
+        <Lock size={12} aria-hidden /> Key disimpan terenkripsi di vault (tak ikut
+        di file profil), dipanggil langsung ke provider — tanpa relay NoteKit.
+      </p>
+
       {draft.provider === "anthropic" ? (
         <select
           className="nk-input"
@@ -662,13 +643,49 @@ function AgentForm({
           ))}
         </select>
       ) : (
-        <input
-          className="nk-input"
-          placeholder="Model id — mis. minimax/MiniMax-M2.1"
-          value={draft.model}
-          onChange={(e) => onChange({ ...draft, model: e.target.value })}
-          disabled={disabled}
-        />
+        <>
+          <div style={{ display: "flex", gap: "var(--gap-2)" }}>
+            {models.length > 0 ? (
+              <select
+                className="nk-input"
+                aria-label="Model"
+                value={draft.model}
+                onChange={(e) => onChange({ ...draft, model: e.target.value })}
+                disabled={disabled}
+                style={{ flex: 1 }}
+              >
+                {models.map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                className="nk-input"
+                placeholder={
+                  loadingModels
+                    ? "Memuat daftar model…"
+                    : "Model id — isi Base URL & key untuk memuat daftar"
+                }
+                value={draft.model}
+                onChange={(e) => onChange({ ...draft, model: e.target.value })}
+                disabled={disabled}
+                style={{ flex: 1 }}
+              />
+            )}
+            <button
+              type="button"
+              className="nk-btn"
+              onClick={loadModels}
+              disabled={disabled || loadingModels}
+              title="Ambil daftar model dari endpoint"
+            >
+              {loadingModels ? "Memuat…" : models.length ? "Muat ulang" : "Muat model"}
+            </button>
+          </div>
+          {modelError && <p className="nk-inline-ai-error">{modelError}</p>}
+        </>
       )}
       <textarea
         className="nk-input"

@@ -4,6 +4,13 @@ import { Loader2, Sparkles } from "lucide-react";
 import type { Editor as TipTapEditor } from "@tiptap/react";
 import type { DeviceIdentity } from "../lib/crypto/device-key";
 import { streamAssistant } from "../lib/ai-agent";
+import { useAIChatStore } from "../stores/aiChatStore";
+import {
+  listAgents,
+  agentKeySecretName,
+  DEFAULT_AGENT_MODEL,
+  type AgentProfile,
+} from "../lib/agents-api";
 
 export interface InlineSelection {
   from: number;
@@ -16,7 +23,7 @@ export interface InlineSelection {
 interface Props {
   editor: TipTapEditor;
   device: DeviceIdentity;
-  model: string;
+  model?: string;
   sel: InlineSelection;
   onClose(): void;
 }
@@ -59,8 +66,26 @@ export function InlineAIMenu({ editor, device, model, sel, onClose }: Props) {
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [agent, setAgent] = useState<AgentProfile | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedAgentSlug = useAIChatStore((s) => s.selectedAgentSlug);
+
+  // Resolve the profile the assistant panel currently uses, so inline edits
+  // run through the same provider/model/key as the chat.
+  useEffect(() => {
+    let cancelled = false;
+    listAgents()
+      .then((r) => {
+        if (cancelled) return;
+        setAgent(r.agents.find((a) => a.slug === selectedAgentSlug) ?? r.agents[0] ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAgentSlug]);
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -80,12 +105,19 @@ export function InlineAIMenu({ editor, device, model, sel, onClose }: Props) {
 
   async function run(prompt: string, append: boolean) {
     if (busy) return;
+    if (!agent) {
+      setError("Pilih profil AI dulu di panel asisten.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const { text } = await streamAssistant({
         device,
-        model,
+        keySecretName: agentKeySecretName(agent.slug),
+        provider: agent.provider ?? "anthropic",
+        baseUrl: agent.baseUrl,
+        model: agent.model ?? DEFAULT_AGENT_MODEL,
         system: SYSTEM,
         messages: [{ role: "user", content: prompt }],
       });

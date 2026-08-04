@@ -14,6 +14,7 @@ import type { ChatMessage } from "../stores/aiChatStore";
 import {
   getVaultBackend,
   encryptVaultContent,
+  encryptVaultContentMany,
   decryptVaultContent,
 } from "./secrets-vault";
 
@@ -82,35 +83,66 @@ async function ensureSha(path: string): Promise<void> {
   if (file.sha) shaCache.set(path, file.sha);
 }
 
-/** Encrypt + write a session file, then refresh the index. */
+/** Read the index, apply a mutation, and return the sorted next list. */
+async function computeIndex(
+  device: DeviceIdentity,
+  mutate: (list: ChatSessionMeta[]) => ChatSessionMeta[],
+): Promise<ChatSessionMeta[]> {
+  const current = await listChatSessions(device);
+  return mutate(current)
+    .slice()
+    .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+}
+
+/**
+ * Encrypt + persist a session AND its index entry in ONE git commit.
+ *
+ * Two separate commits back-to-back (session file, then index) race on the
+ * server: the git backend rejects a rapid second commit to the same branch
+ * (observed as `net::ERR_FAILED`). Batching via `commitFiles` (PUT /vault/files)
+ * is a single commit, so there's no second push to collide with. Falls back to
+ * sequential writes only for backends without batch support.
+ */
 export async function writeChatSession(
   session: ChatSession,
   device: DeviceIdentity,
 ): Promise<void> {
   const backend = getVaultBackend();
-  const path = sessionPath(session.id);
-  await ensureSha(path);
-  const armored = await encryptVaultContent(JSON.stringify(session), device);
-  const res = await backend.writeFile(
-    path,
-    armored,
-    `notekit: save chat "${session.title || session.id}"`,
-    shaCache.get(path),
-  );
-  shaCache.set(path, res.sha);
-
-  await updateIndex(device, (list) => {
+  const nextIndex = await computeIndex(device, (list) => {
     const meta: ChatSessionMeta = {
       id: session.id,
       title: session.title,
       updatedAt: session.updatedAt,
     };
-    const rest = list.filter((m) => m.id !== session.id);
-    return [meta, ...rest];
+    return [meta, ...list.filter((m) => m.id !== session.id)];
   });
+  // Encrypt session + index in one pass so recipients are gathered a single time.
+  const armored = await encryptVaultContentMany(
+    [JSON.stringify(session), JSON.stringify(nextIndex)],
+    device,
+  );
+  const files: { path: string; content: string }[] = [
+    { path: sessionPath(session.id), content: armored[0]! },
+    { path: INDEX_PATH, content: armored[1]! },
+  ];
+  const message = `notekit: save chat "${session.title || session.id}"`;
+
+  if (backend.commitFiles) {
+    await backend.commitFiles(files, message);
+    // commitFiles doesn't return per-file shas; drop stale entries so the next
+    // fallback write (if any) re-reads HEAD.
+    shaCache.delete(sessionPath(session.id));
+    shaCache.delete(INDEX_PATH);
+  } else {
+    for (const f of files) {
+      await ensureSha(f.path);
+      const res = await backend.writeFile(f.path, f.content, message, shaCache.get(f.path));
+      shaCache.set(f.path, res.sha);
+    }
+  }
 }
 
-/** Delete a session file + drop it from the index. */
+/** Drop a session from the index, then remove its file. */
 export async function deleteChatSession(
   id: string,
   device: DeviceIdentity,
@@ -119,31 +151,25 @@ export async function deleteChatSession(
   const path = sessionPath(id);
   await ensureSha(path);
   const sha = shaCache.get(path);
+
+  // Update the index first so the row disappears even if the file delete lags;
+  // a leftover .age with no index entry is harmless (readChatSession → null).
+  const nextIndex = await computeIndex(device, (list) => list.filter((m) => m.id !== id));
+  const indexArmored = await encryptVaultContent(JSON.stringify(nextIndex), device);
+  const message = `notekit: delete chat ${id}`;
+  if (backend.commitFiles) {
+    await backend.commitFiles([{ path: INDEX_PATH, content: indexArmored }], message);
+    shaCache.delete(INDEX_PATH);
+  } else {
+    await ensureSha(INDEX_PATH);
+    const res = await backend.writeFile(INDEX_PATH, indexArmored, message, shaCache.get(INDEX_PATH));
+    shaCache.set(INDEX_PATH, res.sha);
+  }
+
   if (sha) {
-    await backend.deleteFile(path, sha, `notekit: delete chat ${id}`).catch(() => {});
+    await backend.deleteFile(path, sha, message).catch(() => {});
     shaCache.delete(path);
   }
-  await updateIndex(device, (list) => list.filter((m) => m.id !== id));
-}
-
-/** Read → mutate → write the encrypted index atomically-ish (optimistic sha). */
-async function updateIndex(
-  device: DeviceIdentity,
-  mutate: (list: ChatSessionMeta[]) => ChatSessionMeta[],
-): Promise<void> {
-  const backend = getVaultBackend();
-  const current = await listChatSessions(device);
-  const next = mutate(current)
-    .slice()
-    .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
-  const armored = await encryptVaultContent(JSON.stringify(next), device);
-  const res = await backend.writeFile(
-    INDEX_PATH,
-    armored,
-    "notekit: update chat index",
-    shaCache.get(INDEX_PATH),
-  );
-  shaCache.set(INDEX_PATH, res.sha);
 }
 
 /** Derive a session title from its first user message. */

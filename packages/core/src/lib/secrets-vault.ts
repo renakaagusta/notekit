@@ -618,6 +618,21 @@ export async function encryptVaultContent(
   return encryptSecrets(json, await contentRecipients(device));
 }
 
+/**
+ * Encrypt SEVERAL payloads collecting recipients ONCE. On legacy "multi" vaults
+ * `contentRecipients` fans out to ~6 GETs (recovery + members + devices); doing
+ * that per file makes a two-file save do it twice. Callers writing multiple
+ * files in one logical operation (e.g. a chat session + its index) should use
+ * this so the recipient set is gathered a single time.
+ */
+export async function encryptVaultContentMany(
+  jsons: string[],
+  device: DeviceIdentity,
+): Promise<string[]> {
+  const recipients = await contentRecipients(device);
+  return Promise.all(jsons.map((j) => encryptSecrets(j, recipients)));
+}
+
 /** Decrypt a vault content file back to its JSON string. */
 export async function decryptVaultContent(
   content: string,

@@ -606,6 +606,31 @@ function contentIdentity(device: DeviceIdentity): string {
   return activeVaultKey ? activeVaultKey.identity : device.identity;
 }
 
+// ─── Reusable vault-content crypto + backend (used by chats-vault, etc.) ──────
+// Same E2EE seam as notes/secrets: envelope-aware recipients + identity, and the
+// currently-configured file backend (so CLI/MCP overrides apply everywhere).
+
+/** Encrypt a JSON payload as a vault content file (envelope-aware). */
+export async function encryptVaultContent(
+  json: string,
+  device: DeviceIdentity,
+): Promise<string> {
+  return encryptSecrets(json, await contentRecipients(device));
+}
+
+/** Decrypt a vault content file back to its JSON string. */
+export async function decryptVaultContent(
+  content: string,
+  device: DeviceIdentity,
+): Promise<string> {
+  return decryptSecrets(content, contentIdentity(device));
+}
+
+/** The active vault file backend (honors configureSecretsBackend). */
+export function getVaultBackend(): SecretsBackend {
+  return backend;
+}
+
 /**
  * Public flavor of {@link collectRecipients} — gather every age recipient
  * that should be able to read newly encrypted data in this vault: each

@@ -281,7 +281,12 @@ export function buildAssistantTools(
   const write: ToolSet = {
     create_note: tool({
       description:
-        "Buat catatan baru. Minta persetujuan pengguna dulu. Isi body dalam Markdown.",
+        "Buat catatan baru. Minta persetujuan dulu. Body dalam Markdown (heading, tabel, list). " +
+        "Untuk konten STATIS: Markdown + HTML inline sederhana (mis. <mark>). " +
+        "Untuk konten INTERAKTIF (kuis, chart, simulasi yang butuh JavaScript): taruh potongan HTML lengkap di dalam blok kode berbahasa `interactive` (```interactive ... ```). Konten itu berjalan di dalam sandboxed iframe sehingga JS/CSS-nya JALAN dengan aman. Tulis HTML level-body saja + <style>/<script> inline (JANGAN <!DOCTYPE>/<html>/<head>), mandiri, tanpa akses jaringan. " +
+        "Kamu BOLEH memuat library dari CDN tepercaya (cdn.jsdelivr.net, unpkg.com, cdnjs.cloudflare.com) — mis. Chart.js untuk grafik — dan memakai gambar dari URL https atau data:. Yang TIDAK bisa: fetch/XHR ke jaringan (diblokir demi keamanan), jadi buat konten mandiri tanpa ambil data eksternal saat runtime. " +
+        "Agar MENYATU dengan tema app: pakai CSS variables yang sudah disediakan — var(--surface), var(--text), var(--muted), var(--accent), var(--accent-text), var(--border) — untuk warna, dan biarkan background transparan (JANGAN hardcode putih/hitam). Contoh: kartu pakai `background:var(--surface);border:1px solid var(--border);color:var(--text)`, tombol/highlight pakai `var(--accent)`. Untuk warna benar/salah boleh pakai warna semantik lembut (mis. rgba hijau/merah). " +
+        "JANGAN pakai fence ```html biasa untuk konten interaktif (itu tampil sebagai teks kode).",
       inputSchema: z.object({
         title: z.string(),
         body: z.string().default(""),
@@ -305,7 +310,7 @@ export function buildAssistantTools(
     }),
     update_note: tool({
       description:
-        "Ganti seluruh isi (body Markdown) sebuah catatan berdasarkan id. Minta persetujuan dulu.",
+        "Ganti seluruh isi catatan berdasarkan id. Body dalam Markdown; HTML inline sederhana boleh (dirender langsung) TAPI jangan dibungkus blok kode ```html, jangan dokumen HTML lengkap/<script>/<style>. Minta persetujuan dulu.",
       inputSchema: z.object({ id: z.string(), body: z.string() }),
       execute: async ({ id, body }) => {
         const n = useNotesStore.getState().notes[id];

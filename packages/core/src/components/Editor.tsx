@@ -17,6 +17,7 @@ import { Highlight } from "./extensions/Highlight";
 import { BlockMath, InlineMath } from "./extensions/Math";
 import { Callout } from "./extensions/Callout";
 import { Mermaid } from "./extensions/Mermaid";
+import { InteractiveEmbed } from "./extensions/InteractiveEmbed";
 import { Media } from "./extensions/Media";
 import { SlashCommands } from "./extensions/SlashCommands";
 import { VimMode } from "./extensions/VimMode";
@@ -31,7 +32,16 @@ const PURIFY_CONFIG = {
 
 function sanitize(md: string): string {
   if (typeof window === "undefined") return md;
-  return String(DOMPurify.sanitize(md, PURIFY_CONFIG));
+  // Shield ```interactive fences from HTML sanitization: their content (which
+  // may contain <script>/<style>) runs ONLY inside a sandboxed iframe, so it's
+  // safe to keep verbatim. Everything else is still purified.
+  const blocks: string[] = [];
+  const guarded = md.replace(/```interactive\b[\s\S]*?```/g, (m) => {
+    blocks.push(m);
+    return `⁣NKEMBED${blocks.length - 1}⁣`;
+  });
+  const clean = String(DOMPurify.sanitize(guarded, PURIFY_CONFIG));
+  return clean.replace(/⁣NKEMBED(\d+)⁣/g, (_, i) => blocks[Number(i)] ?? "");
 }
 
 interface EditorProps {
@@ -69,6 +79,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       InlineMath,
       Callout,
       Mermaid,
+      InteractiveEmbed,
       Media,
       SlashCommands,
       VimMode.configure({ enabled: vimMode }),

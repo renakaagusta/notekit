@@ -53,20 +53,52 @@ export interface PendingApproval {
   input: unknown;
 }
 
+/** An extra note or task pinned as context for the next turn(s). */
+export interface ContextItem {
+  kind: "note" | "task";
+  id: string;
+  title: string;
+}
+
+/** Lightweight session metadata for the history list (mirror of chats-vault). */
+export interface ChatSessionMeta {
+  id: string;
+  title: string;
+  updatedAt: string;
+}
+
 interface AIChatState {
   open: boolean;
   selectedAgentSlug: string | null;
   /** Include the active note as context in the next turn. */
   includeNoteContext: boolean;
+  /** Extra notes/tasks pinned as context. */
+  contextItems: ContextItem[];
   messages: ChatMessage[];
   streaming: boolean;
   error: string | null;
   pendingApproval: PendingApproval | null;
 
+  /** Persisted-session state (history lives encrypted in the vault). */
+  currentSessionId: string | null;
+  sessions: ChatSessionMeta[];
+  sessionsLoaded: boolean;
+
   toggle(): void;
   setOpen(open: boolean): void;
   selectAgent(slug: string | null): void;
   setIncludeNoteContext(v: boolean): void;
+  addContext(item: ContextItem): void;
+  removeContext(id: string): void;
+  clearContext(): void;
+
+  setSessions(list: ChatSessionMeta[]): void;
+  setSessionsLoaded(v: boolean): void;
+  setCurrentSessionId(id: string | null): void;
+  /** Start a blank conversation (id assigned lazily on first save). */
+  startNewSession(): void;
+  /** Replace the transcript with a loaded session's messages. */
+  loadSessionMessages(id: string, messages: ChatMessage[]): void;
 
   pushUser(content: string): void;
   /** Create an empty assistant message and return its id for streaming. */
@@ -88,10 +120,15 @@ export const useAIChatStore = create<AIChatState>()(
       open: false,
       selectedAgentSlug: null,
       includeNoteContext: true,
+      contextItems: [],
       messages: [],
       streaming: false,
       error: null,
       pendingApproval: null,
+
+      currentSessionId: null,
+      sessions: [],
+      sessionsLoaded: false,
 
       toggle() {
         set((s) => {
@@ -111,6 +148,54 @@ export const useAIChatStore = create<AIChatState>()(
       setIncludeNoteContext(v) {
         set((s) => {
           s.includeNoteContext = v;
+        });
+      },
+      addContext(item) {
+        set((s) => {
+          if (!s.contextItems.some((c) => c.id === item.id)) s.contextItems.push(item);
+        });
+      },
+      removeContext(id) {
+        set((s) => {
+          s.contextItems = s.contextItems.filter((c) => c.id !== id);
+        });
+      },
+      clearContext() {
+        set((s) => {
+          s.contextItems = [];
+        });
+      },
+
+      setSessions(list) {
+        set((s) => {
+          s.sessions = list;
+          s.sessionsLoaded = true;
+        });
+      },
+      setSessionsLoaded(v) {
+        set((s) => {
+          s.sessionsLoaded = v;
+        });
+      },
+      setCurrentSessionId(id) {
+        set((s) => {
+          s.currentSessionId = id;
+        });
+      },
+      startNewSession() {
+        set((s) => {
+          s.currentSessionId = null;
+          s.messages = [];
+          s.error = null;
+          s.pendingApproval = null;
+        });
+      },
+      loadSessionMessages(id, messages) {
+        set((s) => {
+          s.currentSessionId = id;
+          s.messages = messages;
+          s.error = null;
+          s.pendingApproval = null;
         });
       },
 

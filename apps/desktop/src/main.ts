@@ -27,6 +27,13 @@ import {
 
 const isDev = process.env.NOTEKIT_DEV === "1" || !app.isPackaged;
 
+// Opt-in CDP for automated testing: launch with NOTEKIT_CDP=<port> to expose
+// the renderer over the Chrome DevTools Protocol. Must be set before ready.
+if (process.env.NOTEKIT_CDP) {
+  app.commandLine.appendSwitch("remote-debugging-port", process.env.NOTEKIT_CDP);
+  app.commandLine.appendSwitch("remote-allow-origins", "*");
+}
+
 // __dirname is provided by CommonJS; declare for typing in case the file
 // is ever switched to ESM (this typecheck setup uses CJS today).
 declare const __dirname: string;

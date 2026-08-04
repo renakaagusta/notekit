@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { Check, FileText, Loader2, Lock, Send, Sparkles, TextSelect, Wrench, X } from "lucide-react";
+import { Check, FileText, ListChecks, Loader2, Lock, MessagesSquare, Plus, Send, Sparkles, TextSelect, Trash2, Wrench, X } from "lucide-react";
 import { useAIChatStore, messageText } from "../stores/aiChatStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useNotesStore } from "../stores/notesStore";
+import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { noteTitle } from "../lib/note-display";
 import {
@@ -14,6 +15,15 @@ import {
   type AgentProfile,
 } from "../lib/agents-api";
 import { listSecretNames } from "../lib/secrets-vault";
+import {
+  listChatSessions,
+  readChatSession,
+  writeChatSession,
+  deleteChatSession,
+  deriveTitle,
+  chatTimestamp,
+  type ChatSession,
+} from "../lib/chats-vault";
 import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
 import { buildAssistantTools, describeToolCall } from "../lib/ai-tools";
 import { renderAssistantHtml } from "../lib/chat-markdown";
@@ -31,6 +41,21 @@ function wordCount(s: string): number {
   return t ? t.split(/\s+/).length : 0;
 }
 
+/** Compact relative time for the history list ("2m", "3h", "5d"). */
+function relTime(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (!Number.isFinite(then)) return "";
+  const diff = Date.now() - then;
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "now";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  return new Date(iso).toLocaleDateString();
+}
+
 export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   const open = useAIChatStore((s) => s.open);
   const setOpen = useAIChatStore((s) => s.setOpen);
@@ -41,13 +66,23 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   const selectAgent = useAIChatStore((s) => s.selectAgent);
   const includeNoteContext = useAIChatStore((s) => s.includeNoteContext);
   const setIncludeNoteContext = useAIChatStore((s) => s.setIncludeNoteContext);
+  const contextItems = useAIChatStore((s) => s.contextItems);
+  const addContext = useAIChatStore((s) => s.addContext);
+  const removeContext = useAIChatStore((s) => s.removeContext);
   const pendingApproval = useAIChatStore((s) => s.pendingApproval);
+  const sessions = useAIChatStore((s) => s.sessions);
+  const currentSessionId = useAIChatStore((s) => s.currentSessionId);
+  const setSessions = useAIChatStore((s) => s.setSessions);
+  const startNewSession = useAIChatStore((s) => s.startNewSession);
+  const loadSessionMessages = useAIChatStore((s) => s.loadSessionMessages);
 
   const device = useCryptoStore((s) => s.device);
   const cryptoPhase = useCryptoStore((s) => s.phase);
 
   const activeNoteId = useNotesStore((s) => s.activeNoteId);
   const notes = useNotesStore((s) => s.notes);
+  const allNotes = useNotesStore((s) => s.all());
+  const tickets = useTicketsStore((s) => s.all());
   const activeNote = activeNoteId ? notes[activeNoteId] ?? null : null;
   const defaultFolder = useVaultStore((s) => s.activeSettings?.defaultFolder ?? null);
 
@@ -55,7 +90,12 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   const [keyStoredSlugs, setKeyStoredSlugs] = useState<Set<string> | null>(null);
   const [draft, setDraft] = useState("");
   const [selection, setSelection] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pickerQuery, setPickerQuery] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  // Remember createdAt across saves of the same session (title stays derived).
+  const sessionCreatedRef = useRef<string | null>(null);
   // Queue of approvals — the model may fire several mutating tools (even in
   // parallel), and each needs its own confirmation. A single slot would let
   // later requests clobber earlier ones and deadlock the stream.
@@ -98,6 +138,24 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, cryptoPhase, refreshTick]);
 
+  // Load the encrypted session index when the panel opens & the vault is ready.
+  useEffect(() => {
+    if (!open || cryptoPhase !== "ready" || !device) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await listChatSessions(device);
+        if (!cancelled) setSessions(list);
+      } catch {
+        if (!cancelled) setSessions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, cryptoPhase]);
+
   // Track the live document selection so we can offer it as scoped context.
   useEffect(() => {
     if (!open) return;
@@ -130,13 +188,23 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
       content: messageText(m),
     }));
 
-    // Build the scoped context block: selection wins over whole-note.
+    // Build the scoped context block: selection + active note + pinned items.
     let contextBlock = "";
     if (selection) {
-      contextBlock = `[Konteks — teks terpilih pengguna]\n${selection}\n\n`;
-    } else if (includeNoteContext && activeNote) {
-      contextBlock =
-        `[Konteks — catatan aktif "${noteTitle(activeNote)}"]\n${activeNote.body}\n\n`;
+      contextBlock += `[Context — selected text]\n${selection}\n\n`;
+    }
+    if (includeNoteContext && activeNote) {
+      contextBlock += `[Context — active note "${noteTitle(activeNote)}"]\n${activeNote.body}\n\n`;
+    }
+    for (const item of store.contextItems) {
+      if (item.kind === "note") {
+        const n = useNotesStore.getState().notes[item.id];
+        if (n) contextBlock += `[Context — note "${noteTitle(n)}"]\n${n.body}\n\n`;
+      } else {
+        const tk = useTicketsStore.getState().all().find((x) => x.id === item.id);
+        if (tk)
+          contextBlock += `[Context — task "${tk.title}" (status: ${tk.status})]\n${tk.body}\n\n`;
+      }
     }
 
     setDraft("");
@@ -152,11 +220,12 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
 
     let system = selectedAgent.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT;
     system +=
-      "\n\nKamu punya tools untuk: catatan (list_notes, search_notes, read_note), folder (list_folders), link (list_links), task/tiket (list_tasks), nama secret (list_secrets — TANPA nilai), riwayat commit git (recent_activity), serta membuka/menutup tab" +
+      "\n\nYou have tools for: notes (list_notes, search_notes, read_note), folders (list_folders), links (list_links), tasks (list_tasks), secret names (list_secrets — NAMES only, never values), git commit history (recent_activity), and opening/closing tabs" +
       (permissions === "read-write"
-        ? ". Kamu juga bisa membuat/mengubah/menghapus catatan, menyimpan link, membuat task & ubah statusnya — setiap perubahan minta persetujuan pengguna dulu."
+        ? ". You can also create/edit/delete notes, save links, create tasks & change their status — every change requires the user's approval first."
         : ".") +
-      " Saat ditanya isi vault secara menyeluruh, gunakan list_notes (bukan search_notes). Kamu TIDAK PERNAH bisa membaca NILAI secret, hanya namanya. Gunakan tools bila relevan.";
+      " When asked about the whole vault, use list_notes (not search_notes). You can NEVER read secret VALUES, only their names. Use tools when relevant." +
+      "\n\nAlways reply in the same language the user writes in.";
 
     try {
       await streamAssistant({
@@ -194,6 +263,71 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
       useAIChatStore.getState().finishAssistant(assistantId);
       useAIChatStore.getState().setStreaming(false);
       abortRef.current = null;
+      void persistCurrentSession();
+    }
+  }
+
+  /** Encrypt + commit the current transcript to the vault, then refresh the list. */
+  async function persistCurrentSession() {
+    const st = useAIChatStore.getState();
+    if (!device || st.messages.length === 0) return;
+    let id = st.currentSessionId;
+    if (!id) {
+      id = nanoid();
+      st.setCurrentSessionId(id);
+    }
+    const ts = chatTimestamp();
+    if (!sessionCreatedRef.current) sessionCreatedRef.current = ts;
+    const session: ChatSession = {
+      id,
+      title: deriveTitle(st.messages),
+      agentSlug: st.selectedAgentSlug,
+      messages: st.messages,
+      createdAt: sessionCreatedRef.current,
+      updatedAt: ts,
+    };
+    try {
+      await writeChatSession(session, device);
+      const list = await listChatSessions(device);
+      setSessions(list);
+    } catch (e) {
+      // Non-fatal: chat still works in-memory; surface for debugging only.
+      console.warn("[notekit] failed to persist chat session", e);
+    }
+  }
+
+  /** Open a saved conversation from the history list. */
+  async function openSession(id: string) {
+    if (!device) return;
+    setHistoryOpen(false);
+    try {
+      const session = await readChatSession(id, device);
+      if (session) {
+        loadSessionMessages(id, session.messages);
+        sessionCreatedRef.current = session.createdAt;
+      }
+    } catch (e) {
+      console.warn("[notekit] failed to open chat session", e);
+    }
+  }
+
+  /** Start a fresh conversation (nothing committed until the first turn). */
+  function newChat() {
+    startNewSession();
+    sessionCreatedRef.current = null;
+    setHistoryOpen(false);
+  }
+
+  /** Delete a saved conversation. If it's the open one, reset to a fresh chat. */
+  async function removeSession(id: string) {
+    if (!device) return;
+    try {
+      await deleteChatSession(id, device);
+      const list = await listChatSessions(device);
+      setSessions(list);
+      if (useAIChatStore.getState().currentSessionId === id) newChat();
+    } catch (e) {
+      console.warn("[notekit] failed to delete chat session", e);
     }
   }
 
@@ -268,6 +402,59 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
             ))}
           </select>
         )}
+        {!notReady && loaded && !needsSetup && (
+          <>
+            <button
+              className="nk-iconbtn"
+              onClick={newChat}
+              aria-label="Obrolan baru"
+              title="Obrolan baru"
+            >
+              <Plus size={15} aria-hidden />
+            </button>
+            <div className="nk-ai-history-wrap">
+              <button
+                className={`nk-iconbtn${historyOpen ? " is-on" : ""}`}
+                onClick={() => setHistoryOpen((v) => !v)}
+                aria-label="Riwayat obrolan"
+                title="Riwayat"
+              >
+                <MessagesSquare size={15} aria-hidden />
+              </button>
+              {historyOpen && (
+                <div className="nk-ai-history">
+                  {sessions.length === 0 ? (
+                    <div className="nk-ai-ctx-empty">Belum ada riwayat</div>
+                  ) : (
+                    sessions.map((s) => (
+                      <div
+                        key={s.id}
+                        className={`nk-ai-history-row${s.id === currentSessionId ? " is-active" : ""}`}
+                      >
+                        <button
+                          className="nk-ai-history-open"
+                          onClick={() => void openSession(s.id)}
+                          title={s.title}
+                        >
+                          <span className="nk-ai-history-title">{s.title}</span>
+                          <span className="nk-ai-history-time">{relTime(s.updatedAt)}</span>
+                        </button>
+                        <button
+                          className="nk-ai-history-del"
+                          onClick={() => void removeSession(s.id)}
+                          aria-label="Hapus obrolan"
+                          title="Hapus"
+                        >
+                          <Trash2 size={12} aria-hidden />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </>
+        )}
         <button
           className="nk-iconbtn"
           onClick={() => setOpen(false)}
@@ -308,30 +495,105 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
         </div>
       ) : (
         <>
-          {/* Context chips — selection wins, else the whole active note. */}
+          {/* Context chips — selection + active note + pinned notes/tasks + add. */}
           <div className="nk-ai-chips">
-            {selection ? (
+            {selection && (
               <span className="nk-ai-chip is-selection">
                 <TextSelect size={12} aria-hidden />
-                Teks terpilih ({wordCount(selection)} kata)
+                {wordCount(selection)} words
               </span>
-            ) : activeNote ? (
+            )}
+            {activeNote && !contextItems.some((c) => c.id === activeNoteId) && (
               <button
                 className={`nk-ai-chip${includeNoteContext ? " is-on" : ""}`}
                 onClick={() => setIncludeNoteContext(!includeNoteContext)}
-                title={
-                  includeNoteContext
-                    ? "Catatan aktif dipakai sebagai konteks — klik untuk matikan"
-                    : "Klik untuk pakai catatan aktif sebagai konteks"
-                }
+                title="Toggle the active note as context"
               >
                 <FileText size={12} aria-hidden />
                 {noteTitle(activeNote)}
                 {includeNoteContext && <X size={11} aria-hidden />}
               </button>
-            ) : (
-              <span className="nk-ai-chip is-empty">Tanpa konteks catatan</span>
             )}
+            {contextItems.map((c) => (
+              <span key={c.id} className="nk-ai-chip is-on">
+                {c.kind === "task" ? (
+                  <ListChecks size={12} aria-hidden />
+                ) : (
+                  <FileText size={12} aria-hidden />
+                )}
+                {c.title}
+                <button
+                  className="nk-ai-chip-x"
+                  onClick={() => removeContext(c.id)}
+                  aria-label="Remove context"
+                >
+                  <X size={11} aria-hidden />
+                </button>
+              </span>
+            ))}
+            <div className="nk-ai-ctx-add">
+              <button
+                className="nk-ai-chip nk-ai-chip--add"
+                onClick={() => setPickerOpen((v) => !v)}
+                title="Add a note or task as context"
+                aria-label="Add context"
+              >
+                <Plus size={13} aria-hidden />
+              </button>
+              {pickerOpen && (
+                <div className="nk-ai-ctx-picker">
+                  <input
+                    className="nk-ai-ctx-search"
+                    placeholder="Search notes & tasks…"
+                    value={pickerQuery}
+                    onChange={(e) => setPickerQuery(e.target.value)}
+                    autoFocus
+                  />
+                  <div className="nk-ai-ctx-list">
+                    {(() => {
+                      const q = pickerQuery.toLowerCase();
+                      const pinned = new Set(contextItems.map((c) => c.id));
+                      const noteHits = allNotes
+                        .filter((n) => !pinned.has(n.id) && noteTitle(n).toLowerCase().includes(q))
+                        .slice(0, 8);
+                      const taskHits = tickets
+                        .filter((t) => !pinned.has(t.id) && t.title.toLowerCase().includes(q))
+                        .slice(0, 6);
+                      if (!noteHits.length && !taskHits.length)
+                        return <div className="nk-ai-ctx-empty">No matches</div>;
+                      return (
+                        <>
+                          {noteHits.map((n) => (
+                            <button
+                              key={n.id}
+                              className="nk-ai-ctx-item"
+                              onClick={() => {
+                                addContext({ kind: "note", id: n.id, title: noteTitle(n) });
+                                setPickerQuery("");
+                              }}
+                            >
+                              <FileText size={12} aria-hidden /> {noteTitle(n)}
+                            </button>
+                          ))}
+                          {taskHits.map((t) => (
+                            <button
+                              key={t.id}
+                              className="nk-ai-ctx-item"
+                              onClick={() => {
+                                addContext({ kind: "task", id: t.id, title: t.title });
+                                setPickerQuery("");
+                              }}
+                            >
+                              <ListChecks size={12} aria-hidden /> {t.title}
+                            </button>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="nk-ai-body" ref={scrollRef}>

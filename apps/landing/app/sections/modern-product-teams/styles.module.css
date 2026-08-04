@@ -31,7 +31,6 @@
 }
 
 .carousel__container {
-	--Carousel-gap: 8px;
 	@apply overflow-x-auto;
 	scrollbar-width: none;
 	scroll-snap-type: x mandatory;
@@ -40,166 +39,49 @@
 }
 
 .carousel__inner {
-	@apply grid grid-flow-col gap-2 min-w-fit px-8;
+	@apply grid grid-flow-col gap-3 min-w-fit px-8;
 }
 
 .device__card {
-	@apply snap-center flex flex-col gap-3 w-[336px];
+	@apply snap-center flex flex-col gap-4 w-[280px] sm:w-[300px];
 }
 
 .device__visual {
-	@apply w-full aspect-[336/360] rounded-[30px] bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)] overflow-hidden;
+	@apply w-full aspect-[300/240] rounded-[24px] bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)] flex items-center justify-center;
 }
 
-/* Web & Desktop shared */
-.visual__web, .visual__desktop {
-	@apply flex flex-col h-full;
+.icon__group {
+	@apply flex items-center justify-center gap-5 flex-wrap px-6;
 }
 
-.browser__bar, .desktop__titlebar, .terminal__bar {
-	@apply flex items-center gap-[6px] px-4 py-3 border-b border-white/[0.06] flex-shrink-0;
+.platform__icon {
+	@apply flex flex-col items-center gap-2;
 }
 
-.browser__dot {
-	@apply w-3 h-3 rounded-full bg-white/10 flex-shrink-0;
+.platform__icon svg {
+	@apply w-10 h-10 text-white/50;
 }
 
-.browser__url {
-	@apply text-[10px] text-white/20 ml-2 font-mono;
+.platform__icon span {
+	@apply text-[11px] text-white/30 font-medium tracking-wide;
 }
 
-.desktop__title, .terminal__title {
-	@apply text-[10px] text-white/20 ml-auto mr-auto font-mono;
+.platform__icon__large svg {
+	@apply w-14 h-14 text-white/50;
 }
 
-.browser__body {
-	@apply flex flex-1 overflow-hidden;
+.platform__icon__large span {
+	@apply text-[13px];
 }
 
-.mini__sidebar {
-	@apply w-[70px] border-r border-white/[0.06] flex flex-col gap-1 p-2 flex-shrink-0;
-}
-
-.mini__logo {
-	@apply flex items-center justify-center py-2 mb-1;
-}
-
-.mini__nav__item {
-	@apply text-[9px] text-white/20 px-2 py-1 rounded;
-}
-
-.mini__editor {
-	@apply flex-1 p-4 flex flex-col gap-2;
-}
-
-.mini__title {
-	@apply h-3 rounded bg-white/20 mb-3;
-	width: 55%;
-}
-
-.mini__line {
-	@apply h-2 rounded bg-white/10;
-}
-
-.mini__line__short {
-	@apply h-2 rounded bg-white/[0.06];
-}
-
-.mini__code__block {
-	@apply rounded-lg bg-white/[0.04] border border-white/[0.06] p-3 flex flex-col gap-2 my-1;
-}
-
-.mini__code__line {
-	@apply h-2 rounded bg-white/[0.08];
-}
-
-/* Mobile */
-.visual__mobile {
-	@apply flex flex-col h-full bg-[var(--color-bg-secondary)];
-}
-
-.phone__notch {
-	@apply w-20 h-[6px] bg-white/10 rounded-full mx-auto mt-3 mb-2;
-}
-
-.phone__header {
-	@apply flex items-center gap-2 px-4 py-3 border-b border-white/[0.06];
-}
-
-.phone__vault {
-	@apply text-[11px] font-medium text-white/60;
-}
-
-.phone__list {
-	@apply flex flex-col flex-1 overflow-hidden;
-}
-
-.phone__note__item {
-	@apply flex items-center gap-3 px-4 py-3 border-b border-white/[0.04];
-}
-
-.phone__note__icon {
-	@apply w-8 h-8 rounded-lg bg-white/[0.06] flex-shrink-0;
-}
-
-.phone__note__text {
-	@apply flex flex-col gap-1 flex-1;
-}
-
-.phone__note__title {
-	@apply text-[10px] text-white/50;
-}
-
-.phone__note__meta {
-	@apply h-[6px] rounded bg-white/[0.06];
-	width: 60%;
-}
-
-.phone__toolbar {
-	@apply flex items-center gap-2 px-4 py-3 border-t border-white/[0.06];
-}
-
-.phone__toolbar__btn {
-	@apply w-7 h-7 rounded-lg bg-white/[0.06];
-}
-
-.phone__new__btn {
-	@apply ml-auto w-8 h-8 rounded-full bg-white/80 text-black text-lg font-medium flex items-center justify-center leading-none;
-}
-
-/* CLI */
-.visual__cli {
-	@apply flex flex-col h-full bg-[#0a0a0a];
-}
-
-.terminal__body {
-	@apply p-4 flex flex-col gap-2 flex-1 font-mono;
-}
-
-.terminal__line {
-	@apply flex items-center text-[10px];
-}
-
-.terminal__prompt {
-	@apply text-white/30;
-}
-
-.terminal__cmd {
-	@apply text-white/70;
-}
-
-.terminal__output {
-	@apply text-[10px] text-white/35 pl-4;
-}
-
-.terminal__line__cursor {
-	@apply flex items-center text-[10px] mt-1;
-}
-
-.terminal__cursor {
-	@apply text-white/70 animate-pulse ml-1;
+.card__text {
+	@apply flex flex-col gap-1 px-1;
 }
 
 .device__title {
-	@apply text-sm text-[var(--color-text-tertiary)] leading-[21px] tracking-[-0.16px] px-2;
+	@apply text-[14px] font-semibold text-[var(--color-text-primary)] leading-tight;
+}
+
+.device__subtitle {
+	@apply text-[13px] text-[var(--color-text-quaternary)];
 }

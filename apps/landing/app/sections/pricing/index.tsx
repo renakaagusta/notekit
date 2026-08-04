@@ -42,7 +42,7 @@ const plans = [
 	{
 		id: 'ultimate',
 		name: 'Ultimate',
-		price: 5,
+		price: 3,
 		priceNote: 'per month',
 		description: 'Maximum capacity for power users and heavy vaults.',
 		cta: 'Get Ultimate',

@@ -1,0 +1,89 @@
+.pricing {
+	@apply py-24 sm:py-[160px];
+}
+
+.heading__container {
+	@apply text-center mb-16 flex flex-col items-center;
+}
+
+.badge {
+	@apply text-[12px] uppercase tracking-widest text-white/40 mb-4;
+}
+
+.heading {
+	@apply text-[40px] sm:text-[56px] font-medium tracking-[-0.03em] text-[var(--color-text-primary)] leading-[1.1] mb-4;
+	font-variation-settings: 'opsz' 28;
+}
+
+.subheading {
+	@apply text-[17px] leading-[26px] text-[var(--color-text-tertiary)] max-w-[480px] text-balance;
+}
+
+.plans__grid {
+	@apply grid grid-cols-1 md:grid-cols-3 gap-4 items-start;
+}
+
+.plan__card {
+	@apply relative rounded-2xl border border-[var(--bento-border)] bg-[var(--color-bg-secondary)] p-6 flex flex-col gap-6;
+}
+
+.plan__card__highlight {
+	@apply border-white/20 bg-[var(--color-bg-tertiary)];
+	box-shadow: 0 0 0 1px rgba(255,255,255,0.08), 0 24px 64px rgba(0,0,0,0.4);
+}
+
+.popular__badge {
+	@apply absolute -top-3 left-1/2 -translate-x-1/2 text-[11px] font-medium text-black bg-white px-3 py-[3px] rounded-full whitespace-nowrap;
+}
+
+.plan__header {
+	@apply flex flex-col gap-3;
+}
+
+.plan__name {
+	@apply text-[13px] font-medium text-[var(--color-text-quaternary)] uppercase tracking-widest;
+}
+
+.plan__price__row {
+	@apply flex items-baseline gap-1;
+}
+
+.plan__price__symbol {
+	@apply text-[22px] font-medium text-[var(--color-text-primary)] self-start mt-1;
+}
+
+.plan__price {
+	@apply text-[48px] font-medium text-[var(--color-text-primary)] leading-none tracking-[-0.03em];
+}
+
+.plan__price__note {
+	@apply text-[13px] text-[var(--color-text-quaternary)] ml-1;
+}
+
+.plan__price__free {
+	@apply text-[32px] font-medium text-[var(--color-text-primary)] leading-none tracking-[-0.02em];
+}
+
+.plan__description {
+	@apply text-[14px] leading-[21px] text-[var(--color-text-tertiary)];
+}
+
+.cta__primary {
+	@apply block text-center text-[14px] font-medium h-10 leading-[40px] rounded-xl bg-white text-black hover:bg-white/90 transition-colors;
+}
+
+.cta__secondary {
+	@apply block text-center text-[14px] font-medium h-10 leading-[40px] rounded-xl border border-[var(--bento-border)] text-[var(--color-text-secondary)] hover:bg-white/[0.04] transition-colors;
+}
+
+.feature__list {
+	@apply flex flex-col gap-3 list-none;
+}
+
+.feature__item {
+	@apply flex items-center gap-3 text-[14px] text-[var(--color-text-tertiary)];
+}
+
+.feature__check {
+	@apply text-[var(--color-text-secondary)] flex-shrink-0;
+}

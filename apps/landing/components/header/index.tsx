@@ -36,12 +36,6 @@ const Header: FC = () => {
 								Pricing
 							</Link>
 						</li>
-						<li className={`${styles.header__item} ${styles.hide__tablet}`}>
-							<Link href='#' className={styles.header__link}>
-								Docs
-							</Link>
-						</li>
-
 						<li className={styles.header__login}>
 							<Link
 								href='https://app.notekit.online'

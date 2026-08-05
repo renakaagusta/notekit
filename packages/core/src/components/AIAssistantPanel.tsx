@@ -235,6 +235,9 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
         ? ". You can also create/edit/delete notes, save links, create tasks & change their status — every change requires the user's approval first."
         : ".") +
       " When asked about the whole vault, use list_notes (not search_notes). You can NEVER read secret VALUES, only their names. Use tools when relevant." +
+      // MiniMax and other smaller models sometimes NARRATE an action ("✅ done, I
+      // updated the note") without actually emitting the tool call. Forbid that.
+      "\n\nCRITICAL: You may ONLY claim a note/link/task was created, updated, or deleted if you ACTUALLY called the matching tool (create_note / update_note / delete_note / create_link / create_task / set_task_status) in THIS reply and it returned success. Never say \"done\", \"sudah\", \"✅\", or describe a change you did not perform via a tool call. To change a note's content you MUST call update_note with the note's id and the COMPLETE new body — describing the change in text does nothing. If a task needs a tool, call the tool first, then confirm based on its result." +
       "\n\nAlways reply in the same language the user writes in.";
 
     try {

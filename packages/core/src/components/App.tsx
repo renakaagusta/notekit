@@ -389,18 +389,20 @@ export function App({ user, onSignOut }: AppProps = {}) {
           // Bind persistence BEFORE startSync so any saved state for this
           // vault is rehydrated before the subscribe baselines are taken.
           await bindVaultPersistence(status.vault);
-          // bootstrapCrypto only does a handful of small server-API reads
-          // (recovery.json + device records) and is independent of the
-          // content sync. Kick it off in parallel with startSync so the
-          // pairing / setup dialog appears right away instead of waiting
-          // for the entire vault to pull — the long delay users hit when
-          // a fresh device needs to pair after sign-in.
-          const cryptoReady = bootstrapCrypto();
+          // Wait for crypto BEFORE the first content pull. sync.ts reads
+          // `device.identity` at decrypt time, so pulling before crypto is
+          // ready skips every encrypted item and replaceAll drops them from the
+          // cache — a visible flicker on every open (notes show → vanish →
+          // reappear after the re-pull). bootstrapCrypto only does a handful of
+          // small reads (recovery.json + device records) so this costs little,
+          // and the pairing/setup dialog still appears reactively via
+          // cryptoStore.phase. Tolerate failure so content loads regardless.
+          await bootstrapCrypto().catch(() => {});
           await startSync();
           // Open the real-time event stream so edits from other devices
           // arrive via push instead of waiting for the next focus-pull.
           startVaultEventStream();
-          await cryptoReady;
+          // Safety net: if crypto wasn't ready in time after all, re-pull once.
           await rehydrateEncryptedIfSkipped();
         } else if (status.hasGithubToken) {
           // A git provider is connected but no active vault → pick/create one.
@@ -557,13 +559,12 @@ export function App({ user, onSignOut }: AppProps = {}) {
     // saved state is rehydrated and future writes route to the right slot.
     const pickedVault = useVaultStore.getState().vault;
     if (pickedVault) await bindVaultPersistence(pickedVault);
-    // Run crypto bootstrap in parallel with the content sync — it only
-    // needs a few small server-API reads, so the pairing / setup dialog
-    // shouldn't wait for the full vault pull. (See the mount effect above.)
-    const cryptoReady = bootstrapCrypto();
+    // Wait for crypto before the first pull so encrypted items decrypt on the
+    // first try (avoids the skip → replaceAll → re-pull flicker). See the mount
+    // effect above. Tolerate failure so content still loads.
+    await bootstrapCrypto().catch(() => {});
     await startSync();
     startVaultEventStream();
-    await cryptoReady;
     await rehydrateEncryptedIfSkipped();
   }
 

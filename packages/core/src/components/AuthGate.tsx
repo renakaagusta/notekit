@@ -6,7 +6,6 @@ import { App } from "./App";
 import { SignIn } from "./SignIn";
 import { Onboarding, hasOnboarded } from "./Onboarding";
 import { NoteKitMark, NoteKitWordmark } from "./NoteKitLogo";
-import { SkeletonLines } from "./Skeleton";
 
 export function AuthGate() {
   const { status, providers, signIn, signOut, user } = useAuth();
@@ -43,16 +42,17 @@ export function AuthGate() {
   }, [status, preAuthTheme]);
 
   if (status === "loading") {
+    // Minimal splash: always dark, centered logo, a small spinner near the
+    // bottom — no card. Forcing dark here avoids a light flash for the split
+    // second before the app resolves the saved theme.
     return (
-      <div className="nk" data-dir="studio" data-theme={preAuthTheme}>
-        <div className="nk-signin">
-          <div className="nk-signin-card">
-            <div className="nk-signin-brand">
-              <NoteKitMark size={28} />
-              <NoteKitWordmark />
-            </div>
-            <SkeletonLines count={2} />
+      <div className="nk" data-dir="studio" data-theme="dark">
+        <div className="nk-splash">
+          <div className="nk-splash-brand">
+            <NoteKitMark size={40} />
+            <NoteKitWordmark />
           </div>
+          <span className="nk-splash-spinner" aria-label="Loading" />
         </div>
       </div>
     );

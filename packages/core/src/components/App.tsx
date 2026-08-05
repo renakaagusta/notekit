@@ -657,6 +657,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
       <div
         className="nk-app"
         data-mobile={isMobile ? "true" : undefined}
+        data-view={view}
         data-mobile-pane={isMobile ? mobilePane : undefined}
         data-sidebar-collapsed={
           !isMobile && sidebarCollapsed ? "true" : undefined

@@ -8986,11 +8986,13 @@ a.nk-commit-sha:hover {
   cursor: pointer; text-align: left;
 }
 .nk-home-list li:first-child .nk-home-row { border-top: 0; }
-.nk-home-row:hover { color: var(--nk-mint-deep); }
+.nk-home-row:hover { background: var(--surface-2); }
 .nk-home-row-icon { color: var(--muted); flex-shrink: 0; display: grid; place-items: center; }
 .nk-home-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nk-home-row-meta { font-size: 12px; color: var(--muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
+/* Home has its own greeting — drop the appbar's divider for a clean top. */
+.nk-app[data-mobile="true"][data-view="home"] .nk-main-hd { border-bottom: 0; }
 .nk-app[data-mobile="true"] .nk-home { padding: 18px 18px 132px; }
 .nk-app[data-mobile="true"] .nk-home-greeting h1 { font-size: 30px; }
 .nk-app[data-mobile="true"] .nk-home-search { font-size: 16px; padding: 14px 15px; }
@@ -9009,7 +9011,7 @@ a.nk-commit-sha:hover {
   backdrop-filter: blur(22px) saturate(1.5);
   -webkit-backdrop-filter: blur(22px) saturate(1.5);
   border: 1px solid var(--border);
-  border-radius: 26px;
+  border-radius: 34px;
   box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.45);
 }
 .nk-bottomnav-item {
@@ -9023,7 +9025,7 @@ a.nk-commit-sha:hover {
   color: var(--muted);
   font: inherit;
   cursor: pointer;
-  border-radius: 16px;
+  border-radius: 20px;
 }
 .nk-bottomnav-item svg { display: block; }
 .nk-bottomnav-item span { font-size: 11px; font-weight: 600; }

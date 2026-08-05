@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Calendar,
   CheckSquare,
   Clock,
   FileText,
@@ -9,6 +8,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Share2,
   Zap,
 } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
@@ -297,9 +297,9 @@ export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }
         </div>
 
         <div className="nk-home-tiles">
-          <button className="nk-home-tile" onClick={() => nav("calendar")}>
-            <Calendar size={20} aria-hidden />
-            <span>Calendar</span>
+          <button className="nk-home-tile" onClick={() => nav("graph")}>
+            <Share2 size={20} aria-hidden />
+            <span>Graph</span>
           </button>
           <button className="nk-home-tile" onClick={() => nav("links")}>
             <LinkIcon size={20} aria-hidden />

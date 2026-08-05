@@ -329,7 +329,10 @@ export function buildAssistantTools(
     }),
     update_note: tool({
       description:
-        "Ganti seluruh isi catatan berdasarkan id. Body dalam Markdown; HTML inline sederhana boleh (dirender langsung) TAPI jangan dibungkus blok kode ```html, jangan dokumen HTML lengkap/<script>/<style>. Minta persetujuan dulu.",
+        "Ganti SELURUH isi catatan berdasarkan id (kirim body lengkap yang baru, bukan potongan). Minta persetujuan dulu. " +
+        "Body dalam Markdown; HTML inline sederhana boleh (mis. <mark>) TAPI jangan dibungkus ```html. " +
+        "Untuk konten INTERAKTIF (kuis, chart, mindmap yang butuh JavaScript): taruh HTML lengkap di blok kode ```interactive ... ``` — berjalan di sandboxed iframe yang aman. Aturannya sama seperti create_note: HTML level-body + <style>/<script> inline (tanpa <!DOCTYPE>/<html>/<head>), boleh library CDN tepercaya (jsdelivr/unpkg/cdnjs) + gambar https/data:, TANPA fetch/XHR. Pakai CSS variables tema (var(--surface), var(--text), var(--accent), var(--border), dst). " +
+        "NAVIGASI: elemen bisa membuka catatan lain saat diklik lewat atribut `data-nk-open=\"<id atau judul>\"` atau `onclick=\"notekit.openNote('<id>')\"` — utamakan ID catatan dari list_notes.",
       inputSchema: z.object({ id: z.string(), body: z.string() }),
       execute: async ({ id, body }) => {
         const n = useNotesStore.getState().notes[id];

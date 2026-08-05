@@ -9081,14 +9081,18 @@ a.nk-commit-sha:hover {
 .nk-app[data-mobile="true"] .nk-ai-prose { font-size: 15.5px; }
 .nk-app[data-mobile="true"] .nk-ai-empty p { font-size: 15.5px; }
 .nk-app[data-mobile="true"] .nk-ai-toolnote { font-size: 13px; }
-.nk-app[data-mobile="true"] .nk-ai-agent-picker { font-size: 16px; padding: 8px 10px; }
-/* iOS zooms in when a focused text control is < 16px — keep them all >= 16 on
-   mobile so tapping any chat/search field doesn't trigger an auto-zoom. */
-.nk-app[data-mobile="true"] input,
-.nk-app[data-mobile="true"] textarea,
-.nk-app[data-mobile="true"] select { font-size: 16px; }
-/* Kill the double-tap-to-zoom on taps (keeps scroll + pinch-zoom). */
-.nk-app[data-mobile="true"] { touch-action: manipulation; }
+.nk-app[data-mobile="true"] .nk-ai-agent-picker { padding: 8px 10px; }
+/* iOS zooms in when a focused text control is < 16px. Force every text field to
+   >= 16px on ANY touch device (phone, tablet, any orientation — not just the
+   <720px mobile layout) so tapping a field never auto-zooms. Desktop (fine
+   pointer) is untouched, so compact inputs there keep their sizes. */
+@media (pointer: coarse) {
+  .nk-app input,
+  .nk-app textarea,
+  .nk-app select { font-size: 16px; }
+  /* Kill double-tap-to-zoom (scroll + pinch-zoom still work). */
+  .nk-app { touch-action: manipulation; }
+}
 .nk-app[data-mobile="true"] .nk-ai-panel-title { font-size: 14px; }
 .nk-app[data-mobile="true"] .nk-ai-send,
 .nk-app[data-mobile="true"] .nk-ai-attachbtn { width: 40px; height: 40px; }

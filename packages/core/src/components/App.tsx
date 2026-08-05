@@ -550,6 +550,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.dataset.theme = resolvedTheme;
+    // Cache so the inline <head> script paints this theme on the next load,
+    // before React mounts — avoids the light-then-dark flash.
+    try {
+      localStorage.setItem("nk:theme", resolvedTheme);
+    } catch {
+      /* ignore */
+    }
     return () => {
       delete document.documentElement.dataset.theme;
     };

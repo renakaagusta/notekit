@@ -23,7 +23,23 @@ export function AuthGate() {
   useEffect(() => {
     if (typeof document === "undefined") return;
     if (status === "authenticated") return;
-    document.documentElement.dataset.theme = preAuthTheme;
+    // Prefer the cached theme (already painted by the inline <head> script)
+    // over the OS preference — otherwise a signed-out dark user flashes from
+    // cached-dark → OS-light during loading, then back to dark once App loads
+    // their saved setting. Only fall back to OS on a first-ever visit.
+    let cached: string | null = null;
+    try {
+      cached = localStorage.getItem("nk:theme");
+    } catch {
+      /* ignore */
+    }
+    const theme = cached === "light" || cached === "dark" ? cached : preAuthTheme;
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("nk:theme", theme);
+    } catch {
+      /* ignore */
+    }
   }, [status, preAuthTheme]);
 
   if (status === "loading") {

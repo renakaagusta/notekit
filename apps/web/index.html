@@ -13,6 +13,24 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#18181b" />
     <title>Notekit</title>
+    <!-- Apply the theme BEFORE the bundle paints, so a dark-mode user never
+         sees a flash of light (React only resolves the saved theme after it
+         mounts + loads vault settings). Reads the last-applied theme cached in
+         localStorage (nk:theme); on a first-ever visit falls back to the OS
+         preference. Kept inline + tiny so it runs synchronously in <head>. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("nk:theme");
+          if (t !== "light" && t !== "dark") {
+            t = window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          }
+          document.documentElement.dataset.theme = t;
+        } catch (e) {}
+      })();
+    </script>
     <!-- SVG favicon is the theme-aware mark (prefers-color-scheme stroke).
          ICO is the 16/32/48 legacy fallback for tabs without SVG support.
          apple-touch-icon ships the dark-bg mark for iOS "Add to Home Screen".

@@ -9146,6 +9146,25 @@ a.nk-commit-sha:hover {
   transform: translateY(0) scale(0.98);
 }
 
+/* Mobile: the FAB rides above the safe area (and the editor toolbar), and the
+   assistant panel becomes a full-screen overlay instead of a dock column. */
+.nk-app[data-mobile="true"] .nk-ai-fab {
+  position: fixed;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom) + 84px);
+  z-index: 120;
+}
+.nk-app[data-mobile="true"] .nk-ai-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  grid-column: auto;
+  grid-row: auto;
+  border-left: 0;
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
 /* The dock column itself: full height, own left border. */
 .nk-ai-panel {
   grid-column: 3;

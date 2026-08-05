@@ -775,21 +775,23 @@ export function App({ user, onSignOut }: AppProps = {}) {
           )}
           {view === "secrets" && <SecretsView />}
           {view === "links" && <LinksView />}
-          {!isMobile && !zenMode && <AIAssistantFab />}
+          {!zenMode && <AIAssistantFab />}
         </main>
 
-        {/* AI assistant — third dock column. Its own left-edge resizer mirrors
-         * the sidebar's. Desktop only for now (mobile shell comes later). */}
-        {!isMobile && !zenMode && aiOpen && (
+        {/* AI assistant — a third dock column on desktop (with a left-edge
+         * resizer), a full-screen overlay on mobile. */}
+        {!zenMode && aiOpen && (
           <>
-            <div
-              className="nk-ai-resizer"
-              style={{ right: aiWidth }}
-              onMouseDown={onAiDragStart}
-              role="separator"
-              aria-orientation="vertical"
-              aria-label="Resize AI panel"
-            />
+            {!isMobile && (
+              <div
+                className="nk-ai-resizer"
+                style={{ right: aiWidth }}
+                onMouseDown={onAiDragStart}
+                role="separator"
+                aria-orientation="vertical"
+                aria-label="Resize AI panel"
+              />
+            )}
             <AIAssistantPanel
               onOpenAgents={() => setAgentsOpen(true)}
               refreshTick={aiSetupTick}

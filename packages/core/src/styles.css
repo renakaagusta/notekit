@@ -8852,78 +8852,76 @@ a.nk-commit-sha:hover {
 .nk-home-search:hover { border-color: var(--border-guide); }
 .nk-home-search svg { flex-shrink: 0; }
 
-/* Today agenda — the only tinted surface. */
+/* Today agenda — a light "frosted" card that stands out in both themes. */
 .nk-home-today {
   position: relative;
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(34, 197, 94, 0.08), rgba(34, 197, 94, 0.02) 42%, transparent),
-    var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 16px 16px 6px;
+  background: linear-gradient(180deg, #d9dbe0, #c6c9d0);
+  color: #16171b;
+  border-radius: 22px;
+  padding: 18px 18px 8px;
 }
 .nk-home-today-hd { display: flex; align-items: baseline; gap: 8px; }
-.nk-home-today-hd h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
-.nk-home-today-count { color: var(--text-2); font-size: 13px; }
+.nk-home-today-hd h2 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; color: #14151a; }
+.nk-home-today-count { color: #565a63; font-size: 14px; }
 .nk-home-agenda { list-style: none; margin: 12px 0 0; padding: 0; }
 .nk-home-agenda-row {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 10px 0;
+  padding: 11px 0;
   border: 0;
-  border-top: 1px solid var(--border-soft);
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
   background: none;
-  color: var(--text);
+  color: #16171b;
   text-align: left;
   cursor: pointer;
   font: inherit;
 }
+.nk-home-agenda li:first-child .nk-home-agenda-row { border-top: 0; }
 .nk-home-agenda-ico {
-  width: 34px; height: 34px; flex-shrink: 0; border-radius: 10px;
+  width: 38px; height: 38px; flex-shrink: 0; border-radius: 11px;
   display: grid; place-items: center;
-  background: rgba(74, 222, 128, 0.1); color: var(--nk-mint-deep);
+  background: rgba(0, 0, 0, 0.06); color: #3b4250;
 }
-.nk-home-agenda-title { flex: 1; min-width: 0; font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nk-home-agenda-tag { flex-shrink: 0; font-size: 11px; color: var(--text-2); border: 1px solid var(--border-soft); padding: 3px 8px; border-radius: 999px; }
+.nk-home-agenda-title { flex: 1; min-width: 0; font-size: 15.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nk-home-agenda-tag { flex-shrink: 0; font-size: 11.5px; color: #565a63; border: 1px solid rgba(0, 0, 0, 0.14); padding: 3px 9px; border-radius: 999px; }
 
 /* Capture CTAs — the hero, and where the green lives. */
 .nk-home-cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .nk-home-cta {
   position: relative;
   overflow: hidden;
-  min-height: 104px;
+  min-height: 128px;
   border: 0;
-  border-radius: 18px;
-  padding: 16px 15px;
+  border-radius: 20px;
+  padding: 18px 17px;
   cursor: pointer;
   text-align: left;
   display: flex;
   align-items: flex-start;
 }
-.nk-home-cta-lbl { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 16px; letter-spacing: -0.01em; }
-.nk-home-cta-glyph { position: absolute; right: -8px; bottom: -12px; opacity: 0.2; }
+.nk-home-cta-lbl { display: flex; align-items: center; gap: 8px; font-weight: 650; font-size: 17px; letter-spacing: -0.01em; z-index: 1; }
+.nk-home-cta-art { position: absolute; right: -10px; bottom: -14px; width: 116px; height: 116px; }
+/* Muted slate capture cards — same in both themes, like the reference. */
 .nk-home-cta--note {
-  background: linear-gradient(150deg, var(--nk-green), var(--nk-green-deep));
-  color: #eafff1;
-  box-shadow: 0 10px 24px -14px rgba(22, 163, 74, 0.75);
+  background: linear-gradient(155deg, #454d5b 0%, #2c333e 100%);
+  color: #f3f4f6;
+  box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.6);
 }
-.nk-home-cta--note .nk-home-cta-glyph { color: #fff; }
 .nk-home-cta--task {
-  background: linear-gradient(150deg, var(--nk-mint), var(--nk-mint-deep));
-  color: #06331b;
+  background: linear-gradient(155deg, #9aa6b8 0%, #808da3 100%);
+  color: #1b2230;
 }
-.nk-home-cta--task .nk-home-cta-glyph { color: #06331b; opacity: 0.16; }
 
 /* Quick tiles. */
 .nk-home-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
 .nk-home-tile {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 15px 12px;
+  gap: 12px;
+  padding: 16px 13px;
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -8932,9 +8930,8 @@ a.nk-commit-sha:hover {
   text-align: left;
 }
 .nk-home-tile:hover { border-color: var(--border-guide); }
-.nk-home-tile svg { color: var(--text-2); }
-.nk-home-tile--secret svg { color: var(--nk-mint-deep); }
-.nk-home-tile span { font-size: 13.5px; font-weight: 600; }
+.nk-home-tile svg { color: var(--text-2); width: 22px; height: 22px; }
+.nk-home-tile span { font-size: 14.5px; font-weight: 600; }
 
 /* Recent + filter chips. */
 .nk-home-section { margin-top: 2px; }
@@ -8969,8 +8966,67 @@ a.nk-commit-sha:hover {
 .nk-home-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nk-home-row-meta { font-size: 12px; color: var(--muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
-.nk-app[data-mobile="true"] .nk-home { padding: 20px 18px 120px; }
-.nk-app[data-mobile="true"] .nk-home-greeting h1 { font-size: 27px; }
+.nk-app[data-mobile="true"] .nk-home { padding: 18px 18px 132px; }
+.nk-app[data-mobile="true"] .nk-home-greeting h1 { font-size: 30px; }
+.nk-app[data-mobile="true"] .nk-home-search { font-size: 16px; padding: 14px 15px; }
+
+/* ── Mobile bottom tab bar (floating pill) — mounted only on mobile ── */
+.nk-bottomnav {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: calc(env(safe-area-inset-bottom) + 8px);
+  z-index: 150;
+  padding: 8px 6px;
+  background: color-mix(in srgb, var(--surface) 86%, transparent);
+  backdrop-filter: blur(22px) saturate(1.5);
+  -webkit-backdrop-filter: blur(22px) saturate(1.5);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  box-shadow: 0 14px 34px -12px rgba(0, 0, 0, 0.45);
+}
+.nk-bottomnav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+  border-radius: 16px;
+}
+.nk-bottomnav-item svg { display: block; }
+.nk-bottomnav-item span { font-size: 11px; font-weight: 600; }
+.nk-bottomnav-item.is-on { color: #22c55e; background: rgba(34, 197, 94, 0.13); }
+
+/* ── Native-sized drawer (was too small on phone; drawer is mobile-only) ── */
+.nk-mdrawer-list button {
+  font-size: 16.5px;
+  gap: 15px;
+  padding: 13px 16px;
+}
+.nk-mdrawer-list button svg { width: 22px; height: 22px; }
+.nk-mdrawer-hd span,
+.nk-mdrawer-hd strong { font-size: 17px; }
+
+/* ── Native-sized AI chat (was too small on phone) ─────────────────── */
+.nk-app[data-mobile="true"] .nk-ai-input { font-size: 16px; }
+.nk-app[data-mobile="true"] .nk-ai-msg { font-size: 15.5px; line-height: 1.55; }
+.nk-app[data-mobile="true"] .nk-ai-prose { font-size: 15.5px; }
+.nk-app[data-mobile="true"] .nk-ai-empty p { font-size: 15.5px; }
+.nk-app[data-mobile="true"] .nk-ai-toolnote { font-size: 13px; }
+.nk-app[data-mobile="true"] .nk-ai-agent-picker { font-size: 15px; padding: 8px 10px; }
+.nk-app[data-mobile="true"] .nk-ai-panel-title { font-size: 14px; }
+.nk-app[data-mobile="true"] .nk-ai-send,
+.nk-app[data-mobile="true"] .nk-ai-attachbtn { width: 40px; height: 40px; }
+.nk-app[data-mobile="true"] .nk-ai-panel-hd .nk-iconbtn { width: 36px; height: 36px; }
+.nk-app[data-mobile="true"] .nk-ai-panel-hd .nk-iconbtn svg { width: 19px; height: 19px; }
+.nk-app[data-mobile="true"] .nk-ai-privacy { font-size: 12px; }
 
 /* ── Note info panel (right sidebar) ─────────────────────────────── */
 
@@ -9193,8 +9249,8 @@ a.nk-commit-sha:hover {
 .nk-app[data-mobile="true"] .nk-ai-fab {
   position: fixed;
   right: 16px;
-  bottom: calc(env(safe-area-inset-bottom) + 84px);
-  z-index: 120;
+  bottom: calc(env(safe-area-inset-bottom) + 96px);
+  z-index: 160;
 }
 .nk-app[data-mobile="true"] .nk-ai-panel {
   position: fixed;

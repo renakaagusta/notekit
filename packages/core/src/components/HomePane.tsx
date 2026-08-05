@@ -56,6 +56,36 @@ function nav(view: MainView) {
   window.dispatchEvent(new CustomEvent("nk:home-nav", { detail: { view } }));
 }
 
+/** A tilted paper sheet — the New note capture illustration. */
+function NoteArt() {
+  return (
+    <svg className="nk-home-cta-art" viewBox="0 0 120 120" aria-hidden fill="none">
+      <g transform="rotate(-9 78 82)">
+        <rect x="52" y="40" width="58" height="74" rx="8" fill="#fff" />
+        <path d="M92 40h18v18z" fill="#d7dae0" />
+        <path d="M92 40v18h18" stroke="#c2c6cf" strokeWidth="1.5" />
+        <rect x="62" y="66" width="38" height="5" rx="2.5" fill="#c9cdd6" />
+        <rect x="62" y="79" width="38" height="5" rx="2.5" fill="#d3d7df" />
+        <rect x="62" y="92" width="24" height="5" rx="2.5" fill="#dde0e6" />
+      </g>
+    </svg>
+  );
+}
+
+/** A card stack with a checked item — the New task capture illustration. */
+function TaskArt() {
+  return (
+    <svg className="nk-home-cta-art" viewBox="0 0 120 120" aria-hidden fill="none">
+      <rect x="58" y="70" width="66" height="30" rx="8" fill="#fff" opacity="0.55" />
+      <rect x="48" y="52" width="72" height="34" rx="9" fill="#fff" />
+      <circle cx="62" cy="69" r="8" fill="#5b6472" />
+      <path d="M58.5 69l2.6 2.6 4.4-4.6" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="76" y="63" width="34" height="4.5" rx="2.25" fill="#cfd3db" />
+      <rect x="76" y="72" width="24" height="4.5" rx="2.25" fill="#dadde3" />
+    </svg>
+  );
+}
+
 type Filter = "all" | "notes" | "tasks" | "links";
 type RecentItem = {
   id: string;
@@ -170,15 +200,15 @@ export function HomePane({ onNewNote, onOpenNote, onToggleTicket }: HomePaneProp
         <div className="nk-home-cta-row">
           <button className="nk-home-cta nk-home-cta--note" onClick={onNewNote}>
             <span className="nk-home-cta-lbl">
-              <Plus size={19} aria-hidden /> New note
+              <Plus size={20} aria-hidden /> New note
             </span>
-            <FileText className="nk-home-cta-glyph" size={72} aria-hidden />
+            <NoteArt />
           </button>
           <button className="nk-home-cta nk-home-cta--task" onClick={newTask}>
             <span className="nk-home-cta-lbl">
-              <Plus size={19} aria-hidden /> New task
+              <Plus size={20} aria-hidden /> New task
             </span>
-            <CheckSquare className="nk-home-cta-glyph" size={72} aria-hidden />
+            <TaskArt />
           </button>
         </div>
 

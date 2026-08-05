@@ -10,6 +10,7 @@ import {
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { MobileDrawer } from "./MobileDrawer";
+import { MobileBottomNav } from "./MobileBottomNav";
 import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";
 import { useVaultStore } from "../stores/vaultStore";
@@ -625,7 +626,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
 
   function onMobileView(next: MainView) {
     setView(next);
-    setMobilePane("list");
+    // Only Notes uses the list/detail split (tree → editor). Every other
+    // surface renders full-screen in <main>, which is the "detail" pane — so
+    // it must be "detail" or the CSS hides <main> and the screen goes blank.
+    setMobilePane(next === "notes" ? "list" : "detail");
     setDrawerOpen(false);
   }
 
@@ -636,7 +640,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
       const view = (e as CustomEvent<{ view?: MainView }>).detail?.view;
       if (!view) return;
       setView(view);
-      setMobilePane("list");
+      setMobilePane(view === "notes" ? "list" : "detail");
       setDrawerOpen(false);
     }
     window.addEventListener("nk:home-nav", onHomeNav);
@@ -874,6 +878,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
           </span>
         </footer>
       </div>
+      {isMobile && !zenMode && !aiOpen && (
+        <MobileBottomNav
+          view={view}
+          onView={onMobileView}
+          onOpenMenu={() => setDrawerOpen(true)}
+        />
+      )}
       {isMobile && (
         <MobileDrawer
           open={drawerOpen}

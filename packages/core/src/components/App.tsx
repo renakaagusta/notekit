@@ -878,7 +878,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           </span>
         </footer>
       </div>
-      {isMobile && !zenMode && !aiOpen && (
+      {isMobile && !zenMode && !aiOpen && !drawerOpen && (
         <MobileBottomNav
           view={view}
           onView={onMobileView}

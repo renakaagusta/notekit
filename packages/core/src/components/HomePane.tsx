@@ -6,12 +6,15 @@ import {
   FileText,
   Link as LinkIcon,
   Lock,
+  Pencil,
   Plus,
   Search,
+  Zap,
 } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useLinksStore } from "../stores/linksStore";
+import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
 import { noteTitle } from "../lib/note-display";
 import type { Note } from "../types/note";
 
@@ -101,16 +104,24 @@ interface HomePaneProps {
   onToggleTicket: (id: string) => void;
 }
 
-export function HomePane({ onNewNote, onOpenNote, onToggleTicket }: HomePaneProps) {
+export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }: HomePaneProps) {
   const notes = useNotesStore((s) => s.notes);
   const tickets = useTicketsStore((s) => s.all());
   const links = useLinksStore((s) => s.all());
+  const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
   const [filter, setFilter] = useState<Filter>("all");
 
   const todayTasks = useMemo(() => {
     const ymd = todayYMD();
     return tickets.filter((t) => t.dueDate === ymd && t.status !== "done").slice(0, 4);
   }, [tickets]);
+
+  const recentNotes = useMemo(() => {
+    return (Object.values(notes) as Note[])
+      .filter((n) => n.format !== "ink")
+      .sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1))
+      .slice(0, 8);
+  }, [notes]);
 
   const recent = useMemo<RecentItem[]>(() => {
     const noteItems: RecentItem[] = (Object.values(notes) as Note[])
@@ -149,6 +160,79 @@ export function HomePane({ onNewNote, onOpenNote, onToggleTicket }: HomePaneProp
     else nav("links");
   }
 
+  // ── Desktop: keep the previous simple home (unchanged behavior). ──
+  if (!isMobile) {
+    return (
+      <div className="nk-home nk-home--desktop">
+        <div className="nk-home-greeting">
+          <h1>{greeting()}</h1>
+          <p>{formatDate()}</p>
+        </div>
+
+        <div className="nk-home-actions">
+          <button className="nk-home-action" onClick={onNewNote}>
+            <Plus size={16} aria-hidden />
+            New note
+          </button>
+          {onNewDrawing && (
+            <button className="nk-home-action" onClick={onNewDrawing}>
+              <Pencil size={16} aria-hidden />
+              Drawing
+            </button>
+          )}
+        </div>
+
+        <section className="nk-home-section">
+          <h2 className="nk-home-section-title">
+            <Zap size={13} aria-hidden />
+            Recent
+          </h2>
+          {recentNotes.length === 0 ? (
+            <p className="nk-home-empty">No notes yet. Create one above.</p>
+          ) : (
+            <ul className="nk-home-list">
+              {recentNotes.map((n) => (
+                <li key={n.id}>
+                  <button className="nk-home-row" onClick={() => onOpenNote(n.id)}>
+                    <span className="nk-home-row-icon">
+                      <FileText size={16} aria-hidden />
+                    </span>
+                    <span className="nk-home-row-title">{noteTitle(n)}</span>
+                    <span className="nk-home-row-meta">{relativeTime(n.updatedAt)}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="nk-home-section">
+          <h2 className="nk-home-section-title">
+            <CheckSquare size={13} aria-hidden />
+            Today
+          </h2>
+          {todayTasks.length === 0 ? (
+            <p className="nk-home-empty">No tasks due today.</p>
+          ) : (
+            <ul className="nk-home-list">
+              {todayTasks.map((t) => (
+                <li key={t.id}>
+                  <button className="nk-home-row" onClick={() => onToggleTicket(t.id)}>
+                    <span className="nk-home-row-icon">
+                      <CheckSquare size={16} aria-hidden />
+                    </span>
+                    <span className="nk-home-row-title">{t.title}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  // ── Mobile: the Daymark-style dashboard. ──
   const chips: { key: Filter; label: string }[] = [
     { key: "all", label: "All" },
     { key: "notes", label: "Notes" },

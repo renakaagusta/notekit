@@ -8822,6 +8822,31 @@ a.nk-commit-sha:hover {
   gap: 18px;
 }
 
+/* Desktop keeps the previous simple home (unchanged). */
+.nk-home--desktop {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 56px 64px 80px;
+}
+.nk-home--desktop .nk-home-greeting { margin-bottom: 36px; }
+.nk-home--desktop .nk-home-greeting h1 { font-size: 36px; letter-spacing: -0.02em; }
+.nk-home--desktop .nk-home-section { margin-bottom: 40px; }
+.nk-home-actions { display: flex; gap: 10px; margin-bottom: 40px; }
+.nk-home-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.nk-home-action:hover { background: var(--hover); }
+
 .nk-home-greeting h1 {
   font-size: 28px;
   font-weight: 700;
@@ -8947,9 +8972,9 @@ a.nk-commit-sha:hover {
   border: 1px solid var(--border-soft); background: none; color: var(--text-2); cursor: pointer; white-space: nowrap;
 }
 .nk-home-chip.is-on {
-  background: rgba(34, 197, 94, 0.14);
-  border-color: rgba(34, 197, 94, 0.35);
-  color: var(--nk-mint-deep);
+  background: var(--surface-3);
+  border-color: var(--border-guide);
+  color: var(--text);
   font-weight: 600;
 }
 .nk-home-empty { font-size: 13px; color: var(--muted); margin: 8px 0 0 2px; }
@@ -9002,7 +9027,10 @@ a.nk-commit-sha:hover {
 }
 .nk-bottomnav-item svg { display: block; }
 .nk-bottomnav-item span { font-size: 11px; font-weight: 600; }
-.nk-bottomnav-item.is-on { color: #22c55e; background: rgba(34, 197, 94, 0.13); }
+.nk-bottomnav-item.is-on {
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+}
 
 /* ── Native-sized drawer (was too small on phone; drawer is mobile-only) ── */
 .nk-mdrawer-list button {

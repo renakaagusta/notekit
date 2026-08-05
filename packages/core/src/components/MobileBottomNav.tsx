@@ -1,4 +1,4 @@
-import { Calendar, FileText, Home, Menu } from "lucide-react";
+import { FileText, Home, ListChecks, Menu } from "lucide-react";
 import type { SidebarView } from "./Sidebar";
 
 interface MobileBottomNavProps {
@@ -22,11 +22,11 @@ export function MobileBottomNav({ view, onView, onOpenMenu }: MobileBottomNavPro
         <span>Home</span>
       </button>
       <button
-        className={`nk-bottomnav-item${view === "calendar" ? " is-on" : ""}`}
+        className={`nk-bottomnav-item${view === "calendar" || view === "tickets" ? " is-on" : ""}`}
         onClick={() => onView("calendar")}
       >
-        <Calendar size={23} aria-hidden />
-        <span>Calendar</span>
+        <ListChecks size={23} aria-hidden />
+        <span>Tasks</span>
       </button>
       <button
         className={`nk-bottomnav-item${view === "notes" ? " is-on" : ""}`}

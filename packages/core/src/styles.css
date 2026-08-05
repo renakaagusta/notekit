@@ -7970,6 +7970,37 @@ a.nk-commit-sha:hover {
 .nk-mdrawer-foot .nk-vault-switcher {
   border-top: 1px solid var(--border-soft);
 }
+/* Appearance (theme) segmented control. */
+.nk-mdrawer-appearance {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin: 10px 12px 12px;
+  padding: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 13px;
+}
+.nk-mdrawer-appearance button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 10px;
+}
+.nk-mdrawer-appearance button.is-on {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+}
 
 .nk-mdrawer-sync {
   display: flex;

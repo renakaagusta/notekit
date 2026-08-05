@@ -2,23 +2,27 @@ import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Bot,
-  Calendar,
   Clock,
   FileText,
   Home,
   KeyRound,
   Link as LinkIcon,
+  ListChecks,
   LogOut,
   Lock,
   Menu,
+  Monitor,
   MonitorSmartphone,
+  Moon,
   MoreHorizontal,
   Share2,
-  Ticket,
+  Sun,
 } from "lucide-react";
 import type { SidebarView } from "./Sidebar";
 import { VaultSwitcher } from "./VaultSwitcher";
 import { NotekitIcon } from "./BrandIcons";
+import { useVaultStore } from "../stores/vaultStore";
+import * as vaultApi from "../lib/vault-api";
 import type { User } from "../types/user";
 
 interface MobileDrawerProps {
@@ -60,6 +64,16 @@ export function MobileDrawer({
 }: MobileDrawerProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userRef = useRef<HTMLDivElement>(null);
+
+  const activeVaultId = useVaultStore((s) => s.activeId);
+  const activeSettings = useVaultStore((s) => s.activeSettings);
+  const setActiveSettings = useVaultStore((s) => s.setActiveSettings);
+  const theme = activeSettings?.theme ?? "auto";
+  async function setTheme(t: "light" | "dark" | "auto") {
+    if (!activeVaultId || !activeSettings) return;
+    setActiveSettings({ ...activeSettings, theme: t });
+    await vaultApi.patchVaultSettings(activeVaultId, { ...activeSettings, theme: t }).catch(() => {});
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -155,20 +169,11 @@ export function MobileDrawer({
             </li>
             <li>
               <button
-                className={view === "tickets" ? "active" : ""}
-                onClick={() => pick("tickets")}
-              >
-                <Ticket size={16} aria-hidden />
-                <span>Tickets</span>
-              </button>
-            </li>
-            <li>
-              <button
-                className={view === "calendar" ? "active" : ""}
+                className={view === "calendar" || view === "tickets" ? "active" : ""}
                 onClick={() => pick("calendar")}
               >
-                <Calendar size={16} aria-hidden />
-                <span>Calendar</span>
+                <ListChecks size={16} aria-hidden />
+                <span>Tasks</span>
               </button>
             </li>
             <li>
@@ -204,6 +209,33 @@ export function MobileDrawer({
         {/* Foot cluster pinned to the bottom — vault switcher, sync status,
             then account. Mirrors the desktop sidebar footer ordering. */}
         <div className="nk-mdrawer-foot">
+          <div className="nk-mdrawer-appearance" role="group" aria-label="Appearance">
+            <button
+              className={theme === "light" ? "is-on" : ""}
+              onClick={() => void setTheme("light")}
+              aria-label="Light"
+            >
+              <Sun size={17} aria-hidden />
+              <span>Light</span>
+            </button>
+            <button
+              className={theme === "dark" ? "is-on" : ""}
+              onClick={() => void setTheme("dark")}
+              aria-label="Dark"
+            >
+              <Moon size={17} aria-hidden />
+              <span>Dark</span>
+            </button>
+            <button
+              className={theme === "auto" ? "is-on" : ""}
+              onClick={() => void setTheme("auto")}
+              aria-label="Auto"
+            >
+              <Monitor size={17} aria-hidden />
+              <span>Auto</span>
+            </button>
+          </div>
+
           <VaultSwitcher />
 
           {syncStatus && (

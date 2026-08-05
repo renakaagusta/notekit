@@ -10,6 +10,8 @@ export const IPC_CHANNELS = {
   KeychainDelete: "notekit:keychain:delete",
   AppGetVersion: "notekit:app:getVersion",
   AppOpenExternal: "notekit:app:openExternal",
+  /** Capture the current window (or a sub-rect) as a PNG data URL. */
+  AppCapturePage: "notekit:app:capturePage",
   UpdaterCheck: "notekit:updater:check",
   /**
    * Kick off the loopback PAT flow. Main process spawns a one-shot HTTP
@@ -44,6 +46,11 @@ export interface KeychainDeletePayload {
 
 export interface AppOpenExternalPayload {
   url: string;
+}
+
+/** Optional capture region in CSS pixels; omit to capture the whole page. */
+export interface AppCapturePagePayload {
+  rect?: { x: number; y: number; width: number; height: number };
 }
 
 export interface UpdaterCheckResult {
@@ -85,6 +92,10 @@ export interface IpcContract {
   [IPC_CHANNELS.AppOpenExternal]: {
     payload: AppOpenExternalPayload;
     result: void;
+  };
+  [IPC_CHANNELS.AppCapturePage]: {
+    payload: AppCapturePagePayload;
+    result: string | null;
   };
   [IPC_CHANNELS.UpdaterCheck]: {
     payload: void;
@@ -132,6 +143,13 @@ export interface NotekitDesktopBridge {
   app: {
     getVersion(): Promise<string>;
     openExternal(url: string): Promise<void>;
+    /** Screenshot the window (or a sub-rect) as a PNG data URL, or null. */
+    capturePage(rect?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }): Promise<string | null>;
   };
   updater: {
     checkForUpdates(): Promise<UpdaterCheckResult>;

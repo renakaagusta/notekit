@@ -25,7 +25,8 @@ export type ChatRole = "user" | "assistant";
  */
 export type ChatPart =
   | { kind: "text"; text: string }
-  | { kind: "tool"; label: string };
+  | { kind: "tool"; label: string }
+  | { kind: "image"; url: string };
 
 export interface ChatMessage {
   id: string;
@@ -100,7 +101,7 @@ interface AIChatState {
   /** Replace the transcript with a loaded session's messages. */
   loadSessionMessages(id: string, messages: ChatMessage[]): void;
 
-  pushUser(content: string): void;
+  pushUser(content: string, images?: string[]): void;
   /** Create an empty assistant message and return its id for streaming. */
   startAssistant(): string;
   appendDelta(id: string, delta: string): void;
@@ -199,13 +200,12 @@ export const useAIChatStore = create<AIChatState>()(
         });
       },
 
-      pushUser(content) {
+      pushUser(content, images) {
         set((s) => {
-          s.messages.push({
-            id: nanoid(),
-            role: "user",
-            parts: [{ kind: "text", text: content }],
-          });
+          const parts: ChatPart[] = [];
+          if (content) parts.push({ kind: "text", text: content });
+          for (const url of images ?? []) parts.push({ kind: "image", url });
+          s.messages.push({ id: nanoid(), role: "user", parts });
           s.error = null;
         });
       },

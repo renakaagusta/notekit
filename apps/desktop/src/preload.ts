@@ -37,6 +37,14 @@ const bridge: NotekitDesktopBridge = {
     openExternal(url: string): Promise<void> {
       return invoker.invoke(IPC_CHANNELS.AppOpenExternal, { url });
     },
+    capturePage(rect?: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }): Promise<string | null> {
+      return invoker.invoke(IPC_CHANNELS.AppCapturePage, { rect });
+    },
   },
   updater: {
     checkForUpdates(): Promise<UpdaterCheckResult> {

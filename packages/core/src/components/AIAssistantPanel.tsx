@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { Check, FileText, History, ListChecks, Loader2, Lock, Plus, Search, Send, Sparkles, TextSelect, Trash2, Wrench, X } from "lucide-react";
+import { Camera, Check, FileText, History, ImagePlus, ListChecks, Loader2, Lock, Plus, Search, Send, Sparkles, TextSelect, Trash2, Wrench, X } from "lucide-react";
 import { useAIChatStore, messageText } from "../stores/aiChatStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useNotesStore } from "../stores/notesStore";
@@ -39,6 +39,23 @@ interface Props {
 function wordCount(s: string): number {
   const t = s.trim();
   return t ? t.split(/\s+/).length : 0;
+}
+
+/** Downscale an image blob to a JPEG data URL (≤~1280px) to keep payloads small. */
+async function toResizedDataUrl(blob: Blob, max = 1280): Promise<string> {
+  const bitmap = await createImageBitmap(blob);
+  const scale = Math.min(1, max / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no 2d context");
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+  // PNG keeps crisp text (screenshots); JPEG for photos would blur diagrams.
+  return canvas.toDataURL("image/png");
 }
 
 /** Compact relative time for the history list ("2m", "3h", "5d"). */
@@ -89,6 +106,9 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
   const [keyStoredSlugs, setKeyStoredSlugs] = useState<Set<string> | null>(null);
   const [draft, setDraft] = useState("");
+  const [attachments, setAttachments] = useState<string[]>([]);
+  const [capturing, setCapturing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selection, setSelection] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerQuery, setPickerQuery] = useState("");
@@ -190,13 +210,26 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
 
   async function onSend() {
     const text = draft.trim();
-    if (!text || streaming || !device || !selectedAgent) return;
+    const images = attachments;
+    if ((!text && images.length === 0) || streaming || !device || !selectedAgent) return;
 
     const store = useAIChatStore.getState();
-    const prior: AssistantMessage[] = store.messages.map((m) => ({
-      role: m.role,
-      content: messageText(m),
-    }));
+    // Reconstruct prior turns as multimodal messages so earlier images stay in
+    // context across turns.
+    const prior: AssistantMessage[] = store.messages.map((m) => {
+      const imgs = m.parts.filter(
+        (p): p is { kind: "image"; url: string } => p.kind === "image",
+      );
+      const txt = messageText(m);
+      if (imgs.length === 0) return { role: m.role, content: txt };
+      return {
+        role: m.role,
+        content: [
+          ...(txt ? [{ type: "text" as const, text: txt }] : []),
+          ...imgs.map((i) => ({ type: "image" as const, image: i.url })),
+        ],
+      };
+    });
 
     // Build the scoped context block: selection + active note + pinned items.
     let contextBlock = "";
@@ -218,9 +251,20 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     }
 
     setDraft("");
-    store.pushUser(text);
+    setAttachments([]);
+    store.pushUser(text, images);
     const assistantId = store.startAssistant();
     store.setStreaming(true);
+
+    // Build the new user message: multimodal when images are attached.
+    const userText = contextBlock + text;
+    const userContent =
+      images.length > 0
+        ? [
+            ...(userText ? [{ type: "text" as const, text: userText }] : []),
+            ...images.map((url) => ({ type: "image" as const, image: url })),
+          ]
+        : userText;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -248,7 +292,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
         baseUrl: selectedAgent.baseUrl,
         model: selectedAgent.model ?? DEFAULT_AGENT_MODEL,
         system,
-        messages: [...prior, { role: "user", content: contextBlock + text }],
+        messages: [...prior, { role: "user", content: userContent }],
         tools,
         maxSteps: 16,
         signal: controller.signal,
@@ -384,6 +428,76 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   function onStop() {
     drainApprovals(); // release every pending tool so the loop can unwind
     abortRef.current?.abort();
+  }
+
+  /** Add image blobs (from picker/paste/drop) as resized data-URL attachments. */
+  async function addImageBlobs(blobs: Blob[]) {
+    const imgs = blobs.filter((b) => b.type.startsWith("image/"));
+    if (!imgs.length) return;
+    const urls = await Promise.all(
+      imgs.map((b) => toResizedDataUrl(b).catch(() => null)),
+    );
+    const ok = urls.filter((u): u is string => !!u);
+    if (ok.length) setAttachments((a) => [...a, ...ok].slice(0, 6));
+  }
+
+  function onPasteComposer(e: React.ClipboardEvent) {
+    const items = Array.from(e.clipboardData?.items ?? []);
+    const blobs = items
+      .filter((i) => i.kind === "file" && i.type.startsWith("image/"))
+      .map((i) => i.getAsFile())
+      .filter((f): f is File => !!f);
+    if (blobs.length) {
+      e.preventDefault();
+      void addImageBlobs(blobs);
+    }
+  }
+
+  /** Capture the active note's rendered view (incl. interactive embeds) as an
+   *  image and attach it — so the AI can literally SEE the note. Uses Electron's
+   *  page capture when available (only real way to grab sandboxed-iframe pixels). */
+  async function captureNote() {
+    const capture = (
+      window as unknown as {
+        notekit?: {
+          app?: {
+            capturePage?: (rect?: {
+              x: number;
+              y: number;
+              width: number;
+              height: number;
+            }) => Promise<string | null>;
+          };
+        };
+      }
+    ).notekit?.app?.capturePage;
+    if (!capture) {
+      useAIChatStore
+        .getState()
+        .setError("Capture butuh aplikasi desktop NoteKit (belum tersedia di web).");
+      return;
+    }
+    setCapturing(true);
+    try {
+      // Screenshot the active editor region (includes sandboxed-iframe embeds,
+      // which only a real page capture can grab).
+      const el =
+        document.querySelector(".nk-editor-wrap") ??
+        document.querySelector(".nk-editor") ??
+        document.body;
+      const r = el.getBoundingClientRect();
+      const dataUrl = await capture(
+        r.width > 0 && r.height > 0
+          ? { x: r.x, y: r.y, width: r.width, height: r.height }
+          : undefined,
+      );
+      if (dataUrl) setAttachments((a) => [...a, dataUrl].slice(0, 6));
+      else useAIChatStore.getState().setError("Capture kosong — coba buka catatan dulu.");
+    } catch (e) {
+      useAIChatStore.getState().setError(`Gagal capture: ${(e as Error).message}`);
+    } finally {
+      setCapturing(false);
+    }
   }
 
   const notReady = cryptoPhase !== "ready";
@@ -660,6 +774,16 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
                             <Wrench size={11} aria-hidden /> {p.label}
                           </div>
                         );
+                      if (p.kind === "image")
+                        return (
+                          <img
+                            key={i}
+                            className="nk-ai-msg-img"
+                            src={p.url}
+                            alt="Lampiran gambar"
+                            loading="lazy"
+                          />
+                        );
                       if (m.role === "assistant") {
                         // A text part that was pure <think> reasoning renders to
                         // empty HTML — skip it so we don't draw a blank bubble.
@@ -710,13 +834,63 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
             {error && <div className="nk-ai-error">{error}</div>}
           </div>
 
+          {attachments.length > 0 && (
+            <div className="nk-ai-attachments">
+              {attachments.map((url, i) => (
+                <div key={i} className="nk-ai-attachment">
+                  <img src={url} alt="Lampiran" />
+                  <button
+                    className="nk-ai-attachment-x"
+                    onClick={() => setAttachments((a) => a.filter((_, j) => j !== i))}
+                    aria-label="Hapus lampiran"
+                  >
+                    <X size={11} aria-hidden />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="nk-ai-composer">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                void addImageBlobs(Array.from(e.target.files ?? []));
+                e.target.value = "";
+              }}
+            />
+            <button
+              className="nk-ai-attachbtn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={streaming}
+              title="Lampirkan gambar"
+              aria-label="Lampirkan gambar"
+            >
+              <ImagePlus size={16} aria-hidden />
+            </button>
+            <button
+              className="nk-ai-attachbtn"
+              onClick={() => void captureNote()}
+              disabled={streaming || capturing}
+              title="Capture catatan aktif"
+              aria-label="Capture catatan"
+            >
+              {capturing ? (
+                <Loader2 size={16} className="nk-ai-spin" aria-hidden />
+              ) : (
+                <Camera size={16} aria-hidden />
+              )}
+            </button>
             <textarea
               ref={inputRef}
               className="nk-ai-input"
               placeholder="Tanya asisten…"
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
+              onPaste={onPasteComposer}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
@@ -734,7 +908,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
               <button
                 className="nk-ai-send"
                 onClick={() => void onSend()}
-                disabled={!draft.trim()}
+                disabled={!draft.trim() && attachments.length === 0}
                 title="Kirim (Enter)"
                 aria-label="Kirim"
               >

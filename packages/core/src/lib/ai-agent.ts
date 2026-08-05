@@ -27,9 +27,15 @@ import type { DeviceIdentity } from "./crypto/device-key";
 import { DEFAULT_AGENT_MODEL, type AgentProvider } from "./agents-api";
 
 
+/** Multimodal message content: plain text, or an ordered list of text/image
+ *  parts (images as data: URLs or https URLs) for vision-capable models. */
+export type MessageContent =
+  | string
+  | Array<{ type: "text"; text: string } | { type: "image"; image: string }>;
+
 export interface AssistantMessage {
   role: "user" | "assistant";
-  content: string;
+  content: MessageContent;
 }
 
 export interface StreamAssistantOptions {

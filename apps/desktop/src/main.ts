@@ -16,6 +16,7 @@ import { AddressInfo } from "node:net";
 import {
   IPC_CHANNELS,
   KEYCHAIN_SERVICE,
+  type AppCapturePagePayload,
   type AppOpenExternalPayload,
   type AuthStartSignInPayload,
   type AuthStartSignInResult,
@@ -241,6 +242,31 @@ function registerIpcHandlers(): void {
       if (!payload?.url) return;
       if (!/^https?:\/\//i.test(payload.url)) return;
       await shell.openExternal(payload.url);
+    },
+  );
+
+  ipcMain.handle(
+    IPC_CHANNELS.AppCapturePage,
+    async (event, payload: AppCapturePagePayload): Promise<string | null> => {
+      const wc = event.sender;
+      const r = payload?.rect;
+      // Electron's capturePage rect is in device-independent (CSS) pixels,
+      // matching getBoundingClientRect, so no DPR scaling needed here.
+      const rect =
+        r && r.width > 0 && r.height > 0
+          ? {
+              x: Math.max(0, Math.round(r.x)),
+              y: Math.max(0, Math.round(r.y)),
+              width: Math.round(r.width),
+              height: Math.round(r.height),
+            }
+          : undefined;
+      try {
+        const image = rect ? await wc.capturePage(rect) : await wc.capturePage();
+        return image.isEmpty() ? null : image.toDataURL();
+      } catch {
+        return null;
+      }
     },
   );
 

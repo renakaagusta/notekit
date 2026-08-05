@@ -9689,6 +9689,75 @@ a.nk-commit-sha:hover {
   opacity: 0.4;
   cursor: default;
 }
+/* Attach / capture icon buttons in the composer. */
+.nk-ai-attachbtn {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms;
+}
+.nk-ai-attachbtn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--accent, #6366f1);
+}
+.nk-ai-attachbtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* Pending attachments row above the composer. */
+.nk-ai-attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px 0;
+}
+.nk-ai-attachment {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.nk-ai-attachment img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.nk-ai-attachment-x {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+  padding: 0;
+}
+/* Image inside a chat message bubble. */
+.nk-ai-msg-img {
+  max-width: 100%;
+  max-height: 260px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  display: block;
+  margin: 2px 0;
+}
 .nk-ai-spin {
   animation: nk-ai-spin 0.9s linear infinite;
 }

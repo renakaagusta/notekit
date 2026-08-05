@@ -848,6 +848,41 @@ async function reEncryptAll(
 }
 
 /**
+ * Re-encrypt every chat session + index (`chats/*.age`) for an updated
+ * recipient set. Chat history uses the same plain encryptSecrets envelope as
+ * secrets, so — like {@link reEncryptAll} — a newly-paired device can't read
+ * pre-existing chats until they're re-sealed to include its key. Skip-tolerant
+ * per file. Exported so a one-off repair can be triggered too.
+ */
+export async function reEncryptChats(
+  signer: DeviceIdentity,
+  recipients: string[],
+): Promise<void> {
+  let entries: { path: string; sha: string }[] = [];
+  try {
+    ({ entries } = await backend.listFiles("chats/"));
+  } catch (err) {
+    console.warn("[chats-rewrap] list failed", err);
+    return;
+  }
+  const batch: BatchFile[] = [];
+  for (const e of entries) {
+    if (!e.path.endsWith(".age")) continue;
+    try {
+      const file = await backend.readFile(e.path);
+      if (!file.sha || typeof file.content !== "string" || !file.content) continue;
+      shaCache.set(e.path, file.sha);
+      const json = await decryptSecrets(file.content, contentIdentity(signer));
+      const armored = await encryptSecrets(json, recipients);
+      batch.push({ path: e.path, content: armored, message: `Re-encrypt ${e.path} for updated recipients` });
+    } catch (err) {
+      console.warn(`[chats-rewrap] ${e.path} failed`, err);
+    }
+  }
+  await commitMany(batch, "Re-encrypt chats for updated recipients");
+}
+
+/**
  * Walk every E2EE note/ticket/link (`<kind>/<id>.md.age`) and re-seal it to
  * the supplied recipient set, preserving the plaintext frontmatter. Used by
  * {@link addDevice} after a new device is registered so that pre-existing
@@ -1071,6 +1106,7 @@ export async function reEncryptVaultIfMembersChanged(
     recipients,
     (kind, id) => `Re-encrypt ${kind} "${id}" for current members`,
   );
+  await reEncryptChats(signer, recipients);
   return { changed: true, signature };
 }
 
@@ -1765,6 +1801,7 @@ export async function addDevice(
     (kind, id) =>
       `Re-encrypt ${kind} "${id}" for device "${newDevice.name}"`,
   );
+  await reEncryptChats(signer, recipients);
 }
 
 export async function removeDevice(
@@ -1818,6 +1855,7 @@ export async function removeDevice(
     (kind, id) =>
       `Re-encrypt ${kind} "${id}" after revoking "${removedName}"`,
   );
+  await reEncryptChats(signer, recipients);
 }
 
 /**
@@ -2059,6 +2097,7 @@ export async function addMember(
     recipients,
     (kind, id) => `Re-encrypt ${kind} "${id}" for member "${member.memberId}"`,
   );
+  await reEncryptChats(signer, recipients);
   return { devicesAdded, devicesSkipped };
 }
 
@@ -2109,6 +2148,7 @@ export async function removeMember(
     recipients,
     (kind, id) => `Re-encrypt ${kind} "${id}" after removing member "${memberId}"`,
   );
+  await reEncryptChats(signer, recipients);
 }
 
 /**

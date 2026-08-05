@@ -1,4 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/react";
+import { useNotesStore } from "../../stores/notesStore";
+import { useLayoutStore } from "../../stores/layoutStore";
+import { noteTitle } from "../../lib/note-display";
 
 /**
  * Interactive HTML block — a fenced code block with lang=interactive renders as
@@ -12,9 +15,50 @@ import { Node, mergeAttributes } from "@tiptap/react";
  *    beacon/image-tracking — so a malicious embed can't exfiltrate anything.
  *  - Only inline script/style and data: images are allowed, enough for quizzes,
  *    charts, and simulations. The frame can only manipulate its own DOM.
+ *
+ * Host actions: the frame can't touch the app DOM, but it CAN postMessage a
+ * small, ALLOWLISTED set of navigation intents to the host (e.g. open a note in
+ * a tab) via the injected `window.notekit` bridge. The host validates the
+ * message source + type, so an embed can navigate NoteKit but can't read data
+ * or run arbitrary app code.
  */
 
 let idCounter = 0;
+
+/** A navigation intent posted by an embed via `window.notekit`. */
+interface NkAction {
+  type?: string;
+  ref?: string;
+  newTab?: boolean;
+}
+
+/** Resolve a note by id, then by exact title, then by title substring. */
+function resolveNote(ref: string) {
+  const notes = useNotesStore.getState();
+  if (notes.notes[ref]) return notes.notes[ref];
+  const lc = ref.trim().toLowerCase();
+  if (!lc) return null;
+  const all = notes.all();
+  return (
+    all.find((n) => noteTitle(n).toLowerCase() === lc) ??
+    all.find((n) => noteTitle(n).toLowerCase().includes(lc)) ??
+    null
+  );
+}
+
+/** Run an allowlisted host action requested by an embed. Never runs app code. */
+function runHostAction(a: NkAction): void {
+  if (!a || typeof a !== "object") return;
+  switch (a.type) {
+    case "openNote": {
+      const note = resolveNote(String(a.ref ?? ""));
+      if (note) useLayoutStore.getState().openNote(note.id);
+      return;
+    }
+    default:
+      return; // unknown action → ignore
+  }
+}
 
 // Relaxed like ZenNotes: allow trusted CDNs for libraries (Chart.js, D3, KaTeX…)
 // and external images, but keep `connect-src 'none'` so no fetch/XHR/websocket can
@@ -65,13 +109,24 @@ function buildSrcdoc(code: string, id: string, t: EmbedTheme): string {
     "color-scheme:light dark}" +
     "html,body{margin:0}body{padding:12px;background:transparent;color:var(--text);" +
     "font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:14px;line-height:1.55}" +
-    "*{box-sizing:border-box}a{color:var(--accent)}</style></head><body>" +
+    "*{box-sizing:border-box}a{color:var(--accent);cursor:pointer}" +
+    "[data-nk-open]{cursor:pointer}</style></head><body>" +
     code +
-    "<script>(function(){function p(){try{parent.postMessage({__nkEmbedId:'" +
+    "<script>(function(){var ID='" +
     id +
-    "',h:document.documentElement.scrollHeight},'*')}catch(e){}}" +
+    "';function post(m){try{m.__nkEmbedId=ID;parent.postMessage(m,'*')}catch(e){}}" +
+    "function p(){post({h:document.documentElement.scrollHeight})}" +
     "try{new ResizeObserver(p).observe(document.body)}catch(e){}" +
-    "window.addEventListener('load',p);setTimeout(p,60);setTimeout(p,400)})();</script>" +
+    "window.addEventListener('load',p);setTimeout(p,60);setTimeout(p,400);" +
+    // Host bridge: navigate NoteKit from inside the sandbox. Only posts intents;
+    // the host decides what's allowed.
+    "window.notekit={openNote:function(ref,opts){post({__nkAction:{type:'openNote'," +
+    "ref:String(ref==null?'':ref),newTab:!(opts&&opts.newTab===false)}})}};" +
+    // Convenience: any element with data-nk-open=\"<id-or-title>\" opens that note.
+    "document.addEventListener('click',function(e){var el=e.target;" +
+    "while(el&&el!==document.body){if(el.getAttribute&&el.getAttribute('data-nk-open')!=null){" +
+    "window.notekit.openNote(el.getAttribute('data-nk-open'));e.preventDefault();break}el=el.parentNode}});" +
+    "})();</script>" +
     "</body></html>"
   );
 }
@@ -122,9 +177,15 @@ export const InteractiveEmbed = Node.create({
       iframe.srcdoc = buildSrcdoc((node.attrs.code as string) || "", id, readTheme());
 
       function onMessage(e: MessageEvent) {
-        const d = e.data as { __nkEmbedId?: string; h?: number };
-        if (d && d.__nkEmbedId === id && typeof d.h === "number") {
+        // Only trust messages from THIS frame's window (the sandbox has an
+        // opaque origin, so source identity — not origin — is the check).
+        if (e.source !== iframe.contentWindow) return;
+        const d = e.data as { __nkEmbedId?: string; h?: number; __nkAction?: NkAction };
+        if (!d || d.__nkEmbedId !== id) return;
+        if (typeof d.h === "number") {
           iframe.style.height = `${Math.min(Math.max(d.h, 40), 2000)}px`;
+        } else if (d.__nkAction) {
+          runHostAction(d.__nkAction);
         }
       }
       window.addEventListener("message", onMessage);

@@ -34,7 +34,7 @@ import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { VaultSwitcher } from "./VaultSwitcher";
 import { NotekitIcon } from "./BrandIcons";
 
-export type SidebarView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
+export type SidebarView = "home" | "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
 
 const NAV: {
   view: SidebarView;

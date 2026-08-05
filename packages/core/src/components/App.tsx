@@ -57,6 +57,8 @@ import { SecretsView } from "./SecretsView";
 import { LinksView } from "./LinksView";
 import { SearchPalette } from "./SearchPalette";
 import { SplitPane } from "./SplitPane";
+import { HomePane } from "./HomePane";
+import { useTicketsStore } from "../stores/ticketsStore";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";
 import { useLinksStore } from "../stores/linksStore";
 import { parseWikilinkTarget } from "./extensions/Wikilink";
@@ -74,7 +76,7 @@ const isDesktopMac =
   typeof navigator !== "undefined" &&
   /Mac/i.test(navigator.userAgent);
 
-type MainView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
+type MainView = "home" | "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
 
 /**
  * The initial content pull (startSync) can finish before bootstrapCrypto has
@@ -120,7 +122,12 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const activeVaultId = useVaultStore((s) => s.activeId);
   const activeSettings = useVaultStore((s) => s.activeSettings);
   const cryptoPhase = useCryptoStore((s) => s.phase);
-  const [view, setView] = useState<MainView>("notes");
+  // Mobile lands on the Home dashboard; desktop keeps the notes workspace.
+  const [view, setView] = useState<MainView>(() =>
+    typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT).matches
+      ? "home"
+      : "notes",
+  );
   const [agentsOpen, setAgentsOpen] = useState(false);
   // Bump when the Agents modal closes so the AI panel re-checks its setup
   // state (key added? profile created?) without needing a full reopen.
@@ -598,7 +605,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   // breadcrumb would just repeat it. Blank the crumb for them and drop the
   // breadcrumb row on desktop (it still appears on mobile / when collapsed
   // to carry the menu / expand buttons — but without the duplicate title).
-  const viewOwnsTitle = view === "secrets" || view === "links";
+  const viewOwnsTitle = view === "secrets" || view === "links" || view === "home";
   const crumbLabel = viewOwnsTitle
     ? ""
     : view === "notes"
@@ -621,6 +628,20 @@ export function App({ user, onSignOut }: AppProps = {}) {
     setMobilePane("list");
     setDrawerOpen(false);
   }
+
+  // Home dashboard tiles/search navigate via a lightweight event so HomePane
+  // (deep inside EditorPane) doesn't need nav callbacks threaded through.
+  useEffect(() => {
+    function onHomeNav(e: Event) {
+      const view = (e as CustomEvent<{ view?: MainView }>).detail?.view;
+      if (!view) return;
+      setView(view);
+      setMobilePane("list");
+      setDrawerOpen(false);
+    }
+    window.addEventListener("nk:home-nav", onHomeNav);
+    return () => window.removeEventListener("nk:home-nav", onHomeNav);
+  }, []);
 
   return (
     <div
@@ -753,6 +774,23 @@ export function App({ user, onSignOut }: AppProps = {}) {
           )}
           <RecoveryBackupNudge />
           <EncryptedSkippedBanner />
+          {view === "home" && (
+            <HomePane
+              onNewNote={() => {
+                const folder = activeSettings?.defaultFolder ?? null;
+                const created = upsert({ title: "Untitled", body: "", folder });
+                setView("notes");
+                setMobilePane("detail");
+                openNoteInLayout(created.id);
+              }}
+              onOpenNote={(id) => {
+                setView("notes");
+                setMobilePane("detail");
+                openNoteInLayout(id);
+              }}
+              onToggleTicket={(id) => useTicketsStore.getState().setStatus(id, "done")}
+            />
+          )}
           {view === "notes" && (
             <SplitPane
               node={layout}

@@ -5,6 +5,7 @@ import {
   Calendar,
   Clock,
   FileText,
+  Home,
   KeyRound,
   Link as LinkIcon,
   LogOut,
@@ -134,6 +135,15 @@ export function MobileDrawer({
 
         <nav className="nk-mdrawer-section" aria-label="Surfaces">
           <ul className="nk-mdrawer-list">
+            <li>
+              <button
+                className={view === "home" ? "active" : ""}
+                onClick={() => pick("home")}
+              >
+                <Home size={16} aria-hidden />
+                <span>Home</span>
+              </button>
+            </li>
             <li>
               <button
                 className={view === "notes" ? "active" : ""}

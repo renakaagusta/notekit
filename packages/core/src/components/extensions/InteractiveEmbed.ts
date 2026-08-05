@@ -29,6 +29,7 @@ let idCounter = 0;
 interface NkAction {
   type?: string;
   ref?: string;
+  text?: string;
   newTab?: boolean;
 }
 
@@ -47,12 +48,25 @@ function resolveNote(ref: string) {
 }
 
 /** Run an allowlisted host action requested by an embed. Never runs app code. */
-function runHostAction(a: NkAction): void {
+function runHostAction(a: NkAction, iframe: HTMLIFrameElement): void {
   if (!a || typeof a !== "object") return;
   switch (a.type) {
     case "openNote": {
       const note = resolveNote(String(a.ref ?? ""));
       if (note) useLayoutStore.getState().openNote(note.id);
+      return;
+    }
+    case "scrollToHeading": {
+      // Scroll the editor that CONTAINS this embed to a matching heading.
+      const q = String(a.text ?? "").trim().toLowerCase();
+      const editor = iframe.closest(".nk-editor");
+      if (!q || !editor) return;
+      for (const h of Array.from(editor.querySelectorAll("h1,h2,h3,h4,h5,h6"))) {
+        if ((h.textContent ?? "").toLowerCase().includes(q)) {
+          h.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+      }
       return;
     }
     default:
@@ -121,11 +135,15 @@ function buildSrcdoc(code: string, id: string, t: EmbedTheme): string {
     // Host bridge: navigate NoteKit from inside the sandbox. Only posts intents;
     // the host decides what's allowed.
     "window.notekit={openNote:function(ref,opts){post({__nkAction:{type:'openNote'," +
-    "ref:String(ref==null?'':ref),newTab:!(opts&&opts.newTab===false)}})}};" +
-    // Convenience: any element with data-nk-open=\"<id-or-title>\" opens that note.
+    "ref:String(ref==null?'':ref),newTab:!(opts&&opts.newTab===false)}})}," +
+    "scrollToHeading:function(text){post({__nkAction:{type:'scrollToHeading',text:String(text==null?'':text)}})}};" +
+    // Convenience attributes: data-nk-open=\"<id|title>\" opens a note; and
+    // data-nk-scroll=\"<heading>\" scrolls this note to that heading, on click.
     "document.addEventListener('click',function(e){var el=e.target;" +
-    "while(el&&el!==document.body){if(el.getAttribute&&el.getAttribute('data-nk-open')!=null){" +
-    "window.notekit.openNote(el.getAttribute('data-nk-open'));e.preventDefault();break}el=el.parentNode}});" +
+    "while(el&&el!==document.body){if(el.getAttribute){" +
+    "var o=el.getAttribute('data-nk-open');if(o!=null){window.notekit.openNote(o);e.preventDefault();break}" +
+    "var s=el.getAttribute('data-nk-scroll');if(s!=null){window.notekit.scrollToHeading(s);e.preventDefault();break}}" +
+    "el=el.parentNode}});" +
     "})();</script>" +
     "</body></html>"
   );
@@ -185,7 +203,7 @@ export const InteractiveEmbed = Node.create({
         if (typeof d.h === "number") {
           iframe.style.height = `${Math.min(Math.max(d.h, 40), 2000)}px`;
         } else if (d.__nkAction) {
-          runHostAction(d.__nkAction);
+          runHostAction(d.__nkAction, iframe);
         }
       }
       window.addEventListener("message", onMessage);

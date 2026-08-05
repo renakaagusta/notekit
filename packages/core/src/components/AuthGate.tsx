@@ -1,13 +1,18 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
+import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
 import { App } from "./App";
 import { SignIn } from "./SignIn";
+import { Onboarding, hasOnboarded } from "./Onboarding";
 import { NoteKitMark, NoteKitWordmark } from "./NoteKitLogo";
 import { SkeletonLines } from "./Skeleton";
 
 export function AuthGate() {
   const { status, providers, signIn, signOut, user } = useAuth();
+  const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
+  // First-run onboarding, shown on mobile before the sign-in screen.
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasOnboarded());
 
   // Pre-auth screens have no persisted user preference, so follow the
   // OS's `prefers-color-scheme`. Mirror onto <html> so the body's
@@ -57,6 +62,13 @@ export function AuthGate() {
   }
 
   if (status === "anonymous") {
+    if (isMobile && showOnboarding) {
+      return (
+        <div className="nk" data-dir="studio" data-theme={preAuthTheme}>
+          <Onboarding onDone={() => setShowOnboarding(false)} />
+        </div>
+      );
+    }
     return <SignIn providers={providers} onSignIn={signIn} />;
   }
 

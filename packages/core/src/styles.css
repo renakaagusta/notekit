@@ -10043,3 +10043,229 @@ a.nk-commit-sha:hover {
   font-size: 11.5px;
   color: #ef4444;
 }
+
+/* ── First-run mobile onboarding (Parchment-style carousel) ─────────── */
+.nk-onb {
+  --onb-accent: #22c55e;
+  --onb-accent-deep: #15803d;
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.nk-onb-hd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px 6px;
+  flex-shrink: 0;
+}
+.nk-onb-brand {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+}
+.nk-onb-skip {
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 4px;
+}
+.nk-onb-track {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.nk-onb-track::-webkit-scrollbar { display: none; }
+.nk-onb-page {
+  flex: 0 0 100%;
+  width: 100%;
+  scroll-snap-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  padding: 12px 24px 8px;
+  box-sizing: border-box;
+}
+.nk-onb-card {
+  height: 46vh;
+  max-height: 360px;
+  min-height: 240px;
+  border-radius: 26px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  padding: 20px;
+  display: flex;
+  overflow: hidden;
+}
+.nk-onb-copy h1 {
+  margin: 0 0 12px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+.nk-onb-copy p {
+  margin: 0;
+  font-size: 16.5px;
+  line-height: 1.5;
+  color: var(--text-2);
+  max-width: 32ch;
+}
+.nk-onb-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 0 10px;
+  flex-shrink: 0;
+}
+.nk-onb-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 22%, transparent);
+  transition: width 0.24s ease, background 0.24s ease;
+}
+.nk-onb-dot.is-on {
+  width: 22px;
+  background: var(--onb-accent);
+}
+.nk-onb-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 24px 20px;
+  flex-shrink: 0;
+}
+.nk-onb-back {
+  border: 0;
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 14px 26px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.nk-onb-back:disabled { opacity: 0.35; cursor: default; }
+.nk-onb-next {
+  border: 0;
+  background: linear-gradient(150deg, var(--onb-accent), var(--onb-accent-deep));
+  color: #eafff1;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 650;
+  padding: 14px 30px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 10px 22px -12px rgba(22, 163, 74, 0.7);
+}
+
+/* ── Mock preview cards ── */
+.nk-onb-mock {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 14px;
+}
+.nk-onb-mock svg { flex-shrink: 0; }
+
+/* home */
+.nk-onb-mock--home .nk-onb-mock-hd { display: flex; flex-direction: column; gap: 2px; }
+.nk-onb-mock-hd strong { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+.nk-onb-mock-hd span { font-size: 12.5px; color: var(--muted); }
+.nk-onb-mock-search {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-radius: 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); font-size: 13px;
+}
+.nk-onb-mock-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.nk-onb-mock-cta {
+  padding: 16px 12px; border-radius: 14px; font-weight: 650; font-size: 14px;
+  min-height: 58px; display: flex; align-items: flex-start;
+}
+.nk-onb-mock-cta--note { background: linear-gradient(150deg, #454d5b, #2c333e); color: #f3f4f6; }
+.nk-onb-mock-cta--task { background: linear-gradient(150deg, #9aa6b8, #808da3); color: #1b2230; }
+.nk-onb-mock-mini { display: flex; flex-direction: column; gap: 8px; }
+.nk-onb-mock-mini span { display: flex; align-items: center; gap: 8px; color: var(--text-2); font-size: 13.5px; }
+.nk-onb-mock-mini svg { color: var(--muted); }
+
+/* editor */
+.nk-onb-mock--editor { gap: 14px; justify-content: center; }
+.nk-onb-ed-h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.nk-onb-ed-line { height: 9px; border-radius: 6px; background: color-mix(in srgb, var(--text) 12%, transparent); }
+.nk-onb-ed-line.short { width: 62%; }
+.nk-onb-ed-check { display: flex; align-items: center; gap: 10px; font-size: 15px; color: var(--text-2); }
+.nk-onb-ed-check .box {
+  width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--border);
+  display: grid; place-items: center; flex-shrink: 0;
+}
+.nk-onb-ed-check .box.on { background: var(--onb-accent); border-color: var(--onb-accent); color: #fff; }
+
+/* ai */
+.nk-onb-mock--ai { gap: 10px; justify-content: center; }
+.nk-onb-bubble {
+  max-width: 80%; padding: 10px 13px; border-radius: 15px; font-size: 14px; line-height: 1.4;
+  display: flex; align-items: center; gap: 6px;
+}
+.nk-onb-bubble.user { align-self: flex-end; background: var(--surface); border: 1px solid var(--border); }
+.nk-onb-bubble.ai { align-self: flex-start; background: color-mix(in srgb, var(--onb-accent) 14%, transparent); }
+.nk-onb-bubble.ai svg { color: var(--onb-accent); }
+.nk-onb-tool { align-self: flex-start; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.nk-onb-composer {
+  margin-top: 6px; display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 9px 9px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--border);
+  color: var(--muted); font-size: 13.5px;
+}
+.nk-onb-composer .send {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--onb-accent); color: #fff;
+}
+
+/* e2ee */
+.nk-onb-mock--e2ee { align-items: center; justify-content: center; gap: 18px; text-align: center; }
+.nk-onb-lock {
+  width: 64px; height: 64px; border-radius: 20px; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--onb-accent) 14%, transparent); color: var(--onb-accent);
+}
+.nk-onb-devices { display: flex; gap: 10px; }
+.nk-onb-devices .dev {
+  display: flex; align-items: center; gap: 7px; padding: 8px 13px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--border); font-size: 13.5px; font-weight: 600;
+}
+.nk-onb-devices .dev svg { color: var(--onb-accent); }
+.nk-onb-e2ee-note { font-size: 13px; color: var(--muted); }
+
+/* sync */
+.nk-onb-mock--sync { align-items: center; justify-content: center; gap: 16px; text-align: center; }
+.nk-onb-git {
+  width: 58px; height: 58px; border-radius: 18px; display: grid; place-items: center;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-2);
+}
+.nk-onb-commits { display: flex; flex-direction: column; gap: 9px; align-items: flex-start; }
+.nk-onb-commits span { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--text-2); }
+.nk-onb-commits .node {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--onb-accent); flex-shrink: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--onb-accent) 20%, transparent);
+}
+.nk-onb-sync-note { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }

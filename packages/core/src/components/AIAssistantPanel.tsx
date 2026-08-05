@@ -641,25 +641,32 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
                 const showCaret = m.pending && (!last || last.kind === "tool");
                 return (
                   <div key={m.id} className="nk-ai-turn">
-                    {m.parts.map((p, i) =>
-                      p.kind === "tool" ? (
-                        <div key={i} className="nk-ai-toolnote">
-                          <Wrench size={11} aria-hidden /> {p.label}
-                        </div>
-                      ) : m.role === "assistant" ? (
-                        <div key={i} className="nk-ai-msg nk-ai-msg--assistant nk-ai-prose">
+                    {m.parts.map((p, i) => {
+                      if (p.kind === "tool")
+                        return (
+                          <div key={i} className="nk-ai-toolnote">
+                            <Wrench size={11} aria-hidden /> {p.label}
+                          </div>
+                        );
+                      if (m.role === "assistant") {
+                        // A text part that was pure <think> reasoning renders to
+                        // empty HTML — skip it so we don't draw a blank bubble.
+                        const html = renderAssistantHtml(p.text);
+                        if (!html) return null;
+                        return (
                           <div
-                            dangerouslySetInnerHTML={{
-                              __html: renderAssistantHtml(p.text),
-                            }}
+                            key={i}
+                            className="nk-ai-msg nk-ai-msg--assistant nk-ai-prose"
+                            dangerouslySetInnerHTML={{ __html: html }}
                           />
-                        </div>
-                      ) : (
+                        );
+                      }
+                      return (
                         <div key={i} className="nk-ai-msg nk-ai-msg--user">
                           {p.text}
                         </div>
-                      ),
-                    )}
+                      );
+                    })}
                     {showCaret && (
                       <div className="nk-ai-msg nk-ai-msg--assistant">
                         <span className="nk-ai-caret">▍</span>

@@ -104,6 +104,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     Array<{ id: string; toolName: string; summary: string; input: unknown; resolve: (ok: boolean) => void }>
   >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Load agents + key status when the panel opens or setup state changes
   // (e.g. after the Agents modal closes). Picks up newly-created profiles/keys.
@@ -173,6 +174,14 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [messages, pendingApproval]);
+
+  // Auto-grow the composer to fit its content (up to the CSS max-height).
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+  }, [draft, open]);
 
   if (!open) return null;
 
@@ -700,6 +709,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
 
           <div className="nk-ai-composer">
             <textarea
+              ref={inputRef}
               className="nk-ai-input"
               placeholder="Tanya asisten…"
               value={draft}

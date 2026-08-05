@@ -9655,13 +9655,14 @@ a.nk-commit-sha:hover {
   min-width: 0;
   min-height: 34px; /* match the send button at rest so they align */
   max-height: 140px;
+  overflow-y: auto; /* scroll once content exceeds max-height */
   resize: none;
   font: inherit;
   font-size: 13px;
-  line-height: 1.4;
-  padding: 7px 9px;
+  line-height: 1.45;
+  padding: 8px 11px; /* comfortable breathing room when text wraps */
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--bg);
   color: var(--text);
   box-sizing: border-box;

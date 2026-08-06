@@ -2480,6 +2480,48 @@ a.nk-commit-sha:hover {
 
 /* ─── Graph view ────────────────────────────────────────────────── */
 
+/* Wraps the 2D/3D renderers + the mode toggle. Fills the pane so the graph
+   canvas has a real height to measure. */
+.nk-graph-container {
+  flex: 1;
+  position: relative;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Floating 2D/3D switch, top-right so it clears the filter chips (top-left). */
+.nk-graph-modetoggle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  backdrop-filter: blur(8px);
+}
+.nk-graph-modetoggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.nk-graph-modetoggle button.active {
+  background: var(--accent);
+  color: #1a1a1a;
+}
+
 .nk-graph {
   flex: 1;
   position: relative;
@@ -2491,6 +2533,12 @@ a.nk-commit-sha:hover {
     transparent 0
   );
   background-size: 24px 24px;
+}
+
+/* The WebGL canvas paints its own background, so drop the dotted grid to avoid
+   a double texture behind the 3D scene. */
+.nk-graph--3d {
+  background-image: none;
 }
 
 .nk-graph svg {
@@ -8115,9 +8163,9 @@ a.nk-commit-sha:hover {
   background: var(--hover);
 }
 .nk-mdrawer-list button.active {
-  color: var(--accent-text, var(--accent));
-  background: var(--selected, transparent);
-  border-left: 2px solid var(--accent);
+  color: var(--nk-accent);
+  background: var(--nk-accent-soft);
+  border-left: 2px solid var(--nk-accent);
   padding-left: 12px;
 }
 .nk-mdrawer-list button.danger {
@@ -10542,7 +10590,7 @@ a.nk-commit-sha:hover {
   cursor: pointer;
 }
 .nk-set-tab span { font-size: 10.5px; font-weight: 600; }
-.nk-set-tab.is-on { color: var(--text); }
+.nk-set-tab.is-on { color: var(--nk-accent); }
 
 /* Settings: stepper (font size) + export confirmation note. */
 .nk-set-stepper {

@@ -11,18 +11,14 @@ import {
   LogOut,
   Lock,
   Menu,
-  Monitor,
   MonitorSmartphone,
-  Moon,
   MoreHorizontal,
+  Settings,
   Share2,
-  Sun,
 } from "lucide-react";
 import type { SidebarView } from "./Sidebar";
 import { VaultSwitcher } from "./VaultSwitcher";
 import { NotekitIcon } from "./BrandIcons";
-import { useVaultStore } from "../stores/vaultStore";
-import * as vaultApi from "../lib/vault-api";
 import type { User } from "../types/user";
 
 interface MobileDrawerProps {
@@ -39,6 +35,7 @@ interface MobileDrawerProps {
   onOpenTokens?: () => void;
   onOpenDevices?: () => void;
   onOpenNotifications?: () => void;
+  onOpenSettings?: () => void;
 }
 
 /**
@@ -61,19 +58,10 @@ export function MobileDrawer({
   onOpenTokens,
   onOpenDevices,
   onOpenNotifications,
+  onOpenSettings,
 }: MobileDrawerProps) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userRef = useRef<HTMLDivElement>(null);
-
-  const activeVaultId = useVaultStore((s) => s.activeId);
-  const activeSettings = useVaultStore((s) => s.activeSettings);
-  const setActiveSettings = useVaultStore((s) => s.setActiveSettings);
-  const theme = activeSettings?.theme ?? "auto";
-  async function setTheme(t: "light" | "dark" | "auto") {
-    if (!activeVaultId || !activeSettings) return;
-    setActiveSettings({ ...activeSettings, theme: t });
-    await vaultApi.patchVaultSettings(activeVaultId, { ...activeSettings, theme: t }).catch(() => {});
-  }
 
   useEffect(() => {
     if (!open) return;
@@ -203,39 +191,20 @@ export function MobileDrawer({
                 <span>Links</span>
               </button>
             </li>
+            {onOpenSettings && (
+              <li>
+                <button onClick={() => { onOpenSettings(); onClose(); }}>
+                  <Settings size={16} aria-hidden />
+                  <span>Settings</span>
+                </button>
+              </li>
+            )}
           </ul>
         </nav>
 
         {/* Foot cluster pinned to the bottom — vault switcher, sync status,
             then account. Mirrors the desktop sidebar footer ordering. */}
         <div className="nk-mdrawer-foot">
-          <div className="nk-mdrawer-appearance" role="group" aria-label="Appearance">
-            <button
-              className={theme === "light" ? "is-on" : ""}
-              onClick={() => void setTheme("light")}
-              aria-label="Light"
-            >
-              <Sun size={17} aria-hidden />
-              <span>Light</span>
-            </button>
-            <button
-              className={theme === "dark" ? "is-on" : ""}
-              onClick={() => void setTheme("dark")}
-              aria-label="Dark"
-            >
-              <Moon size={17} aria-hidden />
-              <span>Dark</span>
-            </button>
-            <button
-              className={theme === "auto" ? "is-on" : ""}
-              onClick={() => void setTheme("auto")}
-              aria-label="Auto"
-            >
-              <Monitor size={17} aria-hidden />
-              <span>Auto</span>
-            </button>
-          </div>
-
           <VaultSwitcher />
 
           {syncStatus && (

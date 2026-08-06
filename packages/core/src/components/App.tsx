@@ -11,6 +11,7 @@ import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { MobileDrawer } from "./MobileDrawer";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { MobileSettings } from "./MobileSettings";
 import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";
 import { useVaultStore } from "../stores/vaultStore";
@@ -144,6 +145,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Desktop sidebar collapse. Persisted so it survives reloads. Ignored on
   // mobile, where the drawer is the navigation surface.
   const [sidebarCollapsed, setSidebarCollapsed] = useState(
@@ -908,6 +910,14 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onOpenTokens={() => setTokensOpen(true)}
           onOpenDevices={() => setDevicesOpen(true)}
           onOpenNotifications={() => setNotificationsOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      )}
+      {isMobile && settingsOpen && (
+        <MobileSettings
+          user={user}
+          onSignOut={onSignOut}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
       {vaultPhase === "needs-pick" && (

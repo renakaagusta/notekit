@@ -41,7 +41,9 @@ import {
   ACCENT_COLORS,
   ACCENT_LABELS,
   getAccent,
+  getCustomAccent,
   setAccent,
+  setCustomAccent,
   type Accent,
 } from "../lib/accent";
 import {
@@ -55,10 +57,12 @@ import {
   UI_FONTS,
   UI_FONT_LABELS,
   getBaseColor,
+  getCustomBase,
   getLogoStyle,
   getRadius,
   getUiFont,
   setBaseColor,
+  setCustomBase,
   setLogoStyle,
   setRadius,
   setUiFont,
@@ -130,7 +134,9 @@ export function MobileSettings({
   const [font, setFont] = useState<EditorFont>(getEditorFont());
   const [size, setSize] = useState(getEditorSize());
   const [accent, setAccentState] = useState<Accent>(getAccent());
+  const [customAccent, setCustomAccentState] = useState(getCustomAccent());
   const [base, setBaseState] = useState<BaseColor>(getBaseColor());
+  const [customBase, setCustomBaseState] = useState(getCustomBase());
   const [uiFont, setUiFontState] = useState<UiFont>(getUiFont());
   const [radius, setRadiusState] = useState<RadiusChoice>(getRadius());
   const [logo, setLogoState] = useState<LogoStyle>(getLogoStyle());
@@ -143,6 +149,16 @@ export function MobileSettings({
   function pickBase(b: BaseColor) {
     setBaseState(b);
     setBaseColor(b);
+  }
+  function pickCustomAccent(hex: string) {
+    setCustomAccentState(hex);
+    setCustomAccent(hex);
+    setAccentState("custom");
+  }
+  function pickCustomBase(hex: string) {
+    setCustomBaseState(hex);
+    setCustomBase(hex);
+    setBaseState("custom");
   }
   function pickUiFont(f: UiFont) {
     setUiFontState(f);
@@ -275,36 +291,69 @@ export function MobileSettings({
               <div className="nk-set-row nk-set-row--stack has-sep">
                 <span className="nk-set-row-title">Accent</span>
                 <div className="nk-set-swatches" role="group" aria-label="Accent color">
-                  {ACCENTS.map((a) => (
-                    <button
-                      key={a}
-                      className={`nk-set-swatch${accent === a ? " is-on" : ""}`}
-                      onClick={() => pickAccent(a)}
-                      title={ACCENT_LABELS[a]}
-                      aria-label={ACCENT_LABELS[a]}
-                    >
-                      <span
-                        className={`nk-set-swatch-dot${a === "mono" ? " is-mono" : ""}`}
-                        style={a === "mono" ? undefined : { background: ACCENT_COLORS[a] }}
-                      />
-                    </button>
-                  ))}
+                  {ACCENTS.map((a) =>
+                    a === "custom" ? (
+                      <label
+                        key={a}
+                        className={`nk-set-swatch nk-set-swatch--custom${accent === "custom" ? " is-on" : ""}`}
+                        title="Custom accent"
+                      >
+                        <span className="nk-set-swatch-dot" style={{ background: customAccent }} />
+                        <input
+                          type="color"
+                          value={customAccent}
+                          onChange={(e) => pickCustomAccent(e.target.value)}
+                        />
+                      </label>
+                    ) : (
+                      <button
+                        key={a}
+                        className={`nk-set-swatch${accent === a ? " is-on" : ""}`}
+                        onClick={() => pickAccent(a)}
+                        title={ACCENT_LABELS[a]}
+                        aria-label={ACCENT_LABELS[a]}
+                      >
+                        <span
+                          className={`nk-set-swatch-dot${a === "mono" ? " is-mono" : ""}`}
+                          style={a === "mono" ? undefined : { background: ACCENT_COLORS[a as keyof typeof ACCENT_COLORS] }}
+                        />
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
               <div className="nk-set-row nk-set-row--stack has-sep">
                 <span className="nk-set-row-title">Base color</span>
                 <div className="nk-set-swatches" role="group" aria-label="Base color">
-                  {BASE_COLORS.map((b) => (
-                    <button
-                      key={b}
-                      className={`nk-set-swatch${base === b ? " is-on" : ""}`}
-                      onClick={() => pickBase(b)}
-                      title={BASE_LABELS[b]}
-                      aria-label={BASE_LABELS[b]}
-                    >
-                      <span className="nk-set-swatch-dot" style={{ background: BASE_SWATCH[b] }} />
-                    </button>
-                  ))}
+                  {BASE_COLORS.map((b) =>
+                    b === "custom" ? (
+                      <label
+                        key={b}
+                        className={`nk-set-swatch nk-set-swatch--custom${base === "custom" ? " is-on" : ""}`}
+                        title="Custom base tint"
+                      >
+                        <span className="nk-set-swatch-dot" style={{ background: customBase }} />
+                        <input
+                          type="color"
+                          value={customBase}
+                          onChange={(e) => pickCustomBase(e.target.value)}
+                        />
+                      </label>
+                    ) : (
+                      <button
+                        key={b}
+                        className={`nk-set-swatch${base === b ? " is-on" : ""}`}
+                        onClick={() => pickBase(b)}
+                        title={BASE_LABELS[b]}
+                        aria-label={BASE_LABELS[b]}
+                      >
+                        <span
+                          className="nk-set-swatch-dot"
+                          style={{ background: BASE_SWATCH[b as keyof typeof BASE_SWATCH] }}
+                        />
+                      </button>
+                    ),
+                  )}
                 </div>
               </div>
               <div className="nk-set-row nk-set-row--stack has-sep">

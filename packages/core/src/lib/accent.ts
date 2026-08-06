@@ -12,12 +12,14 @@
  * so "mono" simply removes the JS overrides and falls back to grayscale.
  */
 
-export type Accent = "mono" | "green" | "blue" | "purple" | "orange" | "pink";
+export type Accent = "mono" | "green" | "blue" | "purple" | "orange" | "pink" | "custom";
 
 const KEY = "nk:accent";
+const CUSTOM_KEY = "nk:accent-custom";
+const DEFAULT_CUSTOM = "#e11d48";
 
-/** Solid color per accent (contrast text is white for all colored options). */
-export const ACCENT_COLORS: Record<Exclude<Accent, "mono">, string> = {
+/** Solid color per preset accent (contrast text is white for all). */
+export const ACCENT_COLORS: Record<"green" | "blue" | "purple" | "orange" | "pink", string> = {
   green: "#22c55e",
   blue: "#3b82f6",
   purple: "#8b5cf6",
@@ -32,9 +34,10 @@ export const ACCENT_LABELS: Record<Accent, string> = {
   purple: "Purple",
   orange: "Orange",
   pink: "Pink",
+  custom: "Custom",
 };
 
-export const ACCENTS: Accent[] = ["mono", "green", "blue", "purple", "orange", "pink"];
+export const ACCENTS: Accent[] = ["mono", "green", "blue", "purple", "orange", "pink", "custom"];
 
 export function getAccent(): Accent {
   try {
@@ -44,6 +47,25 @@ export function getAccent(): Accent {
     /* ignore */
   }
   return "mono";
+}
+
+/** The user's custom accent hex (defaults to a rose so the swatch isn't blank). */
+export function getCustomAccent(): string {
+  try {
+    const v = localStorage.getItem(CUSTOM_KEY);
+    if (v && /^#[0-9a-fA-F]{6}$/.test(v)) return v;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_CUSTOM;
+}
+
+/** Resolve the current accent to a hex, or null for mono. */
+function accentHex(): string | null {
+  const a = getAccent();
+  if (a === "mono") return null;
+  if (a === "custom") return getCustomAccent();
+  return ACCENT_COLORS[a];
 }
 
 /** Blend a hex color toward `#000`/`#fff` by `amount` (0..1), returning hex.
@@ -65,8 +87,7 @@ function mix(hex: string, toward: "#000000" | "#ffffff", amount: number): string
  *  `.nk`, so overriding `html` would be shadowed by the `.nk` rule.) */
 export function applyAccent(): void {
   if (typeof document === "undefined") return;
-  const accent = getAccent();
-  const color = accent === "mono" ? null : ACCENT_COLORS[accent];
+  const color = accentHex();
   const CTA_VARS = [
     "--nk-accent",
     "--nk-accent-contrast",
@@ -101,6 +122,18 @@ export function applyAccent(): void {
 export function setAccent(accent: Accent): void {
   try {
     localStorage.setItem(KEY, accent);
+  } catch {
+    /* ignore */
+  }
+  applyAccent();
+}
+
+/** Set a custom accent hex and switch to it. */
+export function setCustomAccent(hex: string): void {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+  try {
+    localStorage.setItem(CUSTOM_KEY, hex);
+    localStorage.setItem(KEY, "custom");
   } catch {
     /* ignore */
   }

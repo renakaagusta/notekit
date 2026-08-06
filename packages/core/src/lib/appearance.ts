@@ -14,25 +14,39 @@
  * editor-prefs.ts.
  */
 
-export type BaseColor = "zinc" | "slate" | "stone" | "gray";
+export type BaseColor = "zinc" | "slate" | "stone" | "gray" | "custom";
 export type UiFont = "system" | "inter" | "serif" | "mono" | "rounded";
 export type RadiusChoice = "none" | "small" | "medium" | "large";
 export type LogoStyle = "mono" | "accent";
 
-export const BASE_COLORS: BaseColor[] = ["zinc", "slate", "stone", "gray"];
+export const BASE_COLORS: BaseColor[] = ["zinc", "slate", "stone", "gray", "custom"];
 export const BASE_LABELS: Record<BaseColor, string> = {
   zinc: "Zinc",
   slate: "Slate",
   stone: "Stone",
   gray: "Gray",
+  custom: "Custom",
 };
 /** A representative swatch color per base (dark-surface tone) for the picker. */
-export const BASE_SWATCH: Record<BaseColor, string> = {
+export const BASE_SWATCH: Record<Exclude<BaseColor, "custom">, string> = {
   zinc: "#3f3f46",
   slate: "#334155",
   stone: "#44403c",
   gray: "#374151",
 };
+const BASE_CUSTOM_KEY = "nk:base-custom";
+const DEFAULT_BASE_CUSTOM = "#6d5bd0";
+
+/** The user's custom base tint hex. */
+export function getCustomBase(): string {
+  try {
+    const v = localStorage.getItem(BASE_CUSTOM_KEY);
+    if (v && /^#[0-9a-fA-F]{6}$/.test(v)) return v;
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_BASE_CUSTOM;
+}
 
 export const UI_FONTS: UiFont[] = ["system", "inter", "serif", "mono", "rounded"];
 export const UI_FONT_LABELS: Record<UiFont, string> = {
@@ -99,6 +113,10 @@ export function applyAppearance(): void {
   document.querySelectorAll<HTMLElement>(".nk").forEach((root) => {
     if (base === "zinc") delete root.dataset.base;
     else root.dataset.base = base;
+    // Custom base: the [data-base="custom"] CSS mixes --base-tint into the
+    // neutral ramp (theme-aware), keeping text contrast.
+    if (base === "custom") root.style.setProperty("--base-tint", getCustomBase());
+    else root.style.removeProperty("--base-tint");
     root.style.setProperty("--ui-font", font);
     root.style.setProperty("--r-sm", rs);
     root.style.setProperty("--r-md", rm);
@@ -109,6 +127,13 @@ export function applyAppearance(): void {
 }
 
 export const setBaseColor = (v: BaseColor) => (persist(K.base, v), applyAppearance());
+/** Set a custom base tint hex and switch to it. */
+export function setCustomBase(hex: string): void {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+  persist(BASE_CUSTOM_KEY, hex);
+  persist(K.base, "custom");
+  applyAppearance();
+}
 export const setUiFont = (v: UiFont) => (persist(K.font, v), applyAppearance());
 export const setRadius = (v: RadiusChoice) => (persist(K.radius, v), applyAppearance());
 export const setLogoStyle = (v: LogoStyle) => (persist(K.logo, v), applyAppearance());

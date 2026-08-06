@@ -36,6 +36,14 @@ import {
   setEditorSize,
   type EditorFont,
 } from "../lib/editor-prefs";
+import {
+  ACCENTS,
+  ACCENT_COLORS,
+  ACCENT_LABELS,
+  getAccent,
+  setAccent,
+  type Accent,
+} from "../lib/accent";
 import { noteTitle } from "../lib/note-display";
 import type { Note } from "../types/note";
 import { LOCALES, currentLocale, setLocale } from "../i18n";
@@ -72,6 +80,7 @@ const PLAN_LABEL: Record<string, string> = {
   lifetime: "Lifetime",
 };
 
+// eslint-disable-next-line max-lines-per-function, complexity -- full-screen settings page with five tabs (General, Editor, AI, Export, Account) each with multiple controls
 export function MobileSettings({
   user,
   onSignOut,
@@ -97,7 +106,13 @@ export function MobileSettings({
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
   const [font, setFont] = useState<EditorFont>(getEditorFont());
   const [size, setSize] = useState(getEditorSize());
+  const [accent, setAccentState] = useState<Accent>(getAccent());
   const [exportMsg, setExportMsg] = useState<string | null>(null);
+
+  function pickAccent(a: Accent) {
+    setAccentState(a);
+    setAccent(a);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -113,7 +128,7 @@ export function MobileSettings({
     if (!activeVaultId || !activeSettings) return;
     const next = { ...activeSettings, ...patch };
     setActiveSettings(next);
-    await vaultApi.patchVaultSettings(activeVaultId, next).catch(() => {});
+    await vaultApi.patchVaultSettings(activeVaultId, next).catch(() => { /* intentional noop — best-effort sync; local state already updated */ });
   }
 
   function pickLocale(code: string) {
@@ -214,6 +229,25 @@ export function MobileSettings({
                   </button>
                 </div>
               </div>
+              <div className="nk-set-row nk-set-row--stack has-sep">
+                <span className="nk-set-row-title">Accent</span>
+                <div className="nk-set-swatches" role="group" aria-label="Accent color">
+                  {ACCENTS.map((a) => (
+                    <button
+                      key={a}
+                      className={`nk-set-swatch${accent === a ? " is-on" : ""}`}
+                      onClick={() => pickAccent(a)}
+                      title={ACCENT_LABELS[a]}
+                      aria-label={ACCENT_LABELS[a]}
+                    >
+                      <span
+                        className={`nk-set-swatch-dot${a === "mono" ? " is-mono" : ""}`}
+                        style={a === "mono" ? undefined : { background: ACCENT_COLORS[a] }}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
             </Group>
 
             <Group label="Language">
@@ -281,7 +315,7 @@ export function MobileSettings({
             <Group label="Behavior" footer="Vim keybindings apply the next time you open a note.">
               <label className="nk-set-row">
                 <span className="nk-set-row-title">Vim keybindings</span>
-                <Toggle on={!!vimMode} onChange={() => onToggleVim?.()} />
+                <Toggle on={!!vimMode} onChange={onToggleVim ?? (() => { /* intentional noop when no handler provided */ })} />
               </label>
             </Group>
           </>

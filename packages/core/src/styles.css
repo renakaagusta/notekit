@@ -6,6 +6,14 @@
 @import "tippy.js/dist/tippy.css";
 
 .nk {
+  /* Accent color. Default = the theme's monochrome accent; overridden per-.nk
+   * (inline style) by lib/accent.ts when the user picks a color. Kept as a
+   * separate layer so "mono" just falls back here. --accent / --primary-
+   * foreground / --accent-soft are defined on the themed [data-theme] rule. */
+  --nk-accent: var(--accent);
+  --nk-accent-contrast: var(--primary-foreground);
+  --nk-accent-soft: var(--accent-soft);
+
   --ui-font: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     sans-serif;
   --editor-font: "Inter", system-ui, sans-serif;
@@ -9022,9 +9030,9 @@ a.nk-commit-sha:hover {
   border: 1px solid var(--border-soft); background: none; color: var(--text-2); cursor: pointer; white-space: nowrap;
 }
 .nk-home-chip.is-on {
-  background: var(--surface-3);
-  border-color: var(--border-guide);
-  color: var(--text);
+  background: var(--nk-accent-soft);
+  border-color: color-mix(in srgb, var(--nk-accent) 35%, transparent);
+  color: var(--nk-accent);
   font-weight: 600;
 }
 .nk-home-empty { font-size: 13px; color: var(--muted); margin: 8px 0 0 2px; }
@@ -9099,8 +9107,8 @@ a.nk-commit-sha:hover {
 .nk-bottomnav-item svg { display: block; }
 .nk-bottomnav-item span { font-size: 11px; font-weight: 600; }
 .nk-bottomnav-item.is-on {
-  color: var(--text);
-  background: color-mix(in srgb, var(--text) 9%, transparent);
+  color: var(--nk-accent);
+  background: var(--nk-accent-soft);
 }
 
 /* ── Native-sized drawer (was too small on phone; drawer is mobile-only) ── */
@@ -10084,8 +10092,9 @@ a.nk-commit-sha:hover {
 
 /* ── First-run mobile onboarding (Parchment-style carousel) ─────────── */
 .nk-onb {
-  --onb-accent: #22c55e;
-  --onb-accent-deep: #15803d;
+  --onb-accent: var(--nk-accent);
+  --onb-accent-deep: var(--nk-accent);
+  --onb-accent-text: var(--nk-accent-contrast);
   position: fixed;
   inset: 0;
   z-index: 400;
@@ -10205,15 +10214,15 @@ a.nk-commit-sha:hover {
 .nk-onb-back:disabled { opacity: 0.35; cursor: default; }
 .nk-onb-next {
   border: 0;
-  background: linear-gradient(150deg, var(--onb-accent), var(--onb-accent-deep));
-  color: #eafff1;
+  background: var(--onb-accent);
+  color: var(--onb-accent-text);
   font: inherit;
   font-size: 16px;
   font-weight: 650;
   padding: 14px 30px;
   border-radius: 999px;
   cursor: pointer;
-  box-shadow: 0 10px 22px -12px rgba(22, 163, 74, 0.7);
+  box-shadow: 0 10px 22px -14px rgba(0, 0, 0, 0.6);
 }
 
 /* ── Mock preview cards ── */
@@ -10496,7 +10505,7 @@ a.nk-commit-sha:hover {
   flex-shrink: 0;
   transition: background 0.18s ease;
 }
-.nk-set-toggle.is-on { background: #22c55e; }
+.nk-set-toggle.is-on { background: var(--nk-accent); }
 .nk-set-toggle-knob {
   position: absolute;
   top: 3px;
@@ -10571,6 +10580,35 @@ a.nk-commit-sha:hover {
   gap: 7px;
   margin: -12px 6px 0;
   font-size: 13px;
-  color: #22c55e;
+  color: var(--success);
 }
 .nk-set-note svg { flex-shrink: 0; }
+
+/* Settings: accent color swatches. */
+.nk-set-swatches {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.nk-set-swatch {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: none;
+  padding: 3px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.nk-set-swatch.is-on { border-color: var(--text); }
+.nk-set-swatch-dot {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+/* "Mono" swatch: a monochrome split-disc so it reads as "no color". */
+.nk-set-swatch-dot.is-mono {
+  background: linear-gradient(135deg, var(--text) 0 50%, var(--surface-3) 50% 100%);
+}

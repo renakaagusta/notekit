@@ -67,6 +67,7 @@ import { parseWikilinkTarget } from "./extensions/Wikilink";
 import { isValidYMD, shiftYMD, todayYMD } from "../lib/journal";
 import { isDesktop } from "../lib/api";
 import { applyEditorPrefs } from "../lib/editor-prefs";
+import { applyAccent } from "../lib/accent";
 import type { SearchHit } from "../lib/search";
 
 // On macOS desktop we hide the native title bar (titleBarStyle: hiddenInset)
@@ -104,6 +105,7 @@ interface AppProps {
   onSignOut?: () => void;
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity -- App is the root shell component: vault boot, crypto, sync, SSE, theming, keyboard, mobile shell, and all modal/panel routing live here
 export function App({ user, onSignOut }: AppProps = {}) {
   const activeNoteId = useNotesStore((s) => s.activeNoteId);
   const note = useNotesStore((s) =>
@@ -232,6 +234,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const noteHeading = note ? noteTitle(note) : null;
 
   useEffect(() => {
+    // eslint-disable-next-line complexity -- onKey dispatches all global keyboard shortcuts; each modifier+key combo is an unavoidable branch
     function onKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
@@ -294,7 +297,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [upsert, setActive, openJournal]);
+  }, [upsert, setActive, openJournal, openNoteInLayout]);
 
   // Sync sidebar / keyboard note activations to the layout store so the
   // active pane opens the note as a tab. Skips when the layout already
@@ -361,7 +364,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
         "notekit:open-wikilink",
         onOpen as EventListener,
       );
-  }, [upsert, setActive, openJournal]);
+  }, [upsert, setActive, openJournal, openNoteInLayout]);
 
   // On phones, opening a note slides the editor over the list (notes view).
   // Other views render their primary content in the `<main>` pane — kanban,
@@ -372,6 +375,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   useEffect(() => {
     if (!isMobile) return;
     if (view === "notes") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mobilePane is derived from view/activeNoteId; synchronous setState avoids a missed frame on navigation
       setMobilePane(activeNoteId || draftJournal ? "detail" : "list");
     } else {
       setMobilePane("detail");
@@ -455,7 +459,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
           // small reads (recovery.json + device records) so this costs little,
           // and the pairing/setup dialog still appears reactively via
           // cryptoStore.phase. Tolerate failure so content loads regardless.
-          await bootstrapCrypto().catch(() => {});
+          await bootstrapCrypto().catch(() => { /* intentional noop — tolerate crypto failure so content still loads */ });
           await startSync();
           // Open the real-time event stream so edits from other devices
           // arrive via push instead of waiting for the next focus-pull.
@@ -509,7 +513,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
     // Publish our public keys to the directory so others can share with us.
     // Done here (not only in bootstrap) so the first-run path — which finishes
     // via VaultSetup, not bootstrap's ready branch — also publishes.
-    void publishMyKeys().catch(() => {});
+    void publishMyKeys().catch(() => { /* intentional noop — key publication is best-effort */ });
     let cancelled = false;
     let tries = 0;
     let timer: ReturnType<typeof setTimeout>;
@@ -612,9 +616,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, [resolvedTheme]);
 
-  // Apply saved editor font/size prefs once on mount.
+  // Apply saved editor font/size + accent color once on mount.
   useEffect(() => {
     applyEditorPrefs();
+    applyAccent();
   }, []);
 
   async function onVaultPicked() {
@@ -632,7 +637,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
     // Wait for crypto before the first pull so encrypted items decrypt on the
     // first try (avoids the skip → replaceAll → re-pull flicker). See the mount
     // effect above. Tolerate failure so content still loads.
-    await bootstrapCrypto().catch(() => {});
+    await bootstrapCrypto().catch(() => { /* intentional noop — tolerate crypto failure so content still loads */ });
     await startSync();
     startVaultEventStream();
     await rehydrateEncryptedIfSkipped();

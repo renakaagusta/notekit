@@ -46,12 +46,17 @@ export function getEditorSize(): number {
   return DEFAULT_SIZE;
 }
 
-/** Push the current prefs onto the document so the editor picks them up. */
+/** Push the current prefs onto the themed `.nk` root(s) so the editor picks
+ *  them up. (The vars are defined on `.nk`, so overriding `html` would be
+ *  shadowed by the `.nk` rule.) */
 export function applyEditorPrefs(): void {
   if (typeof document === "undefined") return;
-  const root = document.documentElement;
-  root.style.setProperty("--editor-font", FONT_STACKS[getEditorFont()]);
-  root.style.setProperty("--editor-size", `${getEditorSize()}px`);
+  const font = FONT_STACKS[getEditorFont()];
+  const size = `${getEditorSize()}px`;
+  document.querySelectorAll<HTMLElement>(".nk").forEach((root) => {
+    root.style.setProperty("--editor-font", font);
+    root.style.setProperty("--editor-size", size);
+  });
 }
 
 export function setEditorFont(font: EditorFont): void {

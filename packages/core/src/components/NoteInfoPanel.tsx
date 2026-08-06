@@ -12,19 +12,20 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function getBacklinks(notes: Record<string, Note>, currentNote: Note): Array<{
+function getBacklinks(notes: Record<string, Note>, currentNote: Note): {
   sourceNote: Note;
   snippets: string[];
-}> {
+}[] {
   const title = noteTitle(currentNote);
   if (!title || title === "Untitled") return [];
   const pattern = new RegExp(`\\[\\[${escapeRegex(title)}\\]\\]`, "gi");
-  const results: Array<{ sourceNote: Note; snippets: string[] }> = [];
+  const results: { sourceNote: Note; snippets: string[] }[] = [];
   for (const n of Object.values(notes)) {
     if (n.id === currentNote.id) continue;
-    if (!pattern.test(n.body)) continue;
+    const body = n.body ?? "";
+    if (!pattern.test(body)) continue;
     pattern.lastIndex = 0;
-    const lines = n.body.split("\n");
+    const lines = body.split("\n");
     const matchingLines = lines
       .filter((l) => pattern.test(l))
       .map((l) => l.trim())
@@ -47,7 +48,7 @@ function getOutlinks(body: string): string[] {
   return matches;
 }
 
-function getOutlineHeadings(body: string): Array<{ level: number; text: string }> {
+function getOutlineHeadings(body: string): { level: number; text: string }[] {
   return body
     .split("\n")
     .map((line) => {
@@ -79,6 +80,7 @@ interface Props {
   getEditor?: () => TipTapEditor | null;
 }
 
+// eslint-disable-next-line max-lines-per-function -- React component with multiple tabs (backlinks, AI context) and derived state; splitting would fragment tab logic
 export function NoteInfoPanel({ noteId, getEditor }: Props) {
   const [activeTab, setActiveTab] = useState<InfoTab>("backlinks");
   const notes = useNotesStore((s) => s.notes);

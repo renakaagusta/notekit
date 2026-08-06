@@ -1,8 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { ExternalLink, FileText, Pencil, Plus, Shield, X } from "lucide-react";
+import { FileText, X } from "lucide-react";
 import { HomePane } from "./HomePane";
+import { SecretDetail } from "./SecretDetail";
+import { FolderDetail } from "./FolderDetail";
+import { VaultDetail } from "./VaultDetail";
+import { LinkDetail } from "./LinkDetail";
+import { LinkFolderDetail } from "./LinkFolderDetail";
 import { useNotesStore } from "../stores/notesStore";
-import { useLinksStore } from "../stores/linksStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";
@@ -19,7 +23,6 @@ import { TabBar } from "./TabBar";
 import { GraphView } from "./GraphView";
 import { TasksView } from "./TasksView";
 import { NoteInfoPanel } from "./NoteInfoPanel";
-import type { TabEntry } from "../stores/layoutStore";
 
 interface EditorPaneProps {
   paneId: string;
@@ -30,6 +33,7 @@ interface EditorPaneProps {
   onHistoryClick: () => void;
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity -- large React component; complex dispatch over multiple tab types, content modes, and panel states
 export function EditorPane({
   paneId,
   zenMode,
@@ -85,9 +89,8 @@ export function EditorPane({
   const updateJournalDraftBody = useNotesStore((s) => s.updateJournalDraftBody);
   const draftJournal = useNotesStore((s) => s.draftJournal);
   const upsert = useNotesStore((s) => s.upsert);
-  const links = useLinksStore((s) => s.all());
   const activeSettings = useVaultStore((s) => s.activeSettings);
-  const vaultReady = useVaultStore((s) => s.phase === "ready");
+  const _vaultReady = useVaultStore((s) => s.phase === "ready");
   const setTicketStatus = useTicketsStore((s) => s.setStatus);
 
   // ⌘⇧K → inline AI transform on the current selection. (⌘K / ⌘P are the
@@ -121,7 +124,9 @@ export function EditorPane({
 
   const editorBinding = showDraft
     ? {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- showDraft guarantees draftJournal is non-null
         key: `journal-${draftJournal!.date}`,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- showDraft guarantees draftJournal is non-null
         body: draftJournal!.body,
         onChange: updateJournalDraftBody,
       }
@@ -205,17 +210,22 @@ export function EditorPane({
               ) : activeTab?.type === "tasks" ? (
                 <TasksView focusTicket={null} />
               ) : activeTab?.type === "link" ? (
-                <LinkTabView
+                <LinkDetail
                   linkId={activeTab.id}
-                  links={links}
                   onClose={() => closeTab(activeTab, paneId)}
                 />
               ) : activeTab?.type === "secret" ? (
-                <SecretTabView
+                <SecretDetail
                   vault={activeTab.vault}
                   name={activeTab.name}
                   onClose={() => closeTab(activeTab, paneId)}
                 />
+              ) : activeTab?.type === "folder" ? (
+                <FolderDetail path={activeTab.path} paneId={paneId} />
+              ) : activeTab?.type === "linkfolder" ? (
+                <LinkFolderDetail path={activeTab.path} paneId={paneId} />
+              ) : activeTab?.type === "vault" ? (
+                <VaultDetail slug={activeTab.slug} label={activeTab.label} paneId={paneId} />
               ) : activeNoteId ? (
                 <div className="nk-empty nk-empty--center">
                   <FileText
@@ -226,6 +236,7 @@ export function EditorPane({
                   <p>Note not found.</p>
                   <p className="nk-empty-hint">This note may still be syncing.</p>
                   <div className="nk-empty-cta-row">
+                    {/* eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- activeNoteId is truthy so activeTab is set */}
                     <button className="nk-empty-cta" onClick={() => closeTab(activeTab!, paneId)}>
                       <X size={14} aria-hidden /> Close tab
                     </button>
@@ -270,115 +281,20 @@ export function EditorPane({
           </div>
         )}
       </div>{/* nk-pane-body */}
-      {inlineAI && aiDevice && editorRef.current?.editor && (
-        <InlineAIMenu
-          editor={editorRef.current.editor}
-          device={aiDevice}
-          sel={inlineAI}
-          onClose={() => setInlineAI(null)}
-        />
-      )}
+      {/* eslint-disable-next-line react-hooks/refs -- editorRef.current is read here to conditionally render InlineAIMenu; editor instance is stable between renders and this is intentional */}
+      {inlineAI && aiDevice && (() => {
+        const currentEditor = editorRef.current?.editor;
+        if (!currentEditor) return null;
+        return (
+          <InlineAIMenu
+            editor={currentEditor}
+            device={aiDevice}
+            sel={inlineAI}
+            onClose={() => setInlineAI(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
 
-import type { SavedLink } from "../types/link";
-
-function LinkTabView({
-  linkId,
-  links,
-  onClose,
-}: {
-  linkId: string;
-  links: SavedLink[];
-  onClose: () => void;
-}) {
-  const link = links.find((l) => l.id === linkId);
-  if (!link) {
-    return (
-      <div className="nk-empty nk-empty--center">
-        <p>Link not found.</p>
-        <div className="nk-empty-cta-row">
-          <button className="nk-empty-cta" onClick={onClose}>
-            <X size={14} aria-hidden /> Close tab
-          </button>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="nk-tab-detail">
-      <div className="nk-tab-detail-header">
-        <span className="nk-tab-detail-type">
-          <ExternalLink size={13} aria-hidden /> Link
-        </span>
-      </div>
-      <h1 className="nk-tab-detail-title">{link.title || link.url}</h1>
-      {link.description && (
-        <p className="nk-tab-detail-desc">{link.description}</p>
-      )}
-      <a
-        className="nk-tab-detail-url"
-        href={link.url}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {link.url}
-      </a>
-      {link.tags.length > 0 && (
-        <div className="nk-tab-detail-tags">
-          {link.tags.map((t) => (
-            <span key={t} className="nk-tag">{t}</span>
-          ))}
-        </div>
-      )}
-      <div className="nk-tab-detail-actions">
-        <a
-          className="nk-btn nk-btn--primary"
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <ExternalLink size={14} aria-hidden /> Open in browser
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function SecretTabView({
-  vault,
-  name,
-  onClose,
-}: {
-  vault: string;
-  name: string;
-  onClose: () => void;
-}) {
-  return (
-    <div className="nk-tab-detail">
-      <div className="nk-tab-detail-header">
-        <span className="nk-tab-detail-type">
-          <Shield size={13} aria-hidden /> Secret
-        </span>
-      </div>
-      <h1 className="nk-tab-detail-title">{name}</h1>
-      {vault && (
-        <p className="nk-tab-detail-desc" style={{ fontSize: 12, color: "var(--muted)" }}>
-          Vault: {vault}
-        </p>
-      )}
-      <div className="nk-tab-detail-actions">
-        <button
-          className="nk-btn nk-btn--primary"
-          onClick={() => {
-            /* navigate to secrets surface — handled at app level in future */
-            onClose();
-          }}
-        >
-          <Shield size={14} aria-hidden /> Open in Secrets
-        </button>
-      </div>
-    </div>
-  );
-}

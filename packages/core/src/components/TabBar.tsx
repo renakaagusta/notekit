@@ -1,4 +1,4 @@
-import { Columns2, Link2, Network, CalendarDays, PanelRight, Plus, Rows2, Shield, X } from "lucide-react";
+import { Columns2, Folder, Link2, Network, CalendarDays, PanelRight, Plus, Rows2, Shield, X } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useLinksStore } from "../stores/linksStore";
 import { noteTitle } from "../lib/note-display";
@@ -33,17 +33,23 @@ function useTabLabel(tab: TabEntry): string {
   }
   if (tab.type === "graph") return "Graph";
   if (tab.type === "tasks") return "Tasks";
+  if (tab.type === "folder" || tab.type === "linkfolder") {
+    return tab.path.split("/").filter(Boolean).pop() || "Folder";
+  }
+  if (tab.type === "vault") return tab.label;
   return tab.name;
 }
 
 function TabIcon({ tab }: { tab: TabEntry }) {
   if (tab.type === "link") return <Link2 size={11} aria-hidden style={{ flexShrink: 0 }} />;
   if (tab.type === "secret") return <Shield size={11} aria-hidden style={{ flexShrink: 0 }} />;
+  if (tab.type === "folder" || tab.type === "linkfolder" || tab.type === "vault") return <Folder size={11} aria-hidden style={{ flexShrink: 0 }} />;
   if (tab.type === "graph") return <Network size={11} aria-hidden style={{ flexShrink: 0 }} />;
   if (tab.type === "tasks") return <CalendarDays size={11} aria-hidden style={{ flexShrink: 0 }} />;
   return null;
 }
 
+// eslint-disable-next-line max-lines-per-function -- React component with drag-and-drop tab reordering and context menus; splitting would fragment the gesture logic
 export function TabBar({
   pane,
   isActive,

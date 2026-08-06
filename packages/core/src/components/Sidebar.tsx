@@ -30,6 +30,8 @@ import * as vaultApi from "../lib/vault-api";
 import type { User } from "../types/user";
 import { CreateMenu } from "./CreateMenu";
 import { NoteList } from "./NoteList";
+import { SecretsView } from "./SecretsView";
+import { LinksView } from "./LinksView";
 import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { VaultSwitcher } from "./VaultSwitcher";
 import { NotekitIcon } from "./BrandIcons";
@@ -61,8 +63,11 @@ interface SidebarProps {
   onOpenSearch?: () => void;
   onOpenMenu?: () => void;
   onCollapse?: () => void;
+  onOpenSecret?: () => void;
+  onOpenLink?: () => void;
 }
 
+// eslint-disable-next-line complexity, max-lines-per-function -- sidebar dispatches across multiple views, mobile/desktop shell, and user menu state
 export function Sidebar({
   view,
   onView,
@@ -76,10 +81,12 @@ export function Sidebar({
   onOpenSearch,
   onOpenMenu,
   onCollapse,
+  onOpenSecret,
+  onOpenLink,
 }: SidebarProps) {
   const { i18n } = useTranslation();
   const notesCount = useNotesStore((s) => s.all().length);
-  const ticketsCount = useTicketsStore((s) => s.all().length);
+  const _ticketsCount = useTicketsStore((s) => s.all().length);
   const vaultReady = useVaultStore((s) => s.phase === "ready");
   const activeVaultId = useVaultStore((s) => s.activeId);
   const activeSettings = useVaultStore((s) => s.activeSettings);
@@ -89,7 +96,7 @@ export function Sidebar({
     if (!activeVaultId || !activeSettings) return;
     const updated = { ...activeSettings, theme };
     setActiveSettings(updated);
-    await vaultApi.patchVaultSettings(activeVaultId, updated).catch(() => {});
+    await vaultApi.patchVaultSettings(activeVaultId, updated).catch(() => { /* intentional noop — best-effort persist */ });
   }
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -431,22 +438,10 @@ export function Sidebar({
           </div>
         )}
         {view === "secrets" && (
-          <div className="nk-empty">
-            <p>Encrypted secrets.</p>
-            <p className="nk-empty-hint">
-              API keys and tokens, encrypted on-device before they touch the
-              vault. Only your devices can read them.
-            </p>
-          </div>
+          <SecretsView mobileShell={mobileShell} onOpened={onOpenSecret} />
         )}
         {view === "links" && (
-          <div className="nk-empty">
-            <p>Saved links.</p>
-            <p className="nk-empty-hint">
-              Bookmarks with auto-detected platform tags — X, GitHub, YouTube,
-              and more.
-            </p>
-          </div>
+          <LinksView mobileShell={mobileShell} onOpened={onOpenLink} />
         )}
 
         <VaultSwitcher className="nk-vault-switcher--footer" />

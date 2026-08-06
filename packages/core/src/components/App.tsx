@@ -907,6 +907,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
                 setView("notes");
               }}
               focusTicket={focusTicket}
+              userName={user?.name ?? null}
             />
           )}
           {!zenMode && <AIAssistantFab />}

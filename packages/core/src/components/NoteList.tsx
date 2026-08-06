@@ -15,6 +15,7 @@ import {
 import { useNotesStore } from "../stores/notesStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useVaultStore } from "../stores/vaultStore";
+import { useLayoutStore } from "../stores/layoutStore";
 import { noteTitle, notePreview } from "../lib/note-display";
 import { journalYMDFromPath } from "../lib/journal";
 import type { Note } from "../types/note";
@@ -77,6 +78,7 @@ function buildTree(notes: Note[], extraFolders: string[], sort: SortMode): Folde
   return root;
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity -- file-tree component with drag-and-drop, context menus, folder management, sorting, and multiple interaction modes
 export function NoteList({
   mobileShell = false,
   onCollapse,
@@ -305,6 +307,7 @@ export function NoteList({
     );
   }
 
+  // eslint-disable-next-line max-lines-per-function -- recursive tree renderer builds folder rows, note rows, guides, drag handlers, and context menus in one pass
   function renderNode(node: FolderNode, depth: number): React.ReactElement[] {
     const isCollapsed = collapsed.has(node.path);
     const dropClass = dropTarget === node.path ? " drop" : "";
@@ -324,7 +327,7 @@ export function NoteList({
           key={`folder:${node.path}`}
           className={`nk-tree-item nk-tree-item--folder${dropClass}`}
           style={{ paddingLeft: 8 + depth * 16 }}
-          onClick={() => toggle(node.path)}
+          onClick={() => useLayoutStore.getState().openTab({ type: "folder", path: node.path })}
           onDragOver={(e) => {
             if (!dragId) return;
             e.preventDefault();
@@ -343,7 +346,14 @@ export function NoteList({
           }}
         >
           {guides.map((x) => <span key={x} className="nk-guide" style={{ left: x }} aria-hidden />)}
-          <span className={"nk-disclosure" + (isCollapsed ? "" : " open")} aria-hidden>
+          <span
+            className={"nk-disclosure" + (isCollapsed ? "" : " open")}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle(node.path);
+            }}
+            aria-hidden
+          >
             <ChevronRight size={12} />
           </span>
           <Folder size={14} className="nk-tree-icon" aria-hidden />

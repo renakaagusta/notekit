@@ -1,28 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
-  ExternalLink,
+  ChevronsDownUp,
   Folder,
+  FolderPlus,
   Link2,
   Lock,
   MoreHorizontal,
+  MoveRight,
   Plus,
-  Share2,
-  Unlock,
-  X,
+  Trash2,
 } from "lucide-react";
 import { useLinksStore } from "../stores/linksStore";
 import { useCryptoStore } from "../stores/cryptoStore";
-import { useShareStore } from "../stores/shareStore";
-import { useVaultStore } from "../stores/vaultStore";
-import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
+import { useLayoutStore, tabKey, findLeaf } from "../stores/layoutStore";
 import { detectPlatform, platformLabel } from "../lib/link-platform";
-import { MediaViewer, MediaThumb } from "./MediaViewer";
 import type { SavedLink } from "../types/link";
-
-function isMedia(link: SavedLink): boolean {
-  return link.kind === "image" || link.kind === "pdf";
-}
 
 function parseTags(raw: string): string[] {
   return raw
@@ -80,8 +73,7 @@ function buildTree(links: SavedLink[], extraFolders: string[]): FolderNode {
   const sort = (node: FolderNode) => {
     node.children.sort((a, b) => a.name.localeCompare(b.name));
     node.links.sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
     node.children.forEach(sort);
   };
@@ -89,39 +81,29 @@ function buildTree(links: SavedLink[], extraFolders: string[]): FolderNode {
   return root;
 }
 
-export function LinksView() {
+/**
+ * The Links sidebar list — a folder tree of saved links, mirroring the Notes
+ * and Secrets trees. Clicking a link opens it as a tab in the active pane (the
+ * detail lives in LinkDetail); clicking a folder opens a LinkFolderDetail index
+ * tab. Folder CRUD, drag-into-folder, tag filtering, and adding links happen
+ * inline here.
+ */
+// eslint-disable-next-line max-lines-per-function, complexity -- links tree manages folder CRUD, add form, tag filter, drag-drop, collapse, and per-row menus
+export function LinksView({
+  mobileShell: _mobileShell = false,
+  onOpened,
+}: {
+  mobileShell?: boolean;
+  onOpened?: () => void;
+}) {
   const links = useLinksStore((s) => s.all());
   const folders = useLinksStore((s) => s.folders);
   const upsert = useLinksStore((s) => s.upsert);
   const remove = useLinksStore((s) => s.remove);
-  const toggleEncrypted = useLinksStore((s) => s.toggleEncrypted);
   const setFolder = useLinksStore((s) => s.setFolder);
-  const setAnnotation = useLinksStore((s) => s.setAnnotation);
-  // Born-E2EE vault: every link is sealed, no per-item toggle.
-  const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
-  const openShare = useShareStore((s) => s.open);
   const createFolder = useLinksStore((s) => s.createFolder);
   const removeFolder = useLinksStore((s) => s.removeFolder);
-  const vaultId = useVaultStore((s) => s.activeId);
-  const requestEncrypt = useE2eeOnboardingStore((s) => s.requestEncrypt);
-
-  function handleToggleEncrypted(link: {
-    id: string;
-    title: string;
-    encrypted?: boolean;
-  }) {
-    if (link.encrypted) {
-      toggleEncrypted(link.id);
-      return;
-    }
-    if (!vaultId) return;
-    requestEncrypt({
-      vaultId,
-      kind: "link",
-      title: link.title,
-      onConfirm: () => toggleEncrypted(link.id),
-    });
-  }
+  const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
 
   const [addingIn, setAddingIn] = useState<string | null | undefined>(undefined);
   const [addUrl, setAddUrl] = useState("");
@@ -132,16 +114,55 @@ export function LinksView() {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [ctxMenu, setCtxMenu] = useState<string | null>(null);
-  const [viewing, setViewing] = useState<SavedLink | null>(null);
 
   const detectedPlatform = addUrl ? detectPlatform(addUrl) : null;
   const isAdding = addingIn !== undefined;
+
+  // Highlight the link whose tab is active in the focused pane.
+  const activeLinkKey = useLayoutStore((s) => {
+    const leaf = findLeaf(s.layout, s.activePaneId);
+    const t = leaf?.activeTab;
+    return t && t.type === "link" ? tabKey(t) : null;
+  });
+
+  useEffect(() => {
+    if (!ctxMenu) return;
+    function onDown(e: MouseEvent) {
+      const t = e.target as Element | null;
+      if (t?.closest(".nk-tree-ctx-wrap")) return;
+      setCtxMenu(null);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [ctxMenu]);
+
+  const filtered = useMemo(
+    () => (filterTag ? links.filter((l) => l.tags.includes(filterTag)) : links),
+    [links, filterTag],
+  );
+  const tree = useMemo(() => buildTree(filtered, folders), [filtered, folders]);
+  const allTags = useMemo(
+    () => Array.from(new Set(links.flatMap((l) => l.tags))).sort(),
+    [links],
+  );
+
+  const allCollapsed = useMemo(() => {
+    return folders.length > 0 && folders.every((p) => collapsed.has(p));
+  }, [folders, collapsed]);
+
+  function collapseAll() {
+    setCollapsed(new Set(folders));
+  }
+  function expandAll() {
+    setCollapsed(new Set());
+  }
 
   function openAddForm(folder: string | null) {
     setAddingIn(folder);
     setAddUrl("");
     setAddTitle("");
     setAddTags("");
+    setCtxMenu(null);
     if (folder) {
       setCollapsed((cur) => {
         if (!cur.has(folder)) return cur;
@@ -152,26 +173,34 @@ export function LinksView() {
     }
   }
 
-  function onAdd() {
-    const url = addUrl.trim();
-    if (!url || !isAdding) return;
-    upsert({
-      url,
-      title: addTitle.trim() || undefined,
-      tags: parseTags(addTags),
-      folder: addingIn ?? null,
-    });
+  function onCancel() {
     setAddingIn(undefined);
     setAddUrl("");
     setAddTitle("");
     setAddTags("");
   }
 
-  function onCancel() {
-    setAddingIn(undefined);
-    setAddUrl("");
-    setAddTitle("");
-    setAddTags("");
+  function openLink(l: SavedLink) {
+    useLayoutStore.getState().openTab({ type: "link", id: l.id });
+    onOpened?.();
+  }
+
+  function openLinkFolder(path: string) {
+    useLayoutStore.getState().openTab({ type: "linkfolder", path });
+    onOpened?.();
+  }
+
+  function onAdd() {
+    const url = addUrl.trim();
+    if (!url || !isAdding) return;
+    const link = upsert({
+      url,
+      title: addTitle.trim() || undefined,
+      tags: parseTags(addTags),
+      folder: addingIn ?? null,
+    });
+    onCancel();
+    openLink(link);
   }
 
   function createNewFolder(parent: string | null) {
@@ -186,8 +215,7 @@ export function LinksView() {
   function onDeleteFolder(folderPath: string, e: React.MouseEvent) {
     e.stopPropagation();
     const inside = links.filter(
-      (l) =>
-        l.folder === folderPath || (l.folder ?? "").startsWith(`${folderPath}/`),
+      (l) => l.folder === folderPath || (l.folder ?? "").startsWith(`${folderPath}/`),
     );
     const msg =
       inside.length > 0
@@ -200,12 +228,25 @@ export function LinksView() {
   }
 
   function promptMove(link: SavedLink) {
+    setCtxMenu(null);
     const next = window.prompt(
       "Move to folder (use / for nesting, empty for root):",
       link.folder ?? "",
     );
     if (next === null) return;
     setFolder(link.id, next.trim() || null);
+  }
+
+  function onDeleteLink(link: SavedLink) {
+    setCtxMenu(null);
+    if (!confirm(`Delete "${link.title || link.url}"?`)) return;
+    const tab = { type: "link" as const, id: link.id };
+    const { layout, activePaneId } = useLayoutStore.getState();
+    const leaf = findLeaf(layout, activePaneId);
+    if (leaf?.activeTab && tabKey(leaf.activeTab) === tabKey(tab)) {
+      useLayoutStore.getState().closeTab(tab, activePaneId);
+    }
+    remove(link.id);
   }
 
   function onDropTo(folderPath: string | null) {
@@ -224,34 +265,9 @@ export function LinksView() {
     });
   }
 
-  useEffect(() => {
-    if (!ctxMenu) return;
-    function onDown(e: MouseEvent) {
-      const t = e.target as Element | null;
-      if (t?.closest(".nk-tree-ctx-wrap")) return;
-      setCtxMenu(null);
-    }
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [ctxMenu]);
-
-  const filtered = useMemo(
-    () => (filterTag ? links.filter((l) => l.tags.includes(filterTag)) : links),
-    [links, filterTag],
-  );
-  const tree = useMemo(
-    () => buildTree(filtered, folders),
-    [filtered, folders],
-  );
-
-  const allTags = useMemo(
-    () => Array.from(new Set(links.flatMap((l) => l.tags))).sort(),
-    [links],
-  );
-
   function renderAddForm() {
     return (
-      <div className="nk-link-form">
+      <li className="nk-tree-secret--form">
         <input
           className="nk-input"
           placeholder="URL"
@@ -268,9 +284,7 @@ export function LinksView() {
             <span className={`nk-platform-badge nk-platform--${detectedPlatform}`}>
               {platformLabel(detectedPlatform)}
             </span>
-            <span className="nk-muted" style={{ fontSize: "11px" }}>
-              detected
-            </span>
+            <span className="nk-muted" style={{ fontSize: "11px" }}>detected</span>
           </div>
         )}
         <input
@@ -299,35 +313,26 @@ export function LinksView() {
           </div>
         )}
         <div style={{ display: "flex", gap: "var(--gap-2)" }}>
-          <button
-            className="nk-btn nk-btn--primary"
-            onClick={onAdd}
-            disabled={!addUrl.trim()}
-          >
+          <button className="nk-btn nk-btn--primary" onClick={onAdd} disabled={!addUrl.trim()}>
             Save
           </button>
-          <button className="nk-btn" onClick={onCancel}>
-            Cancel
-          </button>
+          <button className="nk-btn" onClick={onCancel}>Cancel</button>
         </div>
-      </div>
+      </li>
     );
   }
 
-  function renderLinkCard(link: SavedLink, depth: number) {
-    const noteGuideLeft =
-      depth > 0 ? 8 + (depth - 1) * 16 + 7 : undefined;
+  function renderLinkRow(link: SavedLink, depth: number) {
+    const menu = `link:${link.id}`;
+    const active = activeLinkKey === tabKey({ type: "link", id: link.id });
+    const guideLeft = 8 + depth * 16 + 7;
     return (
       <li
         key={link.id}
         draggable
-        className="nk-tree-item nk-tree-item--link"
-        style={{
-          paddingLeft: 8 + depth * 16,
-          ...(noteGuideLeft !== undefined
-            ? ({ "--nk-guide": `${noteGuideLeft}px` } as React.CSSProperties)
-            : {}),
-        }}
+        className={"nk-tree-item nk-tree-item--note nk-tree-secret" + (active ? " active" : "")}
+        style={{ paddingLeft: 8 + depth * 16 }}
+        onClick={() => openLink(link)}
         onDragStart={(e) => {
           setDragId(link.id);
           e.dataTransfer.effectAllowed = "move";
@@ -342,219 +347,170 @@ export function LinksView() {
           promptMove(link);
         }}
       >
-        {link.kind === "image" && link.url && (
-          <MediaThumb url={link.url} onClick={() => setViewing(link)} />
-        )}
-        <div
-          className={`nk-link-card-main${
-            isMedia(link) && link.url ? " nk-link-card-main--media" : ""
-          }`}
-          onClick={
-            isMedia(link) && link.url ? () => setViewing(link) : undefined
-          }
-        >
-          <div className="nk-link-card-top">
-            {isMedia(link) && (
-              <span className={`nk-kind-badge nk-kind--${link.kind}`}>
-                {link.kind === "pdf" ? "PDF" : "Image"}
-              </span>
-            )}
-            {link.platform && (
-              <span
-                className={`nk-platform-badge nk-platform--${link.platform}`}
-              >
-                {platformLabel(link.platform)}
-              </span>
-            )}
+        <span className="nk-guide" style={{ left: guideLeft }} aria-hidden />
+        <Link2 size={14} className="nk-tree-icon" aria-hidden />
+        <span className="nk-tree-stack">
+          <span className="nk-tree-label">
             {link.encrypted && !encryptionRequired && (
-              <Lock
-                size={12}
-                strokeWidth={2}
-                aria-label="Encrypted"
-                className="nk-link-lock"
-              />
+              <Lock size={11} strokeWidth={2} aria-label="Encrypted" className="nk-tree-lock" />
             )}
-            <span className="nk-link-title">{link.title}</span>
-          </div>
-          <div className="nk-link-url">{hostname(link.url)}</div>
-          {link.tags.length > 0 && (
-            <div className="nk-link-card-tags">
-              {link.tags.map((tag) => (
+            {link.title || link.url}
+          </span>
+          <span className="nk-tree-sub" aria-hidden>{hostname(link.url)}</span>
+        </span>
+        <span className="nk-tree-ctx-wrap">
+          <button
+            className="nk-tree-ctx-btn"
+            title="More options"
+            aria-label="More options"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCtxMenu((cur) => (cur === menu ? null : menu));
+            }}
+          >
+            <MoreHorizontal size={13} aria-hidden />
+          </button>
+          {ctxMenu === menu && (
+            <ul className="nk-ctx-menu" role="menu">
+              <li role="none">
                 <button
-                  key={tag}
-                  className="nk-link-tag"
+                  role="menuitem"
+                  className="nk-ctx-menu-item"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setFilterTag(filterTag === tag ? null : tag);
+                    promptMove(link);
                   }}
                 >
-                  {tag}
+                  <MoveRight size={13} aria-hidden /> Move to folder…
                 </button>
-              ))}
-            </div>
+              </li>
+              <li role="none">
+                <button
+                  role="menuitem"
+                  className="nk-ctx-menu-item nk-ctx-menu-item--danger"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteLink(link);
+                  }}
+                >
+                  <Trash2 size={13} aria-hidden /> Delete
+                </button>
+              </li>
+            </ul>
           )}
-        </div>
-        <div className="nk-link-card-actions">
-          <a
-            className="nk-iconbtn"
-            href={link.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Open link"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <ExternalLink size={13} aria-hidden />
-          </a>
-          {!encryptionRequired && (
-            <button
-              className="nk-iconbtn"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleEncrypted(link);
-              }}
-              title={
-                link.encrypted
-                  ? "Decrypt this link and store it as plain markdown"
-                  : "End-to-end encrypt this link"
-              }
-              aria-label={link.encrypted ? "Decrypt link" : "Encrypt link"}
-              aria-pressed={!!link.encrypted}
-            >
-              {link.encrypted ? (
-                <Unlock size={13} aria-hidden />
-              ) : (
-                <Lock size={13} aria-hidden />
-              )}
-            </button>
-          )}
-          {(encryptionRequired || link.encrypted) && (
-            <button
-              className="nk-iconbtn"
-              onClick={(e) => {
-                e.stopPropagation();
-                openShare({ kind: "link", id: link.id, title: link.title || link.url });
-              }}
-              title="Share this link"
-              aria-label="Share link"
-            >
-              <Share2 size={13} aria-hidden />
-            </button>
-          )}
-          <span className="nk-tree-ctx-wrap">
-            <button
-              className="nk-iconbtn"
-              title="More options"
-              aria-label="More options"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCtxMenu((cur) =>
-                  cur === `link:${link.id}` ? null : `link:${link.id}`,
-                );
-              }}
-            >
-              <MoreHorizontal size={13} aria-hidden />
-            </button>
-            {ctxMenu === `link:${link.id}` && (
-              <TreeContextMenu
-                onClose={() => setCtxMenu(null)}
-                items={[
-                  {
-                    label: "Move to folder…",
-                    onClick: () => promptMove(link),
-                  },
-                  {
-                    label: "Delete",
-                    danger: true,
-                    onClick: () => remove(link.id),
-                  },
-                ]}
-              />
-            )}
-          </span>
-        </div>
+        </span>
       </li>
     );
   }
 
+  // eslint-disable-next-line max-lines-per-function -- recursive folder-tree renderer with drag-and-drop handlers, add form, and context menus
   function renderNode(node: FolderNode, depth: number): React.ReactElement[] {
     const isRoot = node.path === "";
     const isCollapsed = collapsed.has(node.path);
     const dropClass = dropTarget === node.path ? " drop" : "";
     const rows: React.ReactElement[] = [];
+    const menu = `folder:${node.path}`;
 
     if (!isRoot) {
-      const guideLeft = depth > 0 ? 8 + (depth - 1) * 16 + 7 : undefined;
       rows.push(
-        <li
-          key={`folder:${node.path}`}
-          className={`nk-tree-item nk-tree-item--folder${dropClass}`}
-          style={{
-            paddingLeft: 8 + depth * 16,
-            ...(guideLeft !== undefined
-              ? ({ "--nk-guide": `${guideLeft}px` } as React.CSSProperties)
-              : {}),
-          }}
-          onClick={() => toggleCollapse(node.path)}
-          onDragOver={(e) => {
-            if (!dragId) return;
-            e.preventDefault();
-            e.stopPropagation();
-            setDropTarget(node.path);
-          }}
-          onDragLeave={(e) => {
-            const next = e.relatedTarget as Node | null;
-            if (next && e.currentTarget.contains(next)) return;
-            if (dropTarget === node.path) setDropTarget(null);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onDropTo(node.path);
-          }}
-        >
-          <span
-            className={"nk-disclosure" + (isCollapsed ? "" : " open")}
-            aria-hidden
+        <li key={`folder:${node.path}`} className="nk-tree-group">
+          <div
+            className={`nk-tree-item nk-tree-item--folder${dropClass}`}
+            style={{ paddingLeft: 8 + depth * 16 }}
+            onClick={() => openLinkFolder(node.path)}
+            onDragOver={(e) => {
+              if (!dragId) return;
+              e.preventDefault();
+              e.stopPropagation();
+              setDropTarget(node.path);
+            }}
+            onDragLeave={(e) => {
+              const next = e.relatedTarget as Node | null;
+              if (next && e.currentTarget.contains(next)) return;
+              if (dropTarget === node.path) setDropTarget(null);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDropTo(node.path);
+            }}
           >
-            <ChevronRight size={12} />
-          </span>
-          <Folder size={14} className="nk-tree-icon" aria-hidden />
-          <span className="nk-tree-label">{node.name}</span>
-          <span className="nk-tree-ctx-wrap">
-            <button
-              className="nk-tree-ctx-btn"
-              title="More options"
-              aria-label="More options"
+            <span
+              className={"nk-disclosure" + (isCollapsed ? "" : " open")}
               onClick={(e) => {
                 e.stopPropagation();
-                setCtxMenu((cur) =>
-                  cur === `folder:${node.path}` ? null : `folder:${node.path}`,
-                );
+                toggleCollapse(node.path);
               }}
+              aria-hidden
             >
-              <MoreHorizontal size={12} aria-hidden />
-            </button>
-            {ctxMenu === `folder:${node.path}` && (
-              <TreeContextMenu
-                onClose={() => setCtxMenu(null)}
-                items={[
-                  {
-                    label: "New link here",
-                    onClick: () => openAddForm(node.path),
-                  },
-                  {
-                    label: "New subfolder",
-                    onClick: () => createNewFolder(node.path),
-                  },
-                  {
-                    label: "Delete folder",
-                    danger: true,
-                    onClick: (e) => onDeleteFolder(node.path, e),
-                  },
-                ]}
-              />
-            )}
-          </span>
+              <ChevronRight size={12} />
+            </span>
+            <Folder size={14} className="nk-tree-icon" aria-hidden />
+            <span className="nk-tree-label">{node.name}</span>
+            <span className="nk-tree-count">{node.links.length}</span>
+            <span className="nk-tree-ctx-wrap">
+              <button
+                className="nk-tree-ctx-btn"
+                title="Add link here"
+                aria-label="Add link here"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openAddForm(node.path);
+                }}
+              >
+                <Plus size={13} aria-hidden />
+              </button>
+              <button
+                className="nk-tree-ctx-btn"
+                title="More options"
+                aria-label="More options"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCtxMenu((cur) => (cur === menu ? null : menu));
+                }}
+              >
+                <MoreHorizontal size={13} aria-hidden />
+              </button>
+              {ctxMenu === menu && (
+                <ul className="nk-ctx-menu" role="menu">
+                  <li role="none">
+                    <button
+                      role="menuitem"
+                      className="nk-ctx-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openAddForm(node.path);
+                      }}
+                    >
+                      <Plus size={13} aria-hidden /> New link here
+                    </button>
+                  </li>
+                  <li role="none">
+                    <button
+                      role="menuitem"
+                      className="nk-ctx-menu-item"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        createNewFolder(node.path);
+                        setCtxMenu(null);
+                      }}
+                    >
+                      <FolderPlus size={13} aria-hidden /> New subfolder
+                    </button>
+                  </li>
+                  <li role="none">
+                    <button
+                      role="menuitem"
+                      className="nk-ctx-menu-item nk-ctx-menu-item--danger"
+                      onClick={(e) => onDeleteFolder(node.path, e)}
+                    >
+                      <Trash2 size={13} aria-hidden /> Delete folder
+                    </button>
+                  </li>
+                </ul>
+              )}
+            </span>
+          </div>
         </li>,
       );
     }
@@ -563,36 +519,41 @@ export function LinksView() {
 
     const childDepth = isRoot ? depth : depth + 1;
     for (const c of node.children) rows.push(...renderNode(c, childDepth));
-    for (const l of node.links) rows.push(renderLinkCard(l, childDepth));
+    if (!isRoot && addingIn === node.path) rows.push(renderAddForm());
+    for (const l of node.links) rows.push(renderLinkRow(l, childDepth));
     return rows;
   }
 
   const isEmpty = links.length === 0 && folders.length === 0;
 
   return (
-    <div className="nk-links-panel">
-      <header className="nk-links-hd">
-        <h2>Links</h2>
-        <div style={{ display: "flex", gap: "var(--gap-2)" }}>
-          <button
-            className="nk-btn"
-            onClick={() => createNewFolder(null)}
-            title="New folder at root"
-          >
-            New folder
-          </button>
-          {!isAdding && (
-            <button
-              className="nk-btn nk-btn--primary"
-              onClick={() => openAddForm(null)}
-            >
-              Add link
-            </button>
-          )}
-        </div>
-      </header>
-
-      {isAdding && renderAddForm()}
+    <>
+      <div className="nk-tree-toolbar">
+        <button
+          className="nk-tree-tb-btn"
+          title="New link"
+          aria-label="New link"
+          onClick={() => openAddForm(null)}
+        >
+          <Plus size={14} aria-hidden />
+        </button>
+        <button
+          className="nk-tree-tb-btn"
+          title="New folder"
+          aria-label="New folder"
+          onClick={() => createNewFolder(null)}
+        >
+          <FolderPlus size={14} aria-hidden />
+        </button>
+        <button
+          className="nk-tree-tb-btn"
+          title={allCollapsed ? "Expand all" : "Collapse all"}
+          aria-label={allCollapsed ? "Expand all" : "Collapse all"}
+          onClick={allCollapsed ? expandAll : collapseAll}
+        >
+          <ChevronsDownUp size={14} aria-hidden />
+        </button>
+      </div>
 
       {allTags.length > 0 && (
         <div className="nk-link-tags-filter">
@@ -614,7 +575,7 @@ export function LinksView() {
         </div>
       )}
 
-      {isEmpty && !isAdding && (
+      {isEmpty && !isAdding ? (
         <div className="nk-empty nk-empty--center">
           <Link2
             size={36}
@@ -629,15 +590,7 @@ export function LinksView() {
             </button>
           </div>
         </div>
-      )}
-
-      {!isEmpty && filtered.length === 0 && folders.length === 0 && !isAdding && (
-        <div className="nk-empty" style={{ padding: "var(--gap-5) var(--gap-3)" }}>
-          <p>{filterTag ? `No links tagged "${filterTag}".` : "No links yet."}</p>
-        </div>
-      )}
-
-      {(folders.length > 0 || filtered.length > 0) && (
+      ) : (
         <ul
           className={"nk-tree" + (dropTarget === "" ? " drop-root" : "")}
           onDragOver={(e) => {
@@ -650,62 +603,15 @@ export function LinksView() {
             onDropTo(null);
           }}
         >
+          {addingIn === null && renderAddForm()}
           {renderNode(tree, 0)}
+          {!isEmpty && filtered.length === 0 && folders.length === 0 && !isAdding && (
+            <li className="nk-tree-secret-empty">
+              {filterTag ? `No links tagged "${filterTag}".` : "No links yet."}
+            </li>
+          )}
         </ul>
       )}
-
-      {viewing && viewing.url && (
-        <MediaViewer
-          url={viewing.url}
-          kind={viewing.kind ?? "link"}
-          title={viewing.title || viewing.url}
-          // Read the live annotation from the store so edits reflect live.
-          annotation={
-            links.find((l) => l.id === viewing.id)?.annotation ??
-            viewing.annotation ??
-            null
-          }
-          onAnnotationChange={(doc) => setAnnotation(viewing.id, doc)}
-          onClose={() => setViewing(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-interface CtxItem {
-  label: string;
-  danger?: boolean;
-  onClick(e: React.MouseEvent): void;
-}
-
-function TreeContextMenu({
-  items,
-  onClose,
-}: {
-  items: CtxItem[];
-  onClose(): void;
-}) {
-  const ref = useRef<HTMLUListElement>(null);
-  return (
-    <ul className="nk-ctx-menu" ref={ref} role="menu">
-      {items.map((item) => (
-        <li key={item.label} role="none">
-          <button
-            role="menuitem"
-            className={
-              "nk-ctx-menu-item" + (item.danger ? " nk-ctx-menu-item--danger" : "")
-            }
-            onClick={(e) => {
-              e.stopPropagation();
-              item.onClick(e);
-              onClose();
-            }}
-          >
-            {item.label}
-          </button>
-        </li>
-      ))}
-    </ul>
+    </>
   );
 }

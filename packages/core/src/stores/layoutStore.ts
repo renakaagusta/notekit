@@ -8,32 +8,38 @@ export type TabEntry =
   | { type: "note"; id: string }
   | { type: "link"; id: string }
   | { type: "secret"; vault: string; name: string }
+  | { type: "folder"; path: string }
+  | { type: "linkfolder"; path: string }
+  | { type: "vault"; slug: string; label: string }
   | { type: "graph" }
   | { type: "tasks" };
 
 export function tabKey(t: TabEntry): string {
   if (t.type === "secret") return `secret:${t.vault}\x00${t.name}`;
+  if (t.type === "folder") return `folder:${t.path}`;
+  if (t.type === "linkfolder") return `linkfolder:${t.path}`;
+  if (t.type === "vault") return `vault:${t.slug}`;
   if (t.type === "graph") return "graph";
   if (t.type === "tasks") return "tasks";
   return `${t.type}:${t.id}`;
 }
 
-export type PaneLeaf = {
+export interface PaneLeaf {
   type: "leaf";
   id: string;
   tabs: TabEntry[];
   activeTab: TabEntry | null;
   outlineOpen: boolean;
-};
+}
 
-export type PaneSplit = {
+export interface PaneSplit {
   type: "split";
   id: string;
   direction: "horizontal" | "vertical";
   ratio: number; // 0–1, fraction allocated to child `a`
   a: PaneNode;
   b: PaneNode;
-};
+}
 
 export type PaneNode = PaneLeaf | PaneSplit;
 
@@ -106,6 +112,7 @@ export interface LayoutState {
   toggleOutline(paneId: string): void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- Zustand store factory with all layout state actions (panes, tabs, splits); splitting would require cross-slice dependencies
 export const useLayoutStore = create<LayoutState>((set, get) => ({
   layout: initial,
   activePaneId: initial.id,

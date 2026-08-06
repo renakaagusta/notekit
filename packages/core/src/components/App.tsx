@@ -66,6 +66,7 @@ import { useLinksStore } from "../stores/linksStore";
 import { parseWikilinkTarget } from "./extensions/Wikilink";
 import { isValidYMD, shiftYMD, todayYMD } from "../lib/journal";
 import { isDesktop } from "../lib/api";
+import { applyEditorPrefs } from "../lib/editor-prefs";
 import type { SearchHit } from "../lib/search";
 
 // On macOS desktop we hide the native title bar (titleBarStyle: hiddenInset)
@@ -610,6 +611,11 @@ export function App({ user, onSignOut }: AppProps = {}) {
       delete document.documentElement.dataset.theme;
     };
   }, [resolvedTheme]);
+
+  // Apply saved editor font/size prefs once on mount.
+  useEffect(() => {
+    applyEditorPrefs();
+  }, []);
 
   async function onVaultPicked() {
     setVaultPhase("ready");

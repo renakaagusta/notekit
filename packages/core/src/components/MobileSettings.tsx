@@ -2,17 +2,23 @@ import { useEffect, useState } from "react";
 import {
   Bell,
   Bot,
+  Check,
   ChevronRight,
+  Copy,
+  Download,
   Info,
   KeyRound,
   LogOut,
+  Minus,
   Monitor,
   MonitorSmartphone,
   Moon,
+  Plus,
   Settings as SettingsIcon,
   ShieldCheck,
   Sun,
   TextCursorInput,
+  Upload,
   X,
 } from "lucide-react";
 import { useVaultStore } from "../stores/vaultStore";
@@ -20,6 +26,18 @@ import { useNotesStore } from "../stores/notesStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 import * as vaultApi from "../lib/vault-api";
 import { listAgents, type AgentProfile } from "../lib/agents-api";
+import {
+  FONT_LABELS,
+  MAX_SIZE,
+  MIN_SIZE,
+  getEditorFont,
+  getEditorSize,
+  setEditorFont,
+  setEditorSize,
+  type EditorFont,
+} from "../lib/editor-prefs";
+import { noteTitle } from "../lib/note-display";
+import type { Note } from "../types/note";
 import { LOCALES, currentLocale, setLocale } from "../i18n";
 import type { User } from "../types/user";
 
@@ -32,7 +50,7 @@ import type { User } from "../types/user";
 
 const APP_VERSION = "0.1.0";
 
-type Tab = "general" | "editor" | "ai" | "account";
+type Tab = "general" | "editor" | "ai" | "export" | "account";
 type ThemeChoice = "light" | "dark" | "auto";
 
 interface MobileSettingsProps {
@@ -77,6 +95,9 @@ export function MobileSettings({
   const theme: ThemeChoice = activeSettings?.theme ?? "auto";
   const [locale, setLocaleState] = useState(currentLocale());
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
+  const [font, setFont] = useState<EditorFont>(getEditorFont());
+  const [size, setSize] = useState(getEditorSize());
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,10 +121,66 @@ export function MobileSettings({
     setLocaleState(code);
   }
 
+  function pickFont(f: EditorFont) {
+    setFont(f);
+    setEditorFont(f);
+  }
+  function bumpSize(delta: number) {
+    const next = Math.max(MIN_SIZE, Math.min(MAX_SIZE, size + delta));
+    setSize(next);
+    setEditorSize(next);
+  }
+
+  /** Serialize every note to one Markdown document. */
+  function buildMarkdownExport(): string {
+    const notes = (Object.values(useNotesStore.getState().notes) as Note[]).filter(
+      (n) => n.format !== "ink",
+    );
+    notes.sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+    return notes
+      .map((n) => {
+        const title = noteTitle(n);
+        const body = n.body.trim();
+        return `# ${title}\n\n${body}\n`;
+      })
+      .join("\n\n---\n\n");
+  }
+
+  async function copyExport() {
+    try {
+      await navigator.clipboard.writeText(buildMarkdownExport());
+      setExportMsg("Copied all notes to the clipboard.");
+    } catch {
+      setExportMsg("Couldn't copy — try Download instead.");
+    }
+  }
+
+  function downloadExport() {
+    try {
+      const blob = new Blob([buildMarkdownExport()], { type: "text/markdown" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `notekit-notes-${new Date().toISOString().slice(0, 10)}.md`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      setExportMsg("Exported as a Markdown file.");
+    } catch {
+      setExportMsg("Couldn't export on this device — try Copy instead.");
+    }
+  }
+
+  const noteCount = (Object.values(useNotesStore.getState().notes) as Note[]).filter(
+    (n) => n.format !== "ink",
+  ).length;
+
   const TABS: { key: Tab; label: string; Icon: typeof SettingsIcon }[] = [
     { key: "general", label: "General", Icon: SettingsIcon },
     { key: "editor", label: "Editor", Icon: TextCursorInput },
     { key: "ai", label: "AI", Icon: Bot },
+    { key: "export", label: "Export", Icon: Upload },
     { key: "account", label: "Account", Icon: MonitorSmartphone },
   ];
 
@@ -173,15 +250,41 @@ export function MobileSettings({
         )}
 
         {tab === "editor" && (
-          <Group
-            label="Editor"
-            footer="Vim keybindings apply the next time you open a note."
-          >
-            <label className="nk-set-row">
-              <span className="nk-set-row-title">Vim keybindings</span>
-              <Toggle on={!!vimMode} onChange={() => onToggleVim?.()} />
-            </label>
-          </Group>
+          <>
+            <Group label="Typography">
+              <div className="nk-set-row nk-set-row--stack">
+                <span className="nk-set-row-title">Font</span>
+                <div className="nk-seg" role="group" aria-label="Font">
+                  {(Object.keys(FONT_LABELS) as EditorFont[]).map((f) => (
+                    <button key={f} className={font === f ? "is-on" : ""} onClick={() => pickFont(f)}>
+                      <span style={{ fontFamily: f === "serif" ? "Georgia, serif" : f === "mono" ? "ui-monospace, monospace" : "inherit" }}>
+                        {FONT_LABELS[f]}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="nk-set-row has-sep">
+                <span className="nk-set-row-title">Font size</span>
+                <div className="nk-set-stepper">
+                  <button onClick={() => bumpSize(-1)} disabled={size <= MIN_SIZE} aria-label="Smaller">
+                    <Minus size={16} aria-hidden />
+                  </button>
+                  <span className="nk-set-stepper-val">{size}</span>
+                  <button onClick={() => bumpSize(1)} disabled={size >= MAX_SIZE} aria-label="Larger">
+                    <Plus size={16} aria-hidden />
+                  </button>
+                </div>
+              </div>
+            </Group>
+
+            <Group label="Behavior" footer="Vim keybindings apply the next time you open a note.">
+              <label className="nk-set-row">
+                <span className="nk-set-row-title">Vim keybindings</span>
+                <Toggle on={!!vimMode} onChange={() => onToggleVim?.()} />
+              </label>
+            </Group>
+          </>
         )}
 
         {tab === "ai" && (
@@ -209,6 +312,46 @@ export function MobileSettings({
                 </label>
               </Group>
             )}
+          </>
+        )}
+
+        {tab === "export" && (
+          <>
+            <Group
+              label="Export notes"
+              footer={`Bundles all ${noteCount} note${noteCount === 1 ? "" : "s"} into one Markdown document. Your notes are already plain Markdown files in your vault — this is just a portable copy.`}
+            >
+              <button className="nk-set-row nk-set-row--tap" onClick={() => void copyExport()}>
+                <span className="nk-set-row-title">
+                  <Copy size={16} aria-hidden /> Copy as Markdown
+                </span>
+                <ChevronRight size={17} className="nk-set-chevron" aria-hidden />
+              </button>
+              <button className="nk-set-row nk-set-row--tap has-sep" onClick={downloadExport}>
+                <span className="nk-set-row-title">
+                  <Download size={16} aria-hidden /> Download .md
+                </span>
+                <ChevronRight size={17} className="nk-set-chevron" aria-hidden />
+              </button>
+            </Group>
+            {exportMsg && (
+              <p className="nk-set-note">
+                <Check size={14} aria-hidden /> {exportMsg}
+              </p>
+            )}
+
+            <Group label="Privacy">
+              <div className="nk-set-row">
+                <span className="nk-set-row-title">
+                  <ShieldCheck size={16} aria-hidden /> End-to-end encrypted
+                </span>
+              </div>
+              <div className="nk-set-row has-sep">
+                <span className="nk-set-row-title">
+                  <Info size={16} aria-hidden /> No analytics leave your device
+                </span>
+              </div>
+            </Group>
           </>
         )}
 

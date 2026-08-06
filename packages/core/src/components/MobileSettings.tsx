@@ -44,6 +44,29 @@ import {
   setAccent,
   type Accent,
 } from "../lib/accent";
+import {
+  BASE_COLORS,
+  BASE_LABELS,
+  BASE_SWATCH,
+  LOGO_LABELS,
+  LOGO_STYLES,
+  RADII,
+  RADIUS_LABELS,
+  UI_FONTS,
+  UI_FONT_LABELS,
+  getBaseColor,
+  getLogoStyle,
+  getRadius,
+  getUiFont,
+  setBaseColor,
+  setLogoStyle,
+  setRadius,
+  setUiFont,
+  type BaseColor,
+  type LogoStyle,
+  type RadiusChoice,
+  type UiFont,
+} from "../lib/appearance";
 import { noteTitle } from "../lib/note-display";
 import type { Note } from "../types/note";
 import { LOCALES, currentLocale, setLocale } from "../i18n";
@@ -107,11 +130,31 @@ export function MobileSettings({
   const [font, setFont] = useState<EditorFont>(getEditorFont());
   const [size, setSize] = useState(getEditorSize());
   const [accent, setAccentState] = useState<Accent>(getAccent());
+  const [base, setBaseState] = useState<BaseColor>(getBaseColor());
+  const [uiFont, setUiFontState] = useState<UiFont>(getUiFont());
+  const [radius, setRadiusState] = useState<RadiusChoice>(getRadius());
+  const [logo, setLogoState] = useState<LogoStyle>(getLogoStyle());
   const [exportMsg, setExportMsg] = useState<string | null>(null);
 
   function pickAccent(a: Accent) {
     setAccentState(a);
     setAccent(a);
+  }
+  function pickBase(b: BaseColor) {
+    setBaseState(b);
+    setBaseColor(b);
+  }
+  function pickUiFont(f: UiFont) {
+    setUiFontState(f);
+    setUiFont(f);
+  }
+  function pickRadius(r: RadiusChoice) {
+    setRadiusState(r);
+    setRadius(r);
+  }
+  function pickLogo(l: LogoStyle) {
+    setLogoState(l);
+    setLogoStyle(l);
   }
 
   useEffect(() => {
@@ -155,7 +198,7 @@ export function MobileSettings({
     return notes
       .map((n) => {
         const title = noteTitle(n);
-        const body = n.body.trim();
+        const body = (n.body ?? "").trim();
         return `# ${title}\n\n${body}\n`;
       })
       .join("\n\n---\n\n");
@@ -244,6 +287,52 @@ export function MobileSettings({
                         className={`nk-set-swatch-dot${a === "mono" ? " is-mono" : ""}`}
                         style={a === "mono" ? undefined : { background: ACCENT_COLORS[a] }}
                       />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="nk-set-row nk-set-row--stack has-sep">
+                <span className="nk-set-row-title">Base color</span>
+                <div className="nk-set-swatches" role="group" aria-label="Base color">
+                  {BASE_COLORS.map((b) => (
+                    <button
+                      key={b}
+                      className={`nk-set-swatch${base === b ? " is-on" : ""}`}
+                      onClick={() => pickBase(b)}
+                      title={BASE_LABELS[b]}
+                      aria-label={BASE_LABELS[b]}
+                    >
+                      <span className="nk-set-swatch-dot" style={{ background: BASE_SWATCH[b] }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="nk-set-row nk-set-row--stack has-sep">
+                <span className="nk-set-row-title">App font</span>
+                <div className="nk-seg nk-seg--wrap" role="group" aria-label="App font">
+                  {UI_FONTS.map((f) => (
+                    <button key={f} className={uiFont === f ? "is-on" : ""} onClick={() => pickUiFont(f)}>
+                      {UI_FONT_LABELS[f]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="nk-set-row nk-set-row--stack has-sep">
+                <span className="nk-set-row-title">Radius</span>
+                <div className="nk-seg" role="group" aria-label="Radius">
+                  {RADII.map((r) => (
+                    <button key={r} className={radius === r ? "is-on" : ""} onClick={() => pickRadius(r)}>
+                      {RADIUS_LABELS[r]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="nk-set-row nk-set-row--stack has-sep">
+                <span className="nk-set-row-title">Logo</span>
+                <div className="nk-seg" role="group" aria-label="Logo style">
+                  {LOGO_STYLES.map((l) => (
+                    <button key={l} className={logo === l ? "is-on" : ""} onClick={() => pickLogo(l)}>
+                      {LOGO_LABELS[l]}
                     </button>
                   ))}
                 </div>

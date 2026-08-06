@@ -55,8 +55,6 @@ import { NotificationSettings } from "./NotificationSettings";
 import { VaultPicker } from "./VaultPicker";
 import { VaultSetup } from "./VaultSetup";
 import { VaultPairNewDevice } from "./VaultPairing";
-import { SecretsView } from "./SecretsView";
-import { LinksView } from "./LinksView";
 import { SearchPalette } from "./SearchPalette";
 import { SplitPane } from "./SplitPane";
 import { HomePane } from "./HomePane";
@@ -68,6 +66,7 @@ import { isValidYMD, shiftYMD, todayYMD } from "../lib/journal";
 import { isDesktop } from "../lib/api";
 import { applyEditorPrefs } from "../lib/editor-prefs";
 import { applyAccent } from "../lib/accent";
+import { applyAppearance } from "../lib/appearance";
 import type { SearchHit } from "../lib/search";
 
 // On macOS desktop we hide the native title bar (titleBarStyle: hiddenInset)
@@ -377,6 +376,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
     if (view === "notes") {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- mobilePane is derived from view/activeNoteId; synchronous setState avoids a missed frame on navigation
       setMobilePane(activeNoteId || draftJournal ? "detail" : "list");
+    } else if (view === "secrets" || view === "links") {
+      // Secrets and Links are list surfaces like Notes: show the tree first;
+      // tapping an item flips to detail via the onOpenSecret/onOpenLink callback.
+      setMobilePane("list");
     } else {
       setMobilePane("detail");
     }
@@ -616,10 +619,12 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, [resolvedTheme]);
 
-  // Apply saved editor font/size + accent color once on mount.
+  // Apply saved display prefs (editor font/size, accent, base color/font/radius/
+  // logo) once on mount.
   useEffect(() => {
     applyEditorPrefs();
     applyAccent();
+    applyAppearance();
   }, []);
 
   async function onVaultPicked() {
@@ -673,7 +678,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   // breadcrumb would just repeat it. Blank the crumb for them and drop the
   // breadcrumb row on desktop (it still appears on mobile / when collapsed
   // to carry the menu / expand buttons — but without the duplicate title).
-  const viewOwnsTitle = view === "secrets" || view === "links" || view === "home";
+  const viewOwnsTitle = view === "home";
   // The mobile appbar (nk-main-hd) is the screen-title bar for every surface
   // rendered in <main> — so it always needs a label, even for views that own
   // their title on desktop. `viewOwnsTitle` still gates whether the *desktop*
@@ -776,6 +781,8 @@ export function App({ user, onSignOut }: AppProps = {}) {
           onOpenSearch={() => setSearchOpen(true)}
           onOpenMenu={isMobile ? () => setDrawerOpen(true) : undefined}
           onCollapse={isMobile ? undefined : () => setSidebarCollapsed(true)}
+          onOpenSecret={isMobile ? () => setMobilePane("detail") : undefined}
+          onOpenLink={isMobile ? () => setMobilePane("detail") : undefined}
         />
 
         {!isMobile && !sidebarCollapsed && !zenMode && (
@@ -797,7 +804,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
            * opens the drawer. Every other surface keeps the row. */}
           {((isMobile && view !== "home") ||
             sidebarCollapsed ||
-            (!viewOwnsTitle && view !== "notes")) && (
+            (!viewOwnsTitle && view !== "notes" && view !== "secrets" && view !== "links")) && (
             <header className="nk-main-hd">
               {!isMobile && sidebarCollapsed && (
                 <button
@@ -809,7 +816,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
                   <PanelLeft size={16} aria-hidden />
                 </button>
               )}
-              {isMobile && view === "notes" && mobilePane === "detail" ? (
+              {isMobile && (view === "notes" || view === "secrets" || view === "links") && mobilePane === "detail" ? (
                 <button
                   className="nk-iconbtn nk-main-back"
                   onClick={exitMobileDetail}
@@ -882,7 +889,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
               onToggleTicket={(id) => useTicketsStore.getState().setStatus(id, "done")}
             />
           )}
-          {view === "notes" && (
+          {(view === "notes" || view === "secrets" || view === "links") && (
             <SplitPane
               node={layout}
               zenMode={zenMode}
@@ -902,8 +909,6 @@ export function App({ user, onSignOut }: AppProps = {}) {
               focusTicket={focusTicket}
             />
           )}
-          {view === "secrets" && <SecretsView />}
-          {view === "links" && <LinksView />}
           {!zenMode && <AIAssistantFab />}
         </main>
 

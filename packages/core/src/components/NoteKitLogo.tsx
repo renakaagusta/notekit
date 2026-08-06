@@ -13,7 +13,7 @@ export function NoteKitMark({ size = 24, className }: { size?: number; className
     >
       <line
         x1="10.5" y1="26" x2="21.5" y2="6"
-        stroke="var(--accent,#18181b)" strokeWidth="6.5" strokeLinecap="round"
+        stroke="var(--nk-logo, var(--accent,#18181b))" strokeWidth="6.5" strokeLinecap="round"
       />
     </svg>
   );

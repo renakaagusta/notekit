@@ -60,13 +60,13 @@ export function NotekitIcon({ size = 16, className }: IconProps) {
       className={className}
       aria-hidden
     >
-      <rect x="0" y="0" width="64" height="64" rx="14.08" fill="#18181b" />
+      <rect x="0" y="0" width="64" height="64" rx="14.08" fill="var(--nk-logo, #18181b)" />
       <line
         x1="22"
         y1="50"
         x2="42"
         y2="14"
-        stroke="#fafafa"
+        stroke="var(--nk-logo-fg, #fafafa)"
         strokeWidth="8.32"
         strokeLinecap="round"
       />

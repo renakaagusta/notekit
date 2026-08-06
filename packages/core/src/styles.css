@@ -203,7 +203,7 @@ body {
 .nk .nk-empty-cta:focus-visible,
 .nk .nk-popover-item:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--nk-accent);
 }
 
 .nk {
@@ -217,7 +217,7 @@ body {
 }
 
 .nk ::selection {
-  background: var(--accent-soft);
+  background: var(--nk-accent-soft);
 }
 
 /* ─── App shell ─────────────────────────────────────────────────── */
@@ -342,7 +342,7 @@ body {
 }
 
 .nk-statusbar .dot--sync {
-  background: var(--accent);
+  background: var(--nk-accent);
   box-shadow: 0 0 0 3px var(--ring);
 }
 
@@ -407,7 +407,7 @@ body {
 }
 .nk-sidebar-resizer:hover,
 .nk-sidebar-resizer:active {
-  background: var(--accent);
+  background: var(--nk-accent);
   opacity: 0.35;
 }
 
@@ -758,12 +758,12 @@ body {
 }
 
 .nk-tree-tb-btn:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--nk-accent);
   outline-offset: -1px;
 }
 
 .nk-tree-tb-btn.active {
-  color: var(--accent);
+  color: var(--nk-accent);
 }
 
 .nk-tree {
@@ -882,7 +882,7 @@ body {
 .nk-tree-item--folder.drop,
 .nk-tree.drop-root {
   background: var(--selected);
-  outline: 1px dashed var(--accent, #c8a23a);
+  outline: 1px dashed var(--nk-accent, #c8a23a);
   outline-offset: -2px;
 }
 
@@ -1018,7 +1018,9 @@ body {
 }
 
 .nk-ctx-menu-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: left;
   padding: 6px 10px;
@@ -1113,8 +1115,8 @@ body {
   color: var(--text);
 }
 .nk-popover-theme-btn.is-active {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--nk-accent);
+  border-color: var(--nk-accent);
   color: var(--primary-foreground);
 }
 .nk-popover-theme-btn svg { opacity: 1; }
@@ -1201,7 +1203,7 @@ body {
   color: var(--text);
 }
 .nk-seg-btn.is-active {
-  background: var(--accent);
+  background: var(--nk-accent);
   color: var(--primary-foreground);
 }
 
@@ -1450,10 +1452,10 @@ li:last-child .nk-commit-line--bot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--accent, #4f8ef7);
+  background: var(--nk-accent, #4f8ef7);
   border: 2px solid var(--surface);
   flex-shrink: 0;
-  box-shadow: 0 0 0 1.5px var(--accent, #4f8ef7);
+  box-shadow: 0 0 0 1.5px var(--nk-accent, #4f8ef7);
 }
 
 /* Content column */
@@ -1601,7 +1603,7 @@ a.nk-commit-sha:hover {
   font-size: 10.5px;
   font-weight: 600;
   color: var(--accent-text);
-  background: var(--accent-soft);
+  background: var(--nk-accent-soft);
   border: 1px solid var(--border);
 }
 
@@ -1869,13 +1871,13 @@ a.nk-commit-sha:hover {
 
 .nk-tb-field input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 .nk-tb-primary {
   height: 30px;
   padding: 0 12px;
-  background: var(--accent);
+  background: var(--nk-accent);
   color: #fff;
   border: 0;
   border-radius: 6px;
@@ -1927,7 +1929,7 @@ a.nk-commit-sha:hover {
   line-height: var(--editor-leading);
   color: var(--text);
   outline: none;
-  caret-color: var(--accent);
+  caret-color: var(--nk-accent);
 }
 
 .nk-prose:focus { outline: none; }
@@ -1990,7 +1992,7 @@ a.nk-commit-sha:hover {
 /* ─── Vim mode indicator ────────────────────────────────────────── */
 .nk-prose[data-vim-mode="normal"] {
   caret-color: transparent;
-  outline: 2px solid var(--accent, #6366f1) !important;
+  outline: 2px solid var(--nk-accent, #6366f1) !important;
   outline-offset: -2px;
 }
 /* Show NORMAL badge at bottom-right of editor when in normal mode */
@@ -2002,7 +2004,7 @@ a.nk-commit-sha:hover {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
-  color: var(--accent, #6366f1);
+  color: var(--nk-accent, #6366f1);
   pointer-events: none;
 }
 /* nk-pane-body: fills the space below the tab bar; becomes a grid when a right panel is open */
@@ -2057,7 +2059,7 @@ a.nk-commit-sha:hover {
 }
 .nk-right-panel-resizer:hover,
 .nk-right-panel-resizer:active {
-  background: var(--accent);
+  background: var(--nk-accent);
   opacity: 0.35;
 }
 /* Panels inside the container fill its full width */
@@ -2201,9 +2203,9 @@ a.nk-commit-sha:hover {
 
 /* ─── Callouts ──────────────────────────────────────────────────── */
 .nk-prose .nk-callout {
-  border-left: 3px solid var(--callout-color, var(--accent));
+  border-left: 3px solid var(--callout-color, var(--nk-accent));
   border-radius: 4px;
-  background: color-mix(in srgb, var(--callout-color, var(--accent)) 8%, transparent);
+  background: color-mix(in srgb, var(--callout-color, var(--nk-accent)) 8%, transparent);
   padding: 0.6em 0.8em;
   margin: 0.6em 0;
 }
@@ -2211,7 +2213,7 @@ a.nk-commit-sha:hover {
   font-weight: 600;
   font-size: 0.9em;
   margin-bottom: 0.35em;
-  color: var(--callout-color, var(--accent));
+  color: var(--callout-color, var(--nk-accent));
   user-select: none;
 }
 .nk-prose .nk-callout-body > * { margin-top: 0 !important; }
@@ -2281,7 +2283,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-prose a {
-  color: var(--accent);
+  color: var(--nk-accent);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 2px;
@@ -2329,8 +2331,8 @@ a.nk-commit-sha:hover {
   border-color: var(--muted);
 }
 .nk-prose ul[data-type="taskList"] input[type="checkbox"]:checked {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--nk-accent);
+  border-color: var(--nk-accent);
 }
 .nk-prose ul[data-type="taskList"] input[type="checkbox"]:checked::after {
   content: "";
@@ -2408,7 +2410,7 @@ a.nk-commit-sha:hover {
 .nk-prose table .selectedCell::after {
   position: absolute;
   inset: 0;
-  background: var(--accent);
+  background: var(--nk-accent);
   opacity: 0.12;
   content: "";
   pointer-events: none;
@@ -2458,7 +2460,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-prose .ProseMirror-selectednode {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--nk-accent);
   border-radius: 4px;
 }
 
@@ -2518,7 +2520,7 @@ a.nk-commit-sha:hover {
   cursor: pointer;
 }
 .nk-graph-modetoggle button.active {
-  background: var(--accent);
+  background: var(--nk-accent);
   color: #1a1a1a;
 }
 
@@ -2555,8 +2557,8 @@ a.nk-commit-sha:hover {
 
 /* Node fills. Obsidian-style: uniform dark gray, slightly larger for hubs. */
 .nk-graph-node--note    { fill: #6b7280; }
-.nk-graph-node--ticket  { fill: var(--accent); }
-.nk-graph-node--project { fill: var(--accent); opacity: 0.7; }
+.nk-graph-node--ticket  { fill: var(--nk-accent); }
+.nk-graph-node--project { fill: var(--nk-accent); opacity: 0.7; }
 .nk-graph-node--member  { fill: rgba(120, 180, 255, 0.9); }
 .nk-graph-node--member.agent { fill: rgba(180, 140, 255, 0.9); }
 
@@ -2565,12 +2567,12 @@ a.nk-commit-sha:hover {
 
 /* Hovered node pulses accent. */
 .nk-graph-node.hovered {
-  fill: var(--accent);
+  fill: var(--nk-accent);
 }
 
 /* Neighbour nodes also shift to accent (dimmer). */
 .nk-graph-node.neighbor {
-  fill: var(--accent);
+  fill: var(--nk-accent);
   opacity: 0.6;
 }
 
@@ -2609,7 +2611,7 @@ a.nk-commit-sha:hover {
 
 /* Edge type styles (default state, no hover override needed — handled inline). */
 .nk-graph-edge--wikilink   { stroke: var(--border); stroke-opacity: 0.7; }
-.nk-graph-edge--linked     { stroke: var(--accent); stroke-opacity: 0.45; }
+.nk-graph-edge--linked     { stroke: var(--nk-accent); stroke-opacity: 0.45; }
 .nk-graph-edge--creator    { stroke: rgba(120, 180, 255, 0.55); stroke-width: 1.5; }
 .nk-graph-edge--collaborator {
   stroke: rgba(120, 180, 255, 0.35);
@@ -2644,11 +2646,11 @@ a.nk-commit-sha:hover {
 
 .nk-graph-chip.active {
   color: var(--text);
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 .nk-graph-chip--note.active { border-color: var(--border); color: var(--text); }
-.nk-graph-chip--ticket.active { border-color: var(--accent); }
+.nk-graph-chip--ticket.active { border-color: var(--nk-accent); }
 .nk-graph-chip--project.active { border-color: rgba(200, 162, 58, 0.85); }
 .nk-graph-chip--member.active { border-color: rgba(120, 180, 255, 0.85); }
 
@@ -2791,17 +2793,17 @@ a.nk-commit-sha:hover {
 }
 
 .nk-filter-trigger:hover {
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 .nk-filter-trigger.has-value {
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
   background: var(--selected);
   color: var(--text);
 }
 
 .nk-filter-badge {
-  background: var(--accent, var(--text));
+  background: var(--nk-accent, var(--text));
   color: var(--accent-text, var(--bg));
   border-radius: 999px;
   padding: 0 6px;
@@ -2915,7 +2917,7 @@ a.nk-commit-sha:hover {
   background: #94a3b8;
 }
 .status-progress {
-  background: var(--accent);
+  background: var(--nk-accent);
   box-shadow: 0 0 0 3px var(--ring);
 }
 .status-blocked {
@@ -2942,7 +2944,7 @@ a.nk-commit-sha:hover {
 
 .nk-col-body.drop-target {
   background: var(--selected);
-  outline: 2px dashed var(--accent, var(--text-2));
+  outline: 2px dashed var(--nk-accent, var(--text-2));
   outline-offset: -4px;
 }
 
@@ -2955,9 +2957,9 @@ a.nk-commit-sha:hover {
 }
 
 .nk-card.is-kbd-focus {
-  outline: 2px solid var(--accent, var(--text));
+  outline: 2px solid var(--nk-accent, var(--text));
   outline-offset: -2px;
-  border-color: var(--accent, var(--text));
+  border-color: var(--nk-accent, var(--text));
 }
 
 /* ─── Ticket detail drawer ─────────────────────────────────────── */
@@ -3096,7 +3098,7 @@ a.nk-commit-sha:hover {
 
 .nk-detail-progress-fill {
   height: 100%;
-  background: var(--accent);
+  background: var(--nk-accent);
   transition: width 0.15s ease;
 }
 
@@ -3177,7 +3179,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-comment-compose textarea:focus {
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
   outline: none;
 }
 
@@ -3287,7 +3289,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-card:hover {
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 .nk-card .meta {
@@ -3330,12 +3332,12 @@ a.nk-commit-sha:hover {
 }
 
 .nk-card .title:hover {
-  color: var(--accent);
+  color: var(--nk-accent);
 }
 
 .nk-card .title:focus-visible,
 .nk-card .id:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--nk-accent);
   outline-offset: 2px;
   border-radius: var(--r-sm);
 }
@@ -3375,8 +3377,8 @@ a.nk-commit-sha:hover {
 
 .nk-chip.priority-p1 {
   color: var(--accent-text);
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--nk-accent);
+  background: var(--nk-accent-soft);
 }
 
 .nk-chip.priority-p2 {
@@ -3572,12 +3574,12 @@ a.nk-commit-sha:hover {
 }
 
 .nk-qa-priority-btn:hover {
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 .nk-qa-priority-btn.is-selected {
   background: var(--selected);
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
   color: var(--text);
 }
 
@@ -3588,8 +3590,8 @@ a.nk-commit-sha:hover {
 }
 
 .nk-qa-priority-btn.priority-high.is-selected {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: var(--nk-accent-soft);
+  border-color: var(--nk-accent);
   color: var(--accent-text);
 }
 
@@ -3676,7 +3678,7 @@ a.nk-commit-sha:hover {
 /* Toolbar lock button — same shape as other nk-tb-btn but highlighted
    when the active note is encrypted. */
 .nk-tb-btn.is-encrypted {
-  color: var(--accent, #2563eb);
+  color: var(--nk-accent, #2563eb);
 }
 
 /* Inline lock badge on a saved-link card. */
@@ -3782,7 +3784,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-assignee-trigger:hover {
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
   color: var(--text-2);
 }
 
@@ -4020,7 +4022,7 @@ a.nk-commit-sha:hover {
 .nk-tab-detail-url {
   display: block;
   font-size: 13px;
-  color: var(--accent);
+  color: var(--nk-accent);
   text-decoration: none;
   margin-bottom: 16px;
   word-break: break-all;
@@ -4076,7 +4078,7 @@ a.nk-commit-sha:hover {
 
 .nk-empty-cta:hover {
   background: var(--hover);
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
   color: var(--accent-text);
 }
 
@@ -4094,7 +4096,7 @@ a.nk-commit-sha:hover {
   --auth-dim: #57575e; /* captions */
   --auth-lead: #a9a9b2; /* lead paragraph */
   --auth-down: #e5484d; /* error */
-  /* Feed the shared brand mark, which reads var(--accent). */
+  /* Feed the shared brand mark, which reads var(--nk-accent). */
   --accent: #f4f4f5;
 
   min-height: 100vh;
@@ -4301,7 +4303,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-signin-brand svg {
-  color: var(--accent, var(--text));
+  color: var(--nk-accent, var(--text));
 }
 
 .nk-signin-tag {
@@ -4348,7 +4350,7 @@ a.nk-commit-sha:hover {
 
 .nk-signin-btn:hover:not(:disabled) {
   background: var(--hover);
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 .nk-signin-btn:disabled {
@@ -4367,7 +4369,7 @@ a.nk-commit-sha:hover {
 .nk-signin-btn-apple:hover:not(:disabled) {
   background: var(--text);
   color: var(--bg);
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
   opacity: 0.9;
 }
 
@@ -4416,7 +4418,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-signin-token-input:focus {
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 .nk-signin-btn-link {
@@ -4692,87 +4694,50 @@ a.nk-commit-sha:hover {
   flex-shrink: 0;
 }
 
-/* ── Secret vaults chip bar ────────────────────────────────── */
-.nk-secret-vaults {
+/* ── Secrets folder tree (mirrors the Notes tree) ──────────── */
+.nk-tree-group {
+  list-style: none;
+}
+
+.nk-tree-sublist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* Nested secret rows sit under their vault folder, indented like Notes. */
+.nk-tree-secret {
+  padding-left: 24px;
+}
+
+.nk-tree-secret .nk-secret-actions {
+  opacity: 0;
+  transition: opacity 80ms;
+}
+
+.nk-tree-secret:hover .nk-secret-actions,
+.nk-tree-secret:focus-within .nk-secret-actions {
+  opacity: 1;
+}
+
+/* Inline add / edit / move forms rendered as a nested row. */
+.nk-tree-secret--form {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 10px var(--gap-3);
-  border-bottom: 1px solid var(--border-soft);
-  align-items: center;
+  flex-direction: column;
+  gap: var(--gap-2);
+  padding: 8px 8px 10px 24px;
 }
 
-.nk-secret-vault-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-2);
-  background: var(--surface-2);
-  border: 1px solid var(--border-soft);
-  border-radius: 999px;
-  cursor: pointer;
-  transition: background 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+.nk-tree-secret-empty {
+  list-style: none;
+  padding: 4px 8px 6px 30px;
+  font-size: 11.5px;
+  color: var(--muted);
 }
 
-.nk-secret-vault-chip:hover:not(:disabled) {
-  background: var(--surface-3);
-  color: var(--text-1);
-}
-
-.nk-secret-vault-chip:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
-.nk-secret-vault-chip--active {
-  background: var(--accent-soft, var(--surface-3));
-  color: var(--text-1);
-  border-color: var(--accent, var(--border-strong));
-}
-
-.nk-secret-vault-chip--new {
-  color: var(--text-3);
-  border-style: dashed;
-  background: transparent;
-}
-
-.nk-secret-vault-count {
-  font-size: 10px;
-  color: var(--text-3);
-  font-variant-numeric: tabular-nums;
-}
-
-.nk-secret-vault-chip--active .nk-secret-vault-count {
-  color: var(--text-2);
-}
-
-.nk-secret-vault-new {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-  flex: 1;
-  min-width: 200px;
-}
-
-.nk-secret-vault-new .nk-input {
-  flex: 1;
-  min-width: 0;
-}
-
-.nk-secret-vault-hint {
-  flex-basis: 100%;
-  font-size: 10px;
-  color: var(--text-2);
-  font-family: var(--mono-font);
-}
-
-.nk-secret-vault-hint--error {
-  color: var(--accent, #18181b);
-  font-family: inherit;
+/* Touch devices can't hover, so keep the secret actions always visible. */
+.nk-app[data-mobile="true"] .nk-tree-secret .nk-secret-actions {
+  opacity: 1;
 }
 
 .nk-agent-desc {
@@ -4897,8 +4862,8 @@ a.nk-commit-sha:hover {
 .nk-provider-tabs button.active {
   color: var(--text);
   background: var(--surface);
-  border-color: var(--accent, #60a5fa);
-  box-shadow: 0 0 0 1px var(--accent, #60a5fa);
+  border-color: var(--nk-accent, #60a5fa);
+  box-shadow: 0 0 0 1px var(--nk-accent, #60a5fa);
 }
 
 /* Sub-tabs live inside the modal body (existing vs new). */
@@ -5062,7 +5027,7 @@ a.nk-commit-sha:hover {
 
 .nk-field input[type="text"]:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 /* ─── Vault & AI primitives ─────────────────────────────────────── */
@@ -5136,7 +5101,7 @@ a.nk-commit-sha:hover {
 .nk-input:focus,
 .nk-textarea:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 .nk-pill {
@@ -5402,7 +5367,7 @@ a.nk-commit-sha:hover {
   gap: 4px;
   align-items: center;
   text-align: center;
-  background: var(--accent-soft);
+  background: var(--nk-accent-soft);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: 12px;
@@ -5537,7 +5502,7 @@ a.nk-commit-sha:hover {
   font-size: 17px;
   letter-spacing: 1px;
   text-align: center;
-  background: var(--accent-soft);
+  background: var(--nk-accent-soft);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   padding: 12px;
@@ -5604,7 +5569,7 @@ a.nk-commit-sha:hover {
   align-items: center;
   gap: 10px;
   padding: 8px 14px;
-  background: var(--accent-soft);
+  background: var(--nk-accent-soft);
   border-bottom: 1px solid var(--border);
   font-size: 13px;
   color: var(--text);
@@ -5829,7 +5794,7 @@ a.nk-commit-sha:hover {
   width: 18px;
   height: 18px;
   border-radius: var(--r-sm);
-  background: var(--accent-soft);
+  background: var(--nk-accent-soft);
   color: var(--accent-text);
   flex-shrink: 0;
 }
@@ -5933,7 +5898,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-vault-active-mark {
-  color: var(--accent, var(--text-2));
+  color: var(--nk-accent, var(--text-2));
   font-size: 8px;
 }
 
@@ -6412,7 +6377,7 @@ a.nk-commit-sha:hover {
 
 .nk-calendar-cell.drop-target {
   background: var(--selected);
-  outline: 2px dashed var(--accent, var(--text-2));
+  outline: 2px dashed var(--nk-accent, var(--text-2));
   outline-offset: -2px;
 }
 
@@ -6445,7 +6410,7 @@ a.nk-commit-sha:hover {
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: var(--accent, var(--text-2));
+  background: var(--nk-accent, var(--text-2));
   opacity: 0.7;
 }
 
@@ -6614,7 +6579,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-popup-title-input:focus {
-  border-bottom-color: var(--selected, var(--accent));
+  border-bottom-color: var(--selected, var(--nk-accent));
 }
 
 .nk-popup-note-item {
@@ -6687,7 +6652,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-popup-textarea:focus {
-  border-color: var(--selected, var(--accent));
+  border-color: var(--selected, var(--nk-accent));
 }
 
 .nk-popup-tickets {
@@ -6781,7 +6746,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-calendar-day-pane.drop-target {
-  outline: 2px dashed var(--accent, var(--text-2));
+  outline: 2px dashed var(--nk-accent, var(--text-2));
   outline-offset: -2px;
   background: var(--selected);
 }
@@ -6968,7 +6933,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-heatmap-cell.selected {
-  outline: 2px solid var(--accent, var(--text));
+  outline: 2px solid var(--nk-accent, var(--text));
   outline-offset: 1px;
 }
 
@@ -7162,7 +7127,7 @@ a.nk-commit-sha:hover {
 
 .nk-search-row.is-active {
   background: var(--hover);
-  border-left-color: var(--accent, #4c8dff);
+  border-left-color: var(--nk-accent, #4c8dff);
 }
 
 .nk-search-row-title {
@@ -7217,7 +7182,7 @@ a.nk-commit-sha:hover {
 }
 
 @keyframes nk-focus-flash {
-  0% { box-shadow: 0 0 0 0 var(--accent, #4c8dff); background: color-mix(in srgb, var(--accent, #4c8dff) 18%, transparent); }
+  0% { box-shadow: 0 0 0 0 var(--nk-accent, #4c8dff); background: color-mix(in srgb, var(--nk-accent, #4c8dff) 18%, transparent); }
   100% { box-shadow: 0 0 0 0 transparent; background: transparent; }
 }
 
@@ -7287,9 +7252,9 @@ a.nk-commit-sha:hover {
 }
 
 .nk-tag-filter-btn.active {
-  background: var(--accent-soft);
+  background: var(--nk-accent-soft);
   color: var(--accent-text);
-  border-color: var(--accent);
+  border-color: var(--nk-accent);
 }
 
 .nk-link-list {
@@ -7508,8 +7473,8 @@ a.nk-commit-sha:hover {
 }
 .nk-ticket-row-prio.prio-high {
   color: var(--accent-text);
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--nk-accent);
+  background: var(--nk-accent-soft);
 }
 .nk-ticket-row-prio.prio-medium {
   color: var(--text-2, var(--muted));
@@ -8114,7 +8079,7 @@ a.nk-commit-sha:hover {
   background: #22c55e;
 }
 .nk-mdrawer-sync[data-tone="sync"] .nk-mdrawer-sync-dot {
-  background: var(--accent);
+  background: var(--nk-accent);
   animation: nk-pulse 1.2s ease-in-out infinite;
 }
 .nk-mdrawer-sync[data-tone="error"] .nk-mdrawer-sync-dot {
@@ -8248,7 +8213,7 @@ a.nk-commit-sha:hover {
   background: var(--hover);
 }
 .nk-mnav button.active {
-  color: var(--accent-text, var(--accent));
+  color: var(--accent-text, var(--nk-accent));
 }
 .nk-mnav button svg {
   display: block;
@@ -8360,7 +8325,7 @@ a.nk-commit-sha:hover {
   background: #22c55e;
 }
 .nk-msheet-sync[data-tone="sync"] .nk-msheet-sync-dot {
-  background: var(--accent);
+  background: var(--nk-accent);
   animation: nk-pulse 1.2s ease-in-out infinite;
 }
 .nk-msheet-sync[data-tone="error"] .nk-msheet-sync-dot {
@@ -8421,7 +8386,7 @@ a.nk-commit-sha:hover {
   background: var(--hover);
 }
 .nk-msheet-list button.active {
-  color: var(--accent-text, var(--accent));
+  color: var(--accent-text, var(--nk-accent));
 }
 .nk-msheet-list button.danger {
   color: #ef4444;
@@ -8655,7 +8620,7 @@ a.nk-commit-sha:hover {
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  background: var(--accent, #4f7cff);
+  background: var(--nk-accent, #4f7cff);
   color: #fff;
   vertical-align: middle;
 }
@@ -8752,7 +8717,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-split-divider:hover {
-  background: var(--accent);
+  background: var(--nk-accent);
 }
 
 /* A single editor pane — flex column filling its allocated space */
@@ -9238,7 +9203,7 @@ a.nk-commit-sha:hover {
 .nk-info-tab:hover { color: var(--text-2); }
 
 .nk-info-tab--active {
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--nk-accent);
   color: var(--text);
 }
 
@@ -9270,7 +9235,7 @@ a.nk-commit-sha:hover {
 .nk-backlink-count {
   font-size: 11px;
   font-weight: 500;
-  background: var(--accent-soft);
+  background: var(--nk-accent-soft);
   color: var(--muted);
   border-radius: 999px;
   padding: 1px 6px;
@@ -9319,7 +9284,7 @@ a.nk-commit-sha:hover {
   padding: 3px 8px;
   border-radius: 999px;
   font-size: 12px;
-  background: var(--accent-soft);
+  background: var(--nk-accent-soft);
   color: var(--text-2);
   margin: 3px;
 }
@@ -9396,7 +9361,7 @@ a.nk-commit-sha:hover {
   border: 1px solid var(--border);
   border-radius: 50%;
   background: var(--surface);
-  color: var(--accent, #6366f1);
+  color: var(--nk-accent, #6366f1);
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
   cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
@@ -9455,7 +9420,7 @@ a.nk-commit-sha:hover {
 }
 .nk-ai-resizer:hover,
 .nk-ai-resizer:active {
-  background: var(--accent);
+  background: var(--nk-accent);
   opacity: 0.35;
 }
 
@@ -9479,7 +9444,7 @@ a.nk-commit-sha:hover {
   flex-shrink: 0;
 }
 .nk-ai-panel-title svg {
-  color: var(--accent, #6366f1);
+  color: var(--nk-accent, #6366f1);
 }
 .nk-ai-agent-picker {
   flex: 1;
@@ -9495,7 +9460,7 @@ a.nk-commit-sha:hover {
 }
 
 .nk-iconbtn.is-on {
-  color: var(--accent, #6366f1);
+  color: var(--nk-accent, #6366f1);
 }
 
 /* Full-panel chat history page (replaces the transcript when toggled). */
@@ -9557,7 +9522,7 @@ a.nk-commit-sha:hover {
   background: var(--hover);
 }
 .nk-ai-history-row.is-active {
-  background: color-mix(in srgb, var(--accent, #6366f1) 14%, transparent);
+  background: color-mix(in srgb, var(--nk-accent, #6366f1) 14%, transparent);
 }
 .nk-ai-history-open {
   flex: 1;
@@ -9675,7 +9640,7 @@ a.nk-commit-sha:hover {
   white-space: nowrap;
 }
 .nk-ai-chip.is-on {
-  border-color: var(--accent, #6366f1);
+  border-color: var(--nk-accent, #6366f1);
   color: var(--text);
   background: var(--accent-soft, rgba(99, 102, 241, 0.1));
 }
@@ -9707,7 +9672,7 @@ a.nk-commit-sha:hover {
   color: var(--muted);
 }
 .nk-ai-chip--add:hover {
-  border-color: var(--accent, #6366f1);
+  border-color: var(--nk-accent, #6366f1);
   color: var(--text);
 }
 
@@ -9797,7 +9762,7 @@ a.nk-commit-sha:hover {
   text-align: center;
 }
 .nk-ai-empty svg {
-  color: var(--accent, #6366f1);
+  color: var(--nk-accent, #6366f1);
   opacity: 0.6;
 }
 .nk-ai-msg {
@@ -9822,7 +9787,7 @@ a.nk-commit-sha:hover {
   color: var(--text);
 }
 .nk-ai-caret {
-  color: var(--accent, #6366f1);
+  color: var(--nk-accent, #6366f1);
   animation: nk-ai-blink 1s steps(2) infinite;
 }
 
@@ -9839,7 +9804,7 @@ a.nk-commit-sha:hover {
 .nk-ai-prose h3,
 .nk-ai-prose h4 { margin: 10px 0 6px; font-size: 1em; font-weight: 600; }
 .nk-ai-prose strong { font-weight: 600; }
-.nk-ai-prose a { color: var(--accent, #6366f1); text-decoration: underline; }
+.nk-ai-prose a { color: var(--nk-accent, #6366f1); text-decoration: underline; }
 .nk-ai-prose code {
   font-family: var(--mono-font, monospace);
   font-size: 0.9em;
@@ -9897,7 +9862,7 @@ a.nk-commit-sha:hover {
 
 /* Approval card for vault-mutating tools. */
 .nk-ai-approval {
-  border: 1px solid var(--accent, #6366f1);
+  border: 1px solid var(--nk-accent, #6366f1);
   background: var(--accent-soft, rgba(99, 102, 241, 0.08));
   border-radius: 10px;
   padding: 10px 11px;
@@ -9913,7 +9878,7 @@ a.nk-commit-sha:hover {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--accent, #6366f1);
+  color: var(--nk-accent, #6366f1);
 }
 .nk-ai-approval-summary {
   font-size: 13px;
@@ -9952,7 +9917,7 @@ a.nk-commit-sha:hover {
 }
 .nk-ai-input:focus {
   outline: none;
-  border-color: var(--accent, #6366f1);
+  border-color: var(--nk-accent, #6366f1);
 }
 .nk-ai-send {
   flex-shrink: 0;
@@ -9963,7 +9928,7 @@ a.nk-commit-sha:hover {
   justify-content: center;
   border: 0;
   border-radius: 8px;
-  background: var(--accent, #6366f1);
+  background: var(--nk-accent, #6366f1);
   color: var(--primary-foreground, #fff);
   cursor: pointer;
   transition: opacity 120ms;
@@ -9989,7 +9954,7 @@ a.nk-commit-sha:hover {
 }
 .nk-ai-attachbtn:hover:not(:disabled) {
   color: var(--text);
-  border-color: var(--accent, #6366f1);
+  border-color: var(--nk-accent, #6366f1);
 }
 .nk-ai-attachbtn:disabled {
   opacity: 0.4;
@@ -10086,7 +10051,7 @@ a.nk-commit-sha:hover {
   color: var(--muted);
 }
 .nk-inline-ai-hd svg {
-  color: var(--accent, #6366f1);
+  color: var(--nk-accent, #6366f1);
 }
 .nk-inline-ai-input {
   width: 100%;
@@ -10100,7 +10065,7 @@ a.nk-commit-sha:hover {
 }
 .nk-inline-ai-input:focus {
   outline: none;
-  border-color: var(--accent, #6366f1);
+  border-color: var(--nk-accent, #6366f1);
 }
 .nk-inline-ai-presets {
   display: flex;
@@ -10120,7 +10085,7 @@ a.nk-commit-sha:hover {
 }
 .nk-inline-ai-preset:hover:not(:disabled) {
   background: var(--hover);
-  border-color: var(--accent, #6366f1);
+  border-color: var(--nk-accent, #6366f1);
 }
 .nk-inline-ai-preset:disabled {
   opacity: 0.5;

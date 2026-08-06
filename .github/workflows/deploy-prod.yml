@@ -18,6 +18,13 @@ on:
       - prod/web
       - prod/landing
       - prod/backoffice
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy (api, web, landing, backoffice)'
+        required: true
+        type: choice
+        options: [api, web, landing, backoffice]
 
 concurrency:
   # Serialize deploys of the SAME service; different services deploy in parallel.
@@ -35,7 +42,9 @@ jobs:
       - name: Resolve service from branch
         id: cfg
         run: |
-          svc="${GITHUB_REF_NAME#prod/}"
+          # workflow_dispatch supplies the service directly; push derives it from the branch.
+          svc="${{ github.event.inputs.service || '' }}"
+          [ -z "$svc" ] && svc="${GITHUB_REF_NAME#prod/}"
           case "$svc" in
             api)        image=notekit-api;        file=apps/api/Dockerfile;        buildargs="" ;;
             web)        image=notekit-web;        file=apps/web/Dockerfile;        buildargs="VITE_API_URL=https://api.notekit.online" ;;

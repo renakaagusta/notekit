@@ -7,11 +7,12 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc --noEmit",
-    "start": "tsx src/index.ts",
+    "start": "tsx src/bootstrap.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rm -rf .turbo dist data"
+    "clean": "rm -rf .turbo dist data",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

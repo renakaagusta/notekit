@@ -133,25 +133,26 @@ export function decodeSignedPayload<T>(jws: string): T {
 /**
  * S2S Notifications V2 must be verified against Apple's certificate chain.
  *
- * Apple embeds an x5c cert chain in the JWS header. Verification:
+ * Apple embeds an x5c cert chain in the JWS header. Verification steps:
  *   1. Parse header, extract x5c (array of DER-encoded certs, base64).
  *   2. Walk the chain to Apple's root CA (AppleRootCA-G3 for ECC). Apple
  *      publishes the root cert at
  *      https://www.apple.com/certificateauthority/AppleRootCA-G3.cer
- *   3. Use the leaf cert's public key to verify the JWS signature.
+ *   3. Use the leaf cert's public key to verify the JWS signature over
+ *      the `<header>.<payload>` signing input.
  *
- * TODO: implement before going live. For dev + sandbox we accept any
- * well-formed JWS, which is safe-ish because the webhook URL is unknown
- * to attackers and we recompute entitlement from the App Store Server API
- * after the webhook fires — the webhook is just a heads-up.
+ * TODO: implement x5c chain verification. Until then ALL webhook calls are
+ * rejected with 501 so that unverified payloads are never silently accepted.
+ * The NODE_ENV gate has been intentionally removed — verification is required
+ * in every environment, not just production.
+ *
+ * To implement: use the `@peculiar/x509` or Node.js `crypto` + `node-forge`
+ * packages to validate the DER chain and verify the ES256 signature.
  */
-export async function verifySignedPayload<T>(jws: string): Promise<T> {
-  if (env.isProd) {
-    // Defensive guard: refuse to silently accept unverified JWS in prod.
-    // Implement full verification before flipping NODE_ENV=production.
-    throw new Error(
-      "apple_jws_verification_not_implemented — implement verifySignedPayload before production",
-    );
-  }
-  return decodeSignedPayload<T>(jws);
+export async function verifySignedPayload<T>(_jws: string): Promise<T> {
+  // SECURITY: x5c chain verification is not yet implemented.
+  // Rejecting all calls is safer than silently accepting unverified payloads.
+  throw new Error(
+    "apple_jws_verification_not_implemented — implement x5c chain verification in iap/apple.ts before enabling the Apple webhook"
+  );
 }

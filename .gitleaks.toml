@@ -1,0 +1,157 @@
+# Gitleaks configuration for NoteKit
+# https://github.com/gitleaks/gitleaks
+
+title = "NoteKit Gitleaks Config"
+
+[extend]
+# Extend the default gitleaks ruleset
+useDefault = true
+
+# ──────────────────────────────────────────────
+# Custom rules
+# ──────────────────────────────────────────────
+
+[[rules]]
+id = "notekit-jwt-secret"
+description = "NoteKit / Better-Auth JWT secret"
+regex = '''(?i)(jwt[_-]?secret|better[_-]?auth[_-]?secret)\s*[:=]\s*["']?[A-Za-z0-9+/=_\-]{20,}["']?'''
+tags = ["jwt", "secret", "auth"]
+
+[[rules]]
+id = "oauth-client-secret"
+description = "OAuth client secret"
+regex = '''(?i)(client[_-]?secret|oauth[_-]?secret)\s*[:=]\s*["']?[A-Za-z0-9+/=_\-]{10,}["']?'''
+tags = ["oauth", "secret"]
+
+[[rules]]
+id = "age-private-key"
+description = "age encryption private key"
+regex = '''AGE-SECRET-KEY-[A-Z0-9]{59}'''
+tags = ["age", "private-key", "e2ee"]
+
+[[rules]]
+id = "pgp-private-key-block"
+description = "PGP private key block"
+regex = '''-----BEGIN (PGP|OpenPGP) PRIVATE KEY BLOCK-----'''
+tags = ["pgp", "private-key"]
+
+[[rules]]
+id = "rsa-private-key"
+description = "RSA private key"
+regex = '''-----BEGIN RSA PRIVATE KEY-----'''
+tags = ["rsa", "private-key"]
+
+[[rules]]
+id = "ec-private-key"
+description = "EC private key"
+regex = '''-----BEGIN EC PRIVATE KEY-----'''
+tags = ["ec", "private-key"]
+
+[[rules]]
+id = "generic-private-key"
+description = "Generic private key header"
+regex = '''-----BEGIN PRIVATE KEY-----'''
+tags = ["private-key"]
+
+[[rules]]
+id = "database-connection-string"
+description = "Database connection string with credentials"
+regex = '''(?i)(postgres|postgresql|mysql|mongodb|redis|mariadb):\/\/[^:]+:[^@\s"']+@'''
+tags = ["database", "connection-string"]
+
+[[rules]]
+id = "github-pat"
+description = "GitHub personal access token"
+regex = '''ghp_[A-Za-z0-9]{36}'''
+tags = ["github", "pat"]
+
+[[rules]]
+id = "github-oauth-token"
+description = "GitHub OAuth access token"
+regex = '''gho_[A-Za-z0-9]{36}'''
+tags = ["github", "oauth"]
+
+[[rules]]
+id = "github-fine-grained-pat"
+description = "GitHub fine-grained personal access token"
+regex = '''github_pat_[A-Za-z0-9_]{82}'''
+tags = ["github", "pat"]
+
+[[rules]]
+id = "google-oauth-client-secret"
+description = "Google OAuth client secret"
+regex = '''GOCSPX-[A-Za-z0-9_\-]{28}'''
+tags = ["google", "oauth", "secret"]
+
+[[rules]]
+id = "google-api-key"
+description = "Google API key"
+regex = '''AIza[0-9A-Za-z\-_]{35}'''
+tags = ["google", "api-key"]
+
+[[rules]]
+id = "apple-private-key"
+description = "Apple private key (.p8)"
+regex = '''-----BEGIN EC PRIVATE KEY-----[\s\S]{1,500}-----END EC PRIVATE KEY-----'''
+tags = ["apple", "private-key"]
+
+[[rules]]
+id = "stripe-secret-key"
+description = "Stripe secret key"
+regex = '''sk_(live|test)_[A-Za-z0-9]{24,}'''
+tags = ["stripe", "secret"]
+
+[[rules]]
+id = "smtp-connection-string"
+description = "SMTP connection string with credentials"
+regex = '''(?i)smtp[s]?:\/\/[^:]+:[^@\s"']+@'''
+tags = ["smtp", "connection-string"]
+
+[[rules]]
+id = "ssh-private-key"
+description = "SSH private key"
+regex = '''-----BEGIN OPENSSH PRIVATE KEY-----'''
+tags = ["ssh", "private-key"]
+
+# ──────────────────────────────────────────────
+# Allowlists — paths and values that are safe to
+# commit and should never trigger a finding
+# ──────────────────────────────────────────────
+
+[allowlist]
+description = "Global allowlist"
+
+# Placeholder / example values that appear in docs and config templates
+regexes = [
+  # Common placeholder patterns
+  '''(?i)(CHANGE_ME|REPLACE_ME|YOUR_SECRET_HERE|INSERT_SECRET|TODO_SECRET|PLACEHOLDER|DUMMY_SECRET|EXAMPLE_SECRET|<secret>|<your[_-]?key>)''',
+  # Zeroed-out / obviously fake keys
+  '''(?i)(0{20,}|x{20,}|a{20,}|1{20,}|test{5,})''',
+  # age key in test vectors / docs (all-zero)
+  '''AGE-SECRET-KEY-1[0]{50,}''',
+]
+
+# Files and directories that are intentionally excluded
+paths = [
+  # Test fixtures and snapshots
+  '''.*(\.test\.|\.spec\.|__tests__|__mocks__|fixtures|snapshots).*''',
+  # Documentation, examples, changelogs
+  '''(^|/)docs/''',
+  '''(^|/)CHANGELOG''',
+  '''(^|/)README''',
+  '''\.md$''',
+  # Lockfiles — never contain real secrets, lots of hash noise
+  '''pnpm-lock\.yaml$''',
+  '''package-lock\.json$''',
+  '''yarn\.lock$''',
+  # Build artifacts
+  '''(^|/)dist/''',
+  '''(^|/)build/''',
+  '''(^|/)\.next/''',
+  # Gitleaks config itself (contains regex patterns that look like secrets)
+  '''\.gitleaks\.toml$''',
+  # Environment example files — contain placeholder values by convention
+  '''\.env\.example$''',
+  '''\.env\.sample$''',
+  '''\.env\.template$''',
+]

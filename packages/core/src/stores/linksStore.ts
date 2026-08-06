@@ -51,10 +51,12 @@ function cleanFolder(folder: string | null | undefined): string | null {
 
 export const useLinksStore = create<LinksState>()(
   persist(
+    // eslint-disable-next-line max-lines-per-function -- store initializer defines many methods; splitting would require exporting each handler separately
     immer<LinksState>((set, get) => ({
       links: {},
       folders: [],
 
+      // eslint-disable-next-line complexity -- merges optional input, existing, and defaults for each SavedLink field
       upsert(input) {
         const id = input.id ?? nanoid(12);
         const existing = get().links[id];
@@ -142,6 +144,7 @@ export const useLinksStore = create<LinksState>()(
 
       remove(id) {
         set((state) => {
+          // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- immer draft requires dynamic delete to remove a record key
           delete state.links[id];
         });
       },
@@ -161,9 +164,23 @@ export const useLinksStore = create<LinksState>()(
       },
     })),
     {
-      name: "notekit:links",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ links: state.links, folders: state.folders }),
+      // Default name + noop storage are placeholders until
+      // bindVaultPersistence() rebinds them to a vault-scoped slot in
+      // localStorage. See packages/core/src/lib/vault-persistence.ts.
+      name: "notekit:links:__unbound",
+      storage: createJSONStorage(() => ({
+        getItem: () => null,
+        setItem: () => { /* intentional noop */ },
+        removeItem: () => { /* intentional noop */ },
+      })),
+      partialize: (state) => ({
+        // Strip decrypted content — url, title, and description are the sensitive payload
+        // and must never reach localStorage for encrypted links.
+        links: Object.fromEntries(
+          Object.entries(state.links).map(([id, { url: _url, title: _title, description: _description, ...safe }]) => [id, safe]),
+        ),
+        folders: state.folders,
+      }),
       version: 2,
       migrate: (persisted: unknown, version) => {
         if (!persisted || typeof persisted !== "object") return persisted;
@@ -184,6 +201,7 @@ export const useLinksStore = create<LinksState>()(
         }
         return persisted;
       },
+      skipHydration: true,
     },
   ),
 );

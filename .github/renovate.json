@@ -1,0 +1,104 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    "group:monorepos",
+    "group:recommended"
+  ],
+  "schedule": ["before 6am on Monday"],
+  "timezone": "Asia/Jakarta",
+  "pnpm": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "Auto-merge non-breaking patch updates",
+      "matchUpdateTypes": ["patch"],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "Auto-merge patch updates for 0.x packages (treat minor as patch)",
+      "matchUpdateTypes": ["patch"],
+      "matchCurrentVersion": "/^0/",
+      "automerge": true,
+      "automergeType": "pr",
+      "automergeStrategy": "squash"
+    },
+    {
+      "description": "Group all security updates into a single PR",
+      "matchDepTypes": ["dependencies", "devDependencies", "peerDependencies"],
+      "isVulnerabilityAlert": true,
+      "groupName": "security updates",
+      "automerge": false,
+      "labels": ["security", "dependencies"]
+    },
+    {
+      "description": "Pin devDependencies to exact versions",
+      "matchDepTypes": ["devDependencies"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "description": "Major updates require manual review — no automerge",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["major", "dependencies"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Minor updates for non-zero major: manual review",
+      "matchUpdateTypes": ["minor"],
+      "matchCurrentVersion": "!/^0/",
+      "automerge": false,
+      "labels": ["minor", "dependencies"]
+    },
+    {
+      "description": "Group TypeScript-ecosystem updates",
+      "matchPackageNames": ["typescript", "/^@types\\//"],
+      "groupName": "typescript",
+      "automerge": true,
+      "matchUpdateTypes": ["patch", "minor"]
+    },
+    {
+      "description": "Group Vite/Rollup build tooling",
+      "matchPackageNames": ["vite", "rollup", "/^@vitejs\\//", "/^vite-plugin-/"],
+      "groupName": "vite tooling",
+      "automerge": true,
+      "matchUpdateTypes": ["patch", "minor"]
+    },
+    {
+      "description": "Group ESLint ecosystem",
+      "matchPackageNames": ["eslint", "/^eslint-/", "/^@eslint\\//"],
+      "groupName": "eslint",
+      "automerge": true,
+      "matchUpdateTypes": ["patch", "minor"]
+    },
+    {
+      "description": "Electron — major requires deliberate manual bump, never automerge",
+      "matchPackageNames": ["electron", "electron-builder"],
+      "automerge": false,
+      "labels": ["electron", "major"],
+      "dependencyDashboardApproval": true
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  "osvVulnerabilityAlerts": true,
+  "prCreation": "immediate",
+  "prHourlyLimit": 5,
+  "prConcurrentLimit": 10,
+  "rebaseWhen": "behind-base-branch",
+  "commitMessagePrefix": "chore(deps):",
+  "labels": ["renovate"],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/build/**"
+  ]
+}

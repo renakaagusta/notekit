@@ -30,8 +30,38 @@ export const env = {
     .map((s) => s.trim())
     .filter((s) => s.length > 0),
   apiUrl: required("API_URL", "http://localhost:3001"),
-  sessionSecret: required("SESSION_SECRET", "dev-insecure-secret-change-me"),
-  databaseUrl: required("DATABASE_URL", "postgresql://notekit:nk_pg_2026_prod@localhost:5432/notekit"),
+  sessionSecret: (() => {
+    const s = process.env.SESSION_SECRET;
+    const INSECURE_DEFAULTS = [
+      "dev-insecure-secret-change-me",
+      "secret",
+      "changeme",
+      "password",
+      "insecure",
+    ];
+    if (!s || INSECURE_DEFAULTS.includes(s.toLowerCase())) {
+      throw new Error(
+        "SESSION_SECRET must be set to a random string of at least 32 characters. " +
+          "Generate with: openssl rand -base64 32"
+      );
+    }
+    if (s.length < 32) {
+      throw new Error(
+        "SESSION_SECRET is too short (must be >= 32 characters). " +
+          "Generate with: openssl rand -base64 32"
+      );
+    }
+    return s;
+  })(),
+  databaseUrl: (() => {
+    const url = process.env.DATABASE_URL ?? "postgresql://notekit:CHANGE_ME@localhost:5432/notekit";
+    if (url.includes("CHANGE_ME")) {
+      throw new Error(
+        "DATABASE_URL is not configured. Set DATABASE_URL in your environment or Vault secret."
+      );
+    }
+    return url;
+  })(),
   github: {
     clientId: optional("GITHUB_CLIENT_ID"),
     clientSecret: optional("GITHUB_CLIENT_SECRET"),

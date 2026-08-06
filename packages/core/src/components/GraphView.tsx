@@ -1,194 +1,468 @@
-import { useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
+import {
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  forceSimulation,
+  type Simulation,
+} from "d3-force";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useMembersStore } from "../stores/membersStore";
 import { useCryptoStore } from "../stores/cryptoStore";
-import { noteTitle } from "../lib/note-display";
-import { resolveAssignee } from "../lib/members";
-import type { Note } from "../types/note";
-import type { Ticket } from "../types/ticket";
+import {
+  buildGraph,
+  DEFAULT_FILTER,
+  labelFor,
+  nodeRadius,
+  type FilterState,
+  type GraphEdge,
+  type GraphNode,
+  type NodeKind,
+} from "../lib/graph-data";
 
-const WIDTH = 1000;
-const HEIGHT = 640;
-const CX = WIDTH / 2;
-const CY = HEIGHT / 2;
+// Obsidian-style knowledge graph: d3-force for the layout, PixiJS (WebGL) for
+// rendering. This replaces the earlier hand-rolled SVG simulation — WebGL keeps
+// it smooth as the vault grows, the way Obsidian's does. Physics runs on the
+// main thread for now (fine into the low thousands of nodes); moving d3-force
+// into a Web Worker — Obsidian's final trick — is the next step if scale demands.
 
-const YELLOW = "#f5c542";
-
-type NodeKind = "note" | "ticket" | "project" | "member";
-type EdgeKind = "wikilink" | "creator" | "collaborator" | "project" | "linked";
-
-interface GraphNode {
-  id: string;
-  kind: NodeKind;
-  label: string;
-  degree: number;
-  refId?: string;
-  memberKind?: "user" | "agent" | "legacy";
-  encrypted?: boolean;
-}
-
-interface GraphEdge {
-  from: string;
-  to: string;
-  kind: EdgeKind;
-}
-
-// Simulation node — positions live here, separate from metadata.
-interface SimNode {
-  id: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-}
-
-const WIKILINK_RE = /\[\[([^\]]+)\]\]/g;
-
-function readMemberList(raw: unknown): string[] {
-  if (!raw) return [];
-  if (typeof raw === "string") return raw.trim() ? [raw.trim()] : [];
-  if (!Array.isArray(raw)) return [];
-  const out: string[] = [];
-  for (const v of raw) {
-    if (typeof v !== "string") continue;
-    const t = v.trim();
-    if (t) out.push(t);
-  }
-  return out;
-}
-
-function readStringField(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const t = raw.trim();
-  return t || null;
-}
-
-function memberNodeId(ref: string): string | null {
-  const t = ref.trim();
-  if (!t) return null;
-  const colon = t.indexOf(":");
-  if (colon < 0) return `member:legacy:${t}`;
-  const kind = t.slice(0, colon);
-  const id = t.slice(colon + 1).trim();
-  if ((kind === "user" || kind === "agent") && id) return `member:${kind}:${id}`;
-  return `member:legacy:${t}`;
-}
-
-function projectForNote(note: Note): string | null {
-  const explicit = readStringField(note.frontmatter?.project);
-  if (explicit) return explicit;
-  if (note.folder) {
-    const top = note.folder.split("/")[0]?.trim();
-    if (top) return top;
-  }
-  return null;
-}
-
-interface FilterState {
-  notes: boolean;
-  tickets: boolean;
-  projects: boolean;
-  members: boolean;
-}
-
-const DEFAULT_FILTER: FilterState = {
-  notes: true,
-  tickets: true,
-  projects: false,
-  members: false,
+const KIND_COLOR: Record<NodeKind, number> = {
+  note: 0xf5c542,
+  ticket: 0x6ea8fe,
+  project: 0xc98bff,
+  member: 0x4ade80,
 };
 
-// ── Force sim (single step) ────────────────────────────────────────────────
+// Fixed gold for hover highlight (hovered node + its links), matching the old
+// graph. Deliberately NOT the theme --accent: a user can set accent to white,
+// which would make the highlight vanish against the dark canvas.
+const HOVER_COLOR = 0xf5c542;
 
-function stepSim(
-  sn: SimNode[],
-  edges: GraphEdge[],
-  alpha: number,
-  pinned: { id: string; x: number; y: number } | null,
-): void {
-  const n = sn.length;
-  if (n === 0) return;
+// Per-frame easing factor for hover transitions — how far current animates
+// toward target each frame (~0.25 ≈ a soft 150ms settle at 60fps).
+const EASE = 0.25;
 
-  const REPULSION = 12000;
-  const SPRING_K = 0.025;
-  const SPRING_REST = 130;
-  const GRAVITY = 0.005;
-  const PAD = 50;
-  const DAMP = 0.65;
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+function unpack(c: number): [number, number, number] {
+  return [(c >> 16) & 255, (c >> 8) & 255, c & 255];
+}
+function pack(r: number, g: number, b: number): number {
+  return ((r & 255) << 16) | ((g & 255) << 8) | (b & 255);
+}
+function lerpColor(a: number, b: number, t: number): number {
+  const [ar, ag, ab] = unpack(a);
+  const [br, bg, bb] = unpack(b);
+  return pack(lerp(ar, br, t), lerp(ag, bg, t), lerp(ab, bb, t));
+}
 
-  const idx = new Map(sn.map((s, i) => [s.id, i]));
+// Animated display state per node — current values chase the targets each
+// frame so hover in/out eases instead of snapping.
+interface NodeAnim {
+  a: number;
+  ta: number; // circle alpha
+  col: [number, number, number];
+  tcol: [number, number, number]; // circle tint (rgb)
+  la: number;
+  tla: number; // label alpha
+}
 
-  // Repulsion
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      const dx = sn[j]!.x - sn[i]!.x;
-      const dy = sn[j]!.y - sn[i]!.y;
-      const d2 = dx * dx + dy * dy + 1;
-      const f = (REPULSION * alpha) / d2;
-      const d = Math.sqrt(d2);
-      const nx = (dx / d) * f;
-      const ny = (dy / d) * f;
-      sn[i]!.vx -= nx;
-      sn[i]!.vy -= ny;
-      sn[j]!.vx += nx;
-      sn[j]!.vy += ny;
+// d3-force mutates these with x/y/vx/vy/fx/fy as it runs.
+interface SimNode extends GraphNode {
+  x: number;
+  y: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
+  index?: number;
+}
+interface SimLink {
+  source: string | SimNode;
+  target: string | SimNode;
+  kind: string;
+}
+
+// Resolve a CSS colour (hex / rgb / color-mix) to a 0xRRGGBB int for Pixi by
+// letting the browser compute it via a throwaway element.
+function resolveColor(raw: string, fallback: number): number {
+  const v = raw.trim();
+  if (!v) return fallback;
+  const probe = document.createElement("span");
+  probe.style.color = v;
+  probe.style.display = "none";
+  document.body.appendChild(probe);
+  const rgb = getComputedStyle(probe).color;
+  probe.remove();
+  const m = rgb.match(/\d+/g);
+  if (!m || m.length < 3) return fallback;
+  const r = Number(m[0]);
+  const g = Number(m[1]);
+  const b = Number(m[2]);
+  return ((r & 255) << 16) | ((g & 255) << 8) | (b & 255);
+}
+
+interface Theme {
+  link: number;
+  text: number;
+}
+
+// ── PixiJS + d3-force controller ────────────────────────────────────────────
+// Kept outside React: owns the WebGL app, the simulation, and all pointer
+// interaction (pan / zoom / node drag). React just feeds it data via setData().
+class GraphCanvas {
+  private app: Application | null = null;
+  private readonly world = new Container();
+  private readonly linkLayer = new Graphics();
+  private readonly nodeLayer = new Container();
+  private readonly labelLayer = new Container();
+  private sim: Simulation<SimNode, SimLink> | null = null;
+  private nodes: SimNode[] = [];
+  private links: SimLink[] = [];
+  private readonly nodeGfx = new Map<string, Graphics>();
+  private readonly labels = new Map<string, Text>();
+  private scale = 1;
+  private theme: Theme = { link: 0x8a8f98, text: 0x333333 };
+  // eslint-disable-next-line @typescript-eslint/no-empty-function -- default no-op; overwritten in setData()
+  private onNodeClick: (n: SimNode) => void = () => {};
+  private destroyed = false;
+  private dragging: SimNode | null = null;
+  private dragMoved = false;
+  private panning = false;
+  private lastPointer = { x: 0, y: 0 };
+  // Hover highlight: neighbours[id] = the node's own id plus every node one hop
+  // away. Used to dim everything else and light up incident links, Obsidian-style.
+  private readonly neighbors = new Map<string, Set<string>>();
+  private hoveredId: string | null = null;
+  // Eased hover animation. `anim` holds each node's current/target colour+alpha;
+  // hoverAmt (0→1) fades the link highlight; highlightId is retained through the
+  // fade-out so incident links ease back rather than snap. simActive keeps the
+  // frame loop alive while d3 is still moving nodes.
+  private readonly anim = new Map<string, NodeAnim>();
+  private hoverAmt = 0;
+  private hoverTarget = 0;
+  private highlightId: string | null = null;
+  private animating = false;
+  private simActive = false;
+
+  async init(container: HTMLElement): Promise<void> {
+    const app = new Application();
+    // resolution + autoDensity render at the device's physical pixel density,
+    // so circles/text stay crisp instead of looking "pecah" (pixelated) when
+    // zoomed in on a HiDPI/retina display.
+    await app.init({
+      resizeTo: container,
+      backgroundAlpha: 0,
+      antialias: true,
+      resolution: window.devicePixelRatio || 1,
+      autoDensity: true,
+    });
+    if (this.destroyed) {
+      app.destroy(true, { children: true });
+      return;
+    }
+    this.app = app;
+    container.appendChild(app.canvas);
+
+    this.world.addChild(this.linkLayer);
+    this.world.addChild(this.nodeLayer);
+    this.world.addChild(this.labelLayer);
+    app.stage.addChild(this.world);
+
+    app.stage.eventMode = "static";
+    app.stage.hitArea = app.screen;
+    app.stage.on("pointerdown", this.onBackgroundDown);
+    app.stage.on("pointermove", this.onPointerMove);
+    app.stage.on("pointerup", this.onPointerUp);
+    app.stage.on("pointerupoutside", this.onPointerUp);
+    app.canvas.addEventListener("wheel", this.onWheel, { passive: false });
+
+    // Permanent render loop for eased hover/link animation. Cheap: it early-
+    // returns whenever nothing is animating and the sim is at rest.
+    app.ticker.add(this.onFrame);
+  }
+
+  setData(nodes: GraphNode[], edges: GraphEdge[], encReq: boolean, theme: Theme, onNodeClick: (n: SimNode) => void): void {
+    if (!this.app || this.destroyed) return;
+    this.theme = theme;
+    this.onNodeClick = onNodeClick;
+
+    // Preserve positions across rebuilds (e.g. toggling a filter) so the graph
+    // doesn't jump. New nodes seed near the centre.
+    const prev = new Map(this.nodes.map((n) => [n.id, n]));
+    const { width, height } = this.app.screen;
+    const cx = width / 2;
+    const cy = height / 2;
+    this.nodes = nodes.map((n) => {
+      const old = prev.get(n.id);
+      return {
+        ...n,
+        x: old?.x ?? cx + (Math.cos(n.id.length) * 40 + (n.degree % 7) * 12),
+        y: old?.y ?? cy + (Math.sin(n.id.length) * 40 + (n.id.length % 7) * 12),
+      };
+    });
+    this.links = edges.map((e) => ({ source: e.from, target: e.to, kind: e.kind }));
+
+    // Adjacency for hover highlighting: each node maps to itself + direct peers.
+    this.neighbors.clear();
+    for (const n of this.nodes) this.neighbors.set(n.id, new Set([n.id]));
+    for (const e of edges) {
+      this.neighbors.get(e.from)?.add(e.to);
+      this.neighbors.get(e.to)?.add(e.from);
+    }
+    this.hoveredId = null;
+
+    this.rebuildDisplay(encReq);
+    this.startSim(cx, cy);
+  }
+
+  private rebuildDisplay(encReq: boolean): void {
+    this.nodeLayer.removeChildren().forEach((c) => c.destroy());
+    this.labelLayer.removeChildren().forEach((c) => c.destroy());
+    this.nodeGfx.clear();
+    this.labels.clear();
+    this.anim.clear();
+    this.hoverAmt = 0;
+    this.hoverTarget = 0;
+    this.highlightId = null;
+
+    for (const n of this.nodes) {
+      const r = nodeRadius(n);
+      const baseCol = KIND_COLOR[n.kind] ?? 0x888888;
+      this.anim.set(n.id, {
+        a: 1, ta: 1,
+        col: unpack(baseCol), tcol: unpack(baseCol),
+        la: 1, tla: 1,
+      });
+      const g = new Graphics();
+      // Draw white, colour via tint — lets applyHighlight() recolour a node
+      // (accent for the hovered one, text colour for its neighbours) without
+      // re-drawing geometry.
+      g.circle(0, 0, r).fill({ color: 0xffffff, alpha: 0.95 });
+      if (n.degree >= 3) g.stroke({ width: 1.5, color: 0xffffff, alpha: 0.25 });
+      g.tint = KIND_COLOR[n.kind] ?? 0x888888;
+      g.eventMode = "static";
+      g.cursor = "pointer";
+      g.on("pointerdown", (e: FederatedPointerEvent) => {
+        e.stopPropagation();
+        this.dragging = n;
+        this.dragMoved = false;
+        this.sim?.alphaTarget(0.3).restart();
+        const p = this.world.toLocal(e.global);
+        n.fx = p.x;
+        n.fy = p.y;
+      });
+      g.on("pointertap", () => {
+        if (!this.dragMoved) this.onNodeClick(n);
+      });
+      g.on("pointerover", () => {
+        this.hoveredId = n.id;
+        this.applyHighlight();
+      });
+      g.on("pointerout", () => {
+        if (this.hoveredId === n.id) {
+          this.hoveredId = null;
+          this.applyHighlight();
+        }
+      });
+      this.nodeLayer.addChild(g);
+      this.nodeGfx.set(n.id, g);
+
+      const label = new Text({
+        text: labelFor(n, encReq),
+        style: { fontFamily: "sans-serif", fontSize: 11, fill: this.theme.text },
+      });
+      label.anchor.set(0.5, 0);
+      label.resolution = 2;
+      this.labelLayer.addChild(label);
+      this.labels.set(n.id, label);
     }
   }
 
-  // Spring
-  for (const e of edges) {
-    const ai = idx.get(e.from);
-    const bi = idx.get(e.to);
-    if (ai == null || bi == null) continue;
-    const dx = sn[bi]!.x - sn[ai]!.x;
-    const dy = sn[bi]!.y - sn[ai]!.y;
-    const d = Math.sqrt(dx * dx + dy * dy) + 0.001;
-    const f = SPRING_K * (d - SPRING_REST) * alpha;
-    sn[ai]!.vx += (dx / d) * f;
-    sn[ai]!.vy += (dy / d) * f;
-    sn[bi]!.vx -= (dx / d) * f;
-    sn[bi]!.vy -= (dy / d) * f;
+  private startSim(cx: number, cy: number): void {
+    this.sim?.stop();
+    this.sim = forceSimulation<SimNode, SimLink>(this.nodes)
+      .force("charge", forceManyBody<SimNode>().strength(-140))
+      .force(
+        "link",
+        forceLink<SimNode, SimLink>(this.links)
+          .id((d) => d.id)
+          .distance(62)
+          .strength(0.5),
+      )
+      .force("center", forceCenter(cx, cy))
+      .force("collide", forceCollide<SimNode>().radius((d) => nodeRadius(d) + 4))
+      .on("tick", this.onTick)
+      .on("end", () => { this.simActive = false; });
+    this.simActive = true;
+    this.sim.alpha(0.9).restart();
   }
 
-  // Gravity
-  for (const s of sn) {
-    s.vx += (CX - s.x) * GRAVITY * alpha;
-    s.vy += (CY - s.y) * GRAVITY * alpha;
+  private readonly onTick = (): void => {
+    this.simActive = true;
+    for (const n of this.nodes) {
+      const g = this.nodeGfx.get(n.id);
+      if (g) g.position.set(n.x, n.y);
+      const t = this.labels.get(n.id);
+      if (t) t.position.set(n.x, n.y + nodeRadius(n) + 2);
+    }
+  };
+
+  // Per-frame animation: ease each node's colour/alpha toward its target and
+  // fade the link highlight, then redraw edges. Idles (early return) once the
+  // hover has settled and the sim is at rest, so it costs nothing when static.
+  private readonly onFrame = (): void => {
+    if (!this.animating && !this.simActive) return;
+    let active = false;
+
+    this.hoverAmt += (this.hoverTarget - this.hoverAmt) * EASE;
+    if (Math.abs(this.hoverTarget - this.hoverAmt) > 0.005) active = true;
+    else this.hoverAmt = this.hoverTarget;
+    if (this.hoverTarget === 0 && this.hoverAmt < 0.01) this.highlightId = null;
+
+    for (const n of this.nodes) {
+      const s = this.anim.get(n.id);
+      if (!s) continue;
+      s.a += (s.ta - s.a) * EASE;
+      s.la += (s.tla - s.la) * EASE;
+      s.col[0] += (s.tcol[0] - s.col[0]) * EASE;
+      s.col[1] += (s.tcol[1] - s.col[1]) * EASE;
+      s.col[2] += (s.tcol[2] - s.col[2]) * EASE;
+      if (
+        Math.abs(s.ta - s.a) > 0.004 || Math.abs(s.tla - s.la) > 0.004 ||
+        Math.abs(s.tcol[0] - s.col[0]) > 1 || Math.abs(s.tcol[1] - s.col[1]) > 1 ||
+        Math.abs(s.tcol[2] - s.col[2]) > 1
+      ) active = true;
+      const g = this.nodeGfx.get(n.id);
+      if (g) { g.alpha = s.a; g.tint = pack(s.col[0], s.col[1], s.col[2]); }
+      const t = this.labels.get(n.id);
+      if (t) t.alpha = s.la;
+    }
+
+    this.drawLinks();
+    this.animating = active;
+  };
+
+  // Redraw all edges. When a node is highlighted, non-incident edges fade out
+  // and incident ones ease toward the gold hover colour — all interpolated by
+  // hoverAmt so the transition is smooth in both directions.
+  private drawLinks(): void {
+    const g = this.linkLayer;
+    g.clear();
+    const amt = this.hoverAmt;
+    const hl = this.highlightId;
+
+    for (const l of this.links) {
+      const s = l.source as SimNode;
+      const t = l.target as SimNode;
+      if (s?.x == null || t?.x == null) continue;
+      if (hl != null && (s.id === hl || t.id === hl)) continue; // painted in pass 2
+      g.moveTo(s.x, s.y).lineTo(t.x, t.y);
+    }
+    g.stroke({ width: 1, color: this.theme.link, alpha: lerp(0.45, 0.06, amt) });
+
+    if (hl == null || amt <= 0.01) return;
+    for (const l of this.links) {
+      const s = l.source as SimNode;
+      const t = l.target as SimNode;
+      if (s?.x == null || t?.x == null) continue;
+      if (s.id !== hl && t.id !== hl) continue;
+      g.moveTo(s.x, s.y).lineTo(t.x, t.y);
+    }
+    g.stroke({
+      width: lerp(1, 1.6, amt),
+      color: lerpColor(this.theme.link, HOVER_COLOR, amt),
+      alpha: lerp(0.45, 0.95, amt),
+    });
   }
 
-  // Integrate
-  for (const s of sn) {
-    if (pinned && s.id === pinned.id) {
-      s.x = pinned.x;
-      s.y = pinned.y;
-      s.vx = 0;
-      s.vy = 0;
-    } else {
-      s.vx *= DAMP;
-      s.vy *= DAMP;
-      s.x = Math.max(PAD, Math.min(WIDTH - PAD, s.x + s.vx));
-      s.y = Math.max(PAD, Math.min(HEIGHT - PAD, s.y + s.vy));
+  // Set animation targets from the current hover. The frame loop eases toward
+  // them. Hovered node → gold, neighbours → theme text colour, rest → dimmed.
+  private applyHighlight(): void {
+    const hov = this.hoveredId;
+    const near = hov != null ? this.neighbors.get(hov) : null;
+    for (const n of this.nodes) {
+      const s = this.anim.get(n.id);
+      if (!s) continue;
+      const base = KIND_COLOR[n.kind] ?? 0x888888;
+      if (hov == null) {
+        s.ta = 1; s.tcol = unpack(base); s.tla = 1;
+      } else if (n.id === hov) {
+        s.ta = 1; s.tcol = unpack(HOVER_COLOR); s.tla = 1;
+      } else if (near?.has(n.id)) {
+        s.ta = 1; s.tcol = unpack(this.theme.text); s.tla = 0.95;
+      } else {
+        s.ta = 0.12; s.tcol = unpack(base); s.tla = 0.08;
+      }
+    }
+    if (hov != null) { this.highlightId = hov; this.hoverTarget = 1; }
+    else this.hoverTarget = 0;
+    this.animating = true;
+  }
+
+  private readonly onBackgroundDown = (e: FederatedPointerEvent): void => {
+    if (e.target !== this.app?.stage) return; // a node started a drag
+    this.panning = true;
+    this.lastPointer = { x: e.global.x, y: e.global.y };
+  };
+
+  private readonly onPointerMove = (e: FederatedPointerEvent): void => {
+    if (this.dragging) {
+      this.dragMoved = true;
+      const p = this.world.toLocal(e.global);
+      this.dragging.fx = p.x;
+      this.dragging.fy = p.y;
+      return;
+    }
+    if (this.panning) {
+      this.world.position.x += e.global.x - this.lastPointer.x;
+      this.world.position.y += e.global.y - this.lastPointer.y;
+      this.lastPointer = { x: e.global.x, y: e.global.y };
+    }
+  };
+
+  private readonly onPointerUp = (): void => {
+    if (this.dragging) {
+      this.dragging.fx = null;
+      this.dragging.fy = null;
+      this.sim?.alphaTarget(0);
+      this.dragging = null;
+    }
+    this.panning = false;
+  };
+
+  private readonly onWheel = (e: WheelEvent): void => {
+    if (!this.app) return;
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    const newScale = Math.max(0.15, Math.min(4, this.scale * factor));
+    const rect = this.app.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const before = this.world.toLocal({ x: mx, y: my });
+    this.world.scale.set(newScale);
+    this.world.position.set(mx - before.x * newScale, my - before.y * newScale);
+    this.scale = newScale;
+  };
+
+  destroy(): void {
+    this.destroyed = true;
+    this.sim?.stop();
+    if (this.app) {
+      this.app.canvas.removeEventListener("wheel", this.onWheel);
+      this.app.destroy(true, { children: true });
+      this.app = null;
     }
   }
 }
 
-function initSim(n: number): SimNode[] {
-  // Deterministic circle seed
-  return Array.from({ length: n }, (_, i) => {
-    const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-    return {
-      id: "",
-      x: CX + Math.cos(angle) * 280,
-      y: CY + Math.sin(angle) * 280,
-      vx: 0,
-      vy: 0,
-    };
-  });
-}
+// ── React component ─────────────────────────────────────────────────────────
 
-// ── Component ──────────────────────────────────────────────────────────────
-
+// eslint-disable-next-line max-lines-per-function -- three useEffect hooks (init, data feed, members load) + filter controls; no meaningful split
 export function GraphView() {
   const notes = useNotesStore((s) => s.all());
   const tickets = useTicketsStore((s) => s.all());
@@ -198,23 +472,10 @@ export function GraphView() {
   const memberList = useMembersStore((s) => s.members);
   const loadMembers = useMembersStore((s) => s.load);
 
-  const [hover, setHover] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [scale, setScale] = useState(1);
-
-  // Render trigger for RAF loop
-  const [, rerender] = useReducer((n: number) => n + 1, 0);
-
-  const svgRef = useRef<SVGSVGElement>(null);
-  const simRef = useRef<SimNode[]>([]);
-  const alphaRef = useRef(1.0);
-  const rafRef = useRef<number | null>(null);
-  const pinnedRef = useRef<{ id: string; x: number; y: number } | null>(null);
-  // pan drag
-  const panDragRef = useRef<{ startX: number; startY: number; ox: number; oy: number } | null>(null);
-  // node drag tracking
-  const nodeDragRef = useRef<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<GraphCanvas | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (membersStatus === "idle") void loadMembers();
@@ -222,231 +483,80 @@ export function GraphView() {
 
   const { nodes, edges, stats } = useMemo(
     () => buildGraph({ notes, tickets, members: memberList, filters }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [notes, tickets, memberList, filters],
   );
 
-  // Re-seed simulation whenever the node list changes.
+  // Spin up the WebGL app once; tear it down on unmount.
   useEffect(() => {
-    const seed = initSim(nodes.length);
-    seed.forEach((s, i) => { s.id = nodes[i]!.id; });
-    simRef.current = seed;
-    alphaRef.current = 1.0;
-  }, [nodes]);
-
-  // Continuous RAF loop.
-  useEffect(() => {
-    function loop() {
-      const alpha = alphaRef.current;
-      if (alpha > 0.003 || pinnedRef.current) {
-        stepSim(simRef.current, edges, Math.min(alpha, 0.3), pinnedRef.current);
-        if (!pinnedRef.current) alphaRef.current *= 0.97;
-        rerender();
-      }
-      rafRef.current = requestAnimationFrame(loop);
-    }
-    rafRef.current = requestAnimationFrame(loop);
-    return () => { if (rafRef.current != null) cancelAnimationFrame(rafRef.current); };
-  }, [edges]);
-
-  // Hover neighbours
-  const hoveredSet = useMemo(() => {
-    if (!hover) return null;
-    const s = new Set<string>([hover]);
-    for (const e of edges) {
-      if (e.from === hover) s.add(e.to);
-      if (e.to === hover) s.add(e.from);
-    }
-    return s;
-  }, [hover, edges]);
-
-  if (notes.length === 0 && tickets.length === 0) {
-    return (
-      <div className="nk-empty nk-empty--center">
-        <p>No notes or tickets to graph yet.</p>
-        <p className="nk-empty-hint">
-          Add a few items and connect them with{" "}
-          <code style={{ fontFamily: "var(--mono-font)" }}>[[wikilinks]]</code>.
-        </p>
-      </div>
-    );
-  }
-
-  // Build position lookup from live sim
-  const posMap = new Map(simRef.current.map((s) => [s.id, { x: s.x, y: s.y }]));
-
-  // Convert client (screen) coords → node-space coords
-  function clientToNode(clientX: number, clientY: number): { x: number; y: number } {
-    const svg = svgRef.current;
-    if (!svg) return { x: clientX, y: clientY };
-    const rect = svg.getBoundingClientRect();
-    // viewBox scale (preserveAspectRatio: meet)
-    const scaleX = WIDTH / rect.width;
-    const scaleY = HEIGHT / rect.height;
-    const vs = Math.max(scaleX, scaleY); // "meet" takes the larger
-    const ox = (rect.width - WIDTH / vs) / 2;
-    const oy = (rect.height - HEIGHT / vs) / 2;
-    const svgX = (clientX - rect.left - ox) * vs;
-    const svgY = (clientY - rect.top - oy) * vs;
-    // Undo the g transform: translate(pan.x + CX*(1-scale), ...) scale(scale)
-    const tx = pan.x + CX * (1 - scale);
-    const ty = pan.y + CY * (1 - scale);
-    return {
-      x: (svgX - tx) / scale,
-      y: (svgY - ty) / scale,
-    };
-  }
-
-  function onSvgMouseDown(e: React.MouseEvent) {
-    if (e.button !== 0) return;
-    // Only pan when not dragging a node
-    panDragRef.current = { startX: e.clientX, startY: e.clientY, ox: pan.x, oy: pan.y };
-  }
-
-  function onSvgMouseMove(e: React.MouseEvent) {
-    if (nodeDragRef.current) {
-      const pos = clientToNode(e.clientX, e.clientY);
-      pinnedRef.current = { id: nodeDragRef.current, ...pos };
-      alphaRef.current = Math.max(alphaRef.current, 0.3);
-      return;
-    }
-    if (!panDragRef.current) return;
-    setPan({
-      x: panDragRef.current.ox + (e.clientX - panDragRef.current.startX),
-      y: panDragRef.current.oy + (e.clientY - panDragRef.current.startY),
+    const el = containerRef.current;
+    if (!el) return;
+    const gc = new GraphCanvas();
+    canvasRef.current = gc;
+    void gc.init(el).then(() => {
+      if (canvasRef.current === gc) setReady(true);
     });
-  }
+    return () => {
+      canvasRef.current = null;
+      gc.destroy();
+    };
+  }, []);
 
-  function onSvgMouseUp() {
-    panDragRef.current = null;
-    nodeDragRef.current = null;
-    pinnedRef.current = null;
-    // Let the sim cool again from current alpha
-    alphaRef.current = Math.max(alphaRef.current, 0.1);
-  }
+  // Feed data whenever the graph or theme changes.
+  useEffect(() => {
+    const gc = canvasRef.current;
+    const el = containerRef.current;
+    if (!gc || !ready || !el) return;
+    const cs = getComputedStyle(el);
+    const theme = {
+      link: resolveColor(cs.getPropertyValue("--muted"), 0x8a8f98),
+      text: resolveColor(cs.getPropertyValue("--text"), 0x333333),
+    };
+    gc.setData(nodes, edges, encryptionRequired, theme, (n) => {
+      if (n.kind === "note" && n.refId) setActiveNote(n.refId);
+    });
+  }, [nodes, edges, encryptionRequired, ready, setActiveNote]);
 
-  function onWheel(e: React.WheelEvent) {
-    e.preventDefault();
-    setScale((s) => Math.max(0.2, Math.min(4, s * (e.deltaY > 0 ? 0.9 : 1.1))));
-  }
-
-  function onNodeMouseDown(e: React.MouseEvent, id: string) {
-    e.stopPropagation(); // prevent pan
-    nodeDragRef.current = id;
-    const pos = clientToNode(e.clientX, e.clientY);
-    pinnedRef.current = { id, ...pos };
-  }
+  const empty = notes.length === 0 && tickets.length === 0;
 
   return (
     <div className="nk-graph">
-      <div className="nk-graph-filters" role="toolbar" aria-label="Filter graph">
-        <FilterChip label="Notes" active={filters.notes} count={stats.notes} color="note"
-          onToggle={() => setFilters((f) => ({ ...f, notes: !f.notes }))} />
-        <FilterChip label="Tickets" active={filters.tickets} count={stats.tickets} color="ticket"
-          onToggle={() => setFilters((f) => ({ ...f, tickets: !f.tickets }))} />
-        <FilterChip label="Projects" active={filters.projects} count={stats.projects} color="project"
-          onToggle={() => setFilters((f) => ({ ...f, projects: !f.projects }))} />
-        <FilterChip label="Members" active={filters.members} count={stats.members} color="member"
-          onToggle={() => setFilters((f) => ({ ...f, members: !f.members }))} />
-      </div>
-
-      <svg
-        ref={svgRef}
-        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-        preserveAspectRatio="xMidYMid meet"
-        onWheel={onWheel}
-        onMouseDown={onSvgMouseDown}
-        onMouseMove={onSvgMouseMove}
-        onMouseUp={onSvgMouseUp}
-        onMouseLeave={onSvgMouseUp}
-        style={{ cursor: nodeDragRef.current ? "grabbing" : panDragRef.current ? "grabbing" : "grab" }}
-      >
-        <g transform={`translate(${pan.x + CX * (1 - scale)},${pan.y + CY * (1 - scale)}) scale(${scale})`}>
-          {edges.map((e, i) => {
-            const ap = posMap.get(e.from);
-            const bp = posMap.get(e.to);
-            if (!ap || !bp) return null;
-            const isConnected = hover && (e.from === hover || e.to === hover);
-            const dimmed = hoveredSet && !isConnected;
-            return (
-              <line
-                key={`e${i}`}
-                className={`nk-graph-edge nk-graph-edge--${e.kind}`}
-                x1={ap.x} y1={ap.y} x2={bp.x} y2={bp.y}
-                style={{
-                  opacity: dimmed ? 0.05 : undefined,
-                  stroke: isConnected ? YELLOW : undefined,
-                  strokeWidth: isConnected ? 1 : undefined,
-                  transition: "stroke 0.25s, opacity 0.25s",
-                }}
-              />
-            );
-          })}
-
-          {nodes.map((n) => {
-            const pos = posMap.get(n.id);
-            if (!pos) return null;
-            const r = nodeRadius(n);
-            const isHovered = hover === n.id;
-            const isNeighbor = hoveredSet ? hoveredSet.has(n.id) : false;
-            const dimmed = hoveredSet && !isNeighbor;
-            const label = labelFor(n, encryptionRequired);
-
-            return (
-              <g
-                key={n.id}
-                transform={`translate(${pos.x},${pos.y})`}
-                onMouseEnter={() => setHover(n.id)}
-                onMouseLeave={() => setHover(null)}
-                onMouseDown={(e) => onNodeMouseDown(e, n.id)}
-                onClick={() => { if (n.kind === "note" && n.refId) setActiveNote(n.refId); }}
-                style={{
-                  cursor: "grab",
-                  opacity: dimmed ? 0.12 : 1,
-                  transition: "opacity 0.25s",
-                }}
-              >
-                <circle
-                  r={isHovered ? r + 2 : r}
-                  style={{ fill: isHovered ? YELLOW : undefined, transition: "fill 0.25s" }}
-                  className={[
-                    "nk-graph-node",
-                    `nk-graph-node--${n.kind}`,
-                    n.degree >= 3 ? "hub" : "",
-                    n.encrypted && !encryptionRequired ? "encrypted" : "",
-                    n.kind === "member" && n.memberKind === "agent" ? "agent" : "",
-                  ].filter(Boolean).join(" ")}
-                />
-                <text
-                  className="nk-graph-label"
-                  y={r + 14}
-                  style={{
-                    fontWeight: isHovered ? 700 : isNeighbor ? 500 : 400,
-                    fill: isHovered ? YELLOW : undefined,
-                  }}
-                >
-                  {label}
-                </text>
-              </g>
-            );
-          })}
-        </g>
-      </svg>
-
-      <div className="nk-graph-legend">
-        <div>
-          <b>{stats.notes}</b> notes · <b>{stats.tickets}</b> tickets ·{" "}
-          <b>{stats.projects}</b> projects · <b>{stats.members}</b> members
+      {!empty && (
+        <div className="nk-graph-filters" role="toolbar" aria-label="Filter graph">
+          <FilterChip label="Notes" active={filters.notes} count={stats.notes} color="note"
+            onToggle={() => setFilters((f) => ({ ...f, notes: !f.notes }))} />
+          <FilterChip label="Tickets" active={filters.tickets} count={stats.tickets} color="ticket"
+            onToggle={() => setFilters((f) => ({ ...f, tickets: !f.tickets }))} />
+          <FilterChip label="Projects" active={filters.projects} count={stats.projects} color="project"
+            onToggle={() => setFilters((f) => ({ ...f, projects: !f.projects }))} />
+          <FilterChip label="Members" active={filters.members} count={stats.members} color="member"
+            onToggle={() => setFilters((f) => ({ ...f, members: !f.members }))} />
         </div>
-        <div style={{ fontSize: 10.5, color: "var(--muted)" }}>
-          Drag node to move · scroll to zoom · drag background to pan
+      )}
+
+      <div className="nk-graph-canvas" ref={containerRef} />
+
+      {empty ? (
+        <div className="nk-empty nk-empty--center nk-graph-empty">
+          <p>No notes or tickets to graph yet.</p>
+          <p className="nk-empty-hint">
+            Add a few items and connect them with{" "}
+            <code style={{ fontFamily: "var(--mono-font)" }}>[[wikilinks]]</code>.
+          </p>
         </div>
-      </div>
+      ) : (
+        <div className="nk-graph-legend">
+          <div>
+            <b>{stats.notes}</b> notes · <b>{stats.tickets}</b> tickets ·{" "}
+            <b>{stats.projects}</b> projects · <b>{stats.members}</b> members
+          </div>
+          <div style={{ fontSize: 10.5, color: "var(--muted)" }}>
+            Drag node to move · scroll to zoom · drag background to pan · click note to open
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-// ── Sub-components ─────────────────────────────────────────────────────────
 
 function FilterChip({
   label, active, count, color, onToggle,
@@ -464,161 +574,4 @@ function FilterChip({
       <span className="nk-graph-chip-count">{count}</span>
     </button>
   );
-}
-
-function nodeRadius(n: GraphNode): number {
-  const base = n.kind === "project" ? 5 : n.kind === "member" ? 4 : 4;
-  return base + Math.sqrt(Math.max(0, n.degree)) * 1.4;
-}
-
-function labelFor(n: GraphNode, encryptionRequired: boolean): string {
-  const lock = n.encrypted && !encryptionRequired ? "🔒 " : "";
-  const agentTag = n.kind === "member" && n.memberKind === "agent" ? "🤖 " : "";
-  const text = n.label.length > 24 ? n.label.slice(0, 23) + "…" : n.label;
-  return `${lock}${agentTag}${text}`;
-}
-
-// ── Graph build (metadata only, no positions) ──────────────────────────────
-
-interface BuildArgs {
-  notes: Note[];
-  tickets: Ticket[];
-  members: { kind: "user" | "agent"; id: string; name: string }[];
-  filters: FilterState;
-}
-
-interface BuildResult {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  stats: { notes: number; tickets: number; projects: number; members: number };
-}
-
-function buildGraph(args: BuildArgs): BuildResult {
-  const { notes, tickets, members, filters } = args;
-
-  const allNodes: GraphNode[] = [];
-  const memberHubs = new Map<string, GraphNode>();
-  const projectHubs = new Map<string, GraphNode>();
-  const edges: GraphEdge[] = [];
-  const degree = new Map<string, number>();
-  const edgeSeen = new Set<string>();
-
-  function bump(id: string) { degree.set(id, (degree.get(id) ?? 0) + 1); }
-  function edge(from: string, to: string, kind: EdgeKind) {
-    // Deduplicate undirected pairs — A↔B and B↔A are the same visual line.
-    const key = (from < to ? from + "\x00" + to : to + "\x00" + from) + "\x00" + kind;
-    if (edgeSeen.has(key)) return;
-    edgeSeen.add(key);
-    edges.push({ from, to, kind });
-    bump(from); bump(to);
-  }
-
-  const noteIdToNodeId = new Map<string, string>();
-  const byTitle = new Map<string, string>();
-  if (filters.notes) {
-    for (const n of notes) {
-      const t = noteTitle(n);
-      const nodeId = `note:${n.id}`;
-      noteIdToNodeId.set(n.id, nodeId);
-      byTitle.set(t.toLowerCase(), nodeId);
-      allNodes.push({ id: nodeId, kind: "note", label: t || "Untitled", degree: 0, refId: n.id, encrypted: !!n.encrypted });
-    }
-  }
-
-  const ticketIdToNodeId = new Map<string, string>();
-  if (filters.tickets) {
-    for (const t of tickets) {
-      const nodeId = `ticket:${t.id}`;
-      ticketIdToNodeId.set(t.id, nodeId);
-      allNodes.push({ id: nodeId, kind: "ticket", label: t.title || "Untitled ticket", degree: 0, refId: t.id, encrypted: !!t.encrypted });
-    }
-  }
-
-  if (filters.notes) {
-    for (const n of notes) {
-      const fromId = noteIdToNodeId.get(n.id);
-      if (!fromId) continue;
-      for (const m of n.body.matchAll(WIKILINK_RE)) {
-        const target = m[1]?.trim().toLowerCase();
-        if (!target) continue;
-        const toId = byTitle.get(target);
-        if (toId && toId !== fromId) edge(fromId, toId, "wikilink");
-      }
-    }
-  }
-
-  if (filters.tickets && filters.notes) {
-    for (const t of tickets) {
-      const fromId = ticketIdToNodeId.get(t.id);
-      if (!fromId) continue;
-      for (const noteId of t.linkedNotes) {
-        const toId = noteIdToNodeId.get(noteId);
-        if (toId) edge(fromId, toId, "linked");
-      }
-    }
-  }
-
-  function ensureMember(ref: string): string | null {
-    const nodeId = memberNodeId(ref);
-    if (!nodeId) return null;
-    if (memberHubs.has(nodeId)) return nodeId;
-    const resolved = resolveAssignee(ref, members);
-    const node: GraphNode = { id: nodeId, kind: "member", label: resolved?.display ?? ref, degree: 0, memberKind: resolved?.kind ?? "legacy" };
-    memberHubs.set(nodeId, node);
-    allNodes.push(node);
-    return nodeId;
-  }
-
-  if (filters.members) {
-    for (const n of notes) {
-      const fromId = noteIdToNodeId.get(n.id);
-      if (!fromId) continue;
-      const creatorRef = readStringField(n.frontmatter?.creator);
-      if (creatorRef) { const mId = ensureMember(creatorRef); if (mId) edge(mId, fromId, "creator"); }
-      for (const coRef of readMemberList(n.frontmatter?.collaborators)) {
-        if (creatorRef && coRef === creatorRef) continue;
-        const mId = ensureMember(coRef);
-        if (mId) edge(mId, fromId, "collaborator");
-      }
-    }
-    for (const t of tickets) {
-      const fromId = ticketIdToNodeId.get(t.id);
-      if (!fromId) continue;
-      if (t.createdBy) { const mId = ensureMember(t.createdBy); if (mId) edge(mId, fromId, "creator"); }
-      if (t.assignee && t.assignee !== t.createdBy) {
-        const mId = ensureMember(t.assignee); if (mId) edge(mId, fromId, "collaborator");
-      }
-    }
-  }
-
-  function ensureProject(name: string): string {
-    const nodeId = `project:${name}`;
-    if (!projectHubs.has(nodeId)) {
-      const node: GraphNode = { id: nodeId, kind: "project", label: name, degree: 0 };
-      projectHubs.set(nodeId, node);
-      allNodes.push(node);
-    }
-    return nodeId;
-  }
-  if (filters.projects) {
-    for (const n of notes) {
-      const fromId = noteIdToNodeId.get(n.id);
-      if (!fromId) continue;
-      const p = projectForNote(n);
-      if (p) edge(ensureProject(p), fromId, "project");
-    }
-  }
-
-  for (const n of allNodes) n.degree = degree.get(n.id) ?? 0;
-
-  return {
-    nodes: allNodes,
-    edges,
-    stats: {
-      notes: allNodes.filter((n) => n.kind === "note").length,
-      tickets: allNodes.filter((n) => n.kind === "ticket").length,
-      projects: projectHubs.size,
-      members: memberHubs.size,
-    },
-  };
 }

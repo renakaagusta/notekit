@@ -61,6 +61,7 @@ const now = () => new Date().toISOString();
 
 export const useNotesStore = create<NotesState>()(
   persist(
+    // eslint-disable-next-line max-lines-per-function -- store factory defines all state methods together
     immer<NotesState>((set, get) => ({
     notes: {},
     folders: [],
@@ -75,6 +76,7 @@ export const useNotesStore = create<NotesState>()(
       });
     },
 
+    // eslint-disable-next-line complexity -- note upsert merges existing+incoming fields requiring multiple conditional branches
     upsert(input) {
       const id = input.id ?? nanoid(12);
       const existing = get().notes[id];
@@ -168,7 +170,8 @@ export const useNotesStore = create<NotesState>()(
 
     remove(id) {
       set((state) => {
-        delete state.notes[id];
+        const { [id]: _, ...rest } = state.notes;
+        state.notes = rest;
         if (state.activeNoteId === id) state.activeNoteId = null;
       });
     },
@@ -259,11 +262,15 @@ export const useNotesStore = create<NotesState>()(
       name: "notekit:notes:__unbound",
       storage: createJSONStorage(() => ({
         getItem: () => null,
-        setItem: () => {},
-        removeItem: () => {},
+        setItem: () => { /* intentional noop */ },
+        removeItem: () => { /* intentional noop */ },
       })),
       partialize: (state) => ({
-        notes: state.notes,
+        // Strip decrypted content — only persist safe structural fields.
+        // body and title are the plaintext payload and must never reach localStorage.
+        notes: Object.fromEntries(
+          Object.entries(state.notes).map(([id, { body: _body, title: _title, ...safe }]) => [id, safe]),
+        ),
         folders: state.folders,
         activeNoteId: state.activeNoteId,
       }),

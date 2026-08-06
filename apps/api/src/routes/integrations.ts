@@ -8,6 +8,8 @@
 import { Hono } from "hono";
 import { env } from "../env";
 import { consumeStartCode } from "../notifications/channels/telegram";
+import { logger } from '../lib/logger'
+import { requireWebhookSecret } from '../middleware/webhook-auth'
 
 export const integrationsRoutes = new Hono();
 
@@ -25,16 +27,8 @@ interface TelegramUpdate {
  * Telegram supports a custom path secret OR an `X-Telegram-Bot-Api-Secret-Token`
  * header. We accept either.
  */
-integrationsRoutes.post("/telegram/webhook", async (c) => {
+integrationsRoutes.post("/telegram/webhook", requireWebhookSecret("TELEGRAM_WEBHOOK_SECRET", { scheme: "telegram" }), async (c) => {
   if (!env.telegram.botToken) return c.json({ error: "not_configured" }, 503);
-  const expected = env.telegram.webhookSecret;
-  if (expected) {
-    const header = c.req.header("x-telegram-bot-api-secret-token");
-    const query = c.req.query("secret");
-    if (header !== expected && query !== expected) {
-      return c.json({ error: "forbidden" }, 403);
-    }
-  }
   const update = (await c.req.json().catch(() => null)) as TelegramUpdate | null;
   if (!update?.message?.text) return c.json({ ok: true });
 
@@ -85,5 +79,5 @@ async function sendBotMessage(chatId: string, text: string): Promise<void> {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ chat_id: chatId, text }),
     },
-  ).catch((err) => console.error("[telegram] sendBotMessage:", err));
+  ).catch((err) => logger.warn("[integrations] telegram message send failed", err));
 }

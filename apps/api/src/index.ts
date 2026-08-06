@@ -1,4 +1,5 @@
 import "./lib/telemetry"; // must be first — initializes OTel SDK before any other import
+import { revokeVaultToken, vaultConfigured } from "./lib/hcvault";
 import { trace, context, SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -121,11 +122,12 @@ const server = serve(
 // Long-poll Telegram for bot replies in dev. In prod, set a webhook instead.
 startTelegramPoller();
 
-// Graceful shutdown — drain in-flight requests then close the PG pool.
+// Graceful shutdown — drain in-flight requests, revoke Vault token, then close the PG pool.
 function shutdown(signal: NodeJS.Signals) {
   logger.info({ signal }, "shutting down");
   server.close(() => {
-    pool.end().finally(() => process.exit(0));
+    const vaultRevoke = vaultConfigured() ? revokeVaultToken() : Promise.resolve();
+    vaultRevoke.finally(() => pool.end().finally(() => process.exit(0)));
   });
   setTimeout(() => {
     logger.warn("forced exit after 10s");

@@ -1,8 +1,11 @@
 import type { Note } from "../types/note";
 
 /** First non-empty line of the body, with leading "# " stripped. Falls back to "Untitled". */
+// eslint-disable-next-line complexity -- handles empty body, code-fenced opening, and plain heading; three distinct cases
 export function noteTitle(note: Pick<Note, "body" | "title">): string {
-  const lines = note.body.split("\n").map((l) => l.trim());
+  // A note may briefly exist without a body (e.g. a freshly-created draft or a
+  // record still syncing) — treat a missing body as empty rather than crashing.
+  const lines = (note.body ?? "").split("\n").map((l) => l.trim());
   const first = lines.findIndex((l) => l.length > 0);
   if (first === -1) return note.title || "Untitled";
   const firstLine = lines[first] ?? "";
@@ -24,7 +27,7 @@ export function noteTitle(note: Pick<Note, "body" | "title">): string {
 
 /** Lines after the title, joined with spaces, truncated for previews. */
 export function notePreview(note: Pick<Note, "body">, max = 80): string {
-  const lines = note.body.split("\n");
+  const lines = (note.body ?? "").split("\n");
   let started = false;
   const after: string[] = [];
   for (const raw of lines) {

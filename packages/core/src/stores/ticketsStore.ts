@@ -30,9 +30,11 @@ const now = () => new Date().toISOString();
 
 export const useTicketsStore = create<TicketsState>()(
   persist(
+    // eslint-disable-next-line max-lines-per-function -- store factory defines all state methods together
     immer<TicketsState>((set, get) => ({
     tickets: {},
 
+    // eslint-disable-next-line complexity -- ticket upsert merges existing+incoming fields requiring multiple conditional branches
     upsert(input) {
       const id = input.id ?? nanoid(12);
       const existing = get().tickets[id];
@@ -105,7 +107,8 @@ export const useTicketsStore = create<TicketsState>()(
 
     remove(id) {
       set((state) => {
-        delete state.tickets[id];
+        const { [id]: _, ...rest } = state.tickets;
+        state.tickets = rest;
       });
     },
 
@@ -131,10 +134,16 @@ export const useTicketsStore = create<TicketsState>()(
       name: "notekit:tickets:__unbound",
       storage: createJSONStorage(() => ({
         getItem: () => null,
-        setItem: () => {},
-        removeItem: () => {},
+        setItem: () => { /* intentional noop */ },
+        removeItem: () => { /* intentional noop */ },
       })),
-      partialize: (state) => ({ tickets: state.tickets }),
+      partialize: (state) => ({
+        // Strip decrypted content — title and body are the sensitive payload
+        // and must never reach localStorage for encrypted tickets.
+        tickets: Object.fromEntries(
+          Object.entries(state.tickets).map(([id, { title: _title, body: _body, ...safe }]) => [id, safe]),
+        ),
+      }),
       version: 1,
       skipHydration: true,
     },

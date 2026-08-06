@@ -13,18 +13,16 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db, schema } from "../db";
-import { env } from "../env";
 import { getCurrentUser } from "../auth/sessions";
 import { parseBody, z } from "../validation";
 import {
-  decodeSignedPayload,
   lookupTransaction,
-  verifySignedPayload,
-  type AppleNotificationPayload,
   type SignedTransactionInfo,
 } from "../iap/apple";
 import { lookupSubscription } from "../iap/google";
 import { recomputePlusForUser } from "../iap/entitlement";
+import { logger } from '../lib/logger'
+import { requireWebhookSecret } from '../middleware/webhook-auth'
 
 export const iapRoutes = new Hono();
 
@@ -69,7 +67,7 @@ iapRoutes.post("/apple/verify", async (c) => {
     await recomputePlusForUser(user.id);
     return c.json({ ok: true, productId: result.info.productId });
   } catch (err) {
-    console.error("[iap:apple:verify]", err);
+    logger.error("[iap] verification failed", err)
     return c.json({ error: "verification_failed" }, 400);
   }
 });
@@ -90,7 +88,7 @@ iapRoutes.post("/google/verify", async (c) => {
     await recomputePlusForUser(user.id);
     return c.json({ ok: true, productId: state.productId });
   } catch (err) {
-    console.error("[iap:google:verify]", err);
+    logger.error("[iap] verification failed", err)
     return c.json({ error: "verification_failed" }, 400);
   }
 });
@@ -99,49 +97,16 @@ iapRoutes.post("/google/verify", async (c) => {
  * POST /iap/apple/webhook
  * S2S Notifications V2: payload is { signedPayload: string } (JWS).
  *
- * We decode, look up which user owns the originalTransactionId, then
- * re-verify via the App Store Server API and recompute entitlement.
- *
- * Replies 200 unconditionally so Apple stops retrying — failures log + drop.
+ * Returns 501 until x5c JWS chain verification is implemented in
+ * iap/apple.ts. Apple retries 5xx with exponential back-off.
+ * Remove this early return once verifySignedPayload is complete.
  */
-iapRoutes.post("/apple/webhook", async (c) => {
-  try {
-    const body = (await c.req.json()) as { signedPayload?: string };
-    if (!body.signedPayload) return c.json({ ok: true });
-    const payload = await verifySignedPayload<AppleNotificationPayload>(
-      body.signedPayload,
-    );
-    const signed = payload.data?.signedTransactionInfo;
-    if (!signed) return c.json({ ok: true });
-    const txn = decodeSignedPayload<SignedTransactionInfo>(signed);
-
-    // Find which user this transaction belongs to.
-    const existing = await db.query.appleIapReceipts.findFirst({
-      where: eq(
-        schema.appleIapReceipts.originalTransactionId,
-        txn.originalTransactionId,
-      ),
-    });
-    if (!existing) {
-      // Unknown originalTransactionId — could be a refund or a transaction
-      // we never saw. Log and drop; client will refresh on next foreground.
-      console.warn(
-        `[iap:apple:webhook] unknown originalTransactionId ${txn.originalTransactionId} (type=${payload.notificationType})`,
-      );
-      return c.json({ ok: true });
-    }
-    const result = await lookupTransaction(txn.transactionId);
-    await upsertAppleReceipt(
-      existing.userId,
-      result.info,
-      result.environment,
-      result.raw,
-    );
-    await recomputePlusForUser(existing.userId);
-  } catch (err) {
-    console.error("[iap:apple:webhook]", err);
-  }
-  return c.json({ ok: true });
+iapRoutes.post("/apple/webhook", requireWebhookSecret("APPLE_WEBHOOK_SECRET", { scheme: "bearer" }), async (c) => {
+  logger.warn("[iap] Apple S2S webhook called but JWS x5c verification is not implemented — returning 501");
+  return c.json(
+    { error: "not_implemented", message: "Apple JWS x5c signature verification is not yet implemented" },
+    501,
+  );
 });
 
 /**
@@ -153,12 +118,7 @@ iapRoutes.post("/apple/webhook", async (c) => {
  * path here — set `GOOGLE_PLAY_PUBSUB_SECRET` and configure Pub/Sub to push
  * to `/iap/google/webhook?secret=...`).
  */
-iapRoutes.post("/google/webhook", async (c) => {
-  if (env.googlePlay.pubsubSecret) {
-    if (c.req.query("secret") !== env.googlePlay.pubsubSecret) {
-      return c.json({ error: "forbidden" }, 403);
-    }
-  }
+iapRoutes.post("/google/webhook", requireWebhookSecret("GOOGLE_PLAY_PUBSUB_SECRET", { scheme: "bearer" }), async (c) => {
   try {
     const body = (await c.req.json()) as {
       message?: { data?: string };
@@ -174,14 +134,13 @@ iapRoutes.post("/google/webhook", async (c) => {
       where: eq(schema.googleIapPurchases.purchaseToken, token),
     });
     if (!existing) {
-      console.warn(`[iap:google:webhook] unknown purchaseToken (${token.slice(0, 12)}…)`);
       return c.json({ ok: true });
     }
     const state = await lookupSubscription(token);
     await upsertGooglePurchase(existing.userId, token, state);
     await recomputePlusForUser(existing.userId);
   } catch (err) {
-    console.error("[iap:google:webhook]", err);
+    logger.warn("[iap] webhook handler error", err)
   }
   return c.json({ ok: true });
 });

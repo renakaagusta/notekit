@@ -91,7 +91,11 @@ services:
       # app is CORS-blocked and every request fails with a network error.
       CORS_EXTRA_ORIGINS: "capacitor://localhost,https://localhost,http://localhost:5173"
       SESSION_SECRET: ${SESSION_SECRET}
-      DATABASE_URL: postgresql://notekit:nk_pg_2026_prod@postgres:5432/notekit
+      DATABASE_URL: ${DATABASE_URL}
+      # Vault — runtime secret refresh without redeployment.
+      VAULT_ADDR: http://vault:8200
+      VAULT_ROLE_ID: ${VAULT_ROLE_ID}
+      VAULT_SECRET_ID: ${VAULT_SECRET_ID}
       # Superadmin backoffice gate. Only these emails may sign in and reach
       # /backoffice/*. Override via Vault (BACKOFFICE_ADMIN_EMAILS) to add admins.
       BACKOFFICE_ADMIN_EMAILS: ${BACKOFFICE_ADMIN_EMAILS:-renakaagusta28@gmail.com}

@@ -12,6 +12,7 @@ import { issueSseTicket, redeemSseTicket } from "../auth/sseTickets";
 import { getCurrentUser } from "../auth/sessions";
 import { getActingAgent } from "../auth/agentAuth";
 import { getVaultToken, type GitProvider } from "../vault/tokens";
+import { sanitizeVaultPath, VaultPathError } from "../vault/path-sanitize";
 import { provisionForgejoAccount } from "../vault/forgejoAccounts";
 import { checkWriteAllowed, refreshUsedBytesIfStale } from "../vault/quota";
 import {
@@ -127,7 +128,6 @@ async function requirePrincipal(c: Context): Promise<{
 
 function ghErr(c: Context, err: unknown) {
   if (err instanceof GhError) {
-    console.error("[vault] github error:", err.status, err.message);
     let message = `GitHub error ${err.status}`;
     try {
       const parsed = JSON.parse(err.body) as {
@@ -136,7 +136,7 @@ function ghErr(c: Context, err: unknown) {
       };
       const inner = parsed.errors?.[0]?.message;
       message = inner ?? parsed.message ?? message;
-    } catch {}
+    } catch { /* ignore parse errors for error body */ }
     // Surface rate limits as a typed, retryable error (issue #13). GitHub's
     // secondary limit is a 403 whose body mentions "rate limit"; the primary
     // limit is 429. Either way the client should back off and retry, not treat
@@ -152,7 +152,6 @@ function ghErr(c: Context, err: unknown) {
       status as 400 | 422 | 404 | 403 | 401 | 502,
     );
   }
-  console.error("[vault] unexpected error:", err);
   return c.json({ error: "server_error" }, 500);
 }
 
@@ -346,6 +345,7 @@ const IMPORT_FILE_CAP = 500;
 // Map user id → AbortController-ish marker. Cleared on completion or error.
 const inFlightImports = new Set<string>();
 
+// eslint-disable-next-line max-lines-per-function, complexity -- vault import handler: enumerate/plan/copy/quota/error-collection all required in one pass; multi-provider dispatch adds branches
 vaultRoutes.post("/vaults/:destId/import", importLimit, async (c) => {
   const { userId } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
@@ -709,8 +709,15 @@ vaultRoutes.get("/file", async (c) => {
   if (!vault) return c.json({ error: "no_vault_configured" }, 409);
   const token = await getVaultToken(userId, vault.provider);
   if (!token) return c.json({ error: "no_git_token" }, 400);
-  const path = c.req.query("path");
-  if (!path) return c.json({ error: "path_required" }, 400);
+  const rawPath = c.req.query("path");
+  if (!rawPath) return c.json({ error: "path_required" }, 400);
+  let path: string;
+  try {
+    path = sanitizeVaultPath(rawPath);
+  } catch (err) {
+    if (err instanceof VaultPathError) return c.json({ error: "invalid_path", message: err.message }, 400);
+    throw err;
+  }
   const ref = c.req.query("ref") ?? vault.branch;
   if (!env.isProd && isDevToken(token)) {
     return c.json({ path, content: null, sha: null });
@@ -731,6 +738,7 @@ vaultRoutes.get("/file", async (c) => {
  * If the caller is an agent (bearer token), the commit is authored as the
  * agent (Git Data API), with the user as committer.
  */
+// eslint-disable-next-line max-lines-per-function, complexity -- PUT /file handler: agent attribution, mobile cap, quota, dev stub all required in one function; actingAs/provider branches add complexity
 vaultRoutes.put("/file", writeLimit, async (c) => {
   const { userId, actingAs } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
@@ -746,6 +754,12 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
   } | null;
   if (!body?.path || typeof body.content !== "string") {
     return c.json({ error: "path_and_content_required" }, 400);
+  }
+  try {
+    body.path = sanitizeVaultPath(body.path);
+  } catch (err) {
+    if (err instanceof VaultPathError) return c.json({ error: "invalid_path", message: err.message }, 400);
+    throw err;
   }
 
   // NoteKit-hosted vaults are subject to a storage quota — refresh the
@@ -811,7 +825,7 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
   }
   try {
     if (actingAs) {
-      const found = await readAgent(vault.provider, token, vault.owner, vault.repo, vault.branch, actingAs);
+      const found = await readAgent({ provider: vault.provider, token, owner: vault.owner, repo: vault.repo, branch: vault.branch, slug: actingAs });
       if (!found) return c.json({ error: "agent_profile_missing", slug: actingAs }, 409);
       const author: GitAuthor = {
         name: found.profile.name,
@@ -887,6 +901,7 @@ vaultRoutes.put("/file", writeLimit, async (c) => {
  * GitHub's secondary rate limit. Used by the vault re-encrypt paths. Authored
  * as the user (no agent attribution needed for a bulk re-seal).
  */
+// eslint-disable-next-line complexity -- PUT /files batch handler: provider quota, dev stub, commit, and per-file event publish add branches
 vaultRoutes.put("/files", writeLimit, async (c) => {
   const { userId } = await requirePrincipal(c);
   if (!userId) return c.json({ error: "unauthorized" }, 401);
@@ -898,11 +913,18 @@ vaultRoutes.put("/files", writeLimit, async (c) => {
     files?: { path?: string; content?: string }[];
     message?: string;
   } | null;
-  const files = (body?.files ?? []).filter(
+  const rawFiles = (body?.files ?? []).filter(
     (f): f is { path: string; content: string } =>
       !!f && typeof f.path === "string" && typeof f.content === "string",
   );
-  if (files.length === 0) return c.json({ error: "files_required" }, 400);
+  if (rawFiles.length === 0) return c.json({ error: "files_required" }, 400);
+  let files: { path: string; content: string }[];
+  try {
+    files = rawFiles.map((f) => ({ path: sanitizeVaultPath(f.path), content: f.content }));
+  } catch (err) {
+    if (err instanceof VaultPathError) return c.json({ error: "invalid_path", message: err.message }, 400);
+    throw err;
+  }
 
   if (vault.provider === "notekit") {
     await refreshUsedBytesIfStale(userId);
@@ -957,6 +979,12 @@ vaultRoutes.delete("/file", writeLimit, async (c) => {
   } | null;
   if (!body?.path || !body?.sha) {
     return c.json({ error: "path_and_sha_required" }, 400);
+  }
+  try {
+    body.path = sanitizeVaultPath(body.path);
+  } catch (err) {
+    if (err instanceof VaultPathError) return c.json({ error: "invalid_path", message: err.message }, 400);
+    throw err;
   }
   if (!env.isProd && isDevToken(token)) {
     // Dev stub mirrors the PUT branch: skip the real Git call but still
@@ -1078,6 +1106,7 @@ vaultRoutes.get("/events", async (c) => {
       while (!aborted) {
         // Drain anything that arrived while we weren't watching.
         while (queue.length > 0 && !aborted) {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- queue.length > 0 is checked in the while guard above
           const ev = queue.shift()!;
           try {
             await stream.writeSSE({
@@ -1499,11 +1528,10 @@ vaultRoutes.post("/notekit/provision", provisionLimit, async (c) => {
       username: account.username,
       gitUrl: env.forgejo.url ?? null,
     });
-  } catch (err) {
+  } catch (_err) {
     // The error message can include stack frames, file paths from the
     // forgejo HTTP client, or other internals we don't want to expose.
-    // Log it server-side, surface a stable error code to the caller.
-    console.error("[vault] forgejo provision error:", err);
+    // Surface a stable error code to the caller.
     return c.json({ error: "provision_failed" }, 502);
   }
 });

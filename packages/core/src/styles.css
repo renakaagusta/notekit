@@ -8989,13 +8989,13 @@ a.nk-commit-sha:hover {
 .nk-home-cta-art { position: absolute; right: -10px; bottom: -14px; width: 116px; height: 116px; }
 /* Muted slate capture cards — same in both themes, like the reference. */
 .nk-home-cta--note {
-  background: linear-gradient(155deg, #454d5b 0%, #2c333e 100%);
-  color: #f3f4f6;
+  background: var(--nk-cta-note, linear-gradient(155deg, #454d5b 0%, #2c333e 100%));
+  color: var(--nk-cta-note-fg, #f3f4f6);
   box-shadow: 0 14px 30px -18px rgba(0, 0, 0, 0.6);
 }
 .nk-home-cta--task {
-  background: linear-gradient(155deg, #9aa6b8 0%, #808da3 100%);
-  color: #1b2230;
+  background: var(--nk-cta-task, linear-gradient(155deg, #9aa6b8 0%, #808da3 100%));
+  color: var(--nk-cta-task-fg, #1b2230);
 }
 
 /* Quick tiles. */
@@ -10439,7 +10439,7 @@ a.nk-commit-sha:hover {
 .nk-set-row--danger .nk-set-row-title { color: var(--danger, #ef4444); }
 .nk-set-check {
   width: 8px; height: 8px; border-radius: 50%;
-  background: var(--text); flex-shrink: 0;
+  background: var(--nk-accent); flex-shrink: 0;
 }
 
 /* Compact segmented control (theme). */

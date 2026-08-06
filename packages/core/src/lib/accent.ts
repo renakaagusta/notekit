@@ -53,16 +53,35 @@ export function applyAccent(): void {
   if (typeof document === "undefined") return;
   const accent = getAccent();
   const color = accent === "mono" ? null : ACCENT_COLORS[accent];
+  const CTA_VARS = [
+    "--nk-accent",
+    "--nk-accent-contrast",
+    "--nk-accent-soft",
+    "--nk-cta-note",
+    "--nk-cta-note-fg",
+    "--nk-cta-task",
+    "--nk-cta-task-fg",
+  ];
   document.querySelectorAll<HTMLElement>(".nk").forEach((root) => {
     if (!color) {
-      root.style.removeProperty("--nk-accent");
-      root.style.removeProperty("--nk-accent-contrast");
-      root.style.removeProperty("--nk-accent-soft");
+      // Fall back to the grayscale defaults (accent) + slate CTAs (in CSS).
+      CTA_VARS.forEach((v) => root.style.removeProperty(v));
       return;
     }
     root.style.setProperty("--nk-accent", color);
     root.style.setProperty("--nk-accent-contrast", "#ffffff");
     root.style.setProperty("--nk-accent-soft", `color-mix(in srgb, ${color} 16%, transparent)`);
+    // Capture CTA cards: "New note" = the solid accent, "New task" = a light tint.
+    root.style.setProperty(
+      "--nk-cta-note",
+      `linear-gradient(155deg, ${color}, color-mix(in srgb, ${color} 76%, #000))`,
+    );
+    root.style.setProperty("--nk-cta-note-fg", "#ffffff");
+    root.style.setProperty(
+      "--nk-cta-task",
+      `linear-gradient(155deg, color-mix(in srgb, ${color} 52%, #fff), color-mix(in srgb, ${color} 74%, #fff))`,
+    );
+    root.style.setProperty("--nk-cta-task-fg", `color-mix(in srgb, ${color} 32%, #000)`);
   });
 }
 

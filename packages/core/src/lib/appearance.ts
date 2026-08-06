@@ -110,6 +110,16 @@ export function applyAppearance(): void {
   const font = UI_FONT_STACKS[getUiFont()];
   const [rs, rm, rl] = RADIUS_SCALE[getRadius()];
   const logo = getLogoStyle();
+  // Base color also goes on <html> so the body / status-bar safe-area (which is
+  // painted outside .nk) picks up the tinted --bg. The [data-base][data-theme]
+  // CSS matches both html and .nk. Font/radius/logo stay on .nk (their vars are
+  // defined there, so an html override would be shadowed).
+  const html = document.documentElement;
+  if (base === "zinc") delete html.dataset.base;
+  else html.dataset.base = base;
+  if (base === "custom") html.style.setProperty("--base-tint", getCustomBase());
+  else html.style.removeProperty("--base-tint");
+
   document.querySelectorAll<HTMLElement>(".nk").forEach((root) => {
     if (base === "zinc") delete root.dataset.base;
     else root.dataset.base = base;

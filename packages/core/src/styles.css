@@ -10711,32 +10711,32 @@ a.nk-commit-sha:hover {
  * default (no data-base attribute → the base [data-theme] tokens above apply).
  * Each block overrides only the neutral ramp; accent + semantic colors are
  * unaffected. Tailwind slate/stone/gray scales. */
-.nk[data-base="slate"][data-theme="dark"] {
+[data-base="slate"][data-theme="dark"] {
   --bg: #020617; --surface: #0f172a; --surface-2: #1e293b; --surface-3: #273449;
   --border: #1e293b; --border-soft: #172033; --border-guide: #334155;
   --text: #e2e8f0; --text-2: #94a3b8; --muted: #64748b;
 }
-.nk[data-base="slate"][data-theme="light"] {
+[data-base="slate"][data-theme="light"] {
   --bg: #f8fafc; --surface: #ffffff; --surface-2: #f1f5f9; --surface-3: #e8eef5;
   --border: #e2e8f0; --border-soft: #eef2f7; --border-guide: #cbd5e1;
   --text: #0f172a; --text-2: #475569; --muted: #94a3b8;
 }
-.nk[data-base="stone"][data-theme="dark"] {
+[data-base="stone"][data-theme="dark"] {
   --bg: #0c0a09; --surface: #1c1917; --surface-2: #292524; --surface-3: #332e2b;
   --border: #292524; --border-soft: #211d1b; --border-guide: #44403c;
   --text: #e7e5e4; --text-2: #a8a29e; --muted: #78716c;
 }
-.nk[data-base="stone"][data-theme="light"] {
+[data-base="stone"][data-theme="light"] {
   --bg: #fafaf9; --surface: #ffffff; --surface-2: #f5f5f4; --surface-3: #eceae8;
   --border: #e7e5e4; --border-soft: #f0efee; --border-guide: #d6d3d1;
   --text: #1c1917; --text-2: #57534e; --muted: #a8a29e;
 }
-.nk[data-base="gray"][data-theme="dark"] {
+[data-base="gray"][data-theme="dark"] {
   --bg: #030712; --surface: #111827; --surface-2: #1f2937; --surface-3: #2a3444;
   --border: #1f2937; --border-soft: #182031; --border-guide: #374151;
   --text: #e5e7eb; --text-2: #9ca3af; --muted: #6b7280;
 }
-.nk[data-base="gray"][data-theme="light"] {
+[data-base="gray"][data-theme="light"] {
   --bg: #f9fafb; --surface: #ffffff; --surface-2: #f3f4f6; --surface-3: #e9ebef;
   --border: #e5e7eb; --border-soft: #eef0f2; --border-guide: #d1d5db;
   --text: #111827; --text-2: #4b5563; --muted: #9ca3af;
@@ -11018,7 +11018,7 @@ a.nk-commit-sha:hover {
 /* Custom base: tint the neutral ramp toward --base-tint (set by appearance.ts),
  * keeping text mostly at the theme default for contrast. Single color-mix per
  * token (iOS-safe). Dark mixes a little tint into dark zinc; light into light. */
-.nk[data-base="custom"][data-theme="dark"] {
+[data-base="custom"][data-theme="dark"] {
   --bg: color-mix(in srgb, var(--base-tint) 10%, #0a0a0b);
   --surface: color-mix(in srgb, var(--base-tint) 10%, #111113);
   --surface-2: color-mix(in srgb, var(--base-tint) 11%, #17171a);
@@ -11030,7 +11030,7 @@ a.nk-commit-sha:hover {
   --text-2: color-mix(in srgb, var(--base-tint) 8%, #a1a1aa);
   --muted: color-mix(in srgb, var(--base-tint) 10%, #6b6b73);
 }
-.nk[data-base="custom"][data-theme="light"] {
+[data-base="custom"][data-theme="light"] {
   --bg: color-mix(in srgb, var(--base-tint) 7%, #fafafa);
   --surface: color-mix(in srgb, var(--base-tint) 4%, #ffffff);
   --surface-2: color-mix(in srgb, var(--base-tint) 9%, #f4f4f5);

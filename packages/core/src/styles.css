@@ -7820,18 +7820,79 @@ a.nk-commit-sha:hover {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .nk-app[data-mobile="true"] .nk-main-hd-actions {
+    display: inline-flex;
+    gap: 2px;
+    align-items: center;
+  }
   .nk-app[data-mobile="true"] .nk-main-hd .nk-iconbtn {
     width: 36px;
     height: 36px;
   }
 
+  /* Mobile appbar for the full-screen surfaces rendered in <main> — Graph,
+     Secrets, Links, Tasks. These have no list/detail split, so <main> IS the
+     screen and its header is the screen-title bar. Mirror .nk-sidebar-hd (the
+     Notes list appbar): a three-slot grid (leading menu | centered title |
+     trailing actions) with a big bold title, so every screen shares one
+     title-bar treatment. The Notes detail pane is deliberately excluded — it
+     keeps its compact back-button + muted crumb, which already reads well. */
+  .nk-app[data-mobile="true"]:not([data-view="notes"]) .nk-main-hd {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    padding: 6px 16px 8px;
+  }
+  .nk-app[data-mobile="true"]:not([data-view="notes"]) .nk-main-menu {
+    justify-self: start;
+  }
+  .nk-app[data-mobile="true"]:not([data-view="notes"]) .nk-crumbs {
+    flex: none;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+  .nk-app[data-mobile="true"]:not([data-view="notes"]) .nk-crumbs .last {
+    font-weight: 600;
+  }
+  .nk-app[data-mobile="true"]:not([data-view="notes"]) .nk-main-hd-actions {
+    justify-self: end;
+  }
+  .nk-app[data-mobile="true"]:not([data-view="notes"]) .nk-main-hd .nk-iconbtn {
+    color: var(--text);
+  }
+  .nk-app[data-mobile="true"]:not([data-view="notes"]) .nk-main-hd .nk-iconbtn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* The Secrets/Links views carry their own <h2> title on desktop. On mobile
+     the appbar above already shows that title, so drop the duplicate and let
+     the remaining controls (Add / rename / delete) sit as a right-aligned
+     action row above the content. */
+  .nk-app[data-mobile="true"] .nk-secrets-hd h2,
+  .nk-app[data-mobile="true"] .nk-links-hd h2 {
+    display: none;
+  }
+  .nk-app[data-mobile="true"] .nk-secrets-hd,
+  .nk-app[data-mobile="true"] .nk-links-hd {
+    justify-content: flex-end;
+  }
+
   /* Editor toolbar pins to the page bottom (no nav below it now),
-     scrolls horizontally if the format buttons overflow. */
+     scrolls horizontally if the format buttons overflow. When the keyboard
+     is up, --nk-keyboard-inset (set from JS in App.tsx) lifts the toolbar to
+     sit right above the keyboard — Apple Notes-style — instead of being
+     buried behind it. max() so it rests on the home-indicator inset when the
+     keyboard is down and rides the keyboard height when it's up (that height
+     already reaches the screen bottom, so the two must not stack). */
   .nk-app[data-mobile="true"] .nk-toolbar {
     position: fixed;
     left: 0;
     right: 0;
-    bottom: env(safe-area-inset-bottom, 0px);
+    bottom: max(env(safe-area-inset-bottom, 0px), var(--nk-keyboard-inset, 0px));
     z-index: 20;
     margin: 0;
     padding: 6px 8px;
@@ -7843,6 +7904,7 @@ a.nk-commit-sha:hover {
     overflow-y: hidden;
     flex-wrap: nowrap;
     scrollbar-width: none;
+    transition: bottom 0.22s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .nk-app[data-mobile="true"] .nk-toolbar::-webkit-scrollbar {
     display: none;
@@ -7850,8 +7912,13 @@ a.nk-commit-sha:hover {
   .nk-app[data-mobile="true"] .nk-toolbar > * {
     flex-shrink: 0;
   }
+  /* Shrink the editor's scroll viewport by the toolbar height plus the
+     keyboard inset. Because .nk-editor (overflow:auto) fills this padded box,
+     a smaller box means ProseMirror's scroll-caret-into-view lands the tapped
+     line above the toolbar+keyboard rather than behind them. */
   .nk-app[data-mobile="true"] .nk-editor-wrap {
-    padding-bottom: 56px;
+    padding-bottom: calc(56px + var(--nk-keyboard-inset, 0px));
+    transition: padding-bottom 0.22s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .nk-app[data-mobile="true"] .nk-editor-wrap .ProseMirror,
   .nk-app[data-mobile="true"] .nk-editor-wrap [contenteditable] {
@@ -8860,23 +8927,6 @@ a.nk-commit-sha:hover {
   margin: 3px 0 0;
 }
 
-.nk-home-search {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 14px;
-  font-size: 15px;
-  color: var(--muted);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  cursor: pointer;
-  text-align: left;
-}
-.nk-home-search:hover { border-color: var(--border-guide); }
-.nk-home-search svg { flex-shrink: 0; }
-
 /* Today agenda — a light "frosted" card that stands out in both themes. */
 .nk-home-today {
   position: relative;
@@ -8991,11 +9041,30 @@ a.nk-commit-sha:hover {
 .nk-home-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nk-home-row-meta { font-size: 12px; color: var(--muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
-/* Home has its own greeting — drop the appbar's divider for a clean top. */
-.nk-app[data-mobile="true"][data-view="home"] .nk-main-hd { border-bottom: 0; }
+/* Home has no appbar on mobile — the greeting IS the top of the page. Lay it
+   out as a row so search sits at the right edge, aligned with the greeting. */
 .nk-app[data-mobile="true"] .nk-home { padding: 18px 18px 132px; }
+.nk-app[data-mobile="true"] .nk-home-greeting {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.nk-app[data-mobile="true"] .nk-home-greeting-text { min-width: 0; }
 .nk-app[data-mobile="true"] .nk-home-greeting h1 { font-size: 30px; }
-.nk-app[data-mobile="true"] .nk-home-search { font-size: 16px; padding: 14px 15px; }
+.nk-app[data-mobile="true"] .nk-home-search-btn {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  /* Nudge down so the icon centers against the greeting line, not the date. */
+  margin-top: 2px;
+}
+.nk-app[data-mobile="true"] .nk-home-search-btn:hover { background: var(--hover); }
+.nk-app[data-mobile="true"] .nk-home-search-btn svg { width: 20px; height: 20px; }
 
 /* ── Mobile bottom tab bar (floating pill) — mounted only on mobile ── */
 .nk-bottomnav {
@@ -10318,7 +10387,7 @@ a.nk-commit-sha:hover {
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 8px 16px 40px;
+  padding: 8px 16px 32px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -10395,3 +10464,72 @@ a.nk-commit-sha:hover {
   color: var(--text);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
 }
+
+/* ── Settings: extras (tab bar, select, toggle, footer, chevron) ────── */
+.nk-set-foot {
+  margin: 6px 6px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.nk-set-chevron { color: var(--muted); flex-shrink: 0; }
+.nk-set-select {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 15px;
+  text-align: right;
+  max-width: 60%;
+  padding-right: 2px;
+  cursor: pointer;
+}
+/* iOS-style toggle switch. */
+.nk-set-toggle {
+  width: 46px;
+  height: 28px;
+  border-radius: 999px;
+  border: 0;
+  background: color-mix(in srgb, var(--text) 20%, transparent);
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.18s ease;
+}
+.nk-set-toggle.is-on { background: #22c55e; }
+.nk-set-toggle-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.18s ease;
+}
+.nk-set-toggle.is-on .nk-set-toggle-knob { transform: translateX(18px); }
+
+/* Bottom tab bar inside the settings page. */
+.nk-set-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  flex-shrink: 0;
+  padding: 8px 8px calc(env(safe-area-inset-bottom) + 8px);
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.nk-set-tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.nk-set-tab span { font-size: 11px; font-weight: 600; }
+.nk-set-tab.is-on { color: var(--text); }

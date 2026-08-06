@@ -377,6 +377,53 @@ export function App({ user, onSignOut }: AppProps = {}) {
     }
   }, [isMobile, view, activeNoteId, draftJournal]);
 
+  // Keyboard inset tracking — lets the mobile editor toolbar ride above the
+  // on-screen keyboard (Apple Notes-style) and gives the editor enough scroll
+  // room that the tapped line lifts above the keyboard instead of hiding
+  // behind it. Capacitor's Keyboard plugin runs with resize:"none" (see
+  // apps/mobile/capacitor.config.ts), so the WebView never resizes and neither
+  // env(keyboard-inset-*) nor visualViewport report the keyboard on native
+  // iOS. The plugin instead fires window `keyboardWillShow`/`keyboardWillHide`
+  // events carrying the height in CSS px, which we mirror onto the
+  // --nk-keyboard-inset custom property the mobile CSS reads. On the mobile
+  // web (PWA / browser) there's no native plugin, so visualViewport is the
+  // source of truth there.
+  useEffect(() => {
+    if (!isMobile) return;
+    const root = document.documentElement;
+    const setInset = (px: number) => {
+      const v = Math.max(0, Math.round(px));
+      root.style.setProperty("--nk-keyboard-inset", `${v}px`);
+      root.toggleAttribute("data-keyboard", v > 0);
+    };
+    const cap = (window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+    const isNative = typeof cap?.isNativePlatform === "function" && cap.isNativePlatform();
+
+    if (isNative) {
+      const onShow = (e: Event) => setInset((e as unknown as { keyboardHeight?: number }).keyboardHeight ?? 0);
+      const onHide = () => setInset(0);
+      window.addEventListener("keyboardWillShow", onShow);
+      window.addEventListener("keyboardWillHide", onHide);
+      return () => {
+        window.removeEventListener("keyboardWillShow", onShow);
+        window.removeEventListener("keyboardWillHide", onHide);
+        setInset(0);
+      };
+    }
+
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => setInset(window.innerHeight - vv.height - vv.offsetTop);
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    onResize();
+    return () => {
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
+      setInset(0);
+    };
+  }, [isMobile]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -616,17 +663,27 @@ export function App({ user, onSignOut }: AppProps = {}) {
   // breadcrumb row on desktop (it still appears on mobile / when collapsed
   // to carry the menu / expand buttons — but without the duplicate title).
   const viewOwnsTitle = view === "secrets" || view === "links" || view === "home";
-  const crumbLabel = viewOwnsTitle
-    ? ""
-    : view === "notes"
+  // The mobile appbar (nk-main-hd) is the screen-title bar for every surface
+  // rendered in <main> — so it always needs a label, even for views that own
+  // their title on desktop. `viewOwnsTitle` still gates whether the *desktop*
+  // header renders at all (below), so populating this here is mobile-only in
+  // effect.
+  const crumbLabel =
+    view === "notes"
       ? draftJournal
         ? draftJournal.date
         : (noteHeading ?? "—")
       : view === "graph"
-          ? "Graph"
-          : (view === "calendar" || view === "tickets")
-            ? "Tasks"
-            : "Calendar";
+        ? "Graph"
+        : view === "calendar" || view === "tickets"
+          ? "Tasks"
+          : view === "secrets"
+            ? "Secrets"
+            : view === "links"
+              ? "Links"
+              : view === "home"
+                ? "Home"
+                : "Calendar";
 
   function exitMobileDetail() {
     setActive(null);
@@ -724,7 +781,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
            * "+" action is duplicated in the sidebar's section header.
            * Mobile keeps the row (it carries the back / menu buttons that
            * make the slide-over shell navigable). */}
-          {(isMobile ||
+          {/* Home has no appbar on mobile — the greeting header (with its own
+           * search) is the top of the page, and the bottom nav's Menu button
+           * opens the drawer. Every other surface keeps the row. */}
+          {((isMobile && view !== "home") ||
             sidebarCollapsed ||
             (!viewOwnsTitle && view !== "notes")) && (
             <header className="nk-main-hd">
@@ -760,30 +820,36 @@ export function App({ user, onSignOut }: AppProps = {}) {
               <div className="nk-crumbs">
                 <span className="last">{crumbLabel}</span>
               </div>
-              {isMobile && mobilePane === "list" && (
-                <button
-                  className="nk-iconbtn"
-                  onClick={() => setSearchOpen(true)}
-                  aria-label="Search"
-                  title="Search"
-                >
-                  <Search size={16} aria-hidden />
-                </button>
-              )}
-              {view === "notes" && (!isMobile || mobilePane === "list") && (
-                <button
-                  className="nk-iconbtn"
-                  title="New note (⌘N)"
-                  onClick={() => {
-                    const folder = activeSettings?.defaultFolder ?? null;
-                    const created = upsert({ title: "Untitled", body: "", folder });
-                    openNoteInLayout(created.id);
-                  }}
-                  aria-label="New note"
-                >
-                  +
-                </button>
-              )}
+              <span className="nk-main-hd-actions">
+                {/* Search in the appbar for content surfaces only. Graph is a
+                 * visualization, not a searchable list — no search there. */}
+                {isMobile &&
+                  view !== "graph" &&
+                  (view === "notes" ? mobilePane === "list" : true) && (
+                  <button
+                    className="nk-iconbtn"
+                    onClick={() => setSearchOpen(true)}
+                    aria-label="Search"
+                    title="Search"
+                  >
+                    <Search size={16} aria-hidden />
+                  </button>
+                )}
+                {view === "notes" && (!isMobile || mobilePane === "list") && (
+                  <button
+                    className="nk-iconbtn"
+                    title="New note (⌘N)"
+                    onClick={() => {
+                      const folder = activeSettings?.defaultFolder ?? null;
+                      const created = upsert({ title: "Untitled", body: "", folder });
+                      openNoteInLayout(created.id);
+                    }}
+                    aria-label="New note"
+                  >
+                    +
+                  </button>
+                )}
+              </span>
             </header>
           )}
           <RecoveryBackupNudge />
@@ -918,6 +984,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
           user={user}
           onSignOut={onSignOut}
           onClose={() => setSettingsOpen(false)}
+          onOpenAgents={() => setAgentsOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
+          onOpenTokens={() => setTokensOpen(true)}
+          onOpenDevices={() => setDevicesOpen(true)}
+          onOpenNotifications={() => setNotificationsOpen(true)}
+          vimMode={vimMode}
+          onToggleVim={() => setVimMode((v) => !v)}
         />
       )}
       {vaultPhase === "needs-pick" && (

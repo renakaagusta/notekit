@@ -3,7 +3,6 @@ import {
   Check,
   FileText,
   GitBranch,
-  Home,
   Link as LinkIcon,
   ListChecks,
   Lock,

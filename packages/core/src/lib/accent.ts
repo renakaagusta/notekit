@@ -46,6 +46,20 @@ export function getAccent(): Accent {
   return "mono";
 }
 
+/** Blend a hex color toward `#000`/`#fff` by `amount` (0..1), returning hex.
+ *  Done in JS (not CSS color-mix) because iOS WKWebView mishandles color-mix
+ *  nested inside a gradient — the whole background then computes invalid and the
+ *  card falls back to transparent. Plain hex gradients work everywhere. */
+function mix(hex: string, toward: "#000000" | "#ffffff", amount: number): string {
+  const h = hex.replace("#", "");
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const t = toward === "#000000" ? 0 : 255;
+  const ch = (c: number) => Math.round(c + (t - c) * amount).toString(16).padStart(2, "0");
+  return `#${ch(r)}${ch(g)}${ch(b)}`;
+}
+
 /** Push the current accent onto the themed `.nk` root(s). "mono" clears the
  *  overrides so they fall back to the grayscale defaults. (The vars default on
  *  `.nk`, so overriding `html` would be shadowed by the `.nk` rule.) */
@@ -68,20 +82,19 @@ export function applyAccent(): void {
       CTA_VARS.forEach((v) => root.style.removeProperty(v));
       return;
     }
+    const noteDeep = mix(color, "#000000", 0.24);
+    const taskLight = mix(color, "#ffffff", 0.5);
+    const taskMid = mix(color, "#ffffff", 0.28);
+    const taskFg = mix(color, "#000000", 0.66);
     root.style.setProperty("--nk-accent", color);
     root.style.setProperty("--nk-accent-contrast", "#ffffff");
     root.style.setProperty("--nk-accent-soft", `color-mix(in srgb, ${color} 16%, transparent)`);
     // Capture CTA cards: "New note" = the solid accent, "New task" = a light tint.
-    root.style.setProperty(
-      "--nk-cta-note",
-      `linear-gradient(155deg, ${color}, color-mix(in srgb, ${color} 76%, #000))`,
-    );
+    // Plain hex gradients (no nested color-mix) for iOS WKWebView compatibility.
+    root.style.setProperty("--nk-cta-note", `linear-gradient(155deg, ${color}, ${noteDeep})`);
     root.style.setProperty("--nk-cta-note-fg", "#ffffff");
-    root.style.setProperty(
-      "--nk-cta-task",
-      `linear-gradient(155deg, color-mix(in srgb, ${color} 52%, #fff), color-mix(in srgb, ${color} 74%, #fff))`,
-    );
-    root.style.setProperty("--nk-cta-task-fg", `color-mix(in srgb, ${color} 32%, #000)`);
+    root.style.setProperty("--nk-cta-task", `linear-gradient(155deg, ${taskLight}, ${taskMid})`);
+    root.style.setProperty("--nk-cta-task-fg", taskFg);
   });
 }
 

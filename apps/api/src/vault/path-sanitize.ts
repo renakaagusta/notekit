@@ -2,9 +2,10 @@
  * Centralized vault path sanitization.
  *
  * All user-supplied file paths that flow into Git operations must pass through
- * sanitizeVaultPath() before use. This prevents path traversal, accidental
- * access to vault internals (.notekit/, .git/), and writes to sensitive files
- * like device keys and the recovery key.
+ * sanitizeVaultPath() before use. This prevents path traversal and accidental
+ * writes to git internals or CI/CD configs. Access-control (which user can
+ * reach which vault) is already enforced by requirePrincipal + resolveVault
+ * in every route, so we don't need to re-block app-internal paths here.
  */
 
 export class VaultPathError extends Error {
@@ -14,23 +15,22 @@ export class VaultPathError extends Error {
   }
 }
 
-// Prefixes that identify valid user-content paths.
+// Prefixes that identify valid user-content paths (includes .notekit/ for
+// E2EE internals: keybox, device records, recovery, shares, etc.).
 const ALLOWED_PREFIXES = [
   "notes/",
   "tickets/",
   "links/",
   "agents/",
   "chats/",
+  ".notekit/",
 ] as const;
 
 // Patterns that are never allowed, even under a valid prefix.
 const BLOCKED_PATTERNS: RegExp[] = [
-  /\.\./,              // path traversal
-  /^\.notekit\//,     // vault internals
-  /^\.git\//,         // git internals
-  /^\.github\//,      // CI/CD files
-  /^devices\//,        // E2EE device keys
-  /^recovery\.json$/, // recovery key
+  /\.\./,          // path traversal
+  /^\.git\//,      // raw git internals (not app data)
+  /^\.github\//,   // CI/CD workflow files
 ];
 
 /**

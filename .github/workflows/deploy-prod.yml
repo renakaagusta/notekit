@@ -90,3 +90,13 @@ jobs:
         run: |
           docker compose -f docker-compose.notekit.yml up -d --no-deps \
             ${{ steps.cfg.outputs.compose_service }}
+
+      # Push the NoteKit dashboard as-code to Grafana (only on the api deploy).
+      # Grafana is host-published on the same server; sync.sh skips if the token is unset.
+      - name: Sync Grafana dashboard
+        if: steps.cfg.outputs.svc == 'api'
+        env:
+          GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+          GRAFANA_URL: http://localhost:3000
+          GRAFANA_FOLDER: NoteKit
+        run: bash observability/grafana/sync.sh

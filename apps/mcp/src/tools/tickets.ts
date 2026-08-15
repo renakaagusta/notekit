@@ -44,6 +44,7 @@ const projectSchema = z
     "Override the active project slug for this call. Implies `scope` defaults to `project`.",
   );
 
+// eslint-disable-next-line max-lines-per-function -- registers multiple MCP tools; each tool handler is a self-contained unit and cannot be extracted without breaking the registration pattern
 export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(
     "tickets_list",
@@ -61,6 +62,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
+    // eslint-disable-next-line complexity -- handler iterates encrypted and plaintext tickets with multiple filter branches
     async ({ status, priority, assignee, limit, scope, project }) => {
       const max = limit ?? 25;
       try {
@@ -151,6 +153,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false },
     },
+    // eslint-disable-next-line complexity -- handler branches on encrypted vs plaintext path plus all optional fields
     async (args) => {
       try {
         const now = new Date().toISOString();
@@ -233,6 +236,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false },
     },
+    // eslint-disable-next-line complexity -- handler branches on encrypted vs plaintext path plus all patchable fields
     async ({ path, body, commitMessage, ...patch }) => {
       try {
         const existing = await nk.vault.readFile(path);

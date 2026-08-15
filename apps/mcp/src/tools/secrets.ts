@@ -31,6 +31,7 @@ function slugify(input: string): string {
     .slice(0, 40);
 }
 
+// eslint-disable-next-line max-lines-per-function -- registers all secret-management MCP tools in one place; splitting would scatter related tool definitions
 export function registerSecretTools(server: McpServer, nk: NoteKitApi): void {
   // Wire the secrets module to use this MCP session's bearer-auth client.
   configureSecretsBackend(secretsBackendFromApi(nk));

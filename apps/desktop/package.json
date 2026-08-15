@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "license": "MIT",
-  "description": "NoteKit desktop app — MIT-licensed Electron wrapper around the @notekit/web build.",
+  "description": "NoteKit desktop app \u2014 MIT-licensed Electron wrapper around the @notekit/web build.",
   "main": "dist/main.js",
   "scripts": {
     "dev": "concurrently -k -n web,electron -c blue,magenta \"pnpm --filter @notekit/web dev\" \"wait-on tcp:5173 && pnpm build:tsc && cross-env NOTEKIT_DEV=1 electron .\"",
@@ -12,7 +12,8 @@
     "build:preload": "esbuild src/preload.ts --bundle --platform=node --target=node20 --external:electron --format=cjs --outfile=dist/preload.js --sourcemap",
     "start": "electron .",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf .turbo dist out"
+    "clean": "rm -rf .turbo dist out",
+    "lint": "eslint ."
   },
   "devDependencies": {
     "@types/node": "^20.12.0",

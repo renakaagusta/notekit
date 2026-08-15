@@ -17,6 +17,8 @@ import { useLayoutStore, tabKey, findLeaf } from "../stores/layoutStore";
 import {
   listAllSecrets,
   listSecretVaults,
+  readCachedSecretsView,
+  cacheSecretsView,
   createSecretVault,
   deleteSecretVault,
   renameSecretVault,
@@ -102,6 +104,21 @@ export function SecretsView({
 
   async function refresh() {
     if (!device || phase !== "ready") return;
+    // Cache-then-network (stale-while-revalidate): paint the last-known list
+    // instantly — offline-capable — then revalidate over the network and swap +
+    // re-cache. The payload is plaintext metadata only (labels + names), never
+    // secret values.
+    let painted = false;
+    try {
+      const cached = await readCachedSecretsView();
+      if (cached) {
+        setVaults(cached.vaults);
+        setAllSecrets(cached.secrets);
+        painted = true;
+      }
+    } catch {
+      /* cache is best-effort */
+    }
     try {
       if (!migrated) {
         await migrateFromBlob(device);
@@ -113,8 +130,11 @@ export function SecretsView({
       ]);
       setVaults(vaultList);
       setAllSecrets(secretList);
+      void cacheSecretsView({ vaults: vaultList, secrets: secretList });
     } catch (e) {
-      setError((e as Error).message);
+      // Offline / fetch failed — keep the cached paint if we have one; only
+      // surface the error when there's nothing on screen.
+      if (!painted) setError((e as Error).message);
     }
   }
 

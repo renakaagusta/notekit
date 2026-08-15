@@ -1,5 +1,5 @@
 import { BlockMath as TiptapBlockMath, InlineMath as TiptapInlineMath } from "@tiptap/extension-mathematics";
-// @ts-ignore — no types shipped
+// @ts-expect-error -- no types shipped for @iktakahiro/markdown-it-katex
 import markdownItKatex from "@iktakahiro/markdown-it-katex";
 
 // Wraps Tiptap's BlockMath/InlineMath with tiptap-markdown storage so

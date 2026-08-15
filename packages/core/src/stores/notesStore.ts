@@ -266,14 +266,31 @@ export const useNotesStore = create<NotesState>()(
         removeItem: () => { /* intentional noop */ },
       })),
       partialize: (state) => ({
-        // Strip decrypted content — only persist safe structural fields.
-        // body and title are the plaintext payload and must never reach localStorage.
+        // Strip decrypted content — body and title are the plaintext payload
+        // and must never reach localStorage. Persist empty-string placeholders
+        // (not `undefined`) so a note rehydrated before its E2EE content
+        // decrypts still satisfies the `Note` shape — consumers that call
+        // `.length`/`.replace`/`.trim` on body/title won't crash the view.
         notes: Object.fromEntries(
-          Object.entries(state.notes).map(([id, { body: _body, title: _title, ...safe }]) => [id, safe]),
+          Object.entries(state.notes).map(([id, { body: _body, title: _title, ...safe }]) => [
+            id,
+            { ...safe, body: "", title: "" },
+          ]),
         ),
         folders: state.folders,
         activeNoteId: state.activeNoteId,
       }),
+      // Backfill body/title on rehydrate: older persisted payloads stripped
+      // these to `undefined`, which crashes consumers that call string methods
+      // on them before decrypt lands. Coerce to "" so the `Note` shape holds.
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<NotesState>;
+        const notes: Record<string, Note> = {};
+        for (const [id, n] of Object.entries(p.notes ?? {})) {
+          notes[id] = { ...n, body: n.body ?? "", title: n.title ?? "" };
+        }
+        return { ...current, ...p, notes };
+      },
       version: 1,
       skipHydration: true,
     },

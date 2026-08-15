@@ -48,6 +48,7 @@ interface MediaViewerProps {
  * this leaks the viewer's IP/referrer to that host. The cache work in #28
  * adds the fetch-and-strip-referrer path on native runtimes.
  */
+// eslint-disable-next-line max-lines-per-function -- React component with platform-specific fetch and rendering logic; splitting would scatter related media handling code
 export function MediaViewer({
   url,
   kind,

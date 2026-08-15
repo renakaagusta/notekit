@@ -64,6 +64,6 @@ try {
   // Surface preload errors to the main process console rather than
   // silently swallowing them. The renderer will just see `window.notekit`
   // as undefined and can fall back to web-only behaviour.
-  // eslint-disable-next-line no-console
+  // eslint-disable-next-line no-console -- preload bridge: no logger module available in this context
   console.error("[notekit-desktop] failed to expose bridge:", err);
 }

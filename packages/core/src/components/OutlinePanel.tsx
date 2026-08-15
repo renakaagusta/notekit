@@ -30,6 +30,7 @@ export function OutlinePanel({ getEditor, onClose }: Props) {
     const editor = getEditor();
     if (!editor) return;
 
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- editor is guaranteed non-null: checked by the guard above before this closure is created
     function update() { setHeadings(extractHeadings(editor!)); }
     update();
     editor.on("update", update);

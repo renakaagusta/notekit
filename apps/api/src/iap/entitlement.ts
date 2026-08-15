@@ -3,6 +3,7 @@ import { db, schema } from "../db";
 
 export type PlusSource = "apple" | "google" | "stripe" | "lifetime";
 
+// eslint-disable-next-line complexity -- evaluates Apple, Google, Stripe, and lifetime plus sources with expiry comparisons; each branch is necessary
 export async function recomputePlusForUser(userId: string): Promise<void> {
   const [latestApple, latestGoogle] = await Promise.all([
     db.query.appleIapReceipts.findFirst({

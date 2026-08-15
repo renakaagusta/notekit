@@ -36,6 +36,7 @@ import { SkeletonDeviceList } from "./Skeleton";
  *    one-tap approval (no phrase); only admitting another *person* asks you
  *    to confirm their emoji safety number.
  */
+// eslint-disable-next-line max-lines-per-function -- React component that handles device listing, member management, revocation flows, and approval UI
 export function DevicesPanel() {
   const phase = useCryptoStore((s) => s.phase);
   const device = useCryptoStore((s) => s.device);
@@ -77,6 +78,7 @@ export function DevicesPanel() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh is async (fetches from vault), setState is called in a callback/async path not synchronously
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [device, phase, showApprove]);
@@ -313,6 +315,7 @@ export function DevicesPanel() {
  * to confirm they checked it out-of-band before committing. That confirmation
  * is the whole trust anchor — without it, `owner` is just a forgeable label.
  */
+// eslint-disable-next-line max-lines-per-function -- React component with multi-step member admission flow (lookup, preview, safety number confirm, admit)
 function AddMember({
   owner,
   onAdmitted,

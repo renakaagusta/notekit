@@ -37,6 +37,7 @@ import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 
+// eslint-disable-next-line max-lines-per-function -- registration function that wires up two tools with their full schemas and handlers
 export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(
     "links_list",
@@ -58,6 +59,7 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
+    // eslint-disable-next-line complexity -- link list handler filters by multiple independent criteria (tag, folder, encryption, dedup)
     async ({ limit, tag, folder, scope, project }) => {
       try {
         const max = limit ?? 50;
@@ -251,6 +253,7 @@ const FOLDER_MAX_LEN = 120;
 function sanitizeFolder(raw: string | undefined): string | null {
   if (raw === undefined || raw === null) return null;
   if (raw.length > FOLDER_MAX_LEN) return null;
+  // eslint-disable-next-line no-control-regex -- intentional control-char matching to reject folder paths with control characters
   if (/[ -]/.test(raw)) return null;
   const trimmed = raw.trim();
   if (!trimmed || trimmed === "/") return null;

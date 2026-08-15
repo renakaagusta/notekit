@@ -15,6 +15,7 @@ interface AddVaultDialogProps {
   onCancel(): void;
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity -- large dialog manages three provider flows (GitHub/GitLab/NoteKit); splitting would require prop-drilling all shared state across sub-components
 export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   // NoteKit-hosted Git (Forgejo) is the recommended default: a new user gets
   // an encrypted vault with no third-party account to connect. GitHub/GitLab
@@ -50,6 +51,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   useEffect(() => {
     if (provider !== "github" || githubLoaded) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot guard to prevent double-fetching when provider tab re-renders
     setGithubLoaded(true);
     setLoadErr(null);
     vaultApi
@@ -75,6 +77,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   useEffect(() => {
     if (provider !== "notekit" || notekitStep !== "idle") return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot guard; including notekitStep in deps would self-cancel the in-flight provision (see comment above)
     setNotekitStep("provisioning");
     setLoadErr(null);
     vaultApi
@@ -144,6 +147,7 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   useEffect(() => {
     if (provider !== "gitlab" || gitlabStep !== "idle") return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot guard; including gitlabStep in deps would self-cancel the in-flight status check (see comment above)
     setGitlabStep("checking");
     setLoadErr(null);
     vaultApi

@@ -44,6 +44,7 @@ function canShareRecovery(): boolean {
   return true;
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity -- recovery sheet manages phrase loading, reveal/hide, copy/download/share actions, and backup confirmation
 export function RecoveryBackupSheet() {
   const open = useRecoveryBackupStore((s) => s.sheetOpen);
   const close = useRecoveryBackupStore((s) => s.closeSheet);
@@ -58,6 +59,7 @@ export function RecoveryBackupSheet() {
 
   useEffect(() => {
     if (!open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting UI state when sheet closes is intentional; no external subscription involved
       setRevealed(false);
       setCopied(false);
       setLoaded(false);

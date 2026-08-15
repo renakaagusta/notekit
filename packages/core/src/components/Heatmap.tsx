@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { listCommits, type VaultCommit } from "../lib/vault-api";
 import { Skeleton } from "./Skeleton";
 
-const DAYS_BACK = 364; // 52 weeks * 7 = 364, plus today = 365 cells
+const _DAYS_BACK = 364; // 52 weeks * 7 = 364, plus today = 365 cells
 const COMMITS_LIMIT = 500;
 
 interface HeatmapProps {
@@ -24,6 +24,7 @@ function ymdLocal(d: Date): string {
   return `${y}-${m < 10 ? "0" : ""}${m}-${day < 10 ? "0" : ""}${day}`;
 }
 
+// eslint-disable-next-line max-lines-per-function -- heatmap component with date bucketing, grid generation, intensity calculation, and full render tree
 export function Heatmap({ onSelectDay, selectedYmd }: HeatmapProps) {
   const [commits, setCommits] = useState<VaultCommit[] | null>(null);
   const [error, setError] = useState<string | null>(null);

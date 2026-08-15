@@ -10,7 +10,7 @@
 
 import { defineCommand } from "citty";
 import http from "node:http";
-import { AddressInfo } from "node:net";
+import type { AddressInfo } from "node:net";
 import { randomBytes } from "node:crypto";
 import open from "open";
 import kleur from "kleur";
@@ -43,7 +43,7 @@ const login = defineCommand({
       try {
         await verifyAndStoreIdentity();
       } catch (err) {
-        await clearToken().catch(() => {});
+        await clearToken().catch(() => { /* intentional noop */ });
         throw err;
       }
       process.stdout.write(kleur.green("Signed in.\n"));

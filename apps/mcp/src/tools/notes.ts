@@ -48,6 +48,7 @@ const projectSchema = z
     "Override the active project slug for this call. Implies `scope` defaults to `project`.",
   );
 
+// eslint-disable-next-line max-lines-per-function -- registers all note MCP tools in one place; splitting would scatter related tool definitions across files
 export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(
     "notes_search",
@@ -72,6 +73,7 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
+    // eslint-disable-next-line complexity -- search handler fans out across prefixes with per-file E2EE branching; cannot be split without losing context
     async ({ query, limit, scope, project }) => {
       const max = limit ?? 10;
       // Cap the candidate read fan-out so an LLM eagerly calling search on
@@ -290,6 +292,7 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false },
     },
+    // eslint-disable-next-line complexity -- update handler branches on E2EE path, encrypted note fields, and frontmatter patch keys; unavoidable without losing context
     async ({ path, body, frontmatterPatch, commitMessage }) => {
       try {
         const existing = await nk.vault.readFile(path);
@@ -300,7 +303,7 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
           if (body !== undefined) note.body = body;
           if (frontmatterPatch) {
             if ("title" in frontmatterPatch) {
-              note.title = frontmatterPatch["title"] == null ? "" : String(frontmatterPatch["title"]);
+              note.title = frontmatterPatch["title"] === null || frontmatterPatch["title"] === undefined ? "" : String(frontmatterPatch["title"]);
             }
             if ("tags" in frontmatterPatch) {
               const t = frontmatterPatch["tags"];
@@ -308,7 +311,7 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
             }
             if ("folder" in frontmatterPatch) {
               const f = frontmatterPatch["folder"];
-              note.folder = f == null ? null : String(f);
+              note.folder = f === null || f === undefined ? null : String(f);
             }
           }
           note.updatedAt = new Date().toISOString();
@@ -324,9 +327,21 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
         const parsed = parseMarkdown(existing.content ?? "");
         const mergedFm: Record<string, unknown> = { ...parsed.frontmatter };
         if (frontmatterPatch) {
+          const keysToRemove = new Set<string>();
           for (const [k, v] of Object.entries(frontmatterPatch)) {
-            if (v === null) delete mergedFm[k];
+            if (v === null) keysToRemove.add(k);
             else mergedFm[k] = v;
+          }
+          if (keysToRemove.size > 0) {
+            const filtered = Object.fromEntries(
+              Object.entries(mergedFm).filter(([k]) => !keysToRemove.has(k)),
+            );
+            // Replace contents of mergedFm in-place (can't reassign const)
+            for (const key of Object.keys(mergedFm)) {
+              // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing old keys before repopulating; keys come from trusted mergedFm object
+              delete mergedFm[key];
+            }
+            Object.assign(mergedFm, filtered);
           }
         }
         mergedFm["updatedAt"] = new Date().toISOString();

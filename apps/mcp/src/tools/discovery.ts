@@ -23,6 +23,7 @@ import { isUnderAnyPrefix, projectOfPath, resolveScope } from "../lib/scope.js";
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 const KIND_VALUES = ["notes", "tickets", "links", "inbox", "all"] as const;
 
+// eslint-disable-next-line max-lines-per-function -- registerDiscoveryTools registers three distinct MCP tools; splitting would require passing server+nk to each helper
 export function registerDiscoveryTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(
     "recent_activity",
@@ -115,37 +116,51 @@ export function registerDiscoveryTools(server: McpServer, nk: NoteKitApi): void 
             caseSensitive ? line.includes(needle) : line.toLowerCase().includes(needle);
         }
 
-        const hits: { path: string; line: number; text: string; kind: string }[] = [];
+        interface Hit { path: string; line: number; text: string; kind: string }
+        const hits: Hit[] = [];
         let encryptedSkipped = 0;
         const seenPaths = new Set<string>();
+
+        async function scanEntry(
+          entry: { path: string; sha: string },
+          prefix: string,
+          surface: string,
+        ): Promise<boolean> {
+          if (!isUnderAnyPrefix(entry.path, [prefix])) return false;
+          if (seenPaths.has(entry.path)) return false;
+          seenPaths.add(entry.path);
+          if (isEncryptedItemPath(entry.path)) {
+            encryptedSkipped++;
+            return false;
+          }
+          if (!entry.path.endsWith(".md")) return false;
+          const file = await nk.vault.readFile(entry.path);
+          for (const [idx, lineText] of (file.content ?? "").split("\n").entries()) {
+            if (matcher(lineText)) {
+              hits.push({
+                path: entry.path,
+                line: idx + 1,
+                text: lineText.length > 200 ? lineText.slice(0, 200) + "…" : lineText,
+                kind: surface,
+              });
+              if (hits.length >= max) return true;
+            }
+          }
+          return false;
+        }
+
+        async function scanPrefix(surface: string, prefix: string): Promise<boolean> {
+          const entries = await listVaultFiles(nk, prefix);
+          for (const entry of entries) {
+            if (await scanEntry(entry, prefix, surface)) return true;
+          }
+          return false;
+        }
+
         outer: for (const surface of surfaces) {
           const resolved = resolveScope(surface, { scope, project, ctx });
           for (const prefix of resolved.readPrefixes) {
-            const entries = await listVaultFiles(nk, prefix);
-            for (const entry of entries) {
-              if (!isUnderAnyPrefix(entry.path, [prefix])) continue;
-              if (seenPaths.has(entry.path)) continue;
-              seenPaths.add(entry.path);
-              if (isEncryptedItemPath(entry.path)) {
-                encryptedSkipped++;
-                continue;
-              }
-              if (!entry.path.endsWith(".md")) continue;
-              const file = await nk.vault.readFile(entry.path);
-              const lines = (file.content ?? "").split("\n");
-              for (let i = 0; i < lines.length; i++) {
-                const line = lines[i]!;
-                if (matcher(line)) {
-                  hits.push({
-                    path: entry.path,
-                    line: i + 1,
-                    text: line.length > 200 ? line.slice(0, 200) + "…" : line,
-                    kind: surface,
-                  });
-                  if (hits.length >= max) break outer;
-                }
-              }
-            }
+            if (await scanPrefix(surface, prefix)) break outer;
           }
         }
         return jsonContent({

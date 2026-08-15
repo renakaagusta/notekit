@@ -22,6 +22,7 @@ import {
   getVaultSettings,
   listVaults,
 } from "../lib/vault-api";
+import type { VaultRef, VaultStatus } from "../lib/vault-api";
 import {
   refresh as refreshSync,
   start as startSync,
@@ -436,7 +437,25 @@ export function App({ user, onSignOut }: AppProps = {}) {
     let cancelled = false;
     (async () => {
       try {
-        const status = await getVaultStatus();
+        let status: VaultStatus;
+        try {
+          status = await getVaultStatus();
+          // Remember the active vault so a later offline cold start can reopen
+          // it from the local caches without hitting /vault/status.
+          if (status.configured && status.vault) {
+            try {
+              localStorage.setItem("nk:last-vault", JSON.stringify(status.vault));
+            } catch {
+              /* ignore */
+            }
+          }
+        } catch (statusErr) {
+          // Offline / server down: reopen the last-known vault so the app boots
+          // from cache. Bail to the error path only if we've never opened one.
+          const cachedVault = readLastVault();
+          if (!cachedVault) throw statusErr;
+          status = { configured: true, hasGithubToken: true, vault: cachedVault };
+        }
         if (cancelled) return;
         // Don't gate on a GitHub token: NoteKit-hosted Git (Forgejo) vaults
         // need none. If there's a configured active vault of ANY provider,
@@ -1201,8 +1220,23 @@ export function App({ user, onSignOut }: AppProps = {}) {
 // (NaNoWriMo targets, blog post lengths), but char count still helps
 // for tweet/caption-length writing. Both, formatted with thin-space
 // thousand separators so a 50,000-word draft doesn't read as "50000".
+/** The last successfully-opened vault, for offline cold-start. */
+function readLastVault(): VaultRef | null {
+  try {
+    const raw = localStorage.getItem("nk:last-vault");
+    if (!raw) return null;
+    const v = JSON.parse(raw) as VaultRef;
+    return v && v.owner && v.repo ? v : null;
+  } catch {
+    return null;
+  }
+}
+
 function noteCounter(body: string): string {
-  const chars = body.length;
+  // body can be undefined for a note hydrated from localStorage before its
+  // E2EE content decrypts (partialize strips body/title). Guard so the counter
+  // renders empty rather than crashing the whole view.
+  const chars = body?.length ?? 0;
   if (chars === 0) return "";
   const words = body.trim().split(/\s+/).filter(Boolean).length;
   const fmt = new Intl.NumberFormat();

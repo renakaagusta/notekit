@@ -167,6 +167,7 @@ function indicatesMissing(text: string): boolean {
   return text.includes("does not exist") || text.includes("doesn't exist");
 }
 
+// eslint-disable-next-line max-params -- mirrors github.ts writeFile signature; all params are required by the shared interface
 export async function writeFile(
   token: string,
   owner: string,
@@ -216,6 +217,7 @@ export async function writeFile(
   return { sha: fetched?.sha ?? "" };
 }
 
+// eslint-disable-next-line max-params -- mirrors github.ts writeFileAs signature; all params are required by the shared interface
 export async function writeFileAs(
   token: string,
   owner: string,
@@ -285,6 +287,7 @@ export async function writeFileAs(
  * case re-seals existing files). `committer` is informational on GitLab and
  * isn't separately settable, so it's ignored.
  */
+// eslint-disable-next-line max-params -- mirrors github.ts commitFiles signature; all params are required by the shared interface
 export async function commitFiles(
   token: string,
   owner: string,
@@ -317,6 +320,7 @@ export async function commitFiles(
   return { commitSha: commit.id };
 }
 
+// eslint-disable-next-line max-params -- mirrors github.ts deleteFile signature; all params are required by the shared interface
 export async function deleteFile(
   token: string,
   owner: string,
@@ -364,11 +368,11 @@ export async function listTree(
     const res = await fetch(url, { headers: headers(token) });
     if (res.status === 404) return out;
     if (!res.ok) throw new GhError(res.status, await res.text());
-    const arr = (await res.json()) as Array<{
+    const arr = (await res.json()) as {
       id: string;
       path: string;
       type: "blob" | "tree";
-    }>;
+    }[];
     for (const e of arr) {
       if (e.type !== "blob") continue;
       out.push({ path: e.path, type: "blob", sha: e.id });
@@ -379,6 +383,7 @@ export async function listTree(
   return out;
 }
 
+// eslint-disable-next-line max-params -- mirrors github.ts listCommits signature; all params are required by the shared interface
 export async function listCommits(
   token: string,
   owner: string,
@@ -397,7 +402,7 @@ export async function listCommits(
   const res = await fetch(url, { headers: headers(token) });
   if (res.status === 404) return [];
   if (!res.ok) throw new GhError(res.status, await res.text());
-  const arr = (await res.json()) as Array<{
+  const arr = (await res.json()) as {
     id: string;
     title: string;
     message: string;
@@ -405,7 +410,7 @@ export async function listCommits(
     author_email: string;
     authored_date: string;
     web_url: string;
-  }>;
+  }[];
   return arr.slice(0, want).map((c) => ({
     sha: c.id,
     message: c.message,
@@ -450,12 +455,12 @@ export async function listCollaborators(
   const url = `${GL}/projects/${projectId(owner, repo)}/members/all?per_page=100`;
   const res = await fetch(url, { headers: headers(token) });
   if (!res.ok) throw new GhError(res.status, await res.text());
-  const arr = (await res.json()) as Array<{
+  const arr = (await res.json()) as {
     username: string;
     avatar_url: string | null;
     web_url: string;
     access_level: number;
-  }>;
+  }[];
   return arr.map((m) => ({
     login: m.username,
     avatarUrl: m.avatar_url,
@@ -470,7 +475,7 @@ async function lookupUserIdByUsername(token: string, username: string): Promise<
     { headers: headers(token) },
   );
   if (!res.ok) throw new GhError(res.status, await res.text());
-  const arr = (await res.json()) as Array<{ id: number; username: string }>;
+  const arr = (await res.json()) as { id: number; username: string }[];
   const match = arr.find((u) => u.username.toLowerCase() === username.toLowerCase());
   return match?.id ?? null;
 }
@@ -483,7 +488,7 @@ export async function addCollaborator(
   permission: CollaboratorPermission,
 ): Promise<{ status: 201 | 204; invitation: GhInvitation | null }> {
   const userId = await lookupUserIdByUsername(token, username);
-  if (userId == null) throw new GhError(404, `user ${username} not found`);
+  if (userId === null) throw new GhError(404, `user ${username} not found`);
 
   const accessLevel = GL_ACCESS_LEVEL[permission] ?? 30;
   const addRes = await fetch(
@@ -518,7 +523,7 @@ export async function removeCollaborator(
   username: string,
 ): Promise<void> {
   const userId = await lookupUserIdByUsername(token, username);
-  if (userId == null) return; // already gone or never existed
+  if (userId === null) return; // already gone or never existed
   const res = await fetch(
     `${GL}/projects/${projectId(owner, repo)}/members/${userId}`,
     { method: "DELETE", headers: headers(token) },

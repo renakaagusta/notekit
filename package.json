@@ -4,6 +4,7 @@
   "private": true,
   "description": "Notes + tickets in your Git repo. OSS, MCP-first.",
   "license": "MIT",
+  "type": "module",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
@@ -12,9 +13,14 @@
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/node": "^20.12.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^17.4.0",
     "turbo": "^2.1.0",
     "typescript": "^5.4.5",
-    "@types/node": "^20.12.0"
+    "typescript-eslint": "^8.57.0"
   },
   "packageManager": "pnpm@9.5.0",
   "engines": {

@@ -23,10 +23,10 @@ export function useMediaQuery(query: string): boolean {
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return;
     const mql = window.matchMedia(query);
+    const onChange = (e: MediaQueryListEvent) => setMatches(e.matches);
     // Resync in case the viewport changed between the useState initializer
     // and the effect (rare but possible during fast device rotation).
-    setMatches(mql.matches);
-    const onChange = (e: MediaQueryListEvent) => setMatches(e.matches);
+    onChange({ matches: mql.matches } as MediaQueryListEvent);
     mql.addEventListener("change", onChange);
     return () => mql.removeEventListener("change", onChange);
   }, [query]);

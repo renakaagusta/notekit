@@ -62,6 +62,10 @@ export const env = {
     }
     return url;
   })(),
+  // Shared Redis on the host (used for the rate limiter). Optional: when unset
+  // — e.g. local dev without Redis — the limiter fails open. Keys are namespaced
+  // with `notekit:` so the shared instance stays collision-free.
+  redisUrl: optional("REDIS_URL"),
   github: {
     clientId: optional("GITHUB_CLIENT_ID"),
     clientSecret: optional("GITHUB_CLIENT_SECRET"),

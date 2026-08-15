@@ -95,33 +95,22 @@ export function parseMarkerFile(file: string): ProjectMarker | null {
   return parseMarkerContent(raw, file);
 }
 
-export function parseMarkerContent(
-  raw: string,
-  source: string | null,
-): ProjectMarker | null {
-  const trimmed = raw.trim();
-  if (!trimmed) return null;
-
-  if (trimmed.startsWith("{")) {
-    try {
-      const obj = JSON.parse(trimmed) as Record<string, unknown>;
-      const project =
-        typeof obj["project"] === "string" ? obj["project"].trim() : "";
-      if (!project) return null;
-      const vault =
-        typeof obj["vault"] === "string" ? obj["vault"].trim() : "";
-      const scope = isScope(obj["scope"]) ? obj["scope"] : undefined;
-      return {
-        project,
-        vault: vault || undefined,
-        scope,
-        source,
-      };
-    } catch {
-      return null;
-    }
+function parseJsonMarker(trimmed: string, source: string | null): ProjectMarker | null {
+  try {
+    const obj = JSON.parse(trimmed) as Record<string, unknown>;
+    const project =
+      typeof obj["project"] === "string" ? obj["project"].trim() : "";
+    if (!project) return null;
+    const vault =
+      typeof obj["vault"] === "string" ? obj["vault"].trim() : "";
+    const scope = isScope(obj["scope"]) ? obj["scope"] : undefined;
+    return { project, vault: vault || undefined, scope, source };
+  } catch {
+    return null;
   }
+}
 
+function parseTextMarker(trimmed: string, source: string | null): ProjectMarker | null {
   const fields: Record<string, string> = {};
   for (const line of trimmed.split(/\r?\n/)) {
     const ln = line.trim();
@@ -133,12 +122,17 @@ export function parseMarkerContent(
   const project = fields["project"];
   if (!project) return null;
   const scope = isScope(fields["scope"]) ? fields["scope"] : undefined;
-  return {
-    project,
-    vault: fields["vault"] || undefined,
-    scope,
-    source,
-  };
+  return { project, vault: fields["vault"] || undefined, scope, source };
+}
+
+export function parseMarkerContent(
+  raw: string,
+  source: string | null,
+): ProjectMarker | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("{")) return parseJsonMarker(trimmed, source);
+  return parseTextMarker(trimmed, source);
 }
 
 function isScope(value: unknown): value is ProjectScope {
@@ -192,7 +186,9 @@ export function ownerRepoFromRemoteUrl(url: string): string | null {
   if (!tail) return null;
   const parts = tail.split("/").filter(Boolean);
   if (parts.length < 2) return null;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- length >= 2 is checked above
   const repo = parts[parts.length - 1]!;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- length >= 2 is checked above
   const owner = parts[parts.length - 2]!;
   return `${owner}/${repo}`;
 }

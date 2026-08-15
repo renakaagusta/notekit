@@ -6,7 +6,7 @@
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import { nanoid } from "nanoid";
-import { getClient, dieWithError } from "../client.js";
+import { dieWithError } from "../client.js";
 import { openEditor } from "../lib/editor.js";
 import { parseFrontmatter, stringifyFrontmatter } from "../lib/frontmatter.js";
 import { getSecretsClient } from "../lib/secrets.js";
@@ -180,6 +180,7 @@ const editCmd = defineCommand({
   args: {
     idOrPath: { type: "positional", description: "Note id or vault path.", required: true },
   },
+  // eslint-disable-next-line complexity -- edit command orchestrates decrypt→edit→re-encrypt→write→index-update in one flow
   async run({ args }) {
     try {
       const nk = await getSecretsClient({ requireAuth: true });

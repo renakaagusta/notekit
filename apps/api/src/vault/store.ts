@@ -90,6 +90,7 @@ export async function createVault(input: CreateVaultInput): Promise<VaultRow> {
   const row = await db.query.vaults.findFirst({
     where: eq(schema.vaults.id, id),
   });
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- row was just inserted with this id; query immediately after insert is guaranteed to find it
   return toApiVault(row!);
 }
 

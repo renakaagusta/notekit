@@ -20,6 +20,7 @@ export const FolderPath = z
   .string()
   .max(120, "folder_too_long")
   .refine((s) => !s.includes("\0"), "folder_contains_nul")
+  // eslint-disable-next-line no-control-regex -- intentional control-char matching to reject paths with ASCII control characters
   .refine((s) => !/[\u0000-\u001f]/.test(s), "folder_contains_control")
   .transform((s) => s.trim())
   .refine((s) => s.length > 0, "folder_empty")
@@ -95,6 +96,7 @@ export const Label = z
   .string()
   .max(80, "label_too_long")
   .transform((s) => s.trim())
+  // eslint-disable-next-line no-control-regex -- intentional control-char matching to reject labels with ASCII control characters
   .refine((s) => !/[\u0000-\u001f]/.test(s), "label_contains_control");
 
 export const LabelNullable = z

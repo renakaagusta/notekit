@@ -5,6 +5,7 @@ import type { EncryptedSkipped, SyncState } from "../types/sync";
 interface SyncStoreState extends SyncState {
   setPhase(phase: SyncState["phase"]): void;
   markSynced(): void;
+  setContentReady(): void;
   setError(error: string | null): void;
   setPending(count: number): void;
   setEncryptedSkipped(counts: EncryptedSkipped): void;
@@ -16,6 +17,7 @@ export const useSyncStore = create<SyncStoreState>()(
   immer((set) => ({
     phase: "idle",
     lastSyncedAt: null,
+    contentReady: false,
     pendingChanges: 0,
     error: null,
     encryptedSkipped: { ...ZERO_SKIPPED },
@@ -28,8 +30,14 @@ export const useSyncStore = create<SyncStoreState>()(
       set((state) => {
         state.phase = "idle";
         state.lastSyncedAt = new Date().toISOString();
+        state.contentReady = true;
         state.pendingChanges = 0;
         state.error = null;
+      });
+    },
+    setContentReady() {
+      set((state) => {
+        state.contentReady = true;
       });
     },
     setError(error) {

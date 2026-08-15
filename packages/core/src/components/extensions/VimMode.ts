@@ -78,6 +78,7 @@ export const VimMode = Extension.create({
     return { enabled: false };
   },
 
+  // eslint-disable-next-line max-lines-per-function -- registers a single ProseMirror plugin with all vim keybindings; splitting would require passing shared state across multiple functions
   addProseMirrorPlugins() {
     if (!this.options.enabled) return [];
 
@@ -102,6 +103,7 @@ export const VimMode = Extension.create({
           };
         },
         props: {
+          // eslint-disable-next-line max-lines-per-function, complexity -- vim normal-mode key dispatch requires a branch per key; each branch is 2-3 lines but there are many keys to cover
           handleKeyDown(view, event) {
             const mode = PLUGIN_KEY.getState(view.state) ?? "insert";
 
@@ -142,6 +144,7 @@ export const VimMode = Extension.create({
               const { to: lineEnd } = currentLineRange(state);
               const tr = state.tr
                 .setMeta(PLUGIN_KEY, "insert" as VimMode)
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- paragraph node is a built-in ProseMirror node type that always exists in Tiptap's schema
                 .insert(lineEnd, state.schema.nodes.paragraph!.create())
                 .setSelection(TextSelection.create(state.tr.doc, lineEnd + 1));
               view.dispatch(tr);
@@ -151,6 +154,7 @@ export const VimMode = Extension.create({
               const { from: lineStart } = currentLineRange(state);
               const tr = state.tr
                 .setMeta(PLUGIN_KEY, "insert" as VimMode)
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- paragraph node is a built-in ProseMirror node type that always exists in Tiptap's schema
                 .insert(lineStart - 1, state.schema.nodes.paragraph!.create())
                 .setSelection(TextSelection.create(state.tr.doc, lineStart - 1));
               view.dispatch(tr);

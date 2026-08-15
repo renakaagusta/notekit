@@ -109,6 +109,7 @@ function resolveColor(raw: string, fallback: number): number {
 interface Theme {
   link: number;
   text: number;
+  accent: number;
 }
 
 // ── PixiJS + d3-force controller ────────────────────────────────────────────
@@ -126,7 +127,15 @@ class GraphCanvas {
   private readonly nodeGfx = new Map<string, Graphics>();
   private readonly labels = new Map<string, Text>();
   private scale = 1;
-  private theme: Theme = { link: 0x8a8f98, text: 0x333333 };
+  private theme: Theme = { link: 0x8a8f98, text: 0x333333, accent: 0xf5c542 };
+
+  // Notes — the dominant node kind — follow the chosen theme accent so the
+  // graph matches the rest of the app; other kinds keep their semantic hue so
+  // the legend stays meaningful. Falls back to KIND_COLOR (gold for notes) when
+  // no accent is set (monochrome default).
+  private nodeColor(kind: NodeKind): number {
+    return kind === "note" ? this.theme.accent : (KIND_COLOR[kind] ?? 0x888888);
+  }
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- default no-op; overwritten in setData()
   private onNodeClick: (n: SimNode) => void = () => {};
   private destroyed = false;
@@ -134,6 +143,11 @@ class GraphCanvas {
   private dragMoved = false;
   private panning = false;
   private lastPointer = { x: 0, y: 0 };
+  // Two-finger pinch state (mobile). While pinching we suppress the single-
+  // pointer pan/drag so the gesture only zooms + pans as a unit.
+  private pinching = false;
+  private pinchDist = 0;
+  private pinchMid = { x: 0, y: 0 };
   // Hover highlight: neighbours[id] = the node's own id plus every node one hop
   // away. Used to dim everything else and light up incident links, Obsidian-style.
   private readonly neighbors = new Map<string, Set<string>>();
@@ -180,6 +194,13 @@ class GraphCanvas {
     app.stage.on("pointerup", this.onPointerUp);
     app.stage.on("pointerupoutside", this.onPointerUp);
     app.canvas.addEventListener("wheel", this.onWheel, { passive: false });
+    // Two-finger pinch zoom on touch devices. touch-action:none stops the
+    // browser from hijacking the gesture as a page zoom/scroll first.
+    app.canvas.style.touchAction = "none";
+    app.canvas.addEventListener("touchstart", this.onTouchStart, { passive: false });
+    app.canvas.addEventListener("touchmove", this.onTouchMove, { passive: false });
+    app.canvas.addEventListener("touchend", this.onTouchEnd);
+    app.canvas.addEventListener("touchcancel", this.onTouchEnd);
 
     // Permanent render loop for eased hover/link animation. Cheap: it early-
     // returns whenever nothing is animating and the sim is at rest.
@@ -232,7 +253,7 @@ class GraphCanvas {
 
     for (const n of this.nodes) {
       const r = nodeRadius(n);
-      const baseCol = KIND_COLOR[n.kind] ?? 0x888888;
+      const baseCol = this.nodeColor(n.kind);
       this.anim.set(n.id, {
         a: 1, ta: 1,
         col: unpack(baseCol), tcol: unpack(baseCol),
@@ -244,7 +265,7 @@ class GraphCanvas {
       // re-drawing geometry.
       g.circle(0, 0, r).fill({ color: 0xffffff, alpha: 0.95 });
       if (n.degree >= 3) g.stroke({ width: 1.5, color: 0xffffff, alpha: 0.25 });
-      g.tint = KIND_COLOR[n.kind] ?? 0x888888;
+      g.tint = this.nodeColor(n.kind);
       g.eventMode = "static";
       g.cursor = "pointer";
       g.on("pointerdown", (e: FederatedPointerEvent) => {
@@ -350,6 +371,7 @@ class GraphCanvas {
   // Redraw all edges. When a node is highlighted, non-incident edges fade out
   // and incident ones ease toward the gold hover colour — all interpolated by
   // hoverAmt so the transition is smooth in both directions.
+  // eslint-disable-next-line complexity -- per-edge draw branches on hover/highlight/fade state; splitting would just scatter the interpolation
   private drawLinks(): void {
     const g = this.linkLayer;
     g.clear();
@@ -388,7 +410,7 @@ class GraphCanvas {
     for (const n of this.nodes) {
       const s = this.anim.get(n.id);
       if (!s) continue;
-      const base = KIND_COLOR[n.kind] ?? 0x888888;
+      const base = this.nodeColor(n.kind);
       if (hov == null) {
         s.ta = 1; s.tcol = unpack(base); s.tla = 1;
       } else if (n.id === hov) {
@@ -405,12 +427,14 @@ class GraphCanvas {
   }
 
   private readonly onBackgroundDown = (e: FederatedPointerEvent): void => {
+    if (this.pinching) return; // a two-finger pinch owns the gesture
     if (e.target !== this.app?.stage) return; // a node started a drag
     this.panning = true;
     this.lastPointer = { x: e.global.x, y: e.global.y };
   };
 
   private readonly onPointerMove = (e: FederatedPointerEvent): void => {
+    if (this.pinching) return;
     if (this.dragging) {
       this.dragMoved = true;
       const p = this.world.toLocal(e.global);
@@ -449,11 +473,66 @@ class GraphCanvas {
     this.scale = newScale;
   };
 
+  private readonly onTouchStart = (e: TouchEvent): void => {
+    if (e.touches.length !== 2 || !this.app) return;
+    e.preventDefault();
+    this.pinching = true;
+    // Cancel any single-finger pan / node drag started by the first touch.
+    this.panning = false;
+    if (this.dragging) {
+      this.dragging.fx = null;
+      this.dragging.fy = null;
+      this.sim?.alphaTarget(0);
+      this.dragging = null;
+    }
+    const a = e.touches[0];
+    const b = e.touches[1];
+    if (!a || !b) return;
+    const rect = this.app.canvas.getBoundingClientRect();
+    this.pinchDist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    this.pinchMid = {
+      x: (a.clientX + b.clientX) / 2 - rect.left,
+      y: (a.clientY + b.clientY) / 2 - rect.top,
+    };
+  };
+
+  private readonly onTouchMove = (e: TouchEvent): void => {
+    if (!this.pinching || e.touches.length !== 2 || !this.app) return;
+    e.preventDefault();
+    const a = e.touches[0];
+    const b = e.touches[1];
+    if (!a || !b) return;
+    const rect = this.app.canvas.getBoundingClientRect();
+    const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const mx = (a.clientX + b.clientX) / 2 - rect.left;
+    const my = (a.clientY + b.clientY) / 2 - rect.top;
+    // Zoom by the change in finger spread, anchored on the pinch midpoint…
+    const factor = this.pinchDist > 0 ? dist / this.pinchDist : 1;
+    const newScale = Math.max(0.15, Math.min(4, this.scale * factor));
+    const before = this.world.toLocal({ x: mx, y: my });
+    this.world.scale.set(newScale);
+    this.world.position.set(mx - before.x * newScale, my - before.y * newScale);
+    // …and pan by the midpoint drift so two fingers also drag the graph.
+    this.world.position.x += mx - this.pinchMid.x;
+    this.world.position.y += my - this.pinchMid.y;
+    this.scale = newScale;
+    this.pinchDist = dist;
+    this.pinchMid = { x: mx, y: my };
+  };
+
+  private readonly onTouchEnd = (e: TouchEvent): void => {
+    if (e.touches.length < 2) this.pinching = false;
+  };
+
   destroy(): void {
     this.destroyed = true;
     this.sim?.stop();
     if (this.app) {
       this.app.canvas.removeEventListener("wheel", this.onWheel);
+      this.app.canvas.removeEventListener("touchstart", this.onTouchStart);
+      this.app.canvas.removeEventListener("touchmove", this.onTouchMove);
+      this.app.canvas.removeEventListener("touchend", this.onTouchEnd);
+      this.app.canvas.removeEventListener("touchcancel", this.onTouchEnd);
       this.app.destroy(true, { children: true });
       this.app = null;
     }
@@ -510,6 +589,7 @@ export function GraphView() {
     const theme = {
       link: resolveColor(cs.getPropertyValue("--muted"), 0x8a8f98),
       text: resolveColor(cs.getPropertyValue("--text"), 0x333333),
+      accent: resolveColor(cs.getPropertyValue("--nk-accent"), 0xf5c542),
     };
     gc.setData(nodes, edges, encryptionRequired, theme, (n) => {
       if (n.kind === "note" && n.refId) setActiveNote(n.refId);

@@ -57,7 +57,7 @@ export function publishVaultEvent(vaultId: string, event: VaultEvent): void {
     try {
       listener(event);
     } catch (err) {
-      console.error("[vault-events] listener threw:", err);
+      logger.error("[vault-events] SSE listener error", err)
     }
   }
 }

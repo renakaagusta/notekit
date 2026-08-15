@@ -23,13 +23,14 @@ export function parseSubtasks(body: string): Subtask[] {
   const out: Subtask[] = [];
   const lines = body.split("\n");
   for (let i = 0; i < lines.length; i++) {
-    const m = lines[i]!.match(CHECKBOX_RE);
+    const lineStr = lines[i] ?? "";
+    const m = lineStr.match(CHECKBOX_RE);
     if (!m) continue;
     const [, , , box, text] = m;
     out.push({
       line: i,
       checked: box !== " ",
-      text: text!.trim(),
+      text: (text ?? "").trim(),
     });
   }
   return out;
@@ -76,7 +77,7 @@ export function appendSubtask(body: string, text: string): string {
   // Find the last checkbox line.
   let lastCheckbox = -1;
   for (let i = lines.length - 1; i >= 0; i--) {
-    if (CHECKBOX_RE.test(lines[i]!)) {
+    if (CHECKBOX_RE.test(lines[i] ?? "")) {
       lastCheckbox = i;
       break;
     }

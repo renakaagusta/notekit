@@ -98,12 +98,19 @@ describe("notes E2EE round-trip", () => {
       identity,
     );
     expect(restored).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.id).toBe(original.id);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.title).toBe(original.title);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.body).toBe(original.body);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.tags).toEqual(original.tags);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.folder).toBe(original.folder);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.createdAt).toBe(original.createdAt);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.updatedAt).toBe(original.updatedAt);
   });
 
@@ -133,16 +140,25 @@ describe("tickets E2EE round-trip", () => {
       identity,
     );
     expect(restored).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.title).toBe(original.title);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.body).toBe(original.body);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.assignee).toBe(original.assignee);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.labels).toEqual(original.labels);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.linkedNotes).toEqual(original.linkedNotes);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.createdBy).toBe(original.createdBy);
     // Plaintext metadata must round-trip too — the board reads it
     // straight out of the public frontmatter without unlock.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.status).toBe(original.status);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.priority).toBe(original.priority);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.dueDate).toBe(original.dueDate);
   });
 
@@ -172,12 +188,19 @@ describe("links E2EE round-trip", () => {
       identity,
     );
     expect(restored).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.title).toBe(original.title);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.url).toBe(original.url);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.description).toBe(original.description);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.platform).toBe(original.platform);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.tags).toEqual(original.tags);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.folder).toBe(original.folder);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
     expect(restored!.createdAt).toBe(original.createdAt);
   });
 

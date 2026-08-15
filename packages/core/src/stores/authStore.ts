@@ -36,7 +36,10 @@ export const useAuthStore = create<AuthState>()(
     {
       name: "notekit:auth",
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ remote: state.remote }),
+      // Persist the user profile (not a secret — it's the user's own account
+      // info) so a cold start can render the app from the last-known session
+      // and work offline, revalidating against /auth/me when the network is up.
+      partialize: (state) => ({ user: state.user, remote: state.remote }),
       version: 1,
     },
   ),

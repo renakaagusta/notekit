@@ -5,6 +5,7 @@
  */
 import { env } from "../env";
 import { consumeStartCode } from "./channels/telegram";
+import { logger } from '../lib/logger'
 
 interface TgUpdate {
   update_id: number;
@@ -20,7 +21,6 @@ let lastUpdateId = 0;
 export function startTelegramPoller(): void {
   if (env.isProd) return;
   if (!env.telegram.botToken) return;
-  console.log("[telegram] starting long-poll worker (dev mode)");
   void pollLoop();
 }
 
@@ -47,7 +47,7 @@ async function pollLoop(): Promise<void> {
         await handleUpdate(u);
       }
     } catch (err) {
-      console.error("[telegram] poll error:", err);
+      logger.error("[telegram-poll] poll error", err)
       await sleep(5000);
     }
   }

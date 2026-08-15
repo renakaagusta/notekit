@@ -1,7 +1,7 @@
 import type { Pool, PoolClient } from "pg";
 import { nanoid } from "nanoid";
 
-type Migration = { id: string; up: (client: PoolClient) => Promise<void> };
+interface Migration { id: string; up: (client: PoolClient) => Promise<void> }
 
 async function hasColumn(client: PoolClient, table: string, column: string): Promise<boolean> {
   const res = await client.query(
@@ -14,6 +14,7 @@ async function hasColumn(client: PoolClient, table: string, column: string): Pro
 const MIGRATIONS: Migration[] = [
   {
     id: "000_initial_schema",
+    // eslint-disable-next-line max-lines-per-function -- initial schema creates all tables in one migration; splitting would obscure schema history
     up: async (client) => {
       await client.query(`
         CREATE TABLE IF NOT EXISTS users (
@@ -231,7 +232,6 @@ const MIGRATIONS: Migration[] = [
           );
         }
       }
-      console.log(`[db] migration 002: backfilled active_vault_id for ${rows.length} legacy row(s)`);
     },
   },
   {
@@ -446,7 +446,6 @@ export async function runMigrations(pool: Pool): Promise<void> {
           Date.now(),
         ]);
         await client.query("COMMIT");
-        console.log(`[db] migration applied: ${m.id}`);
       } catch (err) {
         await client.query("ROLLBACK");
         throw err;

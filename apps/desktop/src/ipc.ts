@@ -79,26 +79,26 @@ export interface IpcContract {
   };
   [IPC_CHANNELS.KeychainSet]: {
     payload: KeychainSetPayload;
-    result: void;
+    result: undefined;
   };
   [IPC_CHANNELS.KeychainDelete]: {
     payload: KeychainDeletePayload;
     result: boolean;
   };
   [IPC_CHANNELS.AppGetVersion]: {
-    payload: void;
+    payload: undefined;
     result: string;
   };
   [IPC_CHANNELS.AppOpenExternal]: {
     payload: AppOpenExternalPayload;
-    result: void;
+    result: undefined;
   };
   [IPC_CHANNELS.AppCapturePage]: {
     payload: AppCapturePagePayload;
     result: string | null;
   };
   [IPC_CHANNELS.UpdaterCheck]: {
-    payload: void;
+    payload: undefined;
     result: UpdaterCheckResult;
   };
   [IPC_CHANNELS.AuthStartSignIn]: {

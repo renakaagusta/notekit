@@ -139,11 +139,26 @@ export const useTicketsStore = create<TicketsState>()(
       })),
       partialize: (state) => ({
         // Strip decrypted content — title and body are the sensitive payload
-        // and must never reach localStorage for encrypted tickets.
+        // and must never reach localStorage for encrypted tickets. Persist
+        // empty-string placeholders (not `undefined`) so a ticket rehydrated
+        // before its E2EE content decrypts still satisfies the `Ticket` shape.
         tickets: Object.fromEntries(
-          Object.entries(state.tickets).map(([id, { title: _title, body: _body, ...safe }]) => [id, safe]),
+          Object.entries(state.tickets).map(([id, { title: _title, body: _body, ...safe }]) => [
+            id,
+            { ...safe, title: "", body: "" },
+          ]),
         ),
       }),
+      // Backfill title/body on rehydrate for older persisted payloads that
+      // stripped them to `undefined` (see notesStore for rationale).
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<TicketsState>;
+        const tickets: Record<string, Ticket> = {};
+        for (const [id, t] of Object.entries(p.tickets ?? {})) {
+          tickets[id] = { ...t, title: t.title ?? "", body: t.body ?? "" };
+        }
+        return { ...current, ...p, tickets };
+      },
       version: 1,
       skipHydration: true,
     },

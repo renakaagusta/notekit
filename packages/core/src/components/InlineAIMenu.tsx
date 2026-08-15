@@ -28,7 +28,7 @@ interface Props {
   onClose(): void;
 }
 
-type Preset = { id: string; label: string; build(text: string): string; append?: boolean };
+interface Preset { id: string; label: string; build(text: string): string; append?: boolean }
 
 const PRESETS: Preset[] = [
   {
@@ -62,7 +62,8 @@ const SYSTEM =
   "Kamu editor teks. Balas HANYA dengan teks hasil yang diminta — tanpa basa-basi, " +
   "tanpa tanda kutip pembungkus, tanpa penjelasan.";
 
-export function InlineAIMenu({ editor, device, model, sel, onClose }: Props) {
+// eslint-disable-next-line max-lines-per-function -- large React component with presets, streaming, and portal rendering
+export function InlineAIMenu({ editor, device, model: _model, sel, onClose }: Props) {
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +82,7 @@ export function InlineAIMenu({ editor, device, model, sel, onClose }: Props) {
         if (cancelled) return;
         setAgent(r.agents.find((a) => a.slug === selectedAgentSlug) ?? r.agents[0] ?? null);
       })
-      .catch(() => {});
+      .catch(() => { /* intentional noop */ });
     return () => {
       cancelled = true;
     };

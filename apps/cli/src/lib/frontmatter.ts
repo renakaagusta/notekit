@@ -124,7 +124,7 @@ function formatInlineArrayItem(value: unknown): string {
 
 function formatStringValue(s: string): string {
   // Quote when the string contains characters that would confuse the parser.
-  if (/[:,\[\]#]/.test(s) || s.trim() !== s || s.length === 0) {
+  if (/[:,[\]#]/.test(s) || s.trim() !== s || s.length === 0) {
     return `"${s.replace(/"/g, '\\"')}"`;
   }
   return s;

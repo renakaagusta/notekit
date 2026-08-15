@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowDownAZ,
   ArrowUpDown,
+  Check,
   ChevronRight,
   ChevronsDownUp,
   FilePlus,
@@ -10,17 +12,42 @@ import {
   FolderPlus,
   Lock,
   MoreHorizontal,
-  PanelLeftClose,
 } from "lucide-react";
 import { useNotesStore } from "../stores/notesStore";
 import { useCryptoStore } from "../stores/cryptoStore";
+import { useSyncStore } from "../stores/syncStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { useLayoutStore } from "../stores/layoutStore";
+import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
 import { noteTitle, notePreview } from "../lib/note-display";
 import { journalYMDFromPath } from "../lib/journal";
 import type { Note } from "../types/note";
 
-type SortMode = "modified" | "alpha-asc" | "alpha-desc";
+type SortMode =
+  | "alpha-asc"
+  | "alpha-desc"
+  | "modified-desc"
+  | "modified-asc"
+  | "created-desc"
+  | "created-asc";
+
+const DEFAULT_SORT: SortMode = "modified-desc";
+
+/** Sort options, grouped for the dropdown (a divider between groups). */
+const SORT_GROUPS: { mode: SortMode; label: string }[][] = [
+  [
+    { mode: "alpha-asc", label: "File name (A to Z)" },
+    { mode: "alpha-desc", label: "File name (Z to A)" },
+  ],
+  [
+    { mode: "modified-desc", label: "Modified time (new to old)" },
+    { mode: "modified-asc", label: "Modified time (old to new)" },
+  ],
+  [
+    { mode: "created-desc", label: "Created time (new to old)" },
+    { mode: "created-asc", label: "Created time (old to new)" },
+  ],
+];
 
 interface FolderNode {
   name: string;
@@ -62,15 +89,31 @@ function buildTree(notes: Note[], extraFolders: string[], sort: SortMode): Folde
   }
 
   const applySort = (node: FolderNode) => {
-    if (sort === "alpha-desc") {
-      node.children.sort((a, b) => b.name.localeCompare(a.name));
-      node.notes.sort((a, b) => b.path.localeCompare(a.path));
-    } else if (sort === "alpha-asc") {
-      node.children.sort((a, b) => a.name.localeCompare(b.name));
-      node.notes.sort((a, b) => a.path.localeCompare(b.path));
-    } else {
-      node.children.sort((a, b) => a.name.localeCompare(b.name));
-      node.notes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    // Folders sort by name (descending only under "Z to A"); time sorts leave
+    // folders A→Z since a folder has no single timestamp.
+    node.children.sort((a, b) =>
+      sort === "alpha-desc" ? b.name.localeCompare(a.name) : a.name.localeCompare(b.name),
+    );
+    switch (sort) {
+      case "alpha-asc":
+        node.notes.sort((a, b) => noteTitle(a).localeCompare(noteTitle(b)));
+        break;
+      case "alpha-desc":
+        node.notes.sort((a, b) => noteTitle(b).localeCompare(noteTitle(a)));
+        break;
+      case "modified-asc":
+        node.notes.sort((a, b) => a.updatedAt.localeCompare(b.updatedAt));
+        break;
+      case "created-desc":
+        node.notes.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        break;
+      case "created-asc":
+        node.notes.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        break;
+      case "modified-desc":
+      default:
+        node.notes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        break;
     }
     node.children.forEach(applySort);
   };
@@ -81,9 +124,9 @@ function buildTree(notes: Note[], extraFolders: string[], sort: SortMode): Folde
 // eslint-disable-next-line max-lines-per-function, complexity -- file-tree component with drag-and-drop, context menus, folder management, sorting, and multiple interaction modes
 export function NoteList({
   mobileShell = false,
-  onCollapse,
 }: {
   mobileShell?: boolean;
+  /** Retained for call-site compatibility; the hide-sidebar button was removed. */
   onCollapse?: () => void;
 }) {
   const all = useNotesStore((s) => s.all());
@@ -96,9 +139,15 @@ export function NoteList({
   const upsert = useNotesStore((s) => s.upsert);
   const createFolder = useNotesStore((s) => s.createFolder);
   const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
+  // Content is decrypted a beat after boot (crypto bootstrap → cache/network
+  // decrypt). Until then note bodies are empty and noteTitle() returns
+  // "Untitled". Show a skeleton bar for those instead of the stale placeholder.
+  const contentReady = useSyncStore((s) => s.contentReady);
   const vaultReady = useVaultStore((s) => s.phase === "ready");
 
-  const [sortMode, setSortMode] = useState<SortMode>("modified");
+  const [sortMode, setSortMode] = useState<SortMode>(DEFAULT_SORT);
+  const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const sortBtnRef = useRef<HTMLButtonElement>(null);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [dragId, setDragId] = useState<string | null>(null);
 
@@ -125,11 +174,18 @@ export function NoteList({
     [nonJournalNotes, folders, sortMode],
   );
 
-  function cycleSortMode() {
-    setSortMode((m) =>
-      m === "modified" ? "alpha-asc" : m === "alpha-asc" ? "alpha-desc" : "modified",
-    );
-  }
+  useEffect(() => {
+    if (!sortMenuOpen) return;
+    function onDown(e: MouseEvent) {
+      const t = e.target as Element | null;
+      // Keep open for clicks on the trigger or inside the (mobile) sheet body;
+      // the sheet backdrop closes itself.
+      if (t?.closest(".nk-tree-tb-sort, .nk-sort-menu, .nk-sort-sheet")) return;
+      setSortMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [sortMenuOpen]);
 
   function collapseAll() {
     const paths = new Set<string>();
@@ -230,10 +286,7 @@ export function NoteList({
 
   const isEmpty = all.length === 0 && folders.length === 0;
 
-  const SortIcon =
-    sortMode === "alpha-asc" ? ArrowDownAZ : sortMode === "alpha-desc" ? ArrowUpDown : ArrowUpDown;
-  const sortLabel =
-    sortMode === "modified" ? "Sort: modified" : sortMode === "alpha-asc" ? "Sort: A→Z" : "Sort: Z→A";
+  const SortIcon = sortMode === "alpha-asc" ? ArrowDownAZ : ArrowUpDown;
 
   const toolbar = !mobileShell && (
     <div className="nk-tree-toolbar">
@@ -244,7 +297,7 @@ export function NoteList({
         onClick={() => vaultReady && createNewFile(null)}
         disabled={!vaultReady}
       >
-        <FilePlus size={14} aria-hidden />
+        <FilePlus size={17} aria-hidden />
       </button>
       <button
         className="nk-tree-tb-btn"
@@ -253,34 +306,40 @@ export function NoteList({
         onClick={() => vaultReady && createNewFolder(null)}
         disabled={!vaultReady}
       >
-        <FolderPlus size={14} aria-hidden />
+        <FolderPlus size={17} aria-hidden />
       </button>
-      <button
-        className={"nk-tree-tb-btn" + (sortMode !== "modified" ? " active" : "")}
-        title={sortLabel}
-        aria-label={sortLabel}
-        onClick={cycleSortMode}
-      >
-        <SortIcon size={14} aria-hidden />
-      </button>
+      <div className="nk-tree-tb-sort">
+        <button
+          ref={sortBtnRef}
+          className={"nk-tree-tb-btn" + (sortMenuOpen ? " active" : "")}
+          title="Sort"
+          aria-label="Sort"
+          aria-haspopup="menu"
+          aria-expanded={sortMenuOpen}
+          onClick={(e) => {
+            e.stopPropagation();
+            setSortMenuOpen((v) => !v);
+          }}
+        >
+          <SortIcon size={17} aria-hidden />
+        </button>
+        {sortMenuOpen && (
+          <SortMenu
+            active={sortMode}
+            onPick={setSortMode}
+            onClose={() => setSortMenuOpen(false)}
+            anchorRef={sortBtnRef}
+          />
+        )}
+      </div>
       <button
         className="nk-tree-tb-btn"
         title={allCollapsed ? "Expand all" : "Collapse all"}
         aria-label={allCollapsed ? "Expand all" : "Collapse all"}
         onClick={allCollapsed ? expandAll : collapseAll}
       >
-        <ChevronsDownUp size={14} aria-hidden />
+        <ChevronsDownUp size={17} aria-hidden />
       </button>
-      {onCollapse && (
-        <button
-          className="nk-tree-tb-btn"
-          title="Hide sidebar"
-          aria-label="Hide sidebar"
-          onClick={onCollapse}
-        >
-          <PanelLeftClose size={14} aria-hidden />
-        </button>
-      )}
     </div>
   );
 
@@ -442,7 +501,11 @@ export function NoteList({
                   className="nk-tree-lock"
                 />
               )}
-              {title}
+              {!contentReady && !n.body ? (
+                <span className="nk-tree-skel" aria-label="Loading" />
+              ) : (
+                title
+              )}
             </span>
             {preview && (
               <span className="nk-tree-sub" aria-hidden>
@@ -513,6 +576,84 @@ interface CtxItem {
   label: string;
   danger?: boolean;
   onClick(e: React.MouseEvent): void;
+}
+
+/**
+ * Sort picker — a dropdown on desktop, a bottom sheet on mobile (narrow screens).
+ * Grouped options (file name / modified / created) with a check on the active one.
+ */
+function SortMenu({
+  active,
+  onPick,
+  onClose,
+  anchorRef,
+}: {
+  active: SortMode;
+  onPick(mode: SortMode): void;
+  onClose(): void;
+  anchorRef: React.RefObject<HTMLButtonElement | null>;
+}) {
+  const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    if (isMobile) return;
+    const el = anchorRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const width = 248;
+    setPos({
+      top: r.bottom + 4,
+      left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)),
+    });
+  }, [isMobile, anchorRef]);
+  const options = SORT_GROUPS.map((group, gi) => (
+    <Fragment key={gi}>
+      {gi > 0 && <li className="nk-sort-sep" role="separator" />}
+      {group.map((opt) => (
+        <li key={opt.mode} role="none">
+          <button
+            role="menuitemradio"
+            aria-checked={active === opt.mode}
+            className={"nk-sort-item" + (active === opt.mode ? " is-active" : "")}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPick(opt.mode);
+              onClose();
+            }}
+          >
+            <Check size={16} className="nk-sort-check" aria-hidden />
+            <span>{opt.label}</span>
+          </button>
+        </li>
+      ))}
+    </Fragment>
+  ));
+
+  if (isMobile) {
+    return (
+      <div className="nk-sort-sheet-backdrop" onMouseDown={onClose}>
+        <div className="nk-sort-sheet" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="nk-sort-sheet-grip" aria-hidden />
+          <div className="nk-sort-sheet-ttl">Sort by</div>
+          <ul className="nk-sort-list" role="menu">
+            {options}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+  if (!pos) return null;
+  // Portal to body so the dropdown escapes the sidebar's overflow clipping.
+  return createPortal(
+    <ul
+      className="nk-ctx-menu nk-sort-menu"
+      role="menu"
+      style={{ position: "fixed", top: pos.top, left: pos.left, right: "auto" }}
+    >
+      {options}
+    </ul>,
+    document.body,
+  );
 }
 
 function TreeContextMenu({

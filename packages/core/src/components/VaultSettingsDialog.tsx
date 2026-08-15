@@ -53,6 +53,7 @@ function Section({
   );
 }
 
+// eslint-disable-next-line max-lines-per-function -- vault settings dialog with general, members, rename, and danger sections
 export function VaultSettingsDialog({
   vault,
   onClose,
@@ -67,6 +68,7 @@ export function VaultSettingsDialog({
   useEffect(() => {
     if (!vault.id) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale error before loading new vault settings
     setError(null);
     vaultApi
       .getVaultSettings(vault.id)
@@ -380,6 +382,7 @@ const PERMISSIONS: {
   { value: "admin", label: "Admin", hint: "Full access including settings." },
 ];
 
+// eslint-disable-next-line max-lines-per-function -- members section manages invite, pending invitations list, and collaborators list
 function MembersSection({ vault }: { vault: VaultRef }) {
   const [members, setMembers] = useState<VaultMember[] | null>(null);
   const [invitations, setInvitations] = useState<VaultInvitation[]>([]);
@@ -402,7 +405,9 @@ function MembersSection({ vault }: { vault: VaultRef }) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh loads external member list on mount/vault change
     void refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refresh is a stable local function; only re-run when vault.id changes
   }, [vault.id]);
 
   async function onInvite() {

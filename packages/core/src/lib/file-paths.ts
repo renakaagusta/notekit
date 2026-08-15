@@ -30,6 +30,7 @@ const FOLDER_MAX_LEN = 120;
 export function sanitizeFolderPath(folder: string | null | undefined): string | null {
   if (folder === null || folder === undefined) return null;
   if (folder.length > FOLDER_MAX_LEN) return null;
+  // eslint-disable-next-line no-control-regex -- intentional control-char matching to reject paths with ASCII control characters (U+0000-U+001F)
   if (/[\u0000-\u001f]/.test(folder)) return null;
   const trimmed = folder.trim();
   if (!trimmed) return null;

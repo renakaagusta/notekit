@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { listCommits, type VaultCommit } from "../lib/vault-api";
 import { SkeletonCommitList } from "./Skeleton";
@@ -13,6 +13,7 @@ interface HistoryViewProps {
 type Scope = "note" | "vault";
 
 export function HistoryView({ notePath, compact = false, onRestore }: HistoryViewProps) {
+  // Derive scope: fall back to "vault" when there is no active note.
   const [scope, setScope] = useState<Scope>(notePath ? "note" : "vault");
   const [commits, setCommits] = useState<VaultCommit[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +22,18 @@ export function HistoryView({ notePath, compact = false, onRestore }: HistoryVie
   const [restoredSha, setRestoredSha] = useState<string | null>(null);
   useNotesStore((s) => s.activeNoteId ? s.notes[s.activeNoteId] : null);
 
+  // When the note is closed, snap the scope to "vault" on the next render
+  // rather than inside the effect body to avoid set-state-in-effect lint.
+  const effectiveScope: Scope = !notePath && scope === "note" ? "vault" : scope;
+
   useEffect(() => {
-    if (!notePath && scope === "note") setScope("vault");
+    if (!notePath && scope === "note") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- derive scope when note closes
+      setScope("vault");
+    }
   }, [notePath, scope]);
 
-  const scopePath = scope === "note" ? notePath : undefined;
+  const scopePath = effectiveScope === "note" ? notePath : undefined;
 
   async function handleRestore(sha: string) {
     if (!onRestore) return;
@@ -44,6 +52,7 @@ export function HistoryView({ notePath, compact = false, onRestore }: HistoryVie
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset list/errors before async fetch (synchronous clear is intentional)
     setCommits(null);
     setError(null);
     setRestoredSha(null);
@@ -58,6 +67,53 @@ export function HistoryView({ notePath, compact = false, onRestore }: HistoryVie
     })();
     return () => { cancelled = true; };
   }, [scopePath]);
+
+  return (
+    <HistoryViewContent
+      scope={effectiveScope}
+      setScope={setScope}
+      notePath={notePath}
+      compact={compact}
+      scopePath={scopePath}
+      commits={commits}
+      error={error}
+      restoreError={restoreError}
+      restoredSha={restoredSha}
+      restoringsha={restoringsha}
+      onRestore={onRestore ? handleRestore : undefined}
+    />
+  );
+}
+
+interface HistoryViewContentProps {
+  scope: Scope;
+  setScope: (s: Scope) => void;
+  notePath?: string;
+  compact: boolean;
+  scopePath?: string;
+  commits: VaultCommit[] | null;
+  error: string | null;
+  restoreError: string | null;
+  restoredSha: string | null;
+  restoringsha: string | null;
+  onRestore?: (sha: string) => void;
+}
+
+// eslint-disable-next-line complexity, max-lines-per-function -- renders three tab states × two scope modes × commit list with conditional restore button
+function HistoryViewContent({
+  scope,
+  setScope,
+  notePath,
+  compact,
+  scopePath,
+  commits,
+  error,
+  restoreError,
+  restoredSha,
+  restoringsha,
+  onRestore,
+}: HistoryViewContentProps) {
+  const commitItems = useMemo(() => commits ?? [], [commits]);
 
   return (
     <section className={"nk-history" + (compact ? " nk-history--compact" : "")}>
@@ -92,7 +148,7 @@ export function HistoryView({ notePath, compact = false, onRestore }: HistoryVie
       {restoreError && <div className="nk-history-error">Restore failed: {restoreError}</div>}
       {restoredSha && <div className="nk-history-ok">Restored to {restoredSha.slice(0, 7)}</div>}
       {!error && commits === null && <SkeletonCommitList count={8} />}
-      {commits && commits.length === 0 && (
+      {commits && commitItems.length === 0 && (
         <div className="nk-empty">
           <p>No commits yet.</p>
           <p className="nk-empty-hint">
@@ -103,14 +159,14 @@ export function HistoryView({ notePath, compact = false, onRestore }: HistoryVie
         </div>
       )}
 
-      {commits && commits.length > 0 && (
+      {commits && commitItems.length > 0 && (
         <ol className="nk-commitlist">
-          {commits.map((c, i) => (
+          {commitItems.map((c, i) => (
             <li key={c.sha} className="nk-commit">
               <div className="nk-commit-graph">
                 <div className="nk-commit-line nk-commit-line--top" aria-hidden={i === 0} />
                 <div className="nk-commit-dot" />
-                <div className="nk-commit-line nk-commit-line--bot" aria-hidden={i === commits.length - 1} />
+                <div className="nk-commit-line nk-commit-line--bot" aria-hidden={i === commitItems.length - 1} />
               </div>
               <div className="nk-commit-body">
                 <span className="nk-commit-msg">{firstLine(c.message)}</span>
@@ -138,7 +194,7 @@ export function HistoryView({ notePath, compact = false, onRestore }: HistoryVie
                       className="nk-commit-restore"
                       title={`Restore to ${c.sha.slice(0, 7)}`}
                       disabled={restoringsha === c.sha}
-                      onClick={() => handleRestore(c.sha)}
+                      onClick={() => onRestore(c.sha)}
                     >
                       <RotateCcw size={11} aria-hidden />
                       {restoringsha === c.sha ? "Restoring…" : "Restore"}

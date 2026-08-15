@@ -175,9 +175,14 @@ export const useLinksStore = create<LinksState>()(
       })),
       partialize: (state) => ({
         // Strip decrypted content — url, title, and description are the sensitive payload
-        // and must never reach localStorage for encrypted links.
+        // and must never reach localStorage for encrypted links. Persist
+        // empty-string placeholders (not `undefined`) so a link rehydrated
+        // before its E2EE content decrypts still satisfies the `SavedLink` shape.
         links: Object.fromEntries(
-          Object.entries(state.links).map(([id, { url: _url, title: _title, description: _description, ...safe }]) => [id, safe]),
+          Object.entries(state.links).map(([id, { url: _url, title: _title, description: _description, ...safe }]) => [
+            id,
+            { ...safe, url: "", title: "", description: "" },
+          ]),
         ),
         folders: state.folders,
       }),
@@ -200,6 +205,21 @@ export const useLinksStore = create<LinksState>()(
           if (!Array.isArray(state.folders)) state.folders = [];
         }
         return persisted;
+      },
+      // Backfill url/title/description on rehydrate for older persisted payloads
+      // that stripped them to `undefined` (see notesStore for rationale).
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<LinksState>;
+        const links: Record<string, SavedLink> = {};
+        for (const [id, l] of Object.entries(p.links ?? {})) {
+          links[id] = {
+            ...l,
+            url: l.url ?? "",
+            title: l.title ?? "",
+            description: l.description ?? "",
+          };
+        }
+        return { ...current, ...p, links };
       },
       skipHydration: true,
     },

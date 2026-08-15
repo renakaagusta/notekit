@@ -38,9 +38,13 @@ describe("CLI E2EE round-trip (Node)", () => {
 
     const out = await deserializeEncryptedNote(path, sealed, identity);
     expect(out).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by the not.toBeNull() assertion above
     expect(out!.title).toBe("Secret note");
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by the not.toBeNull() assertion above
     expect(out!.body).toContain("hush");
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by the not.toBeNull() assertion above
     expect(out!.tags).toEqual(["x"]);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guarded by the not.toBeNull() assertion above
     expect(out!.folder).toBe("private");
   });
 

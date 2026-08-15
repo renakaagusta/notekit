@@ -40,7 +40,6 @@ async function handleMobileFailure(tokenId: string, err: unknown): Promise<void>
       .execute();
     return;
   }
-  console.error("[notify:mobilepush] send failed:", err);
 }
 
 /**
@@ -106,8 +105,10 @@ async function getFcmAccessToken(): Promise<string> {
   const signer = createSign("RSA-SHA256");
   signer.update(signingInput);
   signer.end();
+  const privateKey = env.fcm.privateKey;
+  if (!privateKey) throw new Error("fcm.privateKey is not configured");
   const sig = signer
-    .sign({ key: env.fcm.privateKey! })
+    .sign({ key: privateKey })
     .toString("base64url");
   const assertion = `${signingInput}.${sig}`;
   const res = await fetch("https://oauth2.googleapis.com/token", {

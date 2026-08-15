@@ -149,7 +149,7 @@ function encodeScalar(value: unknown): string {
   if (typeof value === "number") return String(value);
   const s = String(value);
   // Quote if it contains characters that would break our parser.
-  if (/[:#\[\]",]/.test(s) || s.includes("\n")) {
+  if (/[:#[\]",]/.test(s) || s.includes("\n")) {
     return `"${s.replace(/"/g, '\\"')}"`;
   }
   return s;

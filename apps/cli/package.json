@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "license": "MIT",
   "type": "module",
-  "description": "NoteKit CLI — manage notes, tickets, and vaults from your terminal; also embeds the NoteKit MCP server for Claude Code, Cursor, Codex, OpenCode, Continue, Zed, Windsurf, and Claude Desktop.",
+  "description": "NoteKit CLI \u2014 manage notes, tickets, and vaults from your terminal; also embeds the NoteKit MCP server for Claude Code, Cursor, Codex, OpenCode, Continue, Zed, Windsurf, and Claude Desktop.",
   "keywords": [
     "notekit",
     "cli",
@@ -45,7 +45,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rm -rf .turbo dist *.tsbuildinfo"
+    "clean": "rm -rf .turbo dist *.tsbuildinfo",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

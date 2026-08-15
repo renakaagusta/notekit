@@ -18,7 +18,8 @@
  * calling apiFetch by hand. The wrappers in this folder will keep working
  * during the migration.
  */
-import { NoteKitClient, createNoteKitClient, type NoteKitApi } from "@notekit/api-client";
+import type { NoteKitClient} from "@notekit/api-client";
+import { createNoteKitClient, type NoteKitApi } from "@notekit/api-client";
 
 function resolveApiUrl(): string {
   // Direct static access — Vite's define-plugin only substitutes the literal
@@ -74,7 +75,7 @@ function getDesktopBridge(): DesktopBridge | null {
   return w.notekit;
 }
 
-export const isDesktop: boolean = !!getDesktopBridge()?.keychain;
+export const isDesktop = !!getDesktopBridge()?.keychain;
 
 let desktopToken: string | null = null;
 let desktopAuthLoadPromise: Promise<void> | null = null;
@@ -92,9 +93,9 @@ export function ensureDesktopAuthLoaded(): Promise<void> {
   if (!bridge?.keychain) return Promise.resolve();
   desktopAuthLoadPromise = (async () => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- bridge.keychain is guaranteed non-null: checked via bridge?.keychain guard above
       desktopToken = await bridge.keychain!.get("token");
-    } catch (err) {
-      console.warn("[api] failed to read desktop token from keychain", err);
+    } catch (_err) {
       desktopToken = null;
     }
   })();

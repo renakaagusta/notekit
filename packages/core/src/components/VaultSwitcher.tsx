@@ -25,6 +25,7 @@ interface VaultSwitcherProps {
   className?: string;
 }
 
+// eslint-disable-next-line max-lines-per-function -- React component with vault CRUD operations and OAuth flows; splitting would scatter related vault management logic
 export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
   const vaults = useVaultStore((s) => s.vaults);
   const activeId = useVaultStore((s) => s.activeId);

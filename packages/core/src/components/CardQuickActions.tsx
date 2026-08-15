@@ -19,6 +19,7 @@ interface CardQuickActionsProps {
   onToggleEncrypted(): void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- React component with multiple action handlers that must remain co-located for readability
 export function CardQuickActions({
   ticket,
   onPriority,

@@ -18,6 +18,7 @@
  *   4. The caller reloads the page so AuthGate sees the new session.
  */
 import { apiUrl } from "./api";
+import { logger } from './logger'
 
 interface AppleSignInResponseWrapper {
   response?: {
@@ -63,7 +64,7 @@ function loadPlugin(): AppleSignInPlugin | null {
     const direct = cap.Plugins?.SignInWithApple;
     return (direct as AppleSignInPlugin | undefined) ?? null;
   } catch (err) {
-    console.warn("[auth/apple] plugin not available", err);
+    logger.warn("[auth/apple] plugin not available", err);
     return null;
   }
 }

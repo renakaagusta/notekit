@@ -43,6 +43,7 @@ interface EditorToolbarProps {
   onVimToggle?(): void;
 }
 
+/* eslint-disable max-lines-per-function, complexity -- toolbar handles formatting, encryption, share, history, zen, and vim controls as independent feature toggles */
 export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle, vimMode, onVimToggle }: EditorToolbarProps) {
   const [aaOpen, setAaOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
@@ -357,6 +358,7 @@ export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle,
   );
 }
 
+/* eslint-enable max-lines-per-function, complexity */
 const ChecklistIcon = () => <ListChecks size={16} aria-hidden />;
 const TableIcon = () => <LucideTable size={16} aria-hidden />;
 const ImageIcon = () => <LucideImage size={16} aria-hidden />;

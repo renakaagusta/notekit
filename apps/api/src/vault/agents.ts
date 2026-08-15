@@ -109,14 +109,23 @@ function pickChatFields(parsed: Partial<AgentProfile>): ChatFields {
   return out;
 }
 
-export async function readAgent(
-  provider: GitProvider,
-  token: string,
-  owner: string,
-  repo: string,
-  branch: string,
-  slug: string,
-): Promise<{ profile: AgentProfile; sha: string } | null> {
+export interface ReadAgentOpts {
+  provider: GitProvider;
+  token: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  slug: string;
+}
+
+export async function readAgent({
+  provider,
+  token,
+  owner,
+  repo,
+  branch,
+  slug,
+}: ReadAgentOpts): Promise<{ profile: AgentProfile; sha: string } | null> {
   const file = await gitOps(provider).readFile(
     token,
     owner,
@@ -173,15 +182,25 @@ export async function listAgents(
   return out;
 }
 
-export async function writeAgent(
-  provider: GitProvider,
-  token: string,
-  owner: string,
-  repo: string,
-  branch: string,
-  profile: AgentProfile,
-  prevSha?: string,
-): Promise<{ sha: string }> {
+export interface WriteAgentOpts {
+  provider: GitProvider;
+  token: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  profile: AgentProfile;
+  prevSha?: string;
+}
+
+export async function writeAgent({
+  provider,
+  token,
+  owner,
+  repo,
+  branch,
+  profile,
+  prevSha,
+}: WriteAgentOpts): Promise<{ sha: string }> {
   return gitOps(provider).writeFile(
     token,
     owner,
@@ -194,15 +213,25 @@ export async function writeAgent(
   );
 }
 
-export async function deleteAgentFile(
-  provider: GitProvider,
-  token: string,
-  owner: string,
-  repo: string,
-  branch: string,
-  slug: string,
-  prevSha: string,
-): Promise<void> {
+export interface DeleteAgentFileOpts {
+  provider: GitProvider;
+  token: string;
+  owner: string;
+  repo: string;
+  branch: string;
+  slug: string;
+  prevSha: string;
+}
+
+export async function deleteAgentFile({
+  provider,
+  token,
+  owner,
+  repo,
+  branch,
+  slug,
+  prevSha,
+}: DeleteAgentFileOpts): Promise<void> {
   await gitOps(provider).deleteFile(
     token,
     owner,

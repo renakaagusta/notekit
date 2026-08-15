@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# pre-commit hook — scan staged files for leaked secrets via gitleaks
+#
+# Install:
+#   cp scripts/hooks/pre-commit .git/hooks/pre-commit
+#   chmod +x .git/hooks/pre-commit
+#
+# Or via git config:
+#   git config core.hooksPath scripts/hooks
+#
+# If gitleaks is not installed the hook prints instructions and exits 0
+# so it never blocks developers who haven't set it up yet.
+
+set -euo pipefail
+
+GITLEAKS_MIN_VERSION="8"
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+CONFIG="${REPO_ROOT}/.gitleaks.toml"
+
+# ── 1. Check gitleaks is available ──────────────────────────────────────────
+if ! command -v gitleaks &>/dev/null; then
+  echo ""
+  echo "  [security] gitleaks is not installed — secret scan skipped."
+  echo ""
+  echo "  To enable secret scanning, install gitleaks:"
+  echo ""
+  echo "    macOS:   brew install gitleaks"
+  echo "    Linux:   https://github.com/gitleaks/gitleaks/releases"
+  echo "             (download the binary and place it on your PATH)"
+  echo "    Docker:  docker run --rm -v \"\$(pwd)\":/repo zricethezav/gitleaks:latest"
+  echo ""
+  echo "  After installing, re-run this hook to confirm it works:"
+  echo "    git stash && git stash pop"
+  echo ""
+  exit 0
+fi
+
+# ── 2. Version gate (warn only, don't block) ─────────────────────────────────
+GITLEAKS_VERSION="$(gitleaks version 2>/dev/null | grep -oE '[0-9]+' | head -1 || echo 0)"
+if [[ "${GITLEAKS_VERSION}" -lt "${GITLEAKS_MIN_VERSION}" ]]; then
+  echo "  [security] gitleaks v${GITLEAKS_VERSION} detected; v${GITLEAKS_MIN_VERSION}+ recommended."
+  echo "             Upgrade: brew upgrade gitleaks"
+fi
+
+# ── 3. Collect staged files ──────────────────────────────────────────────────
+# Get list of staged files (added, modified, renamed) — not deleted ones.
+STAGED_FILES="$(git diff --cached --name-only --diff-filter=ACMR)"
+
+if [[ -z "${STAGED_FILES}" ]]; then
+  # Nothing staged — nothing to scan.
+  exit 0
+fi
+
+# ── 4. Run gitleaks on the staged diff ───────────────────────────────────────
+echo "  [security] Running gitleaks on staged files..."
+
+# Use --staged so gitleaks only looks at what is about to be committed,
+# not the entire working tree or git history.
+GITLEAKS_ARGS=(
+  protect
+  --staged
+  --redact
+  --no-banner
+)
+
+# Use the project config if it exists.
+if [[ -f "${CONFIG}" ]]; then
+  GITLEAKS_ARGS+=(--config "${CONFIG}")
+fi
+
+if ! gitleaks "${GITLEAKS_ARGS[@]}"; then
+  echo ""
+  echo "  [security] gitleaks found potential secrets in your staged changes."
+  echo ""
+  echo "  Actions:"
+  echo "    1. Remove the secret from the file."
+  echo "    2. If it is a false positive, add an allowlist entry to .gitleaks.toml."
+  echo "    3. If the file is a test fixture or example, add its path to the"
+  echo "       [allowlist] paths section in .gitleaks.toml."
+  echo ""
+  echo "  NEVER commit real credentials, API keys, or private keys."
+  echo "  If a secret was already committed, rotate it immediately."
+  echo ""
+  exit 1
+fi
+
+echo "  [security] No secrets detected in staged files."
+exit 0

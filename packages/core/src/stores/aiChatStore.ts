@@ -117,6 +117,7 @@ interface AIChatState {
 
 export const useAIChatStore = create<AIChatState>()(
   persist(
+    // eslint-disable-next-line max-lines-per-function -- Zustand store factory with all AI chat state actions; splitting would require cross-slice dependencies
     immer<AIChatState>((set) => ({
       open: false,
       selectedAgentSlug: null,

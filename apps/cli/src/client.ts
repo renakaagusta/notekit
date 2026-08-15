@@ -37,7 +37,7 @@ export async function getClient(opts: GetClientOptions = {}): Promise<NoteKitApi
 
 /** Pretty-print an unknown error and exit with code 1. Used in command catch blocks. */
 /** Friendlier text for known API error codes (substring match on the message). */
-const FRIENDLY_ERRORS: Array<[string, string]> = [
+const FRIENDLY_ERRORS: [string, string][] = [
   [
     "no_vault_configured",
     "No vault yet. Create one in the NoteKit app (it defaults to NoteKit Git), then try again.",

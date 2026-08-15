@@ -28,7 +28,6 @@ import {
   buildEntry,
   getClient as getClientAdapter,
   resolveNotekitBinary,
-  type ClientAdapter,
   type ClientId,
 } from "../lib/mcp-clients.js";
 
@@ -83,6 +82,41 @@ const serveCmd = defineCommand({
   },
 });
 
+function printInstallHelp(): void {
+  process.stdout.write(kleur.bold("notekit mcp install <client>\n\n"));
+  process.stdout.write("Supported clients:\n");
+  for (const c of ALL_CLIENTS) {
+    process.stdout.write(`  ${kleur.cyan(c.id.padEnd(16))} ${c.label}\n`);
+  }
+  process.stdout.write(
+    "\nExample:  notekit mcp install cursor --project\n" +
+      "          notekit mcp install claude-desktop\n",
+  );
+}
+
+function writeConfigFile(
+  configPath: string,
+  merged: string,
+  adapterLabel: string,
+): void {
+  mkdirSync(path.dirname(configPath), { recursive: true });
+  writeFileSync(configPath, merged, "utf8");
+  process.stdout.write(
+    `${kleur.green("✓")} wrote ${kleur.cyan(adapterLabel)} config → ${kleur.dim(configPath)}\n`,
+  );
+}
+
+function maybeInstallSkill(clientId: string, printOnly: boolean): void {
+  if (clientId !== "claude-code" || printOnly) return;
+  const skillDir = path.join(homedir(), ".claude", "skills", "notekit");
+  const skillPath = path.join(skillDir, "SKILL.md");
+  mkdirSync(skillDir, { recursive: true });
+  writeFileSync(skillPath, NOTEKIT_SKILL_MD, "utf8");
+  process.stdout.write(
+    `${kleur.green("✓")} installed the NoteKit skill → ${kleur.dim(skillPath)}\n`,
+  );
+}
+
 const installCmd = defineCommand({
   meta: {
     name: "install",
@@ -123,15 +157,7 @@ const installCmd = defineCommand({
   },
   async run({ args }) {
     if (!args.client) {
-      process.stdout.write(kleur.bold("notekit mcp install <client>\n\n"));
-      process.stdout.write("Supported clients:\n");
-      for (const c of ALL_CLIENTS) {
-        process.stdout.write(`  ${kleur.cyan(c.id.padEnd(16))} ${c.label}\n`);
-      }
-      process.stdout.write(
-        "\nExample:  notekit mcp install cursor --project\n" +
-          "          notekit mcp install claude-desktop\n",
-      );
+      printInstallHelp();
       return;
     }
     const adapter = getClientAdapter(String(args.client) as ClientId);
@@ -168,11 +194,7 @@ const installCmd = defineCommand({
     const merged = adapter.merge(existing, entry);
 
     if (!args.printOnly) {
-      mkdirSync(path.dirname(configPath), { recursive: true });
-      writeFileSync(configPath, merged, "utf8");
-      process.stdout.write(
-        `${kleur.green("✓")} wrote ${kleur.cyan(adapter.label)} config → ${kleur.dim(configPath)}\n`,
-      );
+      writeConfigFile(configPath, merged, adapter.label);
     } else {
       process.stdout.write(kleur.yellow("(--print-only — nothing written)\n"));
       process.stdout.write(`Target file would be: ${kleur.dim(configPath)}\n`);
@@ -182,15 +204,7 @@ const installCmd = defineCommand({
     // understands how to use these tools well (search-before-create, E2EE,
     // notes-vs-tickets). Skills are a Claude-Code concept; other clients
     // just get the MCP config.
-    if (String(args.client) === "claude-code" && !args.printOnly) {
-      const skillDir = path.join(homedir(), ".claude", "skills", "notekit");
-      const skillPath = path.join(skillDir, "SKILL.md");
-      mkdirSync(skillDir, { recursive: true });
-      writeFileSync(skillPath, NOTEKIT_SKILL_MD, "utf8");
-      process.stdout.write(
-        `${kleur.green("✓")} installed the NoteKit skill → ${kleur.dim(skillPath)}\n`,
-      );
-    }
+    maybeInstallSkill(String(args.client), Boolean(args.printOnly));
 
     // Always print the copy-paste block + deeplink, per
     // docs/MCP_DISTRIBUTION.md §4.B. Saves the user when the auto-merge

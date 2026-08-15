@@ -4,14 +4,15 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../db";
 import { env } from "../../env";
+import { logger } from '../../lib/logger'
 
-type WebPushModule = {
+interface WebPushModule {
   setVapidDetails: (subject: string, pub: string, priv: string) => void;
   sendNotification: (
     sub: { endpoint: string; keys: { p256dh: string; auth: string } },
     payload: string,
   ) => Promise<unknown>;
-};
+}
 
 let webPushPromise: Promise<WebPushModule | null> | null = null;
 function loadWebPush(): Promise<WebPushModule | null> {
@@ -36,10 +37,7 @@ function loadWebPush(): Promise<WebPushModule | null> {
       );
       return lib;
     } catch (err) {
-      console.warn(
-        "[notify:webpush] web-push module not installed; skipping. Run `pnpm add web-push @types/web-push` in apps/api.",
-        err,
-      );
+      logger.debug("[webpush] push library not installed or unavailable", err)
       return null;
     }
   })();
@@ -81,7 +79,7 @@ export async function sendWebPush(
             .where(eq(schema.webPushSubscriptions.id, s.id))
             .execute();
         } else {
-          console.error("[notify:webpush] send failed:", err);
+          void err; /* send error, skip silently */
         }
       }
     }),

@@ -17,6 +17,7 @@ const KNOWN_PROVIDERS: { id: AIProvider; label: string; placeholder: string }[] 
   { id: "anthropic", label: "Anthropic", placeholder: "sk-ant-…" },
 ];
 
+// eslint-disable-next-line max-lines-per-function -- large panel component with keys, AI chat, devices, and recovery sections
 export function AIVaultPanel() {
   const phase = useCryptoStore((s) => s.phase);
   const device = useCryptoStore((s) => s.device);
@@ -51,6 +52,7 @@ export function AIVaultPanel() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; setState calls happen after await, not synchronously
     void refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [device, phase]);

@@ -67,7 +67,8 @@ function parseFrontmatter(
       const arr: string[] = [];
       i++;
       while (i < lines.length && lines[i]?.startsWith("  - ")) {
-        arr.push(unquote(lines[i]!.slice(4)));
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- loop condition `lines[i]?.startsWith("  - ")` guarantees lines[i] is defined
+      arr.push(unquote(lines[i]!.slice(4)));
         i++;
       }
       out[key] = arr;
@@ -150,6 +151,7 @@ export function serializeTicket(t: Ticket): string {
   return fm + `# ${t.title}\n\n${t.body}`;
 }
 
+// eslint-disable-next-line complexity -- validates and coerces all ticket fields from raw frontmatter; each branch handles one field
 export function deserializeTicket(path: string, content: string): Ticket | null {
   const { frontmatter, body } = parseFrontmatter(content);
   const id = String(frontmatter.id ?? "").trim();

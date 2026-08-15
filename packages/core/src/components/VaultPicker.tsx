@@ -10,6 +10,7 @@ interface VaultPickerProps {
   onPicked(): void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- picker component with list mode, create mode, pick handler, and create-and-pick handler
 export function VaultPicker({ onPicked }: VaultPickerProps) {
   const setVault = useVaultStore((s) => s.setVault);
   const [mode, setMode] = useState<Mode>("list");
@@ -21,6 +22,7 @@ export function VaultPicker({ onPicked }: VaultPickerProps) {
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset: synchronously clearing the error before starting a new fetch is the desired loading UX
     setLoadErr(null);
     vaultApi
       .listRepos()

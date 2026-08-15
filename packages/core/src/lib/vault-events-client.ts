@@ -18,6 +18,7 @@
  */
 import { apiUrl } from "./api";
 import { refresh as refreshSync } from "./sync";
+import { logger } from './logger'
 
 export interface StartVaultEventStreamOptions {
   /**
@@ -80,7 +81,7 @@ async function open(): Promise<void> {
       // bearer setups, withCredentials would fail CORS preflight anyway.
       withCredentials = false;
     } catch (err) {
-      console.warn("[vault-events] ticket mint failed", err);
+      logger.warn("[vault-events] ticket mint failed", err);
       scheduleReconnect();
       return;
     }
@@ -90,7 +91,7 @@ async function open(): Promise<void> {
   try {
     es = new EventSource(url, { withCredentials });
   } catch (err) {
-    console.warn("[vault-events] EventSource construct failed", err);
+    logger.warn("[vault-events] EventSource construct failed", err);
     scheduleReconnect();
     return;
   }

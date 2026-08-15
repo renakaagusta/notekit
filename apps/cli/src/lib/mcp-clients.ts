@@ -69,8 +69,7 @@ function mergeJsonAt(
     ? safeParseJson(existing)
     : {};
   let cursor: Record<string, unknown> = root;
-  for (let i = 0; i < keyPath.length; i++) {
-    const k = keyPath[i]!;
+  for (const k of keyPath) {
     const next = cursor[k];
     if (typeof next !== "object" || next === null || Array.isArray(next)) {
       const fresh: Record<string, unknown> = {};

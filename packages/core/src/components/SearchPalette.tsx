@@ -45,6 +45,7 @@ const GROUP_GLYPH: Record<SearchKind, LucideIcon> = {
   commit: GitCommit,
 };
 
+// eslint-disable-next-line max-lines-per-function -- large search palette component with keyboard nav and grouped results
 export function SearchPalette({ open, onClose, onSelect }: SearchPaletteProps) {
   const notes = useNotesStore((s) => s.notes);
   const tickets = useTicketsStore((s) => s.tickets);
@@ -61,6 +62,7 @@ export function SearchPalette({ open, onClose, onSelect }: SearchPaletteProps) {
 
   useEffect(() => {
     if (!open) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset search query/cursor/error when palette opens
     setQuery("");
     setCursor(0);
     setRemoteError(null);
@@ -71,6 +73,7 @@ export function SearchPalette({ open, onClose, onSelect }: SearchPaletteProps) {
   useEffect(() => {
     if (!open || !vaultReady) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset remote data before async fetch
     setAgents(null);
     setCommits(null);
     (async () => {
@@ -120,6 +123,7 @@ export function SearchPalette({ open, onClose, onSelect }: SearchPaletteProps) {
   }, [grouped]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clamp cursor to valid range when results change
     if (cursor >= flat.length) setCursor(0);
   }, [flat.length, cursor]);
 

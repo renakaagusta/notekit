@@ -31,6 +31,7 @@ const TOOL_DEFAULT_WIDTH: Record<InkTool, number> = {
   eraser: 18,
 };
 
+// eslint-disable-next-line max-lines-per-function -- React component with canvas pointer-event lifecycle; splitting handlers into sub-components would break the shared refs
 export function InkCanvas({
   doc,
   onChange,
@@ -45,7 +46,10 @@ export function InkCanvas({
   const current = useRef<InkStroke | null>(null);
   // Latest doc in a ref so pointer handlers don't need to re-bind.
   const docRef = useRef(doc);
-  docRef.current = doc;
+  // Keep docRef in sync outside of render to satisfy react-hooks/refs.
+  useEffect(() => {
+    docRef.current = doc;
+  });
   const rafPending = useRef(false);
 
   const strokeWidth = width ?? TOOL_DEFAULT_WIDTH[tool];
@@ -78,6 +82,7 @@ export function InkCanvas({
 
   const pointFromEvent = useCallback(
     (e: PointerEvent): InkPoint => {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- pointFromEvent is only called from pointer handlers which are attached to the canvas; canvasRef.current is guaranteed non-null at that point
       const rect = canvasRef.current!.getBoundingClientRect();
       const scaleX = docRef.current.width / rect.width;
       const scaleY = docRef.current.height / rect.height;
@@ -196,6 +201,7 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: InkStroke) {
 
   // Variable width: draw segment-by-segment so pressure modulates the line.
   if (points.length === 1) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- length checked to be 1 immediately above
     const p = points[0]!;
     ctx.fillStyle = stroke.color;
     ctx.beginPath();
@@ -203,7 +209,9 @@ function drawStroke(ctx: CanvasRenderingContext2D, stroke: InkStroke) {
     ctx.fill();
   } else {
     for (let i = 1; i < points.length; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- loop bounds guarantee i-1 and i are valid indices
       const a = points[i - 1]!;
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- loop bounds guarantee i is a valid index
       const b = points[i]!;
       const pressure = ((a.p ?? 0.5) + (b.p ?? 0.5)) / 2;
       ctx.lineWidth = stroke.width * (0.4 + 0.6 * pressure);

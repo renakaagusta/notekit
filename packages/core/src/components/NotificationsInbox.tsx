@@ -11,6 +11,7 @@ import { SkeletonCommitList } from "./Skeleton";
  * Read-only inbox showing what agents have done. Newest first, paginated by
  * cursor. Unread rows render with a dot; clicking the row marks it read.
  */
+// eslint-disable-next-line max-lines-per-function -- inbox component with paginated loading, mark-read, mark-all-read, and full render tree
 export function NotificationsInbox() {
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -35,6 +36,7 @@ export function NotificationsInbox() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loadMore() is async; setState calls happen after await, not synchronously
     void loadMore();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

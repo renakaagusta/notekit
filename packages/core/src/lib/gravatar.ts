@@ -18,6 +18,7 @@
  * UTF-8-encoded input. Adapted from public-domain reference implementations
  * and inlined here to avoid pulling in a hashing dependency.
  */
+// eslint-disable-next-line max-lines-per-function -- RFC 1321 MD5 implementation requires all rounds inline; splitting would obscure the algorithm
 function md5Hex(input: string): string {
   function rotl(x: number, n: number): number {
     return (x << n) | (x >>> (32 - n));
@@ -25,18 +26,23 @@ function md5Hex(input: string): string {
   function add32(a: number, b: number): number {
     return (a + b) & 0xffffffff;
   }
+  // eslint-disable-next-line max-params -- MD5 round function signature dictated by RFC 1321 algorithm
   function cmn(q: number, a: number, b: number, x: number, s: number, t: number): number {
     return add32(rotl(add32(add32(a, q), add32(x, t)), s), b);
   }
+  // eslint-disable-next-line max-params -- MD5 round function signature dictated by RFC 1321 algorithm
   function ff(a: number, b: number, c: number, d: number, x: number, s: number, t: number) {
     return cmn((b & c) | (~b & d), a, b, x, s, t);
   }
+  // eslint-disable-next-line max-params -- MD5 round function signature dictated by RFC 1321 algorithm
   function gg(a: number, b: number, c: number, d: number, x: number, s: number, t: number) {
     return cmn((b & d) | (c & ~d), a, b, x, s, t);
   }
+  // eslint-disable-next-line max-params -- MD5 round function signature dictated by RFC 1321 algorithm
   function hh(a: number, b: number, c: number, d: number, x: number, s: number, t: number) {
     return cmn(b ^ c ^ d, a, b, x, s, t);
   }
+  // eslint-disable-next-line max-params -- MD5 round function signature dictated by RFC 1321 algorithm
   function ii(a: number, b: number, c: number, d: number, x: number, s: number, t: number) {
     return cmn(c ^ (b | ~d), a, b, x, s, t);
   }

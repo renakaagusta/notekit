@@ -17,6 +17,8 @@
  * slug — its secrets sit directly under `secrets/`.
  */
 import * as defaultVaultApi from "./vault-api";
+import * as fileCache from "./vault-cache";
+import { currentVaultScope } from "./vault-persistence";
 import {
   encryptSecrets,
   decryptSecrets,
@@ -93,6 +95,142 @@ let backend: SecretsBackend = {
 /** Override the backend that the secrets module uses for vault file I/O. */
 export function configureSecretsBackend(custom: SecretsBackend): void {
   backend = custom;
+}
+
+// ─── In-bootstrap read coalescing ────────────────────────────────────────────
+// The vault's crypto files (recovery.json, config.json, keybox.age, device &
+// member records) can't change mid-bootstrap, yet the bootstrap logic reads a
+// few of them repeatedly — recovery.json ×3 (isVaultInitialized, readRecovery,
+// unlockVaultKey) and keybox.age ×2 on the happy path. While a read window is
+// open, memoize each path's in-flight read so a file crosses the network at
+// most once and concurrent callers share one round-trip. Only active between
+// beginVaultReadWindow()/endVaultReadWindow() — every read outside the window
+// still fetches fresh, so nothing goes stale after bootstrap.
+type VaultFileResult = { path: string; content: string | null; sha: string | null };
+let vaultReadMemo: Map<string, Promise<VaultFileResult>> | null = null;
+// When true (SWR pass 1), reads serve the cache instantly without waiting on the
+// network — crypto bootstrap reaches "ready" from local state, then a network
+// pass 2 revalidates. When false (pass 2 / runtime), reads are network-first
+// (authoritative) with an offline cache fallback.
+let vaultPreferCache = false;
+// Whether any read in the current window was served from cache (→ the run is
+// optimistic and must be revalidated against the server).
+let vaultWindowServedCache = false;
+
+export function beginVaultReadWindow(opts?: { preferCache?: boolean }): void {
+  vaultReadMemo = new Map();
+  vaultPreferCache = opts?.preferCache ?? false;
+  vaultWindowServedCache = false;
+}
+export function endVaultReadWindow(): void {
+  vaultReadMemo = null;
+  vaultPreferCache = false;
+}
+/** True if the just-closed window served any read from cache (needs revalidation). */
+export function vaultReadServedFromCache(): boolean {
+  return vaultWindowServedCache;
+}
+
+/**
+ * Read a vault file, cache-aware. In preferCache mode: return the cached copy
+ * instantly if present (SWR pass 1). Otherwise fetch from the network, PERSIST
+ * to the offline cache, and FALL BACK to cache if the server is unreachable.
+ * The `.notekit/*` files here are public metadata or ciphertext — safe at rest,
+ * same exposure as the git repo itself.
+ */
+async function readVaultFileFresh(path: string): Promise<VaultFileResult> {
+  const scope = currentVaultScope();
+  if (vaultPreferCache && scope) {
+    const hit = await fileCache.getFile(scope, path);
+    if (hit) {
+      vaultWindowServedCache = true;
+      return { path, sha: hit.sha || null, content: hit.content };
+    }
+  }
+  try {
+    const f = await backend.readFile(path);
+    if (scope && f.sha && typeof f.content === "string") {
+      void fileCache.putFile(scope, { path, sha: f.sha, content: f.content });
+    }
+    return f;
+  } catch (err) {
+    if (scope) {
+      const hit = await fileCache.getFile(scope, path);
+      if (hit) {
+        vaultWindowServedCache = true;
+        return { path, sha: hit.sha || null, content: hit.content };
+      }
+    }
+    throw err;
+  }
+}
+
+/** Backend read that dedups within an open read window (else a fresh read). */
+function readVaultFile(path: string): Promise<VaultFileResult> {
+  if (!vaultReadMemo) return readVaultFileFresh(path);
+  const inflight = vaultReadMemo.get(path);
+  if (inflight) return inflight;
+  const p = readVaultFileFresh(path);
+  vaultReadMemo.set(path, p);
+  return p;
+}
+
+/**
+ * Directory listing, cache-aware — the listing counterpart to
+ * {@link readVaultFile}, so `listDevices`/`readMembers` resolve from cache in
+ * SWR pass 1 and offline.
+ */
+async function readVaultListing(
+  prefix: string,
+): Promise<{ entries: { path: string; sha: string }[] }> {
+  const scope = currentVaultScope();
+  const cacheKey = `@list:${prefix}`;
+  const fromCache = async (): Promise<{ entries: { path: string; sha: string }[] } | null> => {
+    if (!scope) return null;
+    const hit = await fileCache.getFile(scope, cacheKey);
+    if (hit?.content) {
+      try {
+        return { entries: JSON.parse(hit.content) as { path: string; sha: string }[] };
+      } catch {
+        /* ignore */
+      }
+    }
+    return null;
+  };
+  if (vaultPreferCache) {
+    const cached = await fromCache();
+    if (cached) {
+      vaultWindowServedCache = true;
+      return cached;
+    }
+  }
+  try {
+    const res = await backend.listFiles(prefix);
+    if (scope) {
+      void fileCache.putFile(scope, { path: cacheKey, sha: "", content: JSON.stringify(res.entries) });
+    }
+    return res;
+  } catch (err) {
+    const cached = await fromCache();
+    if (cached) {
+      vaultWindowServedCache = true;
+      return cached;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Kick off the reads bootstrap always needs, concurrently, into the open read
+ * window — so the (order-preserving) bootstrap logic then awaits in-flight
+ * fetches instead of firing them one at a time. Overlaps network latency
+ * without changing any verification order. No-op outside a read window.
+ */
+export function prefetchBootstrapFiles(): void {
+  if (!vaultReadMemo) return;
+  void readVaultFile(RECOVERY_PATH).catch(() => { /* real caller handles/rejects */ });
+  void readVaultFile(CONFIG_PATH).catch(() => { /* idem */ });
+  void readVaultFile(KEYBOX_PATH).catch(() => { /* idem */ });
 }
 
 /**
@@ -205,14 +343,14 @@ export interface RecoveryRecord {
 }
 
 /** The fields of a device record that the signature covers. */
-export type SignedDeviceFields = {
+export interface SignedDeviceFields {
   deviceId: string;
   recipient: string;
   addedAt: string;
   /** Member this device belongs to (first-class membership). */
   owner?: string;
   sig?: string;
-};
+}
 
 /**
  * Verify a device record's signature against a given signing key. A record with
@@ -287,7 +425,7 @@ const shaCache = new Map<string, string>();
 
 // ─── Path helpers ────────────────────────────────────────────────────────────
 
-function secretPath(name: string, vaultSlug: string = ""): string {
+function secretPath(name: string, vaultSlug = ""): string {
   return vaultSlug
     ? `${SECRETS_PREFIX}${vaultSlug}/${name}.age`
     : `${SECRETS_PREFIX}${name}.age`;
@@ -318,11 +456,14 @@ function assertValidSlug(slug: string): void {
 // ─── Device & recovery records ───────────────────────────────────────────────
 
 export async function listDevices(): Promise<DeviceRecord[]> {
-  const { entries } = await backend.listFiles(DEVICES_PREFIX);
+  const { entries } = await readVaultListing(DEVICES_PREFIX);
+  // Read device records in parallel — the sequential for-loop was N round-trips
+  // and, on a many-device vault, the bulk of the crypto-bootstrap latency.
+  const files = await Promise.all(
+    entries.filter((e) => e.path.endsWith(".json")).map((e) => readVaultFile(e.path)),
+  );
   const devices: DeviceRecord[] = [];
-  for (const e of entries) {
-    if (!e.path.endsWith(".json")) continue;
-    const file = await backend.readFile(e.path);
+  for (const file of files) {
     if (file.sha) shaCache.set(file.path, file.sha);
     if (typeof file.content !== "string") continue;
     try {
@@ -337,10 +478,11 @@ export async function listDevices(): Promise<DeviceRecord[]> {
 /** Read the member registry, keyed by memberId. Empty for single-user vaults. */
 export async function readMembers(): Promise<MemberRegistry> {
   const map: MemberRegistry = new Map();
-  const { entries } = await backend.listFiles(MEMBERS_PREFIX);
-  for (const e of entries) {
-    if (!e.path.endsWith(".json")) continue;
-    const file = await backend.readFile(e.path);
+  const { entries } = await readVaultListing(MEMBERS_PREFIX);
+  const files = await Promise.all(
+    entries.filter((e) => e.path.endsWith(".json")).map((e) => readVaultFile(e.path)),
+  );
+  for (const file of files) {
     if (file.sha) shaCache.set(file.path, file.sha);
     if (typeof file.content !== "string") continue;
     try {
@@ -369,7 +511,7 @@ async function writeMemberRecord(record: MemberRecord, message: string): Promise
 }
 
 export async function readRecovery(): Promise<RecoveryRecord | null> {
-  const file = await backend.readFile(RECOVERY_PATH);
+  const file = await readVaultFile(RECOVERY_PATH);
   if (file.sha) shaCache.set(file.path, file.sha);
   if (typeof file.content !== "string") return null;
   let rec: RecoveryRecord;
@@ -408,7 +550,7 @@ export async function readRecovery(): Promise<RecoveryRecord | null> {
  */
 export async function readVaultConfig(): Promise<VaultConfig> {
   const fallback: VaultConfig = { version: 1, encryption: "off" };
-  const file = await backend.readFile(CONFIG_PATH);
+  const file = await readVaultFile(CONFIG_PATH);
   if (file.sha) shaCache.set(file.path, file.sha);
   if (typeof file.content !== "string" || !file.content) return fallback;
   try {
@@ -437,7 +579,7 @@ async function writeVaultConfig(config: VaultConfig, message: string) {
 
 /** Raw armored keybox blob, or null for a legacy vault (no keybox). */
 async function readKeyboxArmored(): Promise<string | null> {
-  const file = await backend.readFile(KEYBOX_PATH);
+  const file = await readVaultFile(KEYBOX_PATH);
   if (file.sha) shaCache.set(KEYBOX_PATH, file.sha);
   return typeof file.content === "string" && file.content ? file.content : null;
 }
@@ -678,15 +820,9 @@ export async function collectVaultRecipients(
   for (const d of devices) {
     if (memberMode) {
       if (!deviceRecordTrustedByMember(d, members)) {
-        console.warn(
-          `[crypto] dropping device "${d.deviceId}" — not validly signed by its member "${d.owner ?? "?"}"`,
-        );
         continue;
       }
     } else if (signingKey && !deviceRecordTrusted(d, signingKey)) {
-      console.warn(
-        `[crypto] dropping untrusted device record "${d.deviceId}" — missing/invalid signature`,
-      );
       continue;
     }
     recipients.add(d.recipient);
@@ -801,7 +937,7 @@ function buildRecoveryRecord(
 
 /** One file in a batched commit (issue #13); `message` is used only in the
  * per-file fallback when the backend can't batch. */
-type BatchFile = { path: string; content: string; message?: string };
+interface BatchFile { path: string; content: string; message?: string }
 
 /**
  * Write many files in a SINGLE commit when the backend supports it (issue #13),
@@ -861,8 +997,7 @@ export async function reEncryptChats(
   let entries: { path: string; sha: string }[] = [];
   try {
     ({ entries } = await backend.listFiles("chats/"));
-  } catch (err) {
-    console.warn("[chats-rewrap] list failed", err);
+  } catch (_err) {
     return;
   }
   const batch: BatchFile[] = [];
@@ -875,8 +1010,8 @@ export async function reEncryptChats(
       const json = await decryptSecrets(file.content, contentIdentity(signer));
       const armored = await encryptSecrets(json, recipients);
       batch.push({ path: e.path, content: armored, message: `Re-encrypt ${e.path} for updated recipients` });
-    } catch (err) {
-      console.warn(`[chats-rewrap] ${e.path} failed`, err);
+    } catch (_err) {
+      /* intentional */
     }
   }
   await commitMany(batch, "Re-encrypt chats for updated recipients");
@@ -898,7 +1033,7 @@ async function reencryptAllItems(
   recipients: string[],
   commitMessage: (kind: EncryptedItemKind, id: string) => string,
 ): Promise<void> {
-  const prefixes: ReadonlyArray<{ prefix: string; kind: EncryptedItemKind }> = [
+  const prefixes: readonly { prefix: string; kind: EncryptedItemKind }[] = [
     { prefix: "notes/", kind: "note" },
     { prefix: "tickets/", kind: "ticket" },
     { prefix: "links/", kind: "link" },
@@ -908,8 +1043,7 @@ async function reencryptAllItems(
     let entries: { path: string; sha: string }[] = [];
     try {
       ({ entries } = await backend.listFiles(prefix));
-    } catch (err) {
-      console.warn(`[items-rewrap] list ${prefix} failed`, err);
+    } catch (_err) {
       continue;
     }
     for (const e of entries) {
@@ -921,7 +1055,6 @@ async function reencryptAllItems(
         shaCache.set(e.path, file.sha);
         const env = parseEncryptedEnvelope(file.content);
         if (!env) {
-          console.warn(`[items-rewrap] ${e.path} not a valid encrypted envelope, skipping`);
           continue;
         }
         const payload = await decryptItemPayload<unknown>(env.ciphertext, contentIdentity(signer));
@@ -932,8 +1065,8 @@ async function reencryptAllItems(
         const header = headerEnd >= 0 ? file.content.slice(0, headerEnd) : "---\n---\n";
         const next = `${header}${armored}\n`;
         batch.push({ path: e.path, content: next, message: commitMessage(kind, env.fm.id) });
-      } catch (err) {
-        console.warn(`[items-rewrap] ${e.path} rewrap failed`, err);
+      } catch (_err) {
+        /* intentional */
       }
     }
   }
@@ -975,7 +1108,7 @@ async function reencryptItemsTo(
   vaultRecipient: string,
   message: (kind: EncryptedItemKind, id: string) => string,
 ): Promise<void> {
-  const itemPrefixes: ReadonlyArray<{ prefix: string; kind: EncryptedItemKind }> = [
+  const itemPrefixes: readonly { prefix: string; kind: EncryptedItemKind }[] = [
     { prefix: "notes/", kind: "note" },
     { prefix: "tickets/", kind: "ticket" },
     { prefix: "links/", kind: "link" },
@@ -985,8 +1118,7 @@ async function reencryptItemsTo(
     let entries: { path: string; sha: string }[] = [];
     try {
       ({ entries } = await backend.listFiles(prefix));
-    } catch (err) {
-      console.warn(`[rewrap] list ${prefix} failed`, err);
+    } catch (_err) {
       continue;
     }
     for (const e of entries) {
@@ -1008,8 +1140,8 @@ async function reencryptItemsTo(
           content: `${header}${armored}\n`,
           message: message(kind, env.fm.id),
         });
-      } catch (err) {
-        console.warn(`[rewrap] ${e.path} rewrap failed`, err);
+      } catch (_err) {
+        /* intentional */
       }
     }
   }
@@ -1447,7 +1579,7 @@ export async function deleteSecretVault(
 // ─── Secret listing ──────────────────────────────────────────────────────────
 
 export async function isVaultInitialized(): Promise<boolean> {
-  const file = await backend.readFile(RECOVERY_PATH);
+  const file = await readVaultFile(RECOVERY_PATH);
   if (file.sha) shaCache.set(file.path, file.sha);
   return typeof file.content === "string" && file.content.length > 0;
 }
@@ -1602,7 +1734,7 @@ export async function migrateToEnvelope(
  * List secret names within a specific vault. Pass an empty string (the
  * default) for the Default/root vault. Returns sorted names.
  */
-export async function listSecretNames(vaultSlug: string = ""): Promise<string[]> {
+export async function listSecretNames(vaultSlug = ""): Promise<string[]> {
   const refs = await listAllSecrets();
   return refs
     .filter((r) => r.vault === vaultSlug)
@@ -1625,12 +1757,49 @@ export async function listAllSecrets(): Promise<SecretRef[]> {
   );
 }
 
+// ─── Offline-first (SWR) cache for the Secrets list view ─────────────────────
+// The list view needs only plaintext metadata — vault labels + secret names —
+// which are already server-visible (they're folder/file names in git, not
+// encrypted). Secret *values* are never here (read on-demand via getSecret). So
+// caching this payload leaks nothing beyond what the repo layout already does,
+// and lets the Secrets tab render instantly (and offline) before revalidating.
+const SECRETS_VIEW_KEY = "@blob:secrets-view";
+
+export interface SecretsViewPayload {
+  vaults: SecretVaultRecord[];
+  secrets: SecretRef[];
+}
+
+/** Persist the last-known Secrets list view for instant/offline render. */
+export async function cacheSecretsView(payload: SecretsViewPayload): Promise<void> {
+  const scope = currentVaultScope();
+  if (!scope) return;
+  await fileCache.putFile(scope, {
+    path: SECRETS_VIEW_KEY,
+    sha: "",
+    content: JSON.stringify(payload),
+  });
+}
+
+/** Cache-only read of the Secrets list view (no network), or null on miss. */
+export async function readCachedSecretsView(): Promise<SecretsViewPayload | null> {
+  const scope = currentVaultScope();
+  if (!scope) return null;
+  const hit = await fileCache.getFile(scope, SECRETS_VIEW_KEY);
+  if (!hit || !hit.content) return null;
+  try {
+    return JSON.parse(hit.content) as SecretsViewPayload;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Secret CRUD ─────────────────────────────────────────────────────────────
 
 export async function getSecret(
   name: string,
   device: DeviceIdentity,
-  vaultSlug: string = "",
+  vaultSlug = "",
 ): Promise<string | null> {
   const path = secretPath(name, vaultSlug);
   const file = await backend.readFile(path);
@@ -1645,7 +1814,7 @@ export async function setSecret(
   name: string,
   value: string,
   device: DeviceIdentity,
-  vaultSlug: string = "",
+  vaultSlug = "",
 ): Promise<void> {
   if (vaultSlug) assertValidSlug(vaultSlug);
   const path = secretPath(name, vaultSlug);
@@ -1667,7 +1836,7 @@ export async function setSecret(
 export async function removeSecret(
   name: string,
   _device: DeviceIdentity,
-  vaultSlug: string = "",
+  vaultSlug = "",
 ): Promise<void> {
   const path = secretPath(name, vaultSlug);
   await ensureSha(path);
@@ -1863,14 +2032,14 @@ export async function removeDevice(
  * member's own self-signed record — its `sig` is by *their* key, so we must
  * copy it verbatim (never re-sign) for it to keep verifying.
  */
-export type ForeignDeviceRecord = {
+export interface ForeignDeviceRecord {
   deviceId: string;
   name?: string;
   recipient: string;
   addedAt: string;
   owner?: string;
   sig?: string;
-};
+}
 
 /**
  * One-time migration from signed-mode to member-mode: register the vault owner
@@ -1929,14 +2098,14 @@ export async function ensureOwnerMember(
 }
 
 /** Outcome of {@link ensureSelfRegistered}. */
-export type SelfRegisterResult = {
+export interface SelfRegisterResult {
   registered: boolean;
   reason?:
     | "not_member_mode"
     | "not_a_member"
     | "signing_key_mismatch"
     | "already_registered";
-};
+}
 
 /**
  * Member device auto-register (membership Pt 3, issue #14). When a member's
@@ -2006,6 +2175,7 @@ export async function ensureSelfRegistered(
  * Call {@link ensureOwnerMember} first so the owner's own devices survive the
  * switch to member-mode.
  */
+// eslint-disable-next-line max-lines-per-function -- member admission involves device verification, keybox update, and content re-encryption; splitting would fragment the atomic operation
 export async function addMember(
   member: {
     memberId: string;
@@ -2054,9 +2224,6 @@ export async function addMember(
     // The record must verify against the member's key with `owner` bound in.
     if (!record.owner || record.owner !== member.memberId || !deviceRecordTrusted(record, member.signingKey)) {
       devicesSkipped++;
-      console.warn(
-        `[member] skipping device "${d.deviceId}" for "${member.memberId}" — signature doesn't verify against their key`,
-      );
       continue;
     }
     await writeDeviceRecord(record, `Add device "${record.name}" for member "${member.memberId}"`);
@@ -2160,7 +2327,7 @@ export async function restoreSecret(
   name: string,
   commitSha: string,
   device: DeviceIdentity,
-  vaultSlug: string = "",
+  vaultSlug = "",
 ): Promise<void> {
   const path = secretPath(name, vaultSlug);
   const file = await backend.readFileAtRef(path, commitSha);

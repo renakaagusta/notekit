@@ -216,6 +216,7 @@ body {
   line-height: 1.5;
 }
 
+
 .nk ::selection {
   background: var(--nk-accent-soft);
 }
@@ -446,8 +447,8 @@ body {
 }
 
 .nk-rail-item {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -543,13 +544,15 @@ body {
 .nk-panel-nav {
   display: flex;
   align-items: center;
-  gap: 1px;
-  flex: 1 1 auto;
+  gap: 2px;
+  /* Right-align the whole nav cluster (Obsidian-style): traffic lights sit in
+     the empty left gutter, the icons group on the right next to the toggle. */
+  margin-left: auto;
 }
 
 .nk-panel-nav-btn {
-  width: 30px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -578,9 +581,10 @@ body {
 }
 
 /* Collapse sits at far-right of panel header */
-.nk-panel-collapse {
-  margin-left: auto;
+.nk-iconbtn.nk-panel-collapse {
   flex-shrink: 0;
+  width: 34px;
+  height: 34px;
 }
 
 /* ── macOS desktop: frameless title bar (hiddenInset) ──────────────────
@@ -598,12 +602,43 @@ body {
   -webkit-app-region: no-drag;
 }
 
-/* Push rail brand below the traffic lights (~28px inset on hiddenInset).
- * padding-top shrinks the centering zone so the icon lands at ≈31px,
- * clear of the stoplights which end at ≈28px. */
-[data-desktop-mac="true"] .nk-rail-brand {
-  height: 58px;
-  padding-top: 28px;
+/* Obsidian-style top strip (height = 40px): the activity rail starts BELOW it,
+ * so the window's top-left is a clean, unbroken traffic-light zone.
+ *   - rail content is pushed down 40px;
+ *   - the rail↔panel vertical divider is dropped in the strip and re-drawn only
+ *     BELOW it (::after), so nothing boxes in the stoplights;
+ *   - the strip's bottom border is continued under the rail (::before) so the
+ *     divider runs unbroken across the whole width.
+ * Panel header + tab bar are pinned to 40px so that bottom line is straight. */
+[data-desktop-mac="true"] .nk-icon-rail {
+  padding-top: 40px;
+  border-right: none;
+  position: relative;
+}
+[data-desktop-mac="true"] .nk-icon-rail::before {
+  content: "";
+  position: absolute;
+  top: 40px;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border-soft);
+}
+[data-desktop-mac="true"] .nk-icon-rail::after {
+  content: "";
+  position: absolute;
+  top: 40px;
+  right: 0;
+  bottom: 0;
+  border-right: 1px solid var(--border-soft);
+}
+[data-desktop-mac="true"] .nk-panel-hd {
+  height: 40px;
+  min-height: 40px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+[data-desktop-mac="true"] .nk-tab-bar {
+  height: 40px;
 }
 
 /* Panel header is a drag region; icon buttons opt back out.
@@ -732,7 +767,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1px;
+  gap: 3px;
   padding: 2px 6px 4px;
   flex-shrink: 0;
 }
@@ -741,8 +776,8 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 30px;
+  height: 30px;
   border: none;
   background: none;
   border-radius: var(--r-sm);
@@ -764,6 +799,102 @@ body {
 
 .nk-tree-tb-btn.active {
   color: var(--nk-accent);
+}
+
+/* ── Sort menu (dropdown on desktop, bottom sheet on mobile) ─────────────── */
+.nk-tree-tb-sort {
+  position: relative;
+  display: inline-flex;
+}
+/* Positioned inline via a body portal (fixed top/left) to escape the sidebar's
+   overflow clipping. */
+.nk-sort-menu {
+  min-width: 236px;
+  padding: 5px;
+  z-index: 200;
+}
+.nk-sort-sep {
+  height: 1px;
+  margin: 5px 8px;
+  background: var(--border-soft);
+}
+.nk-sort-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.nk-sort-item:hover {
+  background: var(--surface-2);
+}
+.nk-sort-check {
+  flex-shrink: 0;
+  color: var(--nk-accent);
+  visibility: hidden;
+}
+.nk-sort-item.is-active {
+  font-weight: 600;
+}
+.nk-sort-item.is-active .nk-sort-check {
+  visibility: visible;
+}
+
+/* Mobile bottom sheet */
+.nk-sort-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: flex-end;
+  animation: nk-fade-in 120ms ease-out;
+}
+.nk-sort-sheet {
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 18px 18px 0 0;
+  padding: 8px 8px calc(12px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.28);
+  animation: nk-sheet-up 220ms cubic-bezier(0.2, 0, 0, 1);
+}
+.nk-sort-sheet-grip {
+  width: 38px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border);
+  margin: 6px auto 8px;
+}
+.nk-sort-sheet-ttl {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 12px 8px;
+}
+.nk-sort-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.nk-sort-sheet .nk-sort-item {
+  padding: 13px 12px;
+  font-size: 16px;
+  border-radius: 10px;
+}
+.nk-sort-sheet .nk-sort-sep {
+  margin: 5px 12px;
 }
 
 .nk-tree {
@@ -2949,6 +3080,14 @@ a.nk-commit-sha:hover {
   display: flex;
   flex-direction: column;
   animation: nk-slide-in 0.16s ease;
+}
+
+/* On phone the detail is full-screen, so its header (with the close button)
+   collides with the OS status bar / notch. Inset by the safe area so the title
+   and X clear the clock, and lift the footer above the home indicator. */
+.nk-app[data-mobile="true"] .nk-detail {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @keyframes nk-fade-in {
@@ -8016,9 +8155,16 @@ a.nk-commit-sha:hover {
   /* Shrink the editor's scroll viewport by the toolbar height plus the
      keyboard inset. Because .nk-editor (overflow:auto) fills this padded box,
      a smaller box means ProseMirror's scroll-caret-into-view lands the tapped
-     line above the toolbar+keyboard rather than behind them. */
+     line above the toolbar+keyboard rather than behind them.
+     The reserve equals the toolbar's real height (~41px: a 28px .nk-tb-btn +
+     6px×2 padding + 1px border) plus the SAME max(safe-area, keyboard) offset
+     the toolbar itself rests on — so content stops flush above the toolbar in
+     both keyboard states instead of leaving a tall empty white band above it.
+     (Was a flat 56px + bare inset, which over-reserved ~15px when the keyboard
+     was up and could hide the last line behind the toolbar on notched devices
+     when it was down.) */
   .nk-app[data-mobile="true"] .nk-editor-wrap {
-    padding-bottom: calc(56px + var(--nk-keyboard-inset, 0px));
+    padding-bottom: calc(44px + max(env(safe-area-inset-bottom, 0px), var(--nk-keyboard-inset, 0px)));
     transition: padding-bottom 0.22s cubic-bezier(0.32, 0.72, 0, 1);
   }
   .nk-app[data-mobile="true"] .nk-editor-wrap .ProseMirror,
@@ -9032,14 +9178,15 @@ a.nk-commit-sha:hover {
 .nk-home-today {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(180deg, #d9dbe0, #c6c9d0);
-  color: #16171b;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
   border-radius: 22px;
   padding: 18px 18px 8px;
 }
 .nk-home-today-hd { display: flex; align-items: baseline; gap: 8px; }
-.nk-home-today-hd h2 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; color: #14151a; }
-.nk-home-today-count { color: #565a63; font-size: 14px; }
+.nk-home-today-hd h2 { margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+.nk-home-today-count { color: var(--muted); font-size: 14px; }
 .nk-home-agenda { list-style: none; margin: 12px 0 0; padding: 0; }
 .nk-home-agenda-row {
   display: flex;
@@ -9048,9 +9195,9 @@ a.nk-commit-sha:hover {
   width: 100%;
   padding: 11px 0;
   border: 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid var(--border-soft);
   background: none;
-  color: #16171b;
+  color: var(--text);
   text-align: left;
   cursor: pointer;
   font: inherit;
@@ -9059,10 +9206,10 @@ a.nk-commit-sha:hover {
 .nk-home-agenda-ico {
   width: 38px; height: 38px; flex-shrink: 0; border-radius: 11px;
   display: grid; place-items: center;
-  background: rgba(0, 0, 0, 0.06); color: #3b4250;
+  background: var(--nk-accent-soft); color: var(--nk-accent);
 }
 .nk-home-agenda-title { flex: 1; min-width: 0; font-size: 15.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.nk-home-agenda-tag { flex-shrink: 0; font-size: 11.5px; color: #565a63; border: 1px solid rgba(0, 0, 0, 0.14); padding: 3px 9px; border-radius: 999px; }
+.nk-home-agenda-tag { flex-shrink: 0; font-size: 11.5px; color: var(--muted); border: 1px solid var(--border); padding: 3px 9px; border-radius: 999px; }
 
 /* Capture CTAs — the hero, and where the green lives. */
 .nk-home-cta-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
@@ -9141,6 +9288,40 @@ a.nk-commit-sha:hover {
 .nk-home-row-icon { color: var(--muted); flex-shrink: 0; display: grid; place-items: center; }
 .nk-home-row-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nk-home-row-meta { font-size: 12px; color: var(--muted); flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.nk-home-row-skeleton { cursor: default; }
+.nk-home-row-skeleton:hover { background: none; }
+.nk-skel-box { width: 16px; height: 16px; border-radius: 4px; }
+.nk-skel-line { height: 11px; border-radius: 6px; max-width: 62%; }
+.nk-skel-box,
+.nk-skel-line {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3, var(--border)) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: nk-skel-shimmer 1.3s ease-in-out infinite;
+}
+.nk-home-list li:nth-child(2n) .nk-skel-line { max-width: 44%; }
+.nk-home-list li:nth-child(3n) .nk-skel-line { max-width: 74%; }
+/* Sidebar note-tree title placeholder while its E2EE body decrypts. */
+.nk-tree-skel {
+  display: inline-block;
+  width: 96px;
+  height: 10px;
+  border-radius: 5px;
+  vertical-align: middle;
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface-3, var(--border)) 50%, var(--surface-2) 100%);
+  background-size: 200% 100%;
+  animation: nk-skel-shimmer 1.3s ease-in-out infinite;
+}
+.nk-tree-item--note:nth-child(2n) .nk-tree-skel { width: 72px; }
+.nk-tree-item--note:nth-child(3n) .nk-tree-skel { width: 116px; }
+@media (prefers-reduced-motion: reduce) { .nk-tree-skel { animation: none; } }
+@keyframes nk-skel-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nk-skel-box,
+  .nk-skel-line { animation: none; }
+}
 
 /* Home has no appbar on mobile — the greeting IS the top of the page. Lay it
    out as a row so search sits at the right edge, aligned with the greeting. */

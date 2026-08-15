@@ -312,6 +312,7 @@ async function resolveTicketPath(nk: NoteKitApi, idOrPath: string): Promise<stri
   return `${TICKETS_DIR}/${idOrPath}.md`;
 }
 
+// eslint-disable-next-line complexity -- function is a necessary dispatch over multiple ticket formats (encrypted vs plaintext, with defaults)
 async function readTicket(nk: NoteKitApi, idOrPath: string): Promise<{ ticket: Ticket; sha: string | null }> {
   const path = await resolveTicketPath(nk, idOrPath);
   const file = await nk.vault.readFile(path);

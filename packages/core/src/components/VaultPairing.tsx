@@ -27,6 +27,7 @@ function useFingerprint(pubkey: string | null | undefined): string | null {
   const [fp, setFp] = useState<string | null>(null);
   useEffect(() => {
     if (!pubkey) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronous reset to null is intentional and safe here (no async path)
       setFp(null);
       return;
     }
@@ -60,7 +61,9 @@ function randomCode(): string {
   const LIMIT = 4_294_000_000;
   do {
     crypto.getRandomValues(buf);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- Uint32Array always has index 0
   } while (buf[0]! >= LIMIT);
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- Uint32Array always has index 0
   return (buf[0]! % 1_000_000).toString().padStart(6, "0");
 }
 
@@ -121,6 +124,7 @@ export function RecoveryPhraseDialog({
  * Shown on a NEW device after vault was already set up elsewhere.
  * Posts an announcement and polls for the device record to appear in the vault.
  */
+// eslint-disable-next-line max-lines-per-function -- VaultPairNewDevice renders the full pair-new-device flow including recovery phrase and wallet unlock paths
 export function VaultPairNewDevice() {
   const device = useCryptoStore((s) => s.device);
   const setPhase = useCryptoStore((s) => s.setPhase);
@@ -171,7 +175,7 @@ export function VaultPairNewDevice() {
         const devices = await listDevices();
         if (devices.some((d) => d.deviceId === device.deviceId)) {
           if (pollRef.current) clearInterval(pollRef.current);
-          await clearPair(pairCode).catch(() => {});
+          await clearPair(pairCode).catch((_err) => { /* intentional noop — pairing already confirmed */ });
           setPhase("ready");
         }
       } catch {
@@ -220,10 +224,10 @@ export function VaultPairNewDevice() {
       // The user just typed the phrase, so they already hold a backup. Keep a
       // local copy on this device (marked backed-up) so the backup sheet works
       // here too and the nudge stays quiet.
-      await importRecovery(recoveryInput).catch(() => {});
+      await importRecovery(recoveryInput).catch((_err) => { /* intentional noop — local copy is optional */ });
       // Security alert across the user's channels. Best-effort — pairing
       // already succeeded, so a notify failure must not block unlock.
-      await notifyDevicePaired(device.deviceId, device.name).catch(() => {});
+      await notifyDevicePaired(device.deviceId, device.name).catch((_err) => { /* intentional noop — notify is best-effort */ });
       setPhase("ready");
     } catch (e) {
       setRecoveryError((e as Error).message);
@@ -263,7 +267,7 @@ export function VaultPairNewDevice() {
         },
         signing,
       );
-      await notifyDevicePaired(device.deviceId, device.name).catch(() => {});
+      await notifyDevicePaired(device.deviceId, device.name).catch((_err) => { /* intentional noop — notify is best-effort */ });
       setPhase("ready");
     } catch (e) {
       setWalletError((e as Error).message);
@@ -378,6 +382,7 @@ interface ApproveProps {
  * Existing-device side. Enter the code shown on the new device, confirm
  * details, approve.
  */
+// eslint-disable-next-line max-lines-per-function -- VaultApproveDevice renders the full approve-device flow including phrase fallback and confirmation UI
 export function VaultApproveDevice({ onClose }: ApproveProps) {
   const signer = useCryptoStore((s) => s.device);
   const [code, setCode] = useState("");
@@ -452,10 +457,10 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
         signer,
         recoverySigning,
       );
-      await clearPair(code.trim()).catch(() => {});
+      await clearPair(code.trim()).catch((_err) => { /* intentional noop — pairing already completed */ });
       // Security alert across the user's channels. Best-effort — the device is
       // already paired, so a notify failure must not block closing the dialog.
-      await notifyDevicePaired(info.deviceId, info.deviceName).catch(() => {});
+      await notifyDevicePaired(info.deviceId, info.deviceName).catch((_err) => { /* intentional noop — notify is best-effort */ });
       onClose();
     } catch (e) {
       setError((e as Error).message);

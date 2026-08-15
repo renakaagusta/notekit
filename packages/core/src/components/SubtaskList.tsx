@@ -13,6 +13,7 @@ interface SubtaskListProps {
 
 const COLLAPSED_LIMIT = 4;
 
+// eslint-disable-next-line max-lines-per-function -- React component with inline editing and toggle logic; extracting would require extra state lifting
 export function SubtaskList({ body, onChange }: SubtaskListProps) {
   const subs = useMemo(() => parseSubtasks(body), [body]);
   const [expanded, setExpanded] = useState(false);

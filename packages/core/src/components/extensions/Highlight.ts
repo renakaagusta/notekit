@@ -1,5 +1,5 @@
 import { Highlight as TiptapHighlight } from "@tiptap/extension-highlight";
-// @ts-ignore — no types shipped; plugin is tiny and stable
+// @ts-expect-error -- no types shipped; plugin is tiny and stable
 import markdownItMark from "markdown-it-mark";
 
 // Extends the Tiptap Highlight mark with ==text== markdown serialization

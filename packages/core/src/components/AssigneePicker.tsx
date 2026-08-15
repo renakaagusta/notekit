@@ -16,6 +16,7 @@ interface AssigneePickerProps {
   variant?: "card" | "inline";
 }
 
+// eslint-disable-next-line complexity, max-lines-per-function -- React component handles open/close, filtering, loading states, two display variants and multi-variant rendering
 export function AssigneePicker({
   value,
   onChange,
@@ -35,13 +36,24 @@ export function AssigneePicker({
     if (open && status === "idle") void load();
   }, [open, status, load]);
 
+  function closeDropdown() {
+    setOpen(false);
+    setQuery("");
+  }
+
   useEffect(() => {
     if (!open) return;
     function onClick(e: MouseEvent) {
-      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+      if (!wrapRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        setQuery("");
+      }
     }
     window.addEventListener("mousedown", onClick);
     window.addEventListener("keydown", onKey);
@@ -53,7 +65,6 @@ export function AssigneePicker({
 
   useEffect(() => {
     if (open) inputRef.current?.focus();
-    else setQuery("");
   }, [open]);
 
   const resolved = useMemo(() => resolveAssignee(value, members), [value, members]);
@@ -69,12 +80,12 @@ export function AssigneePicker({
 
   function pick(m: Member) {
     onChange(assigneeStringOf(m));
-    setOpen(false);
+    closeDropdown();
   }
 
   function clear() {
     onChange(null);
-    setOpen(false);
+    closeDropdown();
   }
 
   return (
@@ -88,7 +99,7 @@ export function AssigneePicker({
         }
         onClick={(e) => {
           e.stopPropagation();
-          setOpen((v) => !v);
+          if (open) closeDropdown(); else setOpen(true);
         }}
         title={resolved ? `Assigned to ${resolved.display}` : "Assign"}
         aria-label={resolved ? `Assigned to ${resolved.display}` : "Assign"}

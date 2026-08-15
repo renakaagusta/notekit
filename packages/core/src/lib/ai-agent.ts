@@ -31,7 +31,7 @@ import { DEFAULT_AGENT_MODEL, type AgentProvider } from "./agents-api";
  *  parts (images as data: URLs or https URLs) for vision-capable models. */
 export type MessageContent =
   | string
-  | Array<{ type: "text"; text: string } | { type: "image"; image: string }>;
+  | ({ type: "text"; text: string } | { type: "image"; image: string })[];
 
 export interface AssistantMessage {
   role: "user" | "assistant";
@@ -109,6 +109,7 @@ function isToolFormatError(err: unknown): boolean {
   return /tool/i.test(msg);
 }
 
+// eslint-disable-next-line max-lines-per-function -- streaming assistant with retry logic and tool-degradation path cannot be split without losing context
 export async function streamAssistant(
   opts: StreamAssistantOptions,
 ): Promise<StreamAssistantResult> {
@@ -119,6 +120,7 @@ export async function streamAssistant(
   // A single pass. `useTools` lets us retry without tools if the endpoint
   // rejects them (some OpenAI-compatible models, e.g. MiniMax-M3 via 9router,
   // don't accept the tool schema).
+  // eslint-disable-next-line complexity -- streaming loop must handle all AI SDK event types in a single switch
   async function pass(useTools: boolean): Promise<void> {
     text = "";
     const result = streamText({

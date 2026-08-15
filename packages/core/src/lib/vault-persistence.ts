@@ -1,8 +1,8 @@
 /**
- * Vault-scoped localStorage persistence for the notes and tickets stores.
+ * Vault-scoped localStorage persistence for the notes, tickets, and links stores.
  *
  * The Zustand persist middleware uses a single key per store by default
- * (`notekit:notes`, `notekit:tickets`). With two accounts on the same
+ * (`notekit:notes`, `notekit:tickets`, `notekit:links`). With two accounts on the same
  * browser — or two vaults under the same account — those keys are shared,
  * which lets stale state from one vault leak into the next. This module
  * rebinds each store's persist key to include the active vault's id (or a
@@ -14,10 +14,16 @@
  * resolving which vault to open) never touches localStorage at all. After
  * bind, future state changes are persisted to the vault-scoped key, and
  * the saved state for that vault is rehydrated into the store.
+ *
+ * All three stores apply a `partialize` filter that strips decrypted content
+ * (body, title, url, description) before writing — so even in the bound state,
+ * only safe structural fields (id, path, timestamps, encrypted flag) land in
+ * localStorage.
  */
 import { createJSONStorage } from "zustand/middleware";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
+import { useLinksStore } from "../stores/linksStore";
 import type { VaultRef } from "./vault-api";
 
 let boundKey: string | null = null;
@@ -25,8 +31,8 @@ let boundKey: string | null = null;
 const realStorage = () => localStorage;
 const noopStorage = () => ({
   getItem: () => null,
-  setItem: () => {},
-  removeItem: () => {},
+  setItem: () => { /* intentional noop — writes discarded before vault is bound */ },
+  removeItem: () => { /* intentional noop — writes discarded before vault is bound */ },
 });
 
 /**
@@ -38,6 +44,16 @@ function vaultPersistenceKey(vault: VaultRef): string {
   if (vault.id) return vault.id;
   const provider = vault.provider ?? "git";
   return `${provider}/${vault.owner}/${vault.repo}@${vault.branch}`;
+}
+
+/**
+ * The scope key for the currently-bound vault, or null when none is bound.
+ * The offline ciphertext cache (`vault-cache.ts`) uses this to namespace its
+ * IndexedDB records per vault — same anti-leak guarantee as the localStorage
+ * persistence slots.
+ */
+export function currentVaultScope(): string | null {
+  return boundKey;
 }
 
 /**
@@ -59,10 +75,15 @@ export async function bindVaultPersistence(vault: VaultRef): Promise<void> {
     name: `notekit:tickets:${key}`,
     storage: createJSONStorage(realStorage),
   });
+  useLinksStore.persist.setOptions({
+    name: `notekit:links:${key}`,
+    storage: createJSONStorage(realStorage),
+  });
 
   await Promise.all([
     useNotesStore.persist.rehydrate(),
     useTicketsStore.persist.rehydrate(),
+    useLinksStore.persist.rehydrate(),
   ]);
 }
 
@@ -80,6 +101,10 @@ export function unbindVaultPersistence(): void {
   });
   useTicketsStore.persist.setOptions({
     name: "notekit:tickets:__unbound",
+    storage: createJSONStorage(noopStorage),
+  });
+  useLinksStore.persist.setOptions({
+    name: "notekit:links:__unbound",
     storage: createJSONStorage(noopStorage),
   });
 }

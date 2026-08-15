@@ -17,6 +17,7 @@ import {
 import { listSecretNames } from "../lib/secrets-vault";
 import {
   listChatSessions,
+  readCachedChatSessions,
   readChatSession,
   writeChatSession,
   deleteChatSession,
@@ -73,6 +74,7 @@ function relTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity -- large React component; multiple UI states (loading, setup, history, chat) with shared closure; cannot split without prop-drilling
 export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   const open = useAIChatStore((s) => s.open);
   const setOpen = useAIChatStore((s) => s.setOpen);
@@ -121,7 +123,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   // parallel), and each needs its own confirmation. A single slot would let
   // later requests clobber earlier ones and deadlock the stream.
   const approvalQueue = useRef<
-    Array<{ id: string; toolName: string; summary: string; input: unknown; resolve: (ok: boolean) => void }>
+    { id: string; toolName: string; summary: string; input: unknown; resolve: (ok: boolean) => void }[]
   >([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -164,12 +166,22 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   useEffect(() => {
     if (!open || cryptoPhase !== "ready" || !device) return;
     let cancelled = false;
+    let gotNetwork = false;
+    // Cache-then-network (stale-while-revalidate): paint history from the local
+    // ciphertext cache instantly (works offline), then revalidate over the
+    // network and swap. The cache read never overrides a network result that
+    // already landed.
+    void (async () => {
+      const cached = await readCachedChatSessions(device);
+      if (!cancelled && !gotNetwork && cached) setSessions(cached);
+    })();
     void (async () => {
       try {
         const list = await listChatSessions(device);
+        gotNetwork = true;
         if (!cancelled) setSessions(list);
       } catch {
-        if (!cancelled) setSessions([]);
+        // Offline / fetch failed — keep whatever the cache painted.
       }
     })();
     return () => {
@@ -208,6 +220,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
   const selectedAgent =
     agents?.find((a) => a.slug === selectedAgentSlug) ?? agents?.[0] ?? null;
 
+  // eslint-disable-next-line max-lines-per-function, complexity -- send handler coordinates context-building, streaming, tool approval, and session persistence across multiple branch paths
   async function onSend() {
     const text = draft.trim();
     const images = attachments;
@@ -347,9 +360,8 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
       await writeChatSession(session, device);
       const list = await listChatSessions(device);
       setSessions(list);
-    } catch (e) {
-      // Non-fatal: chat still works in-memory; surface for debugging only.
-      console.warn("[notekit] failed to persist chat session", e);
+    } catch {
+      // Non-fatal: chat still works in-memory.
     }
   }
 
@@ -364,8 +376,8 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
         loadSessionMessages(id, session.messages);
         sessionCreatedRef.current = session.createdAt;
       }
-    } catch (e) {
-      console.warn("[notekit] failed to open chat session", e);
+    } catch {
+      /* intentional */
     }
   }
 
@@ -385,8 +397,8 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
       const list = await listChatSessions(device);
       setSessions(list);
       if (useAIChatStore.getState().currentSessionId === id) newChat();
-    } catch (e) {
-      console.warn("[notekit] failed to delete chat session", e);
+    } catch {
+      /* intentional */
     }
   }
 

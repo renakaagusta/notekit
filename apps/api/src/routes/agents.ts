@@ -35,6 +35,7 @@ type ChatFields = Pick<
   "emoji" | "model" | "systemPrompt" | "toolPermissions" | "provider" | "baseUrl"
 >;
 
+// eslint-disable-next-line complexity -- normalizes six optional chat fields with prev-value fallback; each branch handles one field
 function normalizeChatFields(
   body: {
     emoji?: string;
@@ -86,7 +87,6 @@ function ghErr(c: Context, err: unknown) {
       502,
     );
   }
-  console.error("[agents] unexpected error:", err);
   return c.json({ error: "server_error" }, 500);
 }
 

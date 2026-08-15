@@ -135,6 +135,7 @@ describe("vault encryption policy (born-E2EE)", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- large describe block covering multiple related sub-tests for key-substitution defence
 describe("signed recipient records (key-substitution defence)", () => {
   it("born-signed init writes a signing key + self-signed recovery + signed device", async () => {
     const { backend } = memoryBackend();
@@ -384,6 +385,7 @@ describe("born-with-membership init", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- large describe block covering member admission scenarios with setup helpers
 describe("member admission (Pt 2b)", () => {
   // A self-signed, owner-tagged device record as it arrives from the directory
   // (signed by the member's OWN key — the owner relays it verbatim).
@@ -574,6 +576,7 @@ describe("member device auto-register (Pt 3 / issue #14)", () => {
     const devices = await listDevices();
     const rec = devices.find((d) => d.deviceId === "bdev2");
     expect(rec?.owner).toBe("b@x.com");
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- rec is guaranteed by find with deviceId we just registered
     expect(deviceRecordTrustedByMember(rec!, await readMembers())).toBe(true);
 
     // Joins the recipient set so FUTURE writes seal to it.
@@ -712,6 +715,7 @@ describe("batched re-encrypt commits — #13", () => {
   });
 });
 
+// eslint-disable-next-line max-lines-per-function -- large describe block covering full envelope lifecycle: create, add, revoke, migrate
 describe("envelope mode content seam (P2)", () => {
   // The seam is a module global — always clear it so it can't leak into the
   // legacy-mode tests above/below.
@@ -733,6 +737,7 @@ describe("envelope mode content seam (P2)", () => {
     await setSecret("OPENAI", "sk-123", devA);
 
     // Stored ciphertext must be sealed to V, not to devA specifically.
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- OPENAI secret was just written by setSecret above
     const stored = files.get(`${SECRETS_PREFIX}OPENAI.age`)!;
     expect(stored).toContain("AGE ENCRYPTED FILE");
     expect(await decryptSecretsRaw(stored, V.identity)).toContain("sk-123");
@@ -837,6 +842,7 @@ describe("envelope mode content seam (P2)", () => {
     // Content was NOT re-sealed, and the phone now opens the keybox directly.
     expect(files.get(`${SECRETS_PREFIX}OPENAI.age`)).toBe(contentBefore);
     const V2 = await unlockVaultKey(phone);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- V is the result of addSelfToKeybox which throws rather than returning null
     expect(V2?.identity).toBe(V!.identity);
     setActiveVaultKey(V2);
     expect(await getSecret("OPENAI", phone)).toBe("sk-123");
@@ -865,6 +871,7 @@ describe("envelope mode content seam (P2)", () => {
 
     // Idempotent: a second run just returns the same key, no re-migration.
     const again = await migrateToEnvelope(owner, recoverySigning);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- V was verified non-null earlier in this test
     expect(again?.identity).toBe(V!.identity);
 
     // Post-migration, a new device joins O(1): content byte-identical.
@@ -890,11 +897,13 @@ describe("envelope mode content seam (P2)", () => {
     // Add a second device (O(1)), which learns the current vault key.
     const laptop = await mkDevice("laptop");
     await addDevice(laptop, owner, recoverySigning);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- V1 was just obtained from unlockVaultKey without throwing
     expect((await unlockVaultKey(laptop))?.identity).toBe(V1!.identity);
 
     // Revoke it → the vault key rotates.
     await removeDevice(laptop.deviceId, owner, recoverySigning);
     const V2 = await unlockVaultKey(owner);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- V2 and V1 are both valid vault keys obtained without throwing
     expect(V2!.identity).not.toBe(V1!.identity); // new key
     setActiveVaultKey(V2);
     expect(await getSecret("OPENAI", owner)).toBe("sk-1"); // owner still reads

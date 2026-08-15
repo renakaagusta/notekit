@@ -2,18 +2,28 @@ import { useState } from "react";
 import { CalendarDays, SquareKanban } from "lucide-react";
 import { TicketsBoard } from "./TicketsBoard";
 import { CalendarView } from "./CalendarView";
+import { MobileTasksView } from "./MobileTasksView";
+import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 
 type TasksMode = "kanban" | "calendar";
 
 interface TasksViewProps {
   focusTicket?: { id: string; seq: number } | null;
   onOpenJournal?: (ymd: string) => void;
+  userName?: string | null;
 }
 
-export function TasksView({ focusTicket, onOpenJournal }: TasksViewProps) {
+export function TasksView({ focusTicket, onOpenJournal, userName }: TasksViewProps) {
+  const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
   const [mode, setMode] = useState<TasksMode>(() =>
     (localStorage.getItem("nk:tasks-mode") as TasksMode | null) ?? "kanban",
   );
+
+  // Phone gets a dedicated agenda screen (day strip + task cards); the Kanban
+  // board and calendar are desktop-only surfaces.
+  if (isMobile) {
+    return <MobileTasksView userName={userName} focusTicket={focusTicket} />;
+  }
 
   function switchMode(m: TasksMode) {
     setMode(m);

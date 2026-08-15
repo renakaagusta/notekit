@@ -358,7 +358,7 @@ const pairCmd = defineCommand({
 
       // Check if already paired.
       const existing = await listDevices();
-      if (existing.some((d) => d.deviceId === device!.deviceId)) {
+      if (existing.some((d) => d.deviceId === device?.deviceId)) {
         process.stdout.write(kleur.green("This CLI device is already paired.\n"));
         return;
       }
@@ -367,8 +367,8 @@ const pairCmd = defineCommand({
       const { webcrypto } = await import("node:crypto");
       const buf = new Uint32Array(1);
       const LIMIT = 4_294_000_000;
-      do { (webcrypto as Crypto).getRandomValues(buf); } while (buf[0]! >= LIMIT);
-      const code = (buf[0]! % 1_000_000).toString().padStart(6, "0");
+      do { (webcrypto as Crypto).getRandomValues(buf); } while ((buf[0] ?? 0) >= LIMIT);
+      const code = ((buf[0] ?? 0) % 1_000_000).toString().padStart(6, "0");
 
       await nk.vault.announcePair({
         code,
@@ -390,8 +390,8 @@ const pairCmd = defineCommand({
         process.stdout.write(".");
         try {
           const devices = await listDevices();
-          if (devices.some((d) => d.deviceId === device!.deviceId)) {
-            await nk.vault.clearPair(code).catch(() => {});
+          if (devices.some((d) => d.deviceId === device?.deviceId)) {
+            await nk.vault.clearPair(code).catch(() => { /* intentional noop */ });
             process.stdout.write(
               kleur.green("\n\n✓ Paired! This CLI can now read and write your encrypted vault.\n"),
             );
@@ -402,7 +402,7 @@ const pairCmd = defineCommand({
         }
       }
 
-      await nk.vault.clearPair(code).catch(() => {});
+      await nk.vault.clearPair(code).catch(() => { /* intentional noop */ });
       process.stderr.write(kleur.red("\n\nTimed out. Run `notekit vault pair` again.\n"));
       process.exitCode = 1;
     } catch (err) {

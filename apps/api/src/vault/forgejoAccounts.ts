@@ -55,7 +55,7 @@ export async function getForgejoAccount(userId: string): Promise<ForgejoAccount 
 export async function provisionForgejoAccount(
   userId: string,
   email: string,
-  displayName: string | null,
+  _displayName: string | null,
 ): Promise<ForgejoAccount> {
   const existing = await getForgejoAccount(userId);
   const username = existing?.username ?? usernameFromEmail(email);

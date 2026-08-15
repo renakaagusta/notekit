@@ -55,6 +55,7 @@ export interface EditorHandle {
   editor: TipTapEditor | null;
 }
 
+// eslint-disable-next-line max-lines-per-function -- React forwardRef component with imperative handle and multiple effects; splitting would lose cohesion
 export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
   { value, onChange, readOnly = false, vimMode = false },
   ref,

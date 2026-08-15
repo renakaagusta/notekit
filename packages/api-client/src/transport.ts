@@ -63,6 +63,7 @@ export class NoteKitClient {
     this.fetchFn = f.bind(globalThis);
   }
 
+  // eslint-disable-next-line complexity -- handles all HTTP error codes, auth injection, and retry logic in a single transport method
   async request<T = unknown>(path: string, init: NoteKitRequestInit = {}): Promise<T> {
     const url = new URL(path, this.opts.baseUrl);
     if (init.query) {

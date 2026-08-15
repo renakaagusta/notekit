@@ -41,8 +41,11 @@ describe("ink serialize/parse", () => {
     });
     const parsed = parseInk(messy);
     expect(parsed.strokes).toHaveLength(1);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- strokes[0] asserted non-empty above
     expect(parsed.strokes[0]!.tool).toBe("pen"); // unknown tool → pen
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- strokes[0] asserted non-empty above
     expect(parsed.strokes[0]!.points).toHaveLength(1); // bad point dropped
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- strokes[0] asserted non-empty above
     expect(parsed.strokes[0]!.color).toBe("#111111"); // default
   });
 
@@ -52,7 +55,9 @@ describe("ink serialize/parse", () => {
         strokes: [{ points: [{ x: 0, y: 0, p: 5 }, { x: 1, y: 1, p: -3 }] }],
       }),
     );
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- strokes[0] and points[0] both asserted non-empty in test setup
     expect(parsed.strokes[0]!.points[0]!.p).toBe(1);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- strokes[0] and points[1] both asserted non-empty in test setup
     expect(parsed.strokes[0]!.points[1]!.p).toBe(0);
   });
 });
@@ -105,6 +110,7 @@ describe("simplifyStroke (RDP)", () => {
         },
       ],
     };
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- strokes[0] is guaranteed by dense document defined above
     expect(simplifyInk(dense).strokes[0]!.points).toHaveLength(2);
   });
 });

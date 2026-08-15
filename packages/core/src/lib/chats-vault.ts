@@ -17,6 +17,8 @@ import {
   encryptVaultContentMany,
   decryptVaultContent,
 } from "./secrets-vault";
+import * as cache from "./vault-cache";
+import { currentVaultScope } from "./vault-persistence";
 
 export interface ChatSession {
   id: string;
@@ -45,18 +47,48 @@ const shaCache = new Map<string, string>();
 
 const now = () => new Date().toISOString();
 
+/** Decrypt + sort a raw index payload. */
+function parseIndex(json: string): ChatSessionMeta[] {
+  const list = JSON.parse(json) as ChatSessionMeta[];
+  return list.slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+}
+
 /** Read + decrypt the session index (newest first). Empty if none yet. */
 export async function listChatSessions(device: DeviceIdentity): Promise<ChatSessionMeta[]> {
   const backend = getVaultBackend();
   const file = await backend.readFile(INDEX_PATH);
   if (file.sha) shaCache.set(INDEX_PATH, file.sha);
   if (typeof file.content !== "string" || !file.content) return [];
+  // Warm the offline cache with the ciphertext (never the decrypted list) so a
+  // later cold open can render history from disk before the network responds.
+  const scope = currentVaultScope();
+  if (scope && file.sha) {
+    void cache.putFile(scope, { path: INDEX_PATH, sha: file.sha, content: file.content });
+  }
   try {
-    const json = await decryptVaultContent(file.content, device);
-    const list = JSON.parse(json) as ChatSessionMeta[];
-    return list.slice().sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+    return parseIndex(await decryptVaultContent(file.content, device));
   } catch {
     return [];
+  }
+}
+
+/**
+ * Cache-only read of the session index — decrypts the last-known ciphertext from
+ * IndexedDB, no network. Returns null when nothing is cached, so the caller
+ * falls through to {@link listChatSessions}. The offline-first (stale-while-
+ * revalidate) half of chat history: render this instantly, then revalidate.
+ */
+export async function readCachedChatSessions(
+  device: DeviceIdentity,
+): Promise<ChatSessionMeta[] | null> {
+  const scope = currentVaultScope();
+  if (!scope) return null;
+  const hit = await cache.getFile(scope, INDEX_PATH);
+  if (!hit || !hit.content) return null;
+  try {
+    return parseIndex(await decryptVaultContent(hit.content, device));
+  } catch {
+    return null;
   }
 }
 
@@ -121,9 +153,10 @@ export async function writeChatSession(
     [JSON.stringify(session), JSON.stringify(nextIndex)],
     device,
   );
+  if (!armored[0] || !armored[1]) throw new Error("encryptVaultContentMany returned fewer results than expected");
   const files: { path: string; content: string }[] = [
-    { path: sessionPath(session.id), content: armored[0]! },
-    { path: INDEX_PATH, content: armored[1]! },
+    { path: sessionPath(session.id), content: armored[0] },
+    { path: INDEX_PATH, content: armored[1] },
   ];
   const message = `notekit: save chat "${session.title || session.id}"`;
 
@@ -167,7 +200,7 @@ export async function deleteChatSession(
   }
 
   if (sha) {
-    await backend.deleteFile(path, sha, message).catch(() => {});
+    await backend.deleteFile(path, sha, message).catch(() => { /* intentional noop — missing file is harmless */ });
     shaCache.delete(path);
   }
 }

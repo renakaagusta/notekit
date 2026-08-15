@@ -132,6 +132,7 @@ function checkBearer(req: IncomingMessage, expected: Buffer): boolean {
   if (!header || Array.isArray(header)) return false;
   const match = /^Bearer\s+(.+)$/i.exec(header);
   if (!match) return false;
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- regex capture group [1] is guaranteed to exist when exec() returns non-null
   const presented = Buffer.from(match[1]!.trim(), "utf8");
   if (presented.length !== expected.length) return false;
   return timingSafeEqual(presented, expected);

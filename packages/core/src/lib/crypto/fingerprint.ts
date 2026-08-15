@@ -19,7 +19,7 @@
 
 // Exactly 32 symbols → 5 usable bits per slot. Emoji + word so it reads aloud
 // cleanly and survives font differences across platforms.
-const ALPHABET: ReadonlyArray<{ emoji: string; word: string }> = [
+const ALPHABET: readonly { emoji: string; word: string }[] = [
   { emoji: "🦊", word: "fox" },
   { emoji: "🐙", word: "octopus" },
   { emoji: "🌲", word: "pine" },
@@ -70,7 +70,9 @@ export async function deriveFingerprint(pubkey: string): Promise<FingerprintSlot
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   const slots: FingerprintSlot[] = [];
   for (let i = 0; i < SLOTS; i++) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- digest is SHA-256 (32 bytes), SLOTS=3, so indices 0-2 are always defined
     const idx = digest[i]! % ALPHABET.length;
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- idx is in range [0, ALPHABET.length-1] (modulo result), so element is always defined
     slots.push(ALPHABET[idx]!);
   }
   return slots;

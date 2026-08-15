@@ -19,6 +19,7 @@ import type {
   VaultSyncResult,
 } from "../types";
 
+// eslint-disable-next-line max-lines-per-function -- returns a single object with all vault endpoint methods; splitting loses the cohesive API surface
 export function vaultEndpoints(client: NoteKitClient) {
   return {
     // ── status + listing ─────────────────────────────────────────────────

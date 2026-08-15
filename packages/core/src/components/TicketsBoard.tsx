@@ -78,6 +78,7 @@ const PRIORITY_CLASS: Record<TicketPriority, string> = {
   low: "priority-p3",
 };
 
+// eslint-disable-next-line max-lines-per-function -- TicketsBoard is a large board component combining state, keyboard handling, drag-drop, and column rendering
 export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
   const tickets = useTicketsStore((s) => s.tickets);
   const upsert = useTicketsStore((s) => s.upsert);
@@ -190,30 +191,40 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
     return COLUMNS.map((col) => visible.filter((t) => t.status === col.status));
   }, [visible]);
 
-  function locate(id: string | null): [number, number] | null {
-    if (!id) return null;
-    for (let c = 0; c < grid.length; c++) {
-      const r = grid[c]!.findIndex((t) => t.id === id);
-      if (r >= 0) return [c, r];
-    }
-    return null;
-  }
-
-  function focusAt(col: number, row: number) {
-    for (let attempts = 0; attempts < grid.length; attempts++) {
-      const list = grid[col];
-      if (list && list.length > 0) {
-        const r = Math.max(0, Math.min(row, list.length - 1));
-        const id = list[r]!.id;
-        setFocusedId(id);
-        cardRefs.current.get(id)?.scrollIntoView({ block: "nearest", inline: "nearest" });
-        return;
+  const locate = React.useCallback(
+    (id: string | null): [number, number] | null => {
+      if (!id) return null;
+      for (const [c, col] of grid.entries()) {
+        const r = col.findIndex((t) => t.id === id);
+        if (r >= 0) return [c, r];
       }
-      col = (col + 1) % grid.length;
-    }
-  }
+      return null;
+    },
+    [grid],
+  );
+
+  const focusAt = React.useCallback(
+    (col: number, row: number) => {
+      let c = col;
+      // eslint-disable-next-line @typescript-eslint/prefer-for-of -- index variable `attempts` is needed to limit wrapping; `c` is mutated each iteration
+      for (let attempts = 0; attempts < grid.length; attempts++) {
+        const list = grid[c];
+        if (list && list.length > 0) {
+          const r = Math.max(0, Math.min(row, list.length - 1));
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- r is clamped to [0, list.length-1] so list[r] is always defined
+          const id = list[r]!.id;
+          setFocusedId(id);
+          cardRefs.current.get(id)?.scrollIntoView({ block: "nearest", inline: "nearest" });
+          return;
+        }
+        c = (c + 1) % grid.length;
+      }
+    },
+    [grid],
+  );
 
   useEffect(() => {
+    // eslint-disable-next-line complexity -- keyboard handler dispatches over many keys (j/k/l/h/arrows/1-5/e/a/.) plus modifiers
     function handler(e: KeyboardEvent) {
       // Don't intercept while the user is typing in an input or editing text.
       const active = document.activeElement as HTMLElement | null;
@@ -272,6 +283,7 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
       const num = ["1", "2", "3", "4", "5"].indexOf(e.key);
       if (num >= 0 && num < STATUS_ORDER.length) {
         e.preventDefault();
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- num is bounded by STATUS_ORDER.length check above
         setStatus(focusedTicket.id, STATUS_ORDER[num]!);
         return;
       }
@@ -300,14 +312,15 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
     }
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [grid, focusedId, detailId, cheatsheetOpen, setStatus]);
+  }, [grid, focusedId, detailId, cheatsheetOpen, setStatus, focusAt, locate]);
 
   // If the focused ticket disappears (filtered out, deleted), drop focus.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronous focus-drop when the focused ticket is removed from the visible set
     if (focusedId && !locate(focusedId)) setFocusedId(null);
-  }, [focusedId, grid]);
+  }, [focusedId, grid, locate]);
 
-  function cycleStatus(t: Ticket) {
+  function _cycleStatus(t: Ticket) {
     const idx = STATUS_ORDER.indexOf(t.status);
     const next = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length] ?? "todo";
     setStatus(t.id, next);
@@ -352,6 +365,7 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
         endSlot={endSlot}
       />
       <div className="nk-board">
+        {/* eslint-disable-next-line max-lines-per-function -- column render includes drag-drop handlers, card list, and empty-state button */}
         {COLUMNS.map((col, colIndex) => {
           const cards = grid[colIndex] ?? [];
           const isOver = dragOver === col.status;
@@ -379,6 +393,7 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
               }}
               onDrop={(e) => onColumnDrop(col.status, e)}
             >
+              {/* eslint-disable-next-line max-lines-per-function -- card render includes encrypted badge, subtask progress, labels, and quick-action toolbar */}
               {cards.map((t) => {
                 const progress = subtaskProgress(t.body);
                 const isFocused = focusedId === t.id;

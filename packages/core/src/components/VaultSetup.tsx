@@ -46,6 +46,7 @@ function WalletLogo({ id, size = 20 }: { id: WalletId; size?: number }) {
  * Renders only a brief "setting up" beat (and an error fallback), so the user
  * effectively never sees a key ceremony on a fresh device.
  */
+// eslint-disable-next-line max-lines-per-function -- component manages three vault-root paths (generate/wallet/import) plus error and loading states
 export function VaultSetup() {
   const setPhase = useCryptoStore((s) => s.setPhase);
   const setDevice = useCryptoStore((s) => s.setDevice);
@@ -150,7 +151,7 @@ export function VaultSetup() {
       });
       // Cache the phrase locally (marked backed-up — the user already holds it)
       // so the recovery sheet and nudge stay consistent on this device.
-      await importRecovery(mnemonic).catch(() => {});
+      await importRecovery(mnemonic).catch(() => { /* intentional noop — failure to cache locally is non-fatal; the vault is already initialized */ });
       setDevice(device);
       setEncryptionRequired(true);
       // Envelope vaults: initVault installed the vault key in the seam — mirror

@@ -137,6 +137,7 @@ describe("JSON adapters — merge preserves unrelated entries", () => {
 });
 
 describe("Codex (TOML) adapter — binary entry", () => {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- "codex" is a statically registered adapter, always present
   const codex = getClient("codex")!;
 
   it("emits a `[mcp_servers.notekit]` section pointing at the binary", () => {
@@ -176,23 +177,31 @@ describe("Codex (TOML) adapter — binary entry", () => {
 });
 
 describe("Cursor deeplink", () => {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- "cursor" is a statically registered adapter, always present
   const cursor = getClient("cursor")!;
   it("produces a base64-encoded JSON config payload for the binary entry", () => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- cursor adapter always has a deeplink function
     const link = cursor.deeplink!(binaryEntry);
     expect(link).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on line above via expect
     expect(link!.startsWith("cursor://anysphere.cursor-deeplink/mcp/install?")).toBe(true);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- link is non-null per above assertion
     const url = new URL(link!);
     expect(url.searchParams.get("name")).toBe("notekit");
     const cfg = url.searchParams.get("config");
     expect(cfg).toBeTruthy();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- cfg is truthy per above assertion
     const decoded = JSON.parse(Buffer.from(cfg!, "base64").toString("utf8"));
     expect(decoded.args).toEqual(["mcp", "serve"]);
   });
 
   it("produces a deeplink with @notekit/mcp when useNpx is set", () => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- cursor adapter always has a deeplink function
     const link = cursor.deeplink!(npxEntry);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- link is always returned for npxEntry
     const url = new URL(link!);
     const cfg = url.searchParams.get("config");
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- config param is always set by cursor adapter
     const decoded = JSON.parse(Buffer.from(cfg!, "base64").toString("utf8"));
     expect(decoded.command).toBe("npx");
     expect(decoded.args).toEqual(["-y", "@notekit/mcp"]);
@@ -200,6 +209,7 @@ describe("Cursor deeplink", () => {
 });
 
 describe("Continue adapter", () => {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- "continue" is a statically registered adapter, always present
   const cont = getClient("continue")!;
   it("places the entry in experimental.modelContextProtocolServers as an array", () => {
     const merged = cont.merge(null, binaryEntry);
@@ -222,6 +232,7 @@ describe("Continue adapter", () => {
 });
 
 describe("Zed adapter", () => {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- "zed" is a statically registered adapter, always present
   const zed = getClient("zed")!;
   it("uses context_servers.<name>.command.path with the binary", () => {
     const merged = zed.merge(null, binaryEntry);
@@ -232,6 +243,7 @@ describe("Zed adapter", () => {
 });
 
 describe("OpenCode adapter", () => {
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- "opencode" is a statically registered adapter, always present
   const opencode = getClient("opencode")!;
   it("emits `mcp.<name>` with type local and command array", () => {
     const merged = opencode.merge(null, binaryEntry);

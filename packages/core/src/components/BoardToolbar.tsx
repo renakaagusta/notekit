@@ -47,6 +47,7 @@ interface BoardToolbarProps {
   endSlot?: React.ReactNode;
 }
 
+// eslint-disable-next-line max-lines-per-function -- React component render with inline event handlers; extracting would lose prop co-location
 export function BoardToolbar({
   filters,
   onFiltersChange,

@@ -168,7 +168,7 @@ export function Sidebar({
               aria-label={label}
               aria-current={view === v ? "page" : undefined}
             >
-              <Icon size={16} aria-hidden />
+              <Icon size={18} aria-hidden />
             </button>
           ))}
         </nav>
@@ -381,7 +381,7 @@ export function Sidebar({
                 aria-label="Notes"
                 aria-current={view === "notes" ? "page" : undefined}
               >
-                <FileText size={15} aria-hidden />
+                <FileText size={18} aria-hidden />
               </button>
               <button
                 className="nk-panel-nav-btn"
@@ -389,7 +389,7 @@ export function Sidebar({
                 title="Search (⌘K)"
                 aria-label="Search"
               >
-                <Search size={15} aria-hidden />
+                <Search size={18} aria-hidden />
               </button>
               <button
                 className={"nk-panel-nav-btn" + (view === "links" ? " active" : "")}
@@ -398,7 +398,7 @@ export function Sidebar({
                 aria-label="Links"
                 aria-current={view === "links" ? "page" : undefined}
               >
-                <Bookmark size={15} aria-hidden />
+                <Bookmark size={18} aria-hidden />
               </button>
             </div>
             {onCollapse && (
@@ -408,7 +408,7 @@ export function Sidebar({
                 title="Hide sidebar"
                 aria-label="Hide sidebar"
               >
-                <PanelLeft size={14} aria-hidden />
+                <PanelLeft size={18} aria-hidden />
               </button>
             )}
           </div>

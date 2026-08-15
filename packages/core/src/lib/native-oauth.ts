@@ -20,6 +20,7 @@
  */
 import { apiUrl } from "./api";
 import { isNativePlatform } from "./native";
+import { logger } from './logger'
 
 const PAT_KEY = "notekit:e2e-pat";
 
@@ -100,7 +101,7 @@ export function initNativeAuthDeepLink(): void {
       }
       window.location.reload();
     } else if (error) {
-      console.warn("[auth/native] OAuth callback returned error:", error);
+      logger.warn("[auth/native] OAuth callback returned error:", error);
     }
   });
 }

@@ -94,6 +94,7 @@ function rdp(
   let maxDist = 0;
   let index = -1;
   for (let i = first + 1; i < last; i++) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- indices are bounded by first/last which are validated before calling rdp
     const d = perpDistance(pts[i]!, pts[first]!, pts[last]!);
     if (d > maxDist) {
       maxDist = d;
@@ -105,6 +106,7 @@ function rdp(
     const right = rdp(pts, index, last, eps);
     return [...left.slice(0, -1), ...right];
   }
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- first and last indices are always valid entries passed from simplifyStroke/recursive rdp
   return [pts[first]!, pts[last]!];
 }
 

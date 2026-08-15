@@ -61,6 +61,7 @@ const EMPTY_DRAFT: DraftFields = {
   apiKey: "",
 };
 
+// eslint-disable-next-line max-lines-per-function -- AgentsView is the root agents component: list, create, edit, reveal, and key-storage UX all in one surface
 export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
   const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -108,6 +109,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refreshKeyStatus is async; setState is called in a resolved promise, not synchronously
     void refreshKeyStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [device, cryptoPhase]);
@@ -132,6 +134,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh is async; setState is called inside an awaited promise, not synchronously
     void refresh();
   }, []);
 
@@ -225,7 +228,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
       setError(null);
       await deleteAgent(slug);
       if (device && keyStoredSlugs.has(slug)) {
-        await removeSecret(agentKeySecretName(slug), device).catch(() => {});
+        await removeSecret(agentKeySecretName(slug), device).catch(() => { /* intentional noop — vault key removal is best-effort */ });
       }
       await refreshKeyStatus();
       await refresh();
@@ -479,6 +482,7 @@ interface AgentFormProps {
   keyStored?: boolean;
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity -- AgentForm renders the full agent profile form; provider/model/key/permission branches make it complex but splitting sub-components would hurt readability
 function AgentForm({
   draft,
   onChange,
@@ -515,6 +519,7 @@ function AgentForm({
       if (!ids.length) throw new Error("Endpoint tak mengembalikan model.");
       setModels(ids);
       if (!draft.model || !ids.includes(draft.model)) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ids is non-empty: the `!ids.length` guard above throws if empty
         onChange({ ...draft, model: ids[0]! });
       }
     } catch (e) {

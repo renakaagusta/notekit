@@ -13,6 +13,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { Context } from "hono";
 import { nanoid } from "nanoid";
 import { db, schema } from "../db";
+import { logger } from '../lib/logger'
 
 const TOKEN_PREFIX = "nkp_"; // "notekit personal"
 
@@ -68,9 +69,7 @@ export async function getPatPrincipal(c: Context): Promise<PatPrincipal | null> 
   void db.update(schema.personalAccessTokens)
     .set({ lastUsedAt: Date.now() })
     .where(eq(schema.personalAccessTokens.id, row.id))
-    .catch((err) => {
-      console.warn("[pat] failed to bump last_used_at:", err);
-    });
+    .catch((err) => logger.warn("[auth] personal token persist failed", err));
 
   return { userId: row.userId, patId: row.id, scope: row.scope };
 }

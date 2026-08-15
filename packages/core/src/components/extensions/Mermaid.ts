@@ -3,7 +3,8 @@ import { Node, mergeAttributes } from "@tiptap/react";
 // Mermaid diagram block — fenced code with lang=mermaid renders as SVG.
 // Falls back to a plain code block display if mermaid fails to load/parse.
 
-let mermaidReady: Promise<typeof import("mermaid").default> | null = null;
+import type { default as MermaidType } from "mermaid";
+let mermaidReady: Promise<typeof MermaidType> | null = null;
 
 function getMermaid() {
   if (!mermaidReady) {

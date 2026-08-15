@@ -132,7 +132,7 @@ export const Wikilink = Node.create({
   addInputRules() {
     return [
       nodeInputRule({
-        find: /\[\[[^\[\]]+\]\]$/,
+        find: /\[\[[^[\]]+\]\]$/,
         type: this.type,
         getAttributes: (match) => ({
           target: match[0].slice(2, -2).trim(),

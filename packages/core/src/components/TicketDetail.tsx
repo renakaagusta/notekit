@@ -39,6 +39,7 @@ const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
   { value: "low", label: "P3 · Low" },
 ];
 
+// eslint-disable-next-line max-lines-per-function -- React component rendering all ticket fields with inline editing; splitting would require complex state lifting
 export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
   const ticket = useTicketsStore((s) => s.tickets[ticketId]);
   const upsert = useTicketsStore((s) => s.upsert);

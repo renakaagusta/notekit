@@ -9,6 +9,14 @@ export interface EncryptedSkipped {
 export interface SyncState {
   phase: SyncPhase;
   lastSyncedAt: string | null;
+  /**
+   * True once decrypted content has been applied to the stores at least once
+   * this session — whether from the local ciphertext cache (instant, offline)
+   * or a network pull. Distinct from `lastSyncedAt`, which means "reconciled
+   * with the server". The UI uses this to know when real titles are on screen
+   * (vs. the metadata-only "Untitled" placeholders) so it can drop skeletons.
+   */
+  contentReady: boolean;
   pendingChanges: number;
   error: string | null;
   /**

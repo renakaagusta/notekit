@@ -22,6 +22,7 @@ interface MdCore { tokens: MdToken[]; }
 interface Md { core: { ruler: { push(name: string, fn: (state: MdCore) => void): void } } }
 
 function calloutPlugin(md: Md) {
+  // eslint-disable-next-line complexity -- markdown-it token rewriting requires handling many token type branches
   md.core.ruler.push("callout", (state) => {
     const tokens = state.tokens;
     for (let i = 0; i < tokens.length; i++) {
@@ -110,7 +111,7 @@ export const Callout = Node.create({
           const type = node.attrs.type || "note";
           const title = node.attrs.title ? ` ${node.attrs.title}` : "";
           // Write [!TYPE] header, then prefix every content line with "> "
-          const before = state.out;
+          const _before = state.out;
           state.write(`> [!${type.toUpperCase()}]${title}\n`);
           // Render content into a temporary buffer then prefix each line
           const tmpOut = state.out;

@@ -21,6 +21,7 @@ import { env } from "../env";
 import { provisionForgejoAccount } from "./forgejoAccounts";
 import * as fj from "./forgejo";
 import { createVault, setActiveVault } from "./store";
+import { logger } from '../lib/logger'
 
 const DEFAULT_REPO_NAME = "notekit-vault";
 const DEFAULT_VAULT_LABEL = "My vault";
@@ -65,7 +66,7 @@ export async function ensureDefaultVault(
     await setActiveVault(userId, vault.id);
     return true;
   } catch (err) {
-    console.error("[bootstrap] ensureDefaultVault failed for user", userId, err);
+    logger.error("[bootstrap] vault bootstrap failed", err)
     return false;
   }
 }

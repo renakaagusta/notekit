@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   CheckSquare,
   Clock,
@@ -14,6 +14,7 @@ import {
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useLinksStore } from "../stores/linksStore";
+import { useSyncStore } from "../stores/syncStore";
 import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
 import { noteTitle } from "../lib/note-display";
 import type { Note } from "../types/note";
@@ -90,12 +91,12 @@ function TaskArt() {
 }
 
 type Filter = "all" | "notes" | "tasks" | "links";
-type RecentItem = {
+interface RecentItem {
   id: string;
   kind: "note" | "task" | "link";
   title: string;
   at: string;
-};
+}
 
 interface HomePaneProps {
   onNewNote: () => void;
@@ -104,12 +105,44 @@ interface HomePaneProps {
   onToggleTicket: (id: string) => void;
 }
 
+/** Placeholder rows shown while E2EE content decrypts (avoids the "Untitled" flash). */
+function SkeletonRows({ count }: { count: number }) {
+  return (
+    <ul className="nk-home-list" aria-hidden>
+      {Array.from({ length: Math.min(Math.max(count, 3), 6) }).map((_, i) => (
+        <li key={i}>
+          <div className="nk-home-row nk-home-row-skeleton">
+            <span className="nk-home-row-icon nk-skel-box" />
+            <span className="nk-home-row-title nk-skel-line" />
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// eslint-disable-next-line max-lines-per-function -- React component home screen with multiple sections; splitting would create prop-drilling overhead
 export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }: HomePaneProps) {
   const notes = useNotesStore((s) => s.notes);
   const tickets = useTicketsStore((s) => s.all());
   const links = useLinksStore((s) => s.all());
   const isMobile = useMediaQuery(MOBILE_BREAKPOINT);
   const [filter, setFilter] = useState<Filter>("all");
+
+  // Titles are E2EE — note/task/link bodies are stripped from localStorage and
+  // only decrypt once content lands (from the local ciphertext cache on a warm
+  // boot, or the first network pull otherwise). Until then the persisted records
+  // resolve to "Untitled". Show skeleton rows during that window instead of the
+  // stale "Untitled" flash. `contentReady` flips as soon as decrypted content is
+  // applied; `settled` is a safety net so we never skeleton forever (offline,
+  // no account, empty vault).
+  const contentReady = useSyncStore((s) => s.contentReady);
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setSettled(true), 6000);
+    return () => clearTimeout(t);
+  }, []);
+  const contentLoading = !contentReady && !settled;
 
   const todayTasks = useMemo(() => {
     const ymd = todayYMD();
@@ -187,7 +220,9 @@ export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }
             <Zap size={13} aria-hidden />
             Recent
           </h2>
-          {recentNotes.length === 0 ? (
+          {contentLoading && recentNotes.length > 0 ? (
+            <SkeletonRows count={recentNotes.length} />
+          ) : recentNotes.length === 0 ? (
             <p className="nk-home-empty">No notes yet. Create one above.</p>
           ) : (
             <ul className="nk-home-list">
@@ -244,14 +279,19 @@ export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }
     <div className="nk-home">
       <div className="nk-home-inner">
         <header className="nk-home-greeting">
-          <h1>{greeting()}</h1>
-          <p>{formatDate()}</p>
+          <div className="nk-home-greeting-text">
+            <h1>{greeting()}</h1>
+            <p>{formatDate()}</p>
+          </div>
+          <button
+            className="nk-iconbtn nk-home-search-btn"
+            onClick={() => nav("notes")}
+            aria-label="Search"
+            title="Search notes, tasks, links…"
+          >
+            <Search size={20} aria-hidden />
+          </button>
         </header>
-
-        <button className="nk-home-search" onClick={() => nav("notes")}>
-          <Search size={18} aria-hidden />
-          <span>Search notes, tasks, links…</span>
-        </button>
 
         {todayTasks.length > 0 && (
           <section className="nk-home-today">
@@ -329,7 +369,9 @@ export function HomePane({ onNewNote, onNewDrawing, onOpenNote, onToggleTicket }
               ))}
             </div>
           </div>
-          {recent.length === 0 ? (
+          {contentLoading && recent.length > 0 ? (
+            <SkeletonRows count={recent.length} />
+          ) : recent.length === 0 ? (
             <p className="nk-home-empty">Nothing here yet.</p>
           ) : (
             <ul className="nk-home-list">

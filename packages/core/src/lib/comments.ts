@@ -38,6 +38,7 @@ interface Region {
 function findCommentsRegion(lines: string[]): Region | null {
   let heading = -1;
   for (let i = 0; i < lines.length; i++) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- loop bounds guarantee lines[i] exists
     if (COMMENTS_HEADING_RE.test(lines[i]!)) {
       heading = i;
       break;
@@ -46,6 +47,7 @@ function findCommentsRegion(lines: string[]): Region | null {
   if (heading < 0) return null;
   let end = lines.length;
   for (let i = heading + 1; i < lines.length; i++) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- loop bounds guarantee lines[i] exists
     if (NEXT_HEADING_RE.test(lines[i]!)) {
       end = i;
       break;
@@ -78,8 +80,10 @@ export function parseComments(body: string): TicketComment[] {
     const m = headerLine.match(HEADER_RE);
     if (m) {
       out.push({
-        author: m[1]!.trim(),
-        timestamp: m[2]!.trim(),
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- HEADER_RE has two capture groups, match is confirmed
+      author: m[1]!.trim(),
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- HEADER_RE has two capture groups, match is confirmed
+      timestamp: m[2]!.trim(),
         body: buffer.slice(1).join("\n").trim(),
       });
     } else {
@@ -93,9 +97,11 @@ export function parseComments(body: string): TicketComment[] {
   }
 
   for (let i = region.start; i < region.end; i++) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- loop bounds guarantee lines[i] exists
     const line = lines[i]!;
     const q = line.match(QUOTE_RE);
     if (q) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- QUOTE_RE has one capture group, q[1] is guaranteed
       buffer.push(q[1]!);
     } else if (line.trim() === "") {
       flush();

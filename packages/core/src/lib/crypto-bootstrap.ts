@@ -21,6 +21,10 @@ import {
   unlockVaultKey,
   addSelfToKeybox,
   setActiveVaultKey,
+  beginVaultReadWindow,
+  endVaultReadWindow,
+  prefetchBootstrapFiles,
+  vaultReadServedFromCache,
 } from "./secrets-vault";
 import { useAuthStore } from "../stores/authStore";
 import { loadStoredRecovery } from "./crypto/recovery-store";
@@ -32,6 +36,7 @@ import { toB64 } from "./crypto/signing";
 import { verifySigningKeyTrust } from "./crypto/trust-store";
 import type { DeviceIdentity } from "./crypto/device-key";
 import type { VaultKey } from "./crypto/keybox";
+import { logger } from './logger'
 
 /**
  * Member device auto-register (issue #14): if this is a member's device that
@@ -68,8 +73,19 @@ async function reconcileMemberRecipients(device: DeviceIdentity): Promise<void> 
     const { changed, signature } = await reEncryptVaultIfMembersChanged(device, prev);
     if (changed && hasLS) localStorage.setItem(key, signature);
   } catch (e) {
-    console.warn("[crypto] member recipient reconcile failed", e);
+    logger.warn("[crypto] member recipient reconcile failed", e);
   }
+}
+
+/**
+ * Defer the background reconcile off the boot-critical path. It re-reads device
+ * + member records (already fetched during bootstrap) and would otherwise
+ * contend with the initial content pull for the browser's ~6-connection budget,
+ * slowing first paint. It's eventually-consistent maintenance, so a few seconds'
+ * delay is harmless.
+ */
+function scheduleReconcile(device: DeviceIdentity): void {
+  setTimeout(() => void reconcileMemberRecipients(device), 4000);
 }
 
 /**
@@ -129,15 +145,25 @@ async function installVaultKey(device: DeviceIdentity): Promise<void> {
     setActiveVaultKey(vaultKey);
     store.setVaultKey(vaultKey);
   } catch (e) {
-    console.warn("[crypto] vault-key install failed", e);
+    logger.warn("[crypto] vault-key install failed", e);
     setActiveVaultKey(null);
     store.setVaultKey(null);
   }
 }
 
-export async function bootstrapCrypto(): Promise<void> {
+/**
+ * One bootstrap pass. `background` = SWR pass 2 (network revalidation): don't
+ * flash "checking", don't re-schedule the member reconcile, and swallow errors
+ * (a failed revalidation just leaves the last-known state until next launch).
+ */
+// eslint-disable-next-line complexity, max-lines-per-function -- bootstrap decision tree (setup/pair/self-register/ready), unchanged from the single-pass version bar the two-pass params
+async function runBootstrap(background: boolean): Promise<void> {
   const store = useCryptoStore.getState();
-  store.setPhase("checking");
+  if (!background) store.setPhase("checking");
+  // Pass 1 (foreground) serves crypto files from cache for an instant "ready";
+  // pass 2 (background) reads the network to authoritatively revalidate.
+  beginVaultReadWindow({ preferCache: !background });
+  prefetchBootstrapFiles();
   try {
     const existing = await loadDeviceIdentity();
     const [vaultReady, config] = await Promise.all([
@@ -169,7 +195,7 @@ export async function bootstrapCrypto(): Promise<void> {
       if (await tryMemberSelfRegister(fresh)) {
         await installVaultKey(fresh);
         store.setPhase("ready");
-        void reconcileMemberRecipients(fresh);
+        if (!background) scheduleReconcile(fresh);
         return;
       }
       store.setPhase("needs-pair");
@@ -184,7 +210,7 @@ export async function bootstrapCrypto(): Promise<void> {
       if (await tryMemberSelfRegister(existing)) {
         await installVaultKey(existing);
         store.setPhase("ready");
-        void reconcileMemberRecipients(existing);
+        if (!background) scheduleReconcile(existing);
         return;
       }
       store.setPhase("needs-pair");
@@ -194,11 +220,53 @@ export async function bootstrapCrypto(): Promise<void> {
     await installVaultKey(existing);
     store.setPhase("ready");
     // Phase 2 (#14): re-seal history if a new member device joined the set.
-    void reconcileMemberRecipients(existing);
+    if (!background) scheduleReconcile(existing);
     // (Publishing our public keys to the directory happens in App's
     // crypto-ready effect, which fires for both this path and the first-run
     // VaultSetup path.)
   } catch (e) {
-    store.setError((e as Error).message);
+    // Pass 1 surfaces the error; a background revalidation failure (e.g. offline)
+    // just leaves the optimistic state — we retry on the next launch.
+    if (!background) store.setError((e as Error).message);
+    else logger.warn("[crypto] background revalidation failed", e);
+  } finally {
+    endVaultReadWindow();
+  }
+}
+
+/**
+ * SWR crypto boot (stale-while-revalidate). Pass 1 reaches "ready" instantly
+ * from the local ciphertext cache + the on-device key, so content decrypts with
+ * no network wait. If pass 1 was served from cache (optimistic), pass 2
+ * revalidates the trust root / device membership / keybox against the SERVER in
+ * the background and marks the session `verified` (writes wait for that); a real
+ * downgrade — revoked device, rotated recovery key — locks the UI. When pass 1
+ * already hit the network (cold start), it's authoritative and we mark verified
+ * immediately.
+ */
+// True only while pass 2 (the background network revalidation) is in flight.
+// Writes hold during this window (see sync.ts flush); once it resolves — verified
+// or failed (offline) — the hold releases so writes are never stuck forever.
+let cryptoRevalidating = false;
+export function isCryptoRevalidating(): boolean {
+  return cryptoRevalidating;
+}
+
+export async function bootstrapCrypto(): Promise<void> {
+  useCryptoStore.getState().setVerified(false);
+  await runBootstrap(false);
+  const phase1 = useCryptoStore.getState().phase;
+  if (vaultReadServedFromCache() && phase1 === "ready") {
+    // Optimistic ready from cache → confirm against the server in the background.
+    cryptoRevalidating = true;
+    void runBootstrap(true).finally(() => {
+      cryptoRevalidating = false;
+      if (useCryptoStore.getState().phase === "ready") {
+        useCryptoStore.getState().setVerified(true);
+      }
+    });
+  } else if (phase1 === "ready") {
+    // Pass 1 hit the network (cold) — already authoritative.
+    useCryptoStore.getState().setVerified(true);
   }
 }

@@ -41,7 +41,7 @@ const sdk = new NodeSDK({
         const inlined = values.reduce<string>((sql, val, i) => {
           const re = new RegExp(`\\$${i + 1}(?!\\d)`, "g");
           const lit =
-            val == null
+            val === null || val === undefined
               ? "NULL"
               : typeof val === "string"
               ? `'${val.replace(/'/g, "''")}'`
@@ -70,9 +70,9 @@ Pyroscope.start();
 
 process.once("SIGTERM", () => {
   Pyroscope.stop();
-  sdk.shutdown().catch(() => {});
+  sdk.shutdown().catch((_err) => { /* intentional noop */ });
 });
 process.once("SIGINT", () => {
   Pyroscope.stop();
-  sdk.shutdown().catch(() => {});
+  sdk.shutdown().catch((_err) => { /* intentional noop */ });
 });

@@ -188,6 +188,7 @@ export async function readFile(
   };
 }
 
+// eslint-disable-next-line max-params -- Forgejo Contents API requires all these distinct parameters; grouping would obscure call sites
 export async function writeFile(
   token: string,
   owner: string,
@@ -218,6 +219,7 @@ export async function writeFile(
   return { sha: json.content.sha };
 }
 
+// eslint-disable-next-line max-params -- Forgejo Contents API with attribution requires all these distinct parameters
 export async function writeFileAs(
   token: string,
   owner: string,
@@ -272,6 +274,7 @@ export async function writeFileAs(
  * then build a single tree + single commit + ref update: N+3 calls with ONE
  * commit, vs N commits for N × {@link writeFile}. Author/committer optional.
  */
+// eslint-disable-next-line max-params -- Forgejo ChangeFiles endpoint requires token, owner, repo, branch, files, message, and optional author/committer
 export async function commitFiles(
   token: string,
   owner: string,
@@ -325,6 +328,7 @@ export async function commitFiles(
   return { commitSha: json.commit?.sha ?? "" };
 }
 
+// eslint-disable-next-line max-params -- Forgejo DELETE /contents requires token, owner, repo, path, message, branch, and existing blob sha
 export async function deleteFile(
   token: string,
   owner: string,
@@ -388,6 +392,7 @@ export async function listTree(
   );
 }
 
+// eslint-disable-next-line max-params -- Forgejo commits endpoint requires token, owner, repo, branch, optional path filter, and limit
 export async function listCommits(
   token: string,
   owner: string,
@@ -403,7 +408,7 @@ export async function listCommits(
   const res = await fetch(url, { headers: headers(token) });
   if (res.status === 404 || res.status === 409) return [];
   if (!res.ok) throw new GhError(res.status, await res.text());
-  const arr = (await res.json()) as Array<{
+  const arr = (await res.json()) as {
     sha: string;
     html_url: string;
     commit: {
@@ -411,7 +416,7 @@ export async function listCommits(
       author: { name?: string; email?: string; date: string } | null;
     };
     author: { login: string; avatar_url: string } | null;
-  }>;
+  }[];
   return (arr ?? []).slice(0, want).map((c) => ({
     sha: c.sha,
     message: c.commit.message,
@@ -449,11 +454,11 @@ export async function listCollaborators(
     { headers: headers(token) },
   );
   if (!res.ok) throw new GhError(res.status, await res.text());
-  const arr = (await res.json()) as Array<{
+  const arr = (await res.json()) as {
     login: string;
     avatar_url: string | null;
     html_url?: string;
-  }>;
+  }[];
   // Forgejo's list endpoint doesn't return permission per row; we fetch it
   // separately. Keep this bounded — vaults with hundreds of collaborators are
   // out of scope for the hosted free tier.

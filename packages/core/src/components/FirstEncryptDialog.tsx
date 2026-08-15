@@ -19,6 +19,7 @@ const KIND_LABEL: Record<"note" | "ticket" | "link", string> = {
   link: "saved link",
 };
 
+// eslint-disable-next-line max-lines-per-function -- dialog component with acknowledgement logic, key event handler, and multi-section JSX
 export function FirstEncryptDialog() {
   const pending = useE2eeOnboardingStore((s) => s.pending);
   const confirm = useE2eeOnboardingStore((s) => s.confirm);
@@ -36,6 +37,7 @@ export function FirstEncryptDialog() {
   // Reset the checkbox each time the dialog reopens. Otherwise an old
   // accept-state would carry across vaults.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset: synchronously clearing acknowledged when pending changes is the desired behavior to avoid stale checkbox state across vaults
     if (pending) setAcknowledged(false);
   }, [pending]);
 

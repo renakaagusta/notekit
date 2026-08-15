@@ -14,6 +14,7 @@ import { db, schema } from "../db";
 import { sendTelegram } from "./channels/telegram";
 import { sendWebPush } from "./channels/webpush";
 import { sendMobilePush } from "./channels/mobilepush";
+import { logger } from '../lib/logger'
 
 export type AgentEventType = "file.write" | "file.delete" | "device.paired";
 
@@ -57,7 +58,7 @@ export function emitAgentEvent(input: AgentEventInput): void {
     try {
       await db.insert(schema.notifications).values(row).execute();
     } catch (err) {
-      console.error("[notify] failed to persist notification:", err);
+      logger.error("[notifications] persist failed", err)
       return;
     }
     await dispatch(input.userId, summary, row.id, payload);
@@ -77,23 +78,17 @@ async function dispatch(
   const tasks: Promise<unknown>[] = [];
   if (prefs.telegramEnabled) {
     tasks.push(
-      sendTelegram(userId, summary, notificationId).catch((err) =>
-        console.error("[notify:telegram]", err),
-      ),
+      sendTelegram(userId, summary, notificationId).catch((e) => logger.warn("[notifications] telegram dispatch failed", e)),
     );
   }
   if (prefs.webPushEnabled) {
     tasks.push(
-      sendWebPush(userId, summary, notificationId, payload).catch((err) =>
-        console.error("[notify:webpush]", err),
-      ),
+      sendWebPush(userId, summary, notificationId, payload).catch((e) => logger.warn("[notifications] webpush dispatch failed", e)),
     );
   }
   if (prefs.mobilePushEnabled) {
     tasks.push(
-      sendMobilePush(userId, summary, notificationId, payload).catch((err) =>
-        console.error("[notify:mobilepush]", err),
-      ),
+      sendMobilePush(userId, summary, notificationId, payload).catch((e) => logger.warn("[notifications] mobilepush dispatch failed", e)),
     );
   }
   await Promise.allSettled(tasks);

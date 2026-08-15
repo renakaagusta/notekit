@@ -12,7 +12,7 @@ import http from "node:http";
 import path from "node:path";
 import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
-import { AddressInfo } from "node:net";
+import type { AddressInfo } from "node:net";
 import {
   IPC_CHANNELS,
   KEYCHAIN_SERVICE,
@@ -193,6 +193,7 @@ function isAllowedKeychainKey(key: unknown): key is string {
   );
 }
 
+// eslint-disable-next-line max-lines-per-function -- registers all IPC channels; splitting would scatter related handler registrations
 function registerIpcHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.KeychainGet,

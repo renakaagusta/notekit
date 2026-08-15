@@ -44,6 +44,7 @@ interface MobileDrawerProps {
  * actions, and the sync status row. Mirrors Obsidian / Bear's drawer
  * pattern — one global nav surface instead of a persistent bottom bar.
  */
+// eslint-disable-next-line max-lines-per-function, complexity -- full-screen mobile navigation drawer with vault switcher, multiple surfaces, and account menu
 export function MobileDrawer({
   open,
   onClose,
@@ -91,6 +92,7 @@ export function MobileDrawer({
 
   // Collapse the popover whenever the drawer itself closes.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting derived UI state on close is intentional; no external subscription involved
     if (!open) setUserMenuOpen(false);
   }, [open]);
 

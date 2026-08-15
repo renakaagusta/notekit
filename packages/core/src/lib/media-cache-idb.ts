@@ -59,7 +59,7 @@ export class IndexedDbMediaStore implements MediaStore {
     // Bump atime; best-effort, don't block the read on it.
     void tx(db, "readwrite", (s) =>
       s.put({ ...rec, atime: Date.now() }, key),
-    ).catch(() => {});
+    ).catch(() => { /* intentional noop */ });
     return rec.blob;
   }
 

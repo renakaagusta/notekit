@@ -28,6 +28,7 @@ import { useCryptoStore } from "../stores/cryptoStore";
 import type { EncryptedItemKind } from "./crypto/item-crypto";
 import type { RecoverySigningKey } from "./crypto/recovery";
 import { deriveFingerprint, formatFingerprint } from "./crypto/fingerprint";
+import { logger } from './logger'
 
 interface DirectoryDevice {
   deviceId: string;
@@ -142,7 +143,7 @@ export async function fetchVerifiedKeys(
       });
     } else {
       rejected++;
-      console.warn(
+      logger.warn(
         `[directory] rejecting unverified device "${d.deviceId}" for ${email} — forged or stale signature`,
       );
     }

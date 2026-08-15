@@ -13,6 +13,7 @@ export function useMediaSrc(url: string | null | undefined): string | null {
 
   useEffect(() => {
     if (!url) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: reset to null when url is cleared; no external subscription pattern applies here
       setSrc(null);
       return;
     }
@@ -28,7 +29,7 @@ export function useMediaSrc(url: string | null | undefined): string | null {
         objectUrl = URL.createObjectURL(blob);
         setSrc(objectUrl);
       })
-      .catch(() => {});
+      .catch(() => { /* cache miss is expected; fall back to raw URL */ });
 
     return () => {
       cancelled = true;

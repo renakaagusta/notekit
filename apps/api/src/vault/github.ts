@@ -102,6 +102,18 @@ export async function readFile(
   };
 }
 
+export interface WriteFileOptions {
+  token: string;
+  owner: string;
+  repo: string;
+  path: string;
+  contents: string;
+  message: string;
+  branch: string;
+  prevSha?: string;
+}
+
+// eslint-disable-next-line max-params -- thin wrapper around GitHub Contents API; all params are distinct required fields
 export async function writeFile(
   token: string,
   owner: string,
@@ -141,6 +153,7 @@ export interface GitAuthor {
  *
  * Costs ~5 round trips vs Contents API's 1. Only use when attribution matters.
  */
+// eslint-disable-next-line max-params -- Git Data API attribution requires all distinct fields (token, owner, repo, path, contents, message, branch, author, committer)
 export async function writeFileAs(
   token: string,
   owner: string,
@@ -232,6 +245,7 @@ export async function writeFileAs(
  * POST) → create one commit → fast-forward the ref. Author/committer default
  * to the token's user. See issue #13.
  */
+// eslint-disable-next-line max-params -- batched Git Trees API; all params are required distinct fields (token, owner, repo, branch, files, message, author?, committer?)
 export async function commitFiles(
   token: string,
   owner: string,
@@ -298,6 +312,7 @@ export async function commitFiles(
   return { commitSha: newCommitSha };
 }
 
+// eslint-disable-next-line max-params -- GitHub Contents DELETE requires all distinct fields (token, owner, repo, path, message, branch, prevSha)
 export async function deleteFile(
   token: string,
   owner: string,
@@ -377,7 +392,7 @@ export interface GhCommit {
 const COMMITS_HARD_CAP = 300;
 const COMMITS_PAGE_SIZE = 100;
 
-type RawCommit = {
+interface RawCommit {
   sha: string;
   html_url: string;
   commit: {
@@ -385,8 +400,9 @@ type RawCommit = {
     author: { name?: string; email?: string; date: string } | null;
   };
   author: { login: string; avatar_url: string } | null;
-};
+}
 
+// eslint-disable-next-line max-params, complexity -- GitHub Commits API requires all 6 distinct fields; pagination loop with per-commit mapping cannot be split without losing context
 export async function listCommits(
   token: string,
   owner: string,

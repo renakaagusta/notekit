@@ -118,9 +118,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommand[] = [
   },
 ];
 
-export type SlashCommandsOptions = {
+export interface SlashCommandsOptions {
   commands: SlashCommand[];
-};
+}
 
 function buildRender() {
   let component: ReactRenderer<SlashCommandMenuHandle> | null = null;

@@ -16,6 +16,7 @@ import {
 } from "../lib/directory";
 import { listItemShares, type ShareGrant } from "../lib/secrets-vault";
 
+// eslint-disable-next-line max-lines-per-function -- dialog handles lookup, preview, confirm-share, revoke, and passphrase-link flows
 export function ShareDialog() {
   const target = useShareStore((s) => s.target);
   const close = useShareStore((s) => s.close);
@@ -34,6 +35,7 @@ export function ShareDialog() {
 
   useEffect(() => {
     // Reset transient state and load the current grants whenever the target changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset: clearing transient state synchronously when the share target changes is the desired UX behavior
     setEmail("");
     setPreview(null);
     setLink(null);

@@ -55,8 +55,9 @@ export function getProvider(name: ProviderName): OAuthProvider {
       clientId: require(env.github.clientId, "GITHUB_CLIENT_ID not set"),
       clientSecret: require(env.github.clientSecret, "GITHUB_CLIENT_SECRET not set"),
       redirectUri,
-      async parseProfile(profile: any, accessToken: string) {
-        let email: string | null = profile.email ?? null;
+      async parseProfile(profile: unknown, accessToken: string) {
+        const p = profile as Record<string, unknown>;
+        let email: string | null = typeof p.email === "string" ? p.email : null;
         if (!email) {
           // GitHub may not return a primary email on /user; fetch /user/emails.
           const res = await fetch("https://api.github.com/user/emails", {
@@ -67,11 +68,11 @@ export function getProvider(name: ProviderName): OAuthProvider {
             },
           });
           if (res.ok) {
-            const emails = (await res.json()) as Array<{
+            const emails = (await res.json()) as {
               email: string;
               primary: boolean;
               verified: boolean;
-            }>;
+            }[];
             const primary = emails.find((e) => e.primary && e.verified);
             email = primary?.email ?? emails.find((e) => e.verified)?.email ?? null;
           }
@@ -79,10 +80,10 @@ export function getProvider(name: ProviderName): OAuthProvider {
         if (!email) throw new Error("GitHub did not return a verified email");
 
         return {
-          providerAccountId: String(profile.id),
+          providerAccountId: String(p.id),
           email,
-          name: profile.name ?? profile.login ?? null,
-          avatarUrl: profile.avatar_url ?? null,
+          name: (typeof p.name === "string" ? p.name : null) ?? (typeof p.login === "string" ? p.login : null) ?? null,
+          avatarUrl: typeof p.avatar_url === "string" ? p.avatar_url : null,
         };
       },
     };
@@ -98,15 +99,16 @@ export function getProvider(name: ProviderName): OAuthProvider {
       clientId: require(env.google.clientId, "GOOGLE_CLIENT_ID not set"),
       clientSecret: require(env.google.clientSecret, "GOOGLE_CLIENT_SECRET not set"),
       redirectUri,
-      async parseProfile(profile: any) {
-        if (!profile.email || !profile.email_verified) {
+      async parseProfile(profile: unknown) {
+        const p = profile as Record<string, unknown>;
+        if (typeof p.email !== "string" || !p.email_verified) {
           throw new Error("Google did not return a verified email");
         }
         return {
-          providerAccountId: String(profile.sub),
-          email: profile.email,
-          name: profile.name ?? null,
-          avatarUrl: profile.picture ?? null,
+          providerAccountId: String(p.sub),
+          email: p.email,
+          name: typeof p.name === "string" ? p.name : null,
+          avatarUrl: typeof p.picture === "string" ? p.picture : null,
         };
       },
     };

@@ -43,7 +43,9 @@ const PRIORITY_CLASS: Record<TicketPriority, string> = {
 
 const DRAG_MIME = "application/x-notekit-ticket-id";
 
-type FocusPulse = { id: string; seq: number };
+const PRIORITY_RANK: Record<TicketPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
+
+interface FocusPulse { id: string; seq: number }
 
 interface CalendarViewProps {
   onOpenJournal?: (ymd: string) => void;
@@ -52,6 +54,7 @@ interface CalendarViewProps {
   endSlot?: React.ReactNode;
 }
 
+// eslint-disable-next-line max-lines-per-function, complexity -- large React component combining month/week/day views, heatmap, unscheduled list, and drag-and-drop; dispatches across modes and events
 export function CalendarView({ onOpenJournal, onOpenTicket, focusTicket, endSlot }: CalendarViewProps) {
   const notes = useNotesStore((s) => s.all());
   const tickets = useTicketsStore((s) => s.all());
@@ -76,6 +79,7 @@ export function CalendarView({ onOpenJournal, onOpenTicket, focusTicket, endSlot
   const [heatmapSelectedYmd, setHeatmapSelectedYmd] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing external focusTicket prop into local detail panel state; one-shot effect driven by prop change, not internal state
     if (focusTicket?.id) setDetailId(focusTicket.id);
   }, [focusTicket?.id, focusTicket?.seq]);
 
@@ -112,24 +116,20 @@ export function CalendarView({ onOpenJournal, onOpenTicket, focusTicket, endSlot
       list.push(t);
       ticketsByDay.set(t.dueDate, list);
     }
-    const priorityRank: Record<TicketPriority, number> = {
-      urgent: 0, high: 1, medium: 2, low: 3,
-    };
     for (const list of ticketsByDay.values()) {
       list.sort(
         (a, b) =>
-          priorityRank[a.priority] - priorityRank[b.priority] ||
+          PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
           a.title.localeCompare(b.title),
       );
     }
     return { notesByDay, ticketsByDay };
   }, [notes, tickets]);
 
-  const priorityRank: Record<TicketPriority, number> = { urgent: 0, high: 1, medium: 2, low: 3 };
   const unscheduled = useMemo(() =>
     tickets
       .filter((t) => !t.dueDate && t.status !== "done" && t.status !== "archived")
-      .sort((a, b) => priorityRank[a.priority] - priorityRank[b.priority] || a.title.localeCompare(b.title)),
+      .sort((a, b) => PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] || a.title.localeCompare(b.title)),
     [tickets],
   );
   const [unscheduledOpen, setUnscheduledOpen] = useState(true);
@@ -217,6 +217,7 @@ export function CalendarView({ onOpenJournal, onOpenTicket, focusTicket, endSlot
                 className={"nk-calendar-mode" + (mode === m ? " active" : "")}
                 onClick={() => setMode(m)}
               >
+                {/* eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- m is a known non-empty string literal from the Mode union */}
                 {m[0]!.toUpperCase() + m.slice(1)}
               </button>
             ))}
@@ -353,6 +354,7 @@ interface DayPopupProps {
   onNewTicket?: (dueDate: string) => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- popup component includes list view, edit view, debounced save, and note/ticket creation; splitting would fragment the shared mode state
 function DayPopup({ ymd, notes, tickets, initialNoteId, onClose, onOpenTicket, onNewTicket }: DayPopupProps) {
   const upsert = useNotesStore((s) => s.upsert);
 
@@ -475,7 +477,6 @@ function DayPopup({ ymd, notes, tickets, initialNoteId, onClose, onOpenTicket, o
                 )
               }
               placeholder="Note title…"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
             <textarea
@@ -505,12 +506,14 @@ interface HeatmapDayPanelProps {
   onOpenJournal?: (ymd: string) => void;
 }
 
+// eslint-disable-next-line max-lines-per-function -- component fetches commits and renders two-column layout with journal/ticket summaries; splitting would scatter related async logic
 function HeatmapDayPanel({ ymd, hasJournal, tickets, onClose, onOpenJournal }: HeatmapDayPanelProps) {
   const [commits, setCommits] = useState<VaultCommit[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting async state at the start of each fetch cycle; follows cancelled-flag pattern to avoid stale updates
     setCommits(null);
     setError(null);
     (async () => {

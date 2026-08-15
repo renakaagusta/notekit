@@ -39,6 +39,7 @@ interface ProjectJson {
   createdAt?: string;
 }
 
+// eslint-disable-next-line max-lines-per-function -- registers three related tools inline; splitting into separate files would fragment the project-tool cohesion
 export function registerProjectTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(
     "project_list",
@@ -148,6 +149,7 @@ export function registerProjectTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: true },
     },
+    // eslint-disable-next-line complexity -- project_create resolves slug, reads existing file, writes project.json, and conditionally writes .notekit marker
     async ({ slug, name, repos, writeMarker, commitMessage }) => {
       try {
         const ctx = resolveProjectContext();

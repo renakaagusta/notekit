@@ -24,6 +24,7 @@ function setupMockFetch(opts: MockFetchOptions = {}) {
   const vaults = opts.vaults ?? [
     { id: "v1", owner: "renakaagusta", repo: "notekit-vault", branch: "main", provider: "github" },
   ];
+  // eslint-disable-next-line complexity -- mock handler is a dispatch table over all API endpoints; splitting would lose readability
   const handler = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const urlString = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     const method = (init?.method ?? "GET").toUpperCase();
@@ -105,6 +106,7 @@ async function connectClient() {
   return { server, client };
 }
 
+// eslint-disable-next-line max-lines-per-function -- describe block contains all MCP tool smoke tests; splitting into separate describe blocks would fragment cohesive coverage
 describe("createMcpServer — tool inventory", () => {
   beforeEach(() => {
     setupMockFetch();

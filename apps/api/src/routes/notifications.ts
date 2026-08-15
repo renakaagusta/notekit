@@ -102,9 +102,9 @@ notificationRoutes.get("/", async (c) => {
       summary: r.summary,
       payload: JSON.parse(r.payload),
       createdAt: new Date(r.createdAt).toISOString(),
-      readAt: r.readAt != null ? new Date(r.readAt).toISOString() : null,
+      readAt: r.readAt !== null ? new Date(r.readAt).toISOString() : null,
     })),
-    nextCursor: rows.length === limit ? rows[rows.length - 1]!.id : null,
+    nextCursor: rows.length === limit ? (rows[rows.length - 1]?.id ?? null) : null,
   });
 });
 

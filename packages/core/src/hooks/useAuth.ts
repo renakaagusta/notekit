@@ -26,6 +26,7 @@ interface ProvidersResponse {
 export type SignInProvider = "github" | "google" | "apple";
 export type AuthStatus = "loading" | "anonymous" | "authenticated" | "error";
 
+// eslint-disable-next-line max-lines-per-function -- auth hook handles web, desktop, native iOS, and native Android sign-in flows
 export function useAuth() {
   const user = useAuthStore((s) => s.user);
   const signIn = useAuthStore((s) => s.signIn);
@@ -66,12 +67,17 @@ export function useAuth() {
           });
           setStatus("authenticated");
         } else {
+          // Server says not signed in — clear any stale persisted session.
+          if (useAuthStore.getState().user) signOut();
           setStatus("anonymous");
         }
         setProviders(providerInfo);
-      } catch (err) {
-        console.error("[auth] failed to load session", err);
-        if (!cancelled) setStatus("error");
+      } catch (_err) {
+        if (cancelled) return;
+        // Server unreachable. If we hold a persisted session, proceed into the
+        // app in offline mode (local-first) instead of blocking on an error
+        // screen; /auth/me revalidates on the next launch with connectivity.
+        setStatus(useAuthStore.getState().user ? "authenticated" : "error");
       }
     })();
     return () => {
@@ -80,6 +86,7 @@ export function useAuth() {
   }, [signIn]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sync status when authStore user changes (e.g. after sign-in from another tab)
     if (user) setStatus("authenticated");
   }, [user]);
 
@@ -93,8 +100,8 @@ export function useAuth() {
       try {
         await startNativeAppleSignIn();
         window.location.reload();
-      } catch (err) {
-        console.error("[auth] apple native sign-in failed", err);
+      } catch (_err) {
+        /* intentional noop — native sign-in failure is silent; user stays on sign-in screen */
       }
       return;
     }
@@ -109,8 +116,8 @@ export function useAuth() {
     ) {
       try {
         await startNativeOAuth(provider);
-      } catch (err) {
-        console.error("[auth] native oauth failed", err);
+      } catch (_err) {
+        /* intentional noop — native OAuth failure is silent; user stays on sign-in screen */
       }
       return;
     }
@@ -129,8 +136,8 @@ export function useAuth() {
       // the bearer token via ensureDesktopAuthLoaded().
       try {
         await startDesktopSignIn(provider);
-      } catch (err) {
-        console.error("[auth] desktop sign-in failed", err);
+      } catch (_err) {
+        /* intentional noop — desktop sign-in failure is silent; user stays on sign-in screen */
       }
       return;
     }
@@ -140,10 +147,9 @@ export function useAuth() {
   async function doSignOut() {
     try {
       await apiFetch("/auth/signout", { method: "POST" });
-    } catch (err) {
+    } catch (_err) {
       // Don't block the local sign-out on a remote failure — if the network
       // is gone we still want the UI to drop the session.
-      console.warn("[auth] signout request failed", err);
     } finally {
       if (isDesktop) {
         await clearDesktopToken();

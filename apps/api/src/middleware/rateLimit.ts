@@ -1,14 +1,16 @@
 /**
- * Per-principal sliding-window rate limiter. Buckets are keyed by user id
- * (or agent token) + route bucket name, so different routes don't drain
- * each other's budgets.
- *
- * In-memory only — fine for the single-instance dev/self-host shape we
- * ship today. Move to Redis when the server runs as more than one process.
+ * Per-principal fixed-window rate limiter, backed by the shared Redis instance.
+ * Counters are persistent (survive API restarts) and correct across processes —
+ * nothing lives in this process's memory. Buckets are keyed by user id (or agent
+ * token) + route bucket name, so different routes don't drain each other's
+ * budgets. Keys carry the `notekit:` prefix + a TTL, so Redis expires them for
+ * us (no cleanup) and the shared instance stays collision-free.
  */
 import type { Context, MiddlewareHandler } from "hono";
+import { redis, REDIS_PREFIX } from "../lib/redis";
 import { getCurrentUser } from "../auth/sessions";
 import { getActingAgent } from "../auth/agentAuth";
+import { logger } from "../lib/logger";
 
 export interface RateLimitOptions {
   /** Logical name for telemetry + isolation between routes. */
@@ -19,32 +21,37 @@ export interface RateLimitOptions {
   max: number;
 }
 
-const buckets = new Map<string, number[]>();
+// Atomic INCR + set-expiry-on-first-hit for the current window, in one call.
+const INCR_WINDOW = `
+  local c = redis.call('INCR', KEYS[1])
+  if c == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[1]) end
+  return c
+`;
 
-function check(key: string, windowMs: number, max: number): {
+async function check(key: string, windowMs: number, max: number): Promise<{
   allowed: boolean;
   remaining: number;
   resetAt: number;
-} {
+}> {
   const now = Date.now();
-  const cutoff = now - windowMs;
-  const fresh = (buckets.get(key) ?? []).filter((t) => t > cutoff);
-  if (fresh.length >= max) {
-    buckets.set(key, fresh);
-    const oldest = fresh[0] ?? now;
-    return {
-      allowed: false,
-      remaining: 0,
-      resetAt: oldest + windowMs,
-    };
+  const windowStart = Math.floor(now / windowMs) * windowMs;
+  const resetAt = windowStart + windowMs;
+  if (!redis) {
+    // No Redis configured (e.g. local dev) — don't block; just allow.
+    return { allowed: true, remaining: max, resetAt };
   }
-  fresh.push(now);
-  buckets.set(key, fresh);
-  return {
-    allowed: true,
-    remaining: Math.max(0, max - fresh.length),
-    resetAt: now + windowMs,
-  };
+  try {
+    // Window-scoped key (Redis expires it at window end → no cleanup).
+    const redisKey = `${REDIS_PREFIX}rl:${key}:${windowStart}`;
+    const count = Number(
+      await redis.eval(INCR_WINDOW, 1, redisKey, String(resetAt - now)),
+    );
+    return { allowed: count <= max, remaining: Math.max(0, max - count), resetAt };
+  } catch (err) {
+    // Fail open: a Redis blip shouldn't lock everyone out.
+    logger.warn({ err, key }, "[ratelimit] redis check failed — allowing");
+    return { allowed: true, remaining: max, resetAt };
+  }
 }
 
 async function principalId(c: Context): Promise<string | null> {
@@ -63,13 +70,13 @@ export function rateLimit(opts: RateLimitOptions): MiddlewareHandler {
       // let the downstream auth check 401 it. We still budget per IP to
       // contain misbehaving clients during login flows.
       const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
-      const r = check(`ip:${ip}:${opts.bucket}`, opts.windowMs, opts.max);
+      const r = await check(`ip:${ip}:${opts.bucket}`, opts.windowMs, opts.max);
       if (!r.allowed) return rateLimitedResponse(c, opts, r);
       await next();
       return;
     }
     const key = `${principal}:${opts.bucket}`;
-    const r = check(key, opts.windowMs, opts.max);
+    const r = await check(key, opts.windowMs, opts.max);
     if (!r.allowed) return rateLimitedResponse(c, opts, r);
     c.header("X-RateLimit-Limit", String(opts.max));
     c.header("X-RateLimit-Remaining", String(r.remaining));

@@ -13,7 +13,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readAgent, writeAgent, deleteAgentFile, listAgents } from "./agents";
 
-type FetchCall = { url: string; init?: RequestInit };
+interface FetchCall { url: string; init?: RequestInit }
 
 function setupFetchMock() {
   const calls: FetchCall[] = [];
@@ -92,13 +92,15 @@ describe("vault/agents provider parity", () => {
 
   describe.each(["github", "notekit"] as const)("provider=%s", (provider) => {
     it("reads an agent profile by slug", async () => {
-      const found = await readAgent(provider, "tok", "alice", "vault", "main", "scribe");
+      const found = await readAgent({ provider, token: "tok", owner: "alice", repo: "vault", branch: "main", slug: "scribe" });
       expect(found).not.toBeNull();
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
       expect(found!.profile).toMatchObject({
         slug: "scribe",
         name: "Scribe",
         email: "scribe@agents.notekit.app",
       });
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- asserted non-null on the line above
       expect(found!.sha).toBe("abc123");
     });
 
@@ -111,13 +113,13 @@ describe("vault/agents provider parity", () => {
         avatarUrl: null,
         createdAt: "2026-05-20T00:00:00.000Z",
       };
-      const res = await writeAgent(provider, "tok", "alice", "vault", "main", profile);
+      const res = await writeAgent({ provider, token: "tok", owner: "alice", repo: "vault", branch: "main", profile });
       expect(res.sha).toBe("newsha999");
     });
 
     it("deletes an agent file without throwing", async () => {
       await expect(
-        deleteAgentFile(provider, "tok", "alice", "vault", "main", "scribe", "abc123"),
+        deleteAgentFile({ provider, token: "tok", owner: "alice", repo: "vault", branch: "main", slug: "scribe", prevSha: "abc123" }),
       ).resolves.toBeUndefined();
     });
 
@@ -128,7 +130,7 @@ describe("vault/agents provider parity", () => {
     });
 
     it("hits the correct backend host", async () => {
-      await readAgent(provider, "tok", "alice", "vault", "main", "scribe");
+      await readAgent({ provider, token: "tok", owner: "alice", repo: "vault", branch: "main", slug: "scribe" });
       // The first call should hit either api.github.com (github) or our
       // configured Forgejo URL (notekit). We don't care about the exact
       // path — only that we're not cross-wired.

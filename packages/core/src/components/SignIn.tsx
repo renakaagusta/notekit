@@ -55,6 +55,7 @@ const STREAM = `notekit sync --vault personal
  * Brand colors are explicit (not theme tokens) so it reads identically in light
  * or dark mode — the pre-auth screen has no user theme preference to honor.
  */
+// eslint-disable-next-line max-lines-per-function, complexity -- auth screen renders brand panel, three OAuth providers, PAT token form, Capacitor checks, and error handling
 export function SignIn({ providers, onSignIn }: SignInProps) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [tokenMode, setTokenMode] = useState(false);
@@ -66,6 +67,7 @@ export function SignIn({ providers, onSignIn }: SignInProps) {
     const params = new URLSearchParams(window.location.search);
     const err = params.get("auth_error");
     if (err) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reads auth_error from URL query params on mount; this is a one-time URL parameter extraction, not a subscription
       setAuthError(err);
       params.delete("auth_error");
       const search = params.toString();

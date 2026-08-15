@@ -65,6 +65,7 @@ function withTitleHeading(title: string, body: string): string {
  * Human-readable label for a tool call, including which note it touches — shown
  * as an activity chip in the transcript (e.g. `Menghapus "Ideas"`).
  */
+// eslint-disable-next-line complexity -- dispatch over all known tool names; each case is trivial
 export function describeToolCall(toolName: string, input: unknown): string {
   const inp = (input ?? {}) as Record<string, unknown>;
   const titleById = (id: unknown): string => {
@@ -112,6 +113,7 @@ export function describeToolCall(toolName: string, input: unknown): string {
   }
 }
 
+// eslint-disable-next-line max-lines-per-function -- defines all read+write AI tools in one registry; splitting across files would obscure the full tool surface
 export function buildAssistantTools(
   ctx: ToolContext,
   permissions: AgentToolPermissions,

@@ -22,6 +22,7 @@ import type {
 } from "@notekit/api-client";
 import { SkeletonLines } from "./Skeleton";
 
+// eslint-disable-next-line max-lines-per-function -- component encompasses token list, create form, and reveal section
 export function AccessTokensView() {
   const [tokens, setTokens] = useState<PersonalAccessTokenSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +42,7 @@ export function AccessTokensView() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; setState calls happen after await, not synchronously
     void refresh();
   }, [refresh]);
 

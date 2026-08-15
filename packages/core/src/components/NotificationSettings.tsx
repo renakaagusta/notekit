@@ -19,6 +19,7 @@ import { SkeletonLines } from "./Skeleton";
  * Three independent channels: Telegram, Web Push (browser), Mobile Push (Capacitor).
  * Each shows its own enabled/configured state. Mobile-only row hides on web.
  */
+// eslint-disable-next-line max-lines-per-function -- component manages Telegram, web push, and mobile push channels with independent handlers for each
 export function NotificationSettings() {
   const [status, setStatus] = useState<NotificationStatus | null>(null);
   const [webSubbed, setWebSubbed] = useState(false);
@@ -41,6 +42,7 @@ export function NotificationSettings() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; setState calls happen after await, not synchronously
     void refresh();
   }, []);
 

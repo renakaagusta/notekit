@@ -29,12 +29,21 @@ interface CryptoState {
    * `ready`. Mirrors the module-level seam in secrets-vault.ts (setActiveVaultKey).
    */
   vaultKey: VaultKey | null;
+  /**
+   * True once the crypto state has been confirmed against the SERVER this
+   * session (not just served from the offline cache). Cache-first boot reaches
+   * `ready` optimistically from cache, then a background network pass sets this.
+   * Writes wait for it, so we never push to a vault whose trust root / device
+   * membership we haven't revalidated online this session.
+   */
+  verified: boolean;
   setPhase(phase: CryptoPhase): void;
   setDevice(device: DeviceIdentity | null): void;
   setPairCode(code: string | null): void;
   setError(message: string | null): void;
   setEncryptionRequired(required: boolean): void;
   setVaultKey(vaultKey: VaultKey | null): void;
+  setVerified(verified: boolean): void;
   reset(): void;
 }
 
@@ -45,12 +54,14 @@ export const useCryptoStore = create<CryptoState>((set) => ({
   error: null,
   encryptionRequired: false,
   vaultKey: null,
+  verified: false,
   setPhase: (phase) => set({ phase }),
   setDevice: (device) => set({ device }),
   setPairCode: (pairCode) => set({ pairCode }),
   setError: (error) => set({ error, phase: error ? "error" : "idle" }),
   setEncryptionRequired: (encryptionRequired) => set({ encryptionRequired }),
   setVaultKey: (vaultKey) => set({ vaultKey }),
+  setVerified: (verified) => set({ verified }),
   reset: () =>
-    set({ phase: "idle", device: null, pairCode: null, error: null, vaultKey: null }),
+    set({ phase: "idle", device: null, pairCode: null, error: null, vaultKey: null, verified: false }),
 }));

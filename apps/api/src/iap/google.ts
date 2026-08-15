@@ -67,10 +67,10 @@ export interface GoogleSubscriptionState {
 }
 
 interface SubscriptionV2Response {
-  lineItems?: Array<{
+  lineItems?: {
     productId: string;
     expiryTime?: string;
-  }>;
+  }[];
   subscriptionState?: string;
   acknowledgementState?: string;
 }

@@ -2,6 +2,29 @@ import js from '@eslint/js'
 import tseslint from 'typescript-eslint'
 import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
+import importX from 'eslint-plugin-import-x'
+import sonarjs from 'eslint-plugin-sonarjs'
+import eslintComments from '@eslint-community/eslint-plugin-eslint-comments'
+import notekitPlugin from '@notekit/eslint-plugin'
+
+// Domain-specific helpers from @notekit/core that must not be reimplemented per-file.
+// Sourced from packages/core/src/lib/{gravatar,link-kind,file-paths,serialize,note-display,directory}.ts
+const CORE_HELPERS = [
+  'gravatarUrlFor',
+  'detectLinkKind',
+  'slugify',
+  'notePathFor',
+  'ticketPathFor',
+  'linkPathFor',
+  'serializeNote',
+  'deserializeNote',
+  'serializeTicket',
+  'deserializeTicket',
+  'noteTitle',
+  'notePreview',
+  'isEncryptedItemPath',
+  'isNotFound',
+]
 
 export default tseslint.config(
   {
@@ -12,6 +35,13 @@ export default tseslint.config(
       '**/.turbo/**',
       '**/*.d.ts',
       '**/build/**',
+      // other agents' git worktrees — not our source
+      '.claude/**',
+      // native build outputs & Capacitor-synced webviews — generated, never hand-edited
+      '**/DerivedData/**',
+      '**/ios/App/App/public/**',
+      '**/android/app/src/main/assets/public/**',
+      '**/*.min.js',
       // landing uses next lint separately
       'apps/landing/**',
       // backoffice has its own config
@@ -27,12 +57,27 @@ export default tseslint.config(
       ...tseslint.configs.strict,
       ...tseslint.configs.stylistic,
     ],
+    plugins: {
+      'import-x': importX,
+      sonarjs,
+      'eslint-comments': eslintComments,
+      '@notekit': notekitPlugin,
+    },
+    settings: {
+      'import-x/resolver': {
+        typescript: true,
+        node: true,
+      },
+    },
     rules: {
       // Complexity limits — mirrors paprika gocyclo(15) / nestif(4) / funlen(80)
       complexity: ['error', { max: 15 }],
       'max-depth': ['error', 4],
       'max-lines-per-function': ['error', { max: 80, skipComments: true, skipBlankLines: true }],
       'max-params': ['error', 5],
+      // File length ceiling (CONVENTIONS #6) — downgraded to warn because 5 pre-existing files
+      // exceed 800 code-lines and require deliberate architectural splits (see follow-up plan below)
+      'max-lines': ['warn', { max: 800, skipComments: true, skipBlankLines: true }],
 
       // Type safety
       '@typescript-eslint/no-explicit-any': 'error',
@@ -46,6 +91,39 @@ export default tseslint.config(
       'prefer-const': 'error',
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       'no-console': 'error',
+
+      // Import hygiene (CONVENTIONS #6 — no cycles)
+      'import-x/no-cycle': 'error',
+      'import-x/no-duplicates': 'error',
+      'import-x/order': [
+        'error',
+        {
+          groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+          alphabetize: { order: 'asc', caseInsensitive: true },
+        },
+      ],
+
+      // Cognitive complexity (CONVENTIONS #0)
+      'sonarjs/cognitive-complexity': ['warn', 15],
+      'sonarjs/no-identical-functions': 'warn',
+      'sonarjs/no-duplicate-string': ['warn', { threshold: 5 }],
+
+      // Suppression hygiene (CONVENTIONS #7)
+      'eslint-comments/require-description': 'error',
+      'eslint-comments/no-unused-disable': 'error',
+
+      // Custom @notekit rules
+      '@notekit/no-reinvent-core': ['error', { helpers: CORE_HELPERS }],
+      '@notekit/bind-fetch-globalthis': 'error',
+    },
+  },
+
+  // JSX/TSX — also flag emoji-as-icon (CONVENTIONS #2), exempt test files
+  {
+    files: ['**/*.tsx'],
+    ignores: ['**/*.test.tsx', '**/*.spec.tsx'],
+    rules: {
+      '@notekit/no-emoji-as-icon': 'error',
     },
   },
 
@@ -80,9 +158,9 @@ export default tseslint.config(
     },
   },
 
-  // Dev scripts — console is expected
+  // Dev scripts & docs tooling — console is expected
   {
-    files: ['apps/api/scripts/**/*.ts', 'apps/*/scripts/**/*.ts', 'scripts/**/*.ts'],
+    files: ['apps/api/scripts/**/*.ts', 'apps/*/scripts/**/*.ts', 'scripts/**/*.ts', 'docs/**/*.ts'],
     rules: {
       'no-console': 'off',
     },

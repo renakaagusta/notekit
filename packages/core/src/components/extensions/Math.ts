@@ -1,6 +1,6 @@
-import { BlockMath as TiptapBlockMath, InlineMath as TiptapInlineMath } from "@tiptap/extension-mathematics";
 // @ts-expect-error -- no types shipped for @iktakahiro/markdown-it-katex
 import markdownItKatex from "@iktakahiro/markdown-it-katex";
+import { BlockMath as TiptapBlockMath, InlineMath as TiptapInlineMath } from "@tiptap/extension-mathematics";
 
 // Wraps Tiptap's BlockMath/InlineMath with tiptap-markdown storage so
 // $$...$$ and $...$ round-trip correctly through plain .md files.

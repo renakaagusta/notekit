@@ -9,7 +9,6 @@
  * surfed by default. Any of copy / download / reveal-and-confirm marks the
  * vault backed up and silences the nudge.
  */
-import { useEffect, useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -20,8 +19,9 @@ import {
   ShieldAlert,
   X,
 } from "lucide-react";
-import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
+import { useEffect, useState } from "react";
 import type { StoredRecovery } from "../lib/crypto/recovery-store";
+import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 
 const RECOVERY_FILE_NAME = "notekit-recovery-phrase.txt";
 

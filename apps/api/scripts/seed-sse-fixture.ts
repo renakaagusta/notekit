@@ -11,15 +11,15 @@
  * Idempotent on a per-email basis: re-running upserts the user and
  * re-issues a fresh PAT.
  */
+import { eq, and } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { db, schema } from "../src/db/index.js";
-import { encryptToken } from "../src/auth/tokenCrypto.js";
 import {
   generatePersonalAccessToken,
   newPatId,
 } from "../src/auth/personalTokens.js";
+import { encryptToken } from "../src/auth/tokenCrypto.js";
+import { db, schema } from "../src/db/index.js";
 import { createVault, setActiveVault } from "../src/vault/store.js";
-import { eq, and } from "drizzle-orm";
 
 const EMAIL = "sse-smoke@example.com";
 const NAME = "SSE Smoke";

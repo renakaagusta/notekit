@@ -1,15 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { apiFetch } from "./api";
 import {
   generateRecoveryMnemonic,
   recoverySigningFromMnemonic,
 } from "./crypto/recovery";
 import { deviceSigningPayload, sign, toB64 } from "./crypto/signing";
+import { fetchVerifiedKeys, isNotFound } from "./directory";
 
 // Mock the transport so we control exactly what the "server" returns — the
 // whole point is that a malicious/buggy server can't smuggle in a recipient.
 vi.mock("./api", () => ({ apiFetch: vi.fn() }));
-import { apiFetch } from "./api";
-import { fetchVerifiedKeys, isNotFound } from "./directory";
 
 const PHRASE =
   "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";

@@ -9,20 +9,20 @@
  * Pub/Sub push). They don't trust the payload alone — they re-lookup the
  * current state via the API and recompute entitlement.
  */
-import { Hono } from "hono";
 import { eq } from "drizzle-orm";
+import { Hono } from "hono";
 import { nanoid } from "nanoid";
-import { db, schema } from "../db";
 import { getCurrentUser } from "../auth/sessions";
-import { parseBody, z } from "../validation";
+import { db, schema } from "../db";
 import {
   lookupTransaction,
   type SignedTransactionInfo,
 } from "../iap/apple";
-import { lookupSubscription } from "../iap/google";
 import { recomputePlusForUser } from "../iap/entitlement";
+import { lookupSubscription } from "../iap/google";
 import { logger } from '../lib/logger'
 import { requireWebhookSecret } from '../middleware/webhook-auth'
+import { parseBody, z } from "../validation";
 
 export const iapRoutes = new Hono();
 
@@ -67,7 +67,7 @@ iapRoutes.post("/apple/verify", async (c) => {
     await recomputePlusForUser(user.id);
     return c.json({ ok: true, productId: result.info.productId });
   } catch (err) {
-    logger.error("[iap] verification failed", err)
+    logger.error({ err }, "[iap] verification failed")
     return c.json({ error: "verification_failed" }, 400);
   }
 });
@@ -88,7 +88,7 @@ iapRoutes.post("/google/verify", async (c) => {
     await recomputePlusForUser(user.id);
     return c.json({ ok: true, productId: state.productId });
   } catch (err) {
-    logger.error("[iap] verification failed", err)
+    logger.error({ err }, "[iap] verification failed")
     return c.json({ error: "verification_failed" }, 400);
   }
 });
@@ -140,7 +140,7 @@ iapRoutes.post("/google/webhook", requireWebhookSecret("GOOGLE_PLAY_PUBSUB_SECRE
     await upsertGooglePurchase(existing.userId, token, state);
     await recomputePlusForUser(existing.userId);
   } catch (err) {
-    logger.warn("[iap] webhook handler error", err)
+    logger.warn({ err }, "[iap] webhook handler error")
   }
   return c.json({ ok: true });
 });

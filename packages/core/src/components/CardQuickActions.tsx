@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
 import { Lock, MoreHorizontal, Share2, Unlock } from "lucide-react";
-import type { Ticket, TicketPriority } from "../types/ticket";
+import { useEffect, useRef, useState } from "react";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useShareStore } from "../stores/shareStore";
+import type { Ticket, TicketPriority } from "../types/ticket";
 
 const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
   { value: "urgent", label: "P0 · Urgent" },

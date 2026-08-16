@@ -20,9 +20,13 @@
 // E2EE vaults: links are stored as `links/<id>.md.age` (sealed with age).
 // The server reads NOTEKIT_RECOVERY_PHRASE to decrypt/re-encrypt on the fly.
 
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { slugify } from "@notekit/core/paths";
+import type { SavedLink } from "@notekit/core/types";
+import { z } from "zod";
+import { vaultIsEncrypted, encryptLink, decryptLink } from "../lib/crypto.js";
+import { parseMarkdown } from "../lib/markdown.js";
 import {
   encryptedSkippedNote,
   errorContent,
@@ -31,11 +35,8 @@ import {
   listVaultFiles,
   textContent,
 } from "../lib/notekit.js";
-import { parseMarkdown } from "../lib/markdown.js";
 import { resolveProjectContext } from "../lib/project.js";
 import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
-import { vaultIsEncrypted, encryptLink, decryptLink } from "../lib/crypto.js";
-import type { SavedLink } from "@notekit/core/types";
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 
@@ -472,14 +473,6 @@ function detectPlatform(url: string): string | null {
   return null;
 }
 
-function slugify(text: string): string {
-  const ascii = text.normalize("NFKD").replace(/[̀-ͯ]/g, "");
-  return ascii
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60) || "link";
-}
 
 function generateLinkId(): string {
   // Mirror nanoid-style: 8 url-safe chars. We use crypto.randomUUID() and

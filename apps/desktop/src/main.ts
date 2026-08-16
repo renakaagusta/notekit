@@ -5,14 +5,14 @@
 // usual lifecycle plumbing. Keep this file small — anything non-trivial
 // should move into a typed IPC handler.
 
+import crypto from "node:crypto";
+import http from "node:http";
+import type { AddressInfo } from "node:net";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { Entry } from "@napi-rs/keyring";
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import { autoUpdater } from "electron-updater";
-import { Entry } from "@napi-rs/keyring";
-import http from "node:http";
-import path from "node:path";
-import crypto from "node:crypto";
-import { pathToFileURL } from "node:url";
-import type { AddressInfo } from "node:net";
 import {
   IPC_CHANNELS,
   KEYCHAIN_SERVICE,

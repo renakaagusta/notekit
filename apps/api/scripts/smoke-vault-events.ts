@@ -8,14 +8,14 @@
  * pointing curl at a running server (see scripts/smoke-vault-events.sh).
  */
 import {
+  issueSseTicket,
+  redeemSseTicket,
+} from "../src/auth/sseTickets.js";
+import {
   publishVaultEvent,
   subscribeVault,
   type VaultEvent,
 } from "../src/lib/vault-events.js";
-import {
-  issueSseTicket,
-  redeemSseTicket,
-} from "../src/auth/sseTickets.js";
 
 let failures = 0;
 function check(label: string, ok: boolean, detail?: string): void {

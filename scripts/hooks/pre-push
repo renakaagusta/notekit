@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# pre-push hook — full lint + typecheck before pushing.
+#
+# Install via git config:
+#   git config core.hooksPath scripts/hooks
+#   (also wired by: pnpm hooks:install)
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "${REPO_ROOT}"
+
+echo "  [pre-push] Running pnpm lint..."
+if ! pnpm lint; then
+  echo ""
+  echo "  [pre-push] Lint failed. Fix errors before pushing."
+  echo ""
+  exit 1
+fi
+
+echo "  [pre-push] Running pnpm typecheck..."
+if ! pnpm -r typecheck; then
+  echo ""
+  echo "  [pre-push] Typecheck failed. Fix type errors before pushing."
+  echo ""
+  exit 1
+fi
+
+echo "  [pre-push] All checks passed."
+exit 0

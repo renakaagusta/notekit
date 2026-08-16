@@ -8,8 +8,8 @@ import {
   startDesktopSignIn,
 } from "../lib/api";
 import { startNativeAppleSignIn } from "../lib/apple-signin";
-import { startNativeOAuth, initNativeAuthDeepLink } from "../lib/native-oauth";
 import { getNativePlatform, isNativePlatform } from "../lib/native";
+import { startNativeOAuth, initNativeAuthDeepLink } from "../lib/native-oauth";
 import { useAuthStore } from "../stores/authStore";
 import type { User } from "../types/user";
 
@@ -83,7 +83,7 @@ export function useAuth() {
     return () => {
       cancelled = true;
     };
-  }, [signIn]);
+  }, [signIn, signOut]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- sync status when authStore user changes (e.g. after sign-in from another tab)

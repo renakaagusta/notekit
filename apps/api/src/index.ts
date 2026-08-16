@@ -1,24 +1,24 @@
 import "./lib/telemetry"; // must be first — initializes OTel SDK before any other import
-import { revokeVaultToken, vaultConfigured } from "./lib/hcvault";
-import { trace, context, SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { serve } from "@hono/node-server";
+import { trace, context, SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
-import { bodyLimit } from "hono/body-limit";
-import { env } from "./env";
-import { logger } from "./lib/logger";
+import { backofficeRoutes } from "./backoffice/routes";
 import { pool } from "./db";
-import { authRoutes } from "./routes/auth";
-import { vaultRoutes } from "./routes/vault";
+import { env } from "./env";
+import { revokeVaultToken, vaultConfigured } from "./lib/hcvault";
+import { logger } from "./lib/logger";
+import { startTelegramPoller } from "./notifications/telegramPoller";
 import { agentRoutes } from "./routes/agents";
-import { notificationRoutes } from "./routes/notifications";
-import { integrationsRoutes } from "./routes/integrations";
-import { iapRoutes } from "./routes/iap";
+import { authRoutes } from "./routes/auth";
 import { avatarRoutes } from "./routes/avatar";
 import { directoryRoutes } from "./routes/directory";
-import { backofficeRoutes } from "./backoffice/routes";
-import { startTelegramPoller } from "./notifications/telegramPoller";
+import { iapRoutes } from "./routes/iap";
+import { integrationsRoutes } from "./routes/integrations";
+import { notificationRoutes } from "./routes/notifications";
+import { vaultRoutes } from "./routes/vault";
 
 const app = new Hono();
 

@@ -1,11 +1,11 @@
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
-import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import type { Ticket, TicketStatus } from "../types/ticket";
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
 import { ticketPathFor } from "../lib/file-paths";
-import { useVaultStore } from "./vaultStore";
+import type { Ticket, TicketStatus } from "../types/ticket";
 import { useCryptoStore } from "./cryptoStore";
+import { useVaultStore } from "./vaultStore";
 
 interface TicketsState {
   tickets: Record<string, Ticket>;

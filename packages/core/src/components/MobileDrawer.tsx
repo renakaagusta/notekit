@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   Bot,
@@ -16,10 +15,11 @@ import {
   Settings,
   Share2,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import type { User } from "../types/user";
+import { NotekitIcon } from "./BrandIcons";
 import type { SidebarView } from "./Sidebar";
 import { VaultSwitcher } from "./VaultSwitcher";
-import { NotekitIcon } from "./BrandIcons";
-import type { User } from "../types/user";
 
 interface MobileDrawerProps {
   open: boolean;

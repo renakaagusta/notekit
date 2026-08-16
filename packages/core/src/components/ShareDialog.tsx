@@ -4,9 +4,8 @@
  * lookup+verify (`previewShare`), confirm-with-safety-number (`shareItem`),
  * revoke (`unshareItem`), and passphrase links (`createShareLink`).
  */
-import { useCallback, useEffect, useState } from "react";
 import { Copy, Link as LinkIcon, Lock, Trash2, X } from "lucide-react";
-import { useShareStore } from "../stores/shareStore";
+import { useCallback, useEffect, useState } from "react";
 import {
   createShareLink,
   previewShare,
@@ -15,6 +14,7 @@ import {
   type SharePreview,
 } from "../lib/directory";
 import { listItemShares, type ShareGrant } from "../lib/secrets-vault";
+import { useShareStore } from "../stores/shareStore";
 
 // eslint-disable-next-line max-lines-per-function -- dialog handles lookup, preview, confirm-share, revoke, and passphrase-link flows
 export function ShareDialog() {

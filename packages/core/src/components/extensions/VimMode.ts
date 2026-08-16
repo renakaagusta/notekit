@@ -1,7 +1,7 @@
-import { Extension } from "@tiptap/react";
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+import { Extension } from "@tiptap/react";
 
 // Basic vim normal/insert mode for Tiptap.
 // Covers: mode switching, hjkl, w/b/e, 0/$, gg/G, x, dd, u, Ctrl+r, i/a/A/o/O.

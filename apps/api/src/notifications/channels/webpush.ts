@@ -37,7 +37,7 @@ function loadWebPush(): Promise<WebPushModule | null> {
       );
       return lib;
     } catch (err) {
-      logger.debug("[webpush] push library not installed or unavailable", err)
+      logger.debug({ err }, "[webpush] push library not installed or unavailable")
       return null;
     }
   })();

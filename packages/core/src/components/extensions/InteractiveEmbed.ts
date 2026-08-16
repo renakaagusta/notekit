@@ -1,7 +1,7 @@
 import { Node, mergeAttributes } from "@tiptap/react";
-import { useNotesStore } from "../../stores/notesStore";
-import { useLayoutStore } from "../../stores/layoutStore";
 import { noteTitle } from "../../lib/note-display";
+import { useLayoutStore } from "../../stores/layoutStore";
+import { useNotesStore } from "../../stores/notesStore";
 
 /**
  * Interactive HTML block — a fenced code block with lang=interactive renders as

@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
+import type { SavedLink } from "../types/link";
+import type { Note } from "../types/note";
 import {
   serializeNote,
   deserializeNote,
   serializeLink,
   deserializeLink,
 } from "./serialize";
-import type { Note } from "../types/note";
-import type { SavedLink } from "../types/link";
 
 const baseNote: Note = {
   id: "n1",

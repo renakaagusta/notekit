@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import type { Editor as TipTapEditor } from "@tiptap/react";
+import { useEffect, useState } from "react";
 
 interface Heading {
   level: number;

@@ -16,15 +16,8 @@
  * human-readable display names stored in the index. The Default vault has no
  * slug — its secrets sit directly under `secrets/`.
  */
-import * as defaultVaultApi from "./vault-api";
-import * as fileCache from "./vault-cache";
-import { currentVaultScope } from "./vault-persistence";
-import {
-  encryptSecrets,
-  decryptSecrets,
-  encryptToPassphrase,
-  generateSharePassphrase,
-} from "./crypto/vault-crypto";
+import type { NoteKitApi } from "@notekit/api-client";
+import type { DeviceIdentity } from "./crypto/device-key";
 import {
   classifyEncryptedPath,
   encryptItemPayload,
@@ -32,7 +25,6 @@ import {
   decryptItemPayload,
   type EncryptedItemKind,
 } from "./crypto/item-crypto";
-import type { DeviceIdentity } from "./crypto/device-key";
 import {
   type VaultKey,
   generateVaultKey,
@@ -50,7 +42,15 @@ import {
   toB64,
   fromB64,
 } from "./crypto/signing";
-import type { NoteKitApi } from "@notekit/api-client";
+import {
+  encryptSecrets,
+  decryptSecrets,
+  encryptToPassphrase,
+  generateSharePassphrase,
+} from "./crypto/vault-crypto";
+import * as defaultVaultApi from "./vault-api";
+import * as fileCache from "./vault-cache";
+import { currentVaultScope } from "./vault-persistence";
 
 /**
  * File-level vault operations the secrets module depends on. Browser code
@@ -106,7 +106,7 @@ export function configureSecretsBackend(custom: SecretsBackend): void {
 // most once and concurrent callers share one round-trip. Only active between
 // beginVaultReadWindow()/endVaultReadWindow() — every read outside the window
 // still fetches fresh, so nothing goes stale after bootstrap.
-type VaultFileResult = { path: string; content: string | null; sha: string | null };
+interface VaultFileResult { path: string; content: string | null; sha: string | null }
 let vaultReadMemo: Map<string, Promise<VaultFileResult>> | null = null;
 // When true (SWR pass 1), reads serve the cache instantly without waiting on the
 // network — crypto bootstrap reaches "ready" from local state, then a network

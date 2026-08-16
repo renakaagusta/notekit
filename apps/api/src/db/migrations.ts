@@ -1,5 +1,5 @@
-import type { Pool, PoolClient } from "pg";
 import { nanoid } from "nanoid";
+import type { Pool, PoolClient } from "pg";
 
 interface Migration { id: string; up: (client: PoolClient) => Promise<void> }
 

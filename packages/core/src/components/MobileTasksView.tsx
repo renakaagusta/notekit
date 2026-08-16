@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, Circle, Plus } from "lucide-react";
-import { useTicketsStore } from "../stores/ticketsStore";
-import { useMembersStore } from "../stores/membersStore";
-import { resolveAssignee } from "../lib/members";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { todayYMD } from "../lib/journal";
-import { TicketDetail } from "./TicketDetail";
+import { resolveAssignee } from "../lib/members";
+import { useMembersStore } from "../stores/membersStore";
+import { useTicketsStore } from "../stores/ticketsStore";
 import type { Ticket, TicketPriority, TicketStatus } from "../types/ticket";
+import { TicketDetail } from "./TicketDetail";
 
 interface MobileTasksViewProps {
   userName?: string | null;
@@ -76,22 +76,23 @@ export function MobileTasksView({ userName, focusTicket }: MobileTasksViewProps)
 
   const [selected, setSelected] = useState<string>(() => todayYMD());
   const [priorityFilter, setPriorityFilter] = useState<Set<TicketPriority>>(new Set());
-  const [detailId, setDetailId] = useState<string | null>(null);
+  // Deep-link (e.g. from a notification) opens the ticket detail directly.
+  // Derive the initial detailId lazily from focusTicket so we don't call
+  // setState inside an effect (react-hooks/set-state-in-effect).
+  const [detailId, setDetailId] = useState<string | null>(() => focusTicket?.id ?? null);
 
   useEffect(() => {
     if (membersStatus === "idle") void loadMembers();
   }, [membersStatus, loadMembers]);
 
-  // Deep-link (e.g. from a notification) opens the ticket detail directly.
-  useEffect(() => {
-    if (focusTicket) setDetailId(focusTicket.id);
-  }, [focusTicket]);
-
   const today = todayYMD();
   const week = useMemo(() => weekOf(selected), [selected]);
   const selDate = parseYMD(selected);
 
-  const passesFilter = (t: Ticket) => priorityFilter.size === 0 || priorityFilter.has(t.priority);
+  const passesFilter = useCallback(
+    (t: Ticket) => priorityFilter.size === 0 || priorityFilter.has(t.priority),
+    [priorityFilter],
+  );
   const sortTickets = (list: Ticket[]) =>
     [...list].sort(
       (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || a.title.localeCompare(b.title),
@@ -99,7 +100,7 @@ export function MobileTasksView({ userName, focusTicket }: MobileTasksViewProps)
 
   const dayTasks = useMemo(
     () => sortTickets(tickets.filter((t) => t.dueDate === selected && passesFilter(t))),
-    [tickets, selected, priorityFilter],
+    [tickets, selected, passesFilter],
   );
   const unscheduled = useMemo(
     () =>
@@ -108,7 +109,7 @@ export function MobileTasksView({ userName, focusTicket }: MobileTasksViewProps)
           (t) => !t.dueDate && t.status !== "done" && t.status !== "archived" && passesFilter(t),
         ),
       ),
-    [tickets, priorityFilter],
+    [tickets, passesFilter],
   );
 
   function togglePriority(p: TicketPriority) {

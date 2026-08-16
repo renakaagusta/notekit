@@ -5,8 +5,12 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { configureSecretsBackend, secretsBackendFromApi } from "@notekit/core/secrets";
 import { makeClient, type NoteKitMcpConfig } from "./lib/notekit.js";
 import { resolveProjectContext } from "./lib/project.js";
+import { registerNoteKitPrompts } from "./prompts/notekit.js";
+import { registerNoteResource } from "./resources/note.js";
+import { registerTicketResource } from "./resources/ticket.js";
 import { registerDiscoveryTools } from "./tools/discovery.js";
 import { registerInboxTools } from "./tools/inbox.js";
 import { registerLinkTools } from "./tools/links.js";
@@ -15,10 +19,6 @@ import { registerProjectTools } from "./tools/projects.js";
 import { registerSecretTools } from "./tools/secrets.js";
 import { registerTicketTools } from "./tools/tickets.js";
 import { registerVaultTools } from "./tools/vault.js";
-import { configureSecretsBackend, secretsBackendFromApi } from "@notekit/core/secrets";
-import { registerNoteResource } from "./resources/note.js";
-import { registerTicketResource } from "./resources/ticket.js";
-import { registerNoteKitPrompts } from "./prompts/notekit.js";
 
 export interface CreateServerOptions extends NoteKitMcpConfig {
   /** Override server name/version (e.g. for tests). */

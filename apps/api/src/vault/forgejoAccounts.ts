@@ -6,11 +6,11 @@
  * generated personal access token is stored encrypted in `forgejo_accounts`.
  */
 
-import { eq } from "drizzle-orm";
-import { db, schema } from "../db";
-import { encryptToken, decryptToken } from "../auth/tokenCrypto";
-import { createUser, upsertAccessToken } from "./forgejo";
 import { randomBytes } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { encryptToken, decryptToken } from "../auth/tokenCrypto";
+import { db, schema } from "../db";
+import { createUser, upsertAccessToken } from "./forgejo";
 
 /** Derive a safe Forgejo username from a user's email address. */
 function usernameFromEmail(email: string): string {

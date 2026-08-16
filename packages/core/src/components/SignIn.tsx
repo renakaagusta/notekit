@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import { Key } from "lucide-react";
+import { useEffect, useState } from "react";
 import { NoteKitMark } from "./NoteKitLogo";
 
 interface SignInProps {

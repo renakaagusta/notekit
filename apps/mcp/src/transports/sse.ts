@@ -25,10 +25,10 @@
 //   3. Reject any Host header whose hostname isn't loopback so a rebound
 //      origin can't trick us even if the port happens to be exposed.
 
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 
 const MESSAGES_PATH = "/messages";
 

@@ -3,12 +3,12 @@
 // They live under `tickets/` in the vault and share the same write-through-API
 // model as notes.
 
+import type { NoteKitApi } from "@notekit/api-client";
+import type { Ticket, TicketStatus, TicketPriority } from "@notekit/core/types";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import { nanoid } from "nanoid";
-import type { Ticket, TicketStatus, TicketPriority } from "@notekit/core/types";
 import { dieWithError } from "../client.js";
-import { getSecretsClient } from "../lib/secrets.js";
 import {
   vaultIsEncrypted,
   encryptTicket,
@@ -18,7 +18,7 @@ import {
 } from "../lib/crypto.js";
 import { openEditor } from "../lib/editor.js";
 import { parseFrontmatter, stringifyFrontmatter } from "../lib/frontmatter.js";
-import type { NoteKitApi } from "@notekit/api-client";
+import { getSecretsClient } from "../lib/secrets.js";
 
 const TICKETS_DIR = "tickets";
 const INDEX_PATH = `${TICKETS_DIR}/index.json`;

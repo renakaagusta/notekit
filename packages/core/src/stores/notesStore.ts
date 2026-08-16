@@ -1,14 +1,14 @@
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
-import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import type { Note } from "../types/note";
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
 import { notePathFor, sanitizeFolderPath } from "../lib/file-paths";
 import {
   journalDefaultBody,
   journalPathFor,
   journalYMDFromPath,
 } from "../lib/journal";
+import type { Note } from "../types/note";
 import { useCryptoStore } from "./cryptoStore";
 
 interface JournalDraft {

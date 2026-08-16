@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState } from "react";
 import { Check, Lightbulb, Lock, Pencil, X } from "lucide-react";
-import { SkeletonCommitList } from "./Skeleton";
+import { useEffect, useRef, useState } from "react";
 import {
   listAgents,
   createAgent,
@@ -14,8 +13,9 @@ import {
   type AgentProvider,
 } from "../lib/agents-api";
 import { gravatarUrlFor } from "../lib/gravatar";
-import { useCryptoStore } from "../stores/cryptoStore";
 import { listSecretNames, setSecret, removeSecret } from "../lib/secrets-vault";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { SkeletonCommitList } from "./Skeleton";
 
 export interface AgentFocusPulse {
   slug: string;
@@ -111,7 +111,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- refreshKeyStatus is async; setState is called in a resolved promise, not synchronously
     void refreshKeyStatus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [device, cryptoPhase]);
 
   /** Persist (or clear) a profile's key in the encrypted vault. */
@@ -536,7 +536,7 @@ function AgentForm({
     if (!draft.baseUrl.trim() || !draft.apiKey.trim()) return;
     const id = setTimeout(() => void loadModels(), 600);
     return () => clearTimeout(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [draft.provider, draft.baseUrl, draft.apiKey]);
 
   return (

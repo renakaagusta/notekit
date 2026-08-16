@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
   ChevronsDownUp,
@@ -12,8 +11,7 @@ import {
   Shield,
   Trash2,
 } from "lucide-react";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useLayoutStore, tabKey, findLeaf } from "../stores/layoutStore";
+import { useEffect, useMemo, useState } from "react";
 import {
   listAllSecrets,
   listSecretVaults,
@@ -31,6 +29,8 @@ import {
   type SecretRef,
   type SecretVaultRecord,
 } from "../lib/secrets-vault";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useLayoutStore, tabKey, findLeaf } from "../stores/layoutStore";
 
 /** Synthetic record used to render the Default bucket alongside named vaults. */
 const DEFAULT_VAULT: SecretVaultRecord = {
@@ -141,7 +141,7 @@ export function SecretsView({
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh syncs vault/secret lists from external storage on mount and device change
     void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [device, phase]);
 
   // Refetch when another surface (the secret tab detail) mutates secrets.
@@ -151,7 +151,7 @@ export function SecretsView({
     }
     window.addEventListener("notekit:secrets-changed", onChanged);
     return () => window.removeEventListener("notekit:secrets-changed", onChanged);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [device, phase, migrated]);
 
   // Close any open 3-dot menu on an outside click.

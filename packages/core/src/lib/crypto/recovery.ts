@@ -7,16 +7,16 @@
  * Derivation: BIP39 seed → first 32 bytes → bech32-encoded with the age HRP.
  * Same shape that `generateX25519Identity` produces internally.
  */
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { sha512 } from "@noble/hashes/sha2.js";
+import { bech32 } from "@scure/base";
 import {
   generateMnemonic,
   validateMnemonic,
   mnemonicToSeed,
 } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english.js";
-import { bech32 } from "@scure/base";
 import { identityToRecipient } from "age-encryption";
-import { ed25519 } from "@noble/curves/ed25519.js";
-import { sha512 } from "@noble/hashes/sha2.js";
 
 const STRENGTH_24_WORDS = 256;
 const BIP39_PASSPHRASE = "notekit-recovery-v1";

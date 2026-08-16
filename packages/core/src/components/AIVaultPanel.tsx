@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useCryptoStore } from "../stores/cryptoStore";
+import { askAI, type AIProvider } from "../lib/ai-client";
 import {
   listSecretNames,
   setSecret,
@@ -8,9 +8,9 @@ import {
   removeDevice,
   type DeviceRecord,
 } from "../lib/secrets-vault";
-import { askAI, type AIProvider } from "../lib/ai-client";
-import { VaultApproveDevice } from "./VaultPairing";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
+import { VaultApproveDevice } from "./VaultPairing";
 
 const KNOWN_PROVIDERS: { id: AIProvider; label: string; placeholder: string }[] = [
   { id: "openai", label: "OpenAI", placeholder: "sk-…" },
@@ -54,7 +54,7 @@ export function AIVaultPanel() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh() is async; setState calls happen after await, not synchronously
     void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [device, phase]);
 
   async function onSave(provider: AIProvider) {

@@ -12,14 +12,14 @@
  */
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import { useNotesStore } from "../stores/notesStore";
-import { useLinksStore } from "../stores/linksStore";
-import { useTicketsStore } from "../stores/ticketsStore";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";
-import { noteTitle } from "./note-display";
-import { listCommits } from "./vault-api";
-import { listSecretNames, listSecretVaults } from "./secrets-vault";
+import { useLinksStore } from "../stores/linksStore";
+import { useNotesStore } from "../stores/notesStore";
+import { useTicketsStore } from "../stores/ticketsStore";
 import type { AgentToolPermissions } from "./agents-api";
+import { noteTitle } from "./note-display";
+import { listSecretNames, listSecretVaults } from "./secrets-vault";
+import { listCommits } from "./vault-api";
 
 /** Vault-internal secrets that power the assistant itself — never shown as "user secrets". */
 function isInternalSecret(name: string): boolean {

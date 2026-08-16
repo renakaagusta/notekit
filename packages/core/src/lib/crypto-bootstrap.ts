@@ -3,12 +3,23 @@
  * to figure out whether the user needs first-run setup, device pairing, or is
  * already good to go.
  */
+import { useAuthStore } from "../stores/authStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useVaultStore } from "../stores/vaultStore";
 import {
   loadDeviceIdentity,
   createDeviceIdentity,
 } from "./crypto/device-key";
+import type { DeviceIdentity } from "./crypto/device-key";
+import type { VaultKey } from "./crypto/keybox";
+import {
+  recoverySigningFromMnemonic,
+  recoveryFromMnemonic,
+} from "./crypto/recovery";
+import { loadStoredRecovery } from "./crypto/recovery-store";
+import { toB64 } from "./crypto/signing";
+import { verifySigningKeyTrust } from "./crypto/trust-store";
+import { logger } from './logger'
 import {
   ensureSelfRegistered,
   isVaultInitialized,
@@ -26,17 +37,6 @@ import {
   prefetchBootstrapFiles,
   vaultReadServedFromCache,
 } from "./secrets-vault";
-import { useAuthStore } from "../stores/authStore";
-import { loadStoredRecovery } from "./crypto/recovery-store";
-import {
-  recoverySigningFromMnemonic,
-  recoveryFromMnemonic,
-} from "./crypto/recovery";
-import { toB64 } from "./crypto/signing";
-import { verifySigningKeyTrust } from "./crypto/trust-store";
-import type { DeviceIdentity } from "./crypto/device-key";
-import type { VaultKey } from "./crypto/keybox";
-import { logger } from './logger'
 
 /**
  * Member device auto-register (issue #14): if this is a member's device that
@@ -156,7 +156,6 @@ async function installVaultKey(device: DeviceIdentity): Promise<void> {
  * flash "checking", don't re-schedule the member reconcile, and swallow errors
  * (a failed revalidation just leaves the last-known state until next launch).
  */
-// eslint-disable-next-line complexity, max-lines-per-function -- bootstrap decision tree (setup/pair/self-register/ready), unchanged from the single-pass version bar the two-pass params
 async function runBootstrap(background: boolean): Promise<void> {
   const store = useCryptoStore.getState();
   if (!background) store.setPhase("checking");

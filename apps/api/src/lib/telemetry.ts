@@ -1,12 +1,12 @@
-import Pyroscope from "@pyroscope/nodejs";
-import { NodeSDK } from "@opentelemetry/sdk-node";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { PgInstrumentation } from "@opentelemetry/instrumentation-pg";
 import { resourceFromAttributes } from "@opentelemetry/resources";
+import { NodeSDK } from "@opentelemetry/sdk-node";
 import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
 } from "@opentelemetry/semantic-conventions";
+import Pyroscope from "@pyroscope/nodejs";
 
 // NodeSDK auto-configures exporters from:
 //   OTEL_EXPORTER_OTLP_ENDPOINT  → collector URL

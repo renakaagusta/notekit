@@ -2,9 +2,9 @@
 // Almost every other tool implicitly operates against the "selected" vault,
 // so giving the LLM a way to inspect and change that is essential.
 
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { z } from "zod";
 import { errorContent, jsonContent, textContent } from "../lib/notekit.js";
 
 export function registerVaultTools(server: McpServer, nk: NoteKitApi): void {

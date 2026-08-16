@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../hooks/useAuth";
-import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
+import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { App } from "./App";
-import { SignIn } from "./SignIn";
-import { Onboarding, hasOnboarded } from "./Onboarding";
 import { NoteKitMark, NoteKitWordmark } from "./NoteKitLogo";
+import { Onboarding, hasOnboarded } from "./Onboarding";
+import { SignIn } from "./SignIn";
 
 export function AuthGate() {
   const { status, providers, signIn, signOut, user } = useAuth();

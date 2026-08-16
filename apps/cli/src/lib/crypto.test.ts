@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import {
   generateRecoveryMnemonic,
   recoveryFromMnemonic,
@@ -7,6 +6,7 @@ import {
   isEncryptedItemPath,
 } from "@notekit/core/crypto";
 import type { Note } from "@notekit/core/types";
+import { describe, it, expect } from "vitest";
 
 // Proves the @notekit/core crypto runs end-to-end in the CLI's Node runtime
 // (age WASM + @noble + @scure), so the CLI can read/write E2EE vaults (#49).

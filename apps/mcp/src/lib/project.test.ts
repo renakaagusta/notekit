@@ -2,10 +2,10 @@
 // pure (modulo filesystem reads in `findMarker`) so we cover them with a
 // real tmpdir per case instead of mocking fs.
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   ownerRepoFromRemoteUrl,

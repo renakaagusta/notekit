@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { listCommits, type VaultCommit } from "../lib/vault-api";
-import { SkeletonCommitList } from "./Skeleton";
 import { useNotesStore } from "../stores/notesStore";
+import { SkeletonCommitList } from "./Skeleton";
 
 interface HistoryViewProps {
   notePath?: string;

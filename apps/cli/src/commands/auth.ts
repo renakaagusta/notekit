@@ -8,15 +8,15 @@
 // `--token <t>` skips the browser flow and accepts a token directly. Useful
 // for scripted setups and for sandboxing tests against a non-default API.
 
-import { defineCommand } from "citty";
+import { randomBytes } from "node:crypto";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
-import { randomBytes } from "node:crypto";
-import open from "open";
+import { defineCommand } from "citty";
 import kleur from "kleur";
+import open from "open";
+import { getClient, dieWithError } from "../client.js";
 import { loadConfig, patchConfig } from "../config.js";
 import { getToken, setToken, clearToken } from "../keychain.js";
-import { getClient, dieWithError } from "../client.js";
 
 const login = defineCommand({
   meta: { name: "login", description: "Sign in to NoteKit and store a CLI token in your OS keychain." },

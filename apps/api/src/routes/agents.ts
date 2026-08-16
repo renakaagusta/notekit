@@ -3,12 +3,14 @@
  * auth secrets (token hashes) live in our SQLite DB. Plaintext tokens are
  * returned exactly once at creation.
  */
-import { Hono, type Context } from "hono";
 import { and, eq, isNull } from "drizzle-orm";
-import { db, schema } from "../db";
+import { Hono, type Context } from "hono";
+import {
+  generateAgentToken,
+  newAgentTokenId,
+} from "../auth/agentAuth";
 import { getCurrentUser } from "../auth/sessions";
-import { getActiveVaultToken } from "../vault/tokens";
-import { GhError } from "../vault/github";
+import { db, schema } from "../db";
 import {
   readAgent,
   listAgents,
@@ -18,10 +20,8 @@ import {
   slugifyAgentName,
   type AgentProfile,
 } from "../vault/agents";
-import {
-  generateAgentToken,
-  newAgentTokenId,
-} from "../auth/agentAuth";
+import { GhError } from "../vault/github";
+import { getActiveVaultToken } from "../vault/tokens";
 
 export const agentRoutes = new Hono();
 
@@ -136,14 +136,14 @@ agentRoutes.get("/:slug", async (c) => {
   }
   const slug = c.req.param("slug");
   try {
-    const found = await readAgent(
-      vault.provider,
+    const found = await readAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       slug,
-    );
+    });
     if (!found) return c.json({ error: "not_found" }, 404);
     return c.json({ agent: found.profile });
   } catch (err) {
@@ -185,14 +185,14 @@ agentRoutes.post("/", async (c) => {
   if (!slug) return c.json({ error: "invalid_name" }, 400);
 
   try {
-    const existing = await readAgent(
-      vault.provider,
+    const existing = await readAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       slug,
-    );
+    });
     if (existing) return c.json({ error: "slug_taken", slug }, 409);
 
     const resolvedEmail = body.email?.trim() || defaultEmailFor(slug);
@@ -205,14 +205,14 @@ agentRoutes.post("/", async (c) => {
       ...normalizeChatFields(body),
     };
 
-    await writeAgent(
-      vault.provider,
+    await writeAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       profile,
-    );
+    });
 
     const { plain, hash } = generateAgentToken();
     await db.insert(schema.agentTokens).values({
@@ -255,14 +255,14 @@ agentRoutes.patch("/:slug", async (c) => {
   if (!body) return c.json({ error: "invalid_body" }, 400);
 
   try {
-    const found = await readAgent(
-      vault.provider,
+    const found = await readAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       slug,
-    );
+    });
     if (!found) return c.json({ error: "not_found" }, 404);
 
     const next: AgentProfile = {
@@ -276,15 +276,15 @@ agentRoutes.patch("/:slug", async (c) => {
       ...normalizeChatFields(body, found.profile),
     };
 
-    await writeAgent(
-      vault.provider,
+    await writeAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
-      next,
-      found.sha,
-    );
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
+      profile: next,
+      prevSha: found.sha,
+    });
 
     return c.json({ agent: next });
   } catch (err) {
@@ -304,24 +304,24 @@ agentRoutes.delete("/:slug", async (c) => {
   }
   const slug = c.req.param("slug");
   try {
-    const found = await readAgent(
-      vault.provider,
+    const found = await readAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       slug,
-    );
+    });
     if (found) {
-      await deleteAgentFile(
-        vault.provider,
+      await deleteAgentFile({
+        provider: vault.provider,
         token,
-        vault.owner,
-        vault.repo,
-        vault.branch,
+        owner: vault.owner,
+        repo: vault.repo,
+        branch: vault.branch,
         slug,
-        found.sha,
-      );
+        prevSha: found.sha,
+      });
     }
     await db
       .update(schema.agentTokens)

@@ -15,8 +15,8 @@
 // Everything here is sync filesystem + spawn — we run once per MCP boot
 // and the data is tiny, so async would just add ceremony.
 
-import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 export type ProjectScope = "project" | "global" | "all";

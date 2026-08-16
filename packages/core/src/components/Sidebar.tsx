@@ -1,5 +1,3 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Bell,
   Bookmark,
@@ -21,19 +19,21 @@ import {
   Shield,
   Sun,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { LOCALES, setLocale } from "../i18n";
+import * as vaultApi from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useVaultStore } from "../stores/vaultStore";
-import * as vaultApi from "../lib/vault-api";
 import type { User } from "../types/user";
+import { NotekitIcon } from "./BrandIcons";
 import { CreateMenu } from "./CreateMenu";
+import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
+import { LinksView } from "./LinksView";
 import { NoteList } from "./NoteList";
 import { SecretsView } from "./SecretsView";
-import { LinksView } from "./LinksView";
-import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { VaultSwitcher } from "./VaultSwitcher";
-import { NotekitIcon } from "./BrandIcons";
 
 export type SidebarView = "home" | "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
 

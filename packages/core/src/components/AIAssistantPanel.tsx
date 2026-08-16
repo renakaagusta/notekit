@@ -1,12 +1,6 @@
-import { useEffect, useRef, useState } from "react";
-import { nanoid } from "nanoid";
 import { Camera, Check, FileText, History, ImagePlus, ListChecks, Loader2, Lock, Plus, Search, Send, Sparkles, TextSelect, Trash2, Wrench, X } from "lucide-react";
-import { useAIChatStore, messageText } from "../stores/aiChatStore";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useNotesStore } from "../stores/notesStore";
-import { useTicketsStore } from "../stores/ticketsStore";
-import { useVaultStore } from "../stores/vaultStore";
-import { noteTitle } from "../lib/note-display";
+import { nanoid } from "nanoid";
+import { useEffect, useRef, useState } from "react";
 import {
   listAgents,
   agentKeySecretName,
@@ -14,7 +8,9 @@ import {
   DEFAULT_SYSTEM_PROMPT,
   type AgentProfile,
 } from "../lib/agents-api";
-import { listSecretNames } from "../lib/secrets-vault";
+import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
+import { buildAssistantTools, describeToolCall } from "../lib/ai-tools";
+import { renderAssistantHtml } from "../lib/chat-markdown";
 import {
   listChatSessions,
   readCachedChatSessions,
@@ -25,9 +21,13 @@ import {
   chatTimestamp,
   type ChatSession,
 } from "../lib/chats-vault";
-import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
-import { buildAssistantTools, describeToolCall } from "../lib/ai-tools";
-import { renderAssistantHtml } from "../lib/chat-markdown";
+import { noteTitle } from "../lib/note-display";
+import { listSecretNames } from "../lib/secrets-vault";
+import { useAIChatStore, messageText } from "../stores/aiChatStore";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useNotesStore } from "../stores/notesStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
 
 interface Props {
   /** Open the Agents manager so the user can create their first profile / add a key. */
@@ -159,7 +159,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [open, cryptoPhase, refreshTick]);
 
   // Load the encrypted session index when the panel opens & the vault is ready.
@@ -187,7 +187,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [open, cryptoPhase]);
 
   // Track the live document selection so we can offer it as scoped context.

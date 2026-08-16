@@ -3,8 +3,8 @@
 // Every command that touches secrets calls `getSecretsClient()` so the
 // configuration step happens exactly once per process.
 
-import { configureSecretsBackend, secretsBackendFromApi } from "@notekit/core/secrets";
 import type { NoteKitApi } from "@notekit/api-client";
+import { configureSecretsBackend, secretsBackendFromApi } from "@notekit/core/secrets";
 import { getClient, type GetClientOptions } from "../client.js";
 
 let configured = false;

@@ -1,6 +1,6 @@
+import type { SavedLink, LinkKind } from "../types/link";
 import type { Note } from "../types/note";
 import type { Ticket } from "../types/ticket";
-import type { SavedLink, LinkKind } from "../types/link";
 import { parseInk } from "./ink";
 
 /**

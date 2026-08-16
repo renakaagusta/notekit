@@ -1,7 +1,7 @@
-import { noteTitle } from "./note-display";
-import { resolveAssignee } from "./members";
 import type { Note } from "../types/note";
 import type { Ticket } from "../types/ticket";
+import { resolveAssignee } from "./members";
+import { noteTitle } from "./note-display";
 
 // ── Graph data model ────────────────────────────────────────────────────────
 //

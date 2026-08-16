@@ -8,8 +8,8 @@
  * separate tables and have separate plaintext prefixes so a misrouted token
  * is rejected loudly instead of silently authorising the wrong principal.
  */
-import { and, eq, isNull } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Context } from "hono";
 import { nanoid } from "nanoid";
 import { db, schema } from "../db";

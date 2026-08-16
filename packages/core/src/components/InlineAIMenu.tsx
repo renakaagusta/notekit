@@ -1,16 +1,16 @@
+import type { Editor as TipTapEditor } from "@tiptap/react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, Sparkles } from "lucide-react";
-import type { Editor as TipTapEditor } from "@tiptap/react";
-import type { DeviceIdentity } from "../lib/crypto/device-key";
-import { streamAssistant } from "../lib/ai-agent";
-import { useAIChatStore } from "../stores/aiChatStore";
 import {
   listAgents,
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
   type AgentProfile,
 } from "../lib/agents-api";
+import { streamAssistant } from "../lib/ai-agent";
+import type { DeviceIdentity } from "../lib/crypto/device-key";
+import { useAIChatStore } from "../stores/aiChatStore";
 
 export interface InlineSelection {
   from: number;

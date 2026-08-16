@@ -1,4 +1,3 @@
-import { useRef, useState } from "react";
 import {
   Check,
   FileText,
@@ -11,6 +10,7 @@ import {
   Smartphone,
   Sparkles,
 } from "lucide-react";
+import { useRef, useState } from "react";
 
 /**
  * First-run mobile onboarding — a swipeable carousel that introduces NoteKit

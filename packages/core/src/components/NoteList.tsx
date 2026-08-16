@@ -1,5 +1,3 @@
-import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   ArrowDownAZ,
   ArrowUpDown,
@@ -13,14 +11,16 @@ import {
   Lock,
   MoreHorizontal,
 } from "lucide-react";
-import { useNotesStore } from "../stores/notesStore";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
+import { journalYMDFromPath } from "../lib/journal";
+import { noteTitle, notePreview } from "../lib/note-display";
 import { useCryptoStore } from "../stores/cryptoStore";
+import { useLayoutStore } from "../stores/layoutStore";
+import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";
 import { useVaultStore } from "../stores/vaultStore";
-import { useLayoutStore } from "../stores/layoutStore";
-import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
-import { noteTitle, notePreview } from "../lib/note-display";
-import { journalYMDFromPath } from "../lib/journal";
 import type { Note } from "../types/note";
 
 type SortMode =
@@ -366,187 +366,180 @@ export function NoteList({
     );
   }
 
-  // eslint-disable-next-line max-lines-per-function -- recursive tree renderer builds folder rows, note rows, guides, drag handlers, and context menus in one pass
-  function renderNode(node: FolderNode, depth: number): React.ReactElement[] {
+  // All guide positions for items at a given effective depth D:
+  // depths 1..D each get a guide line at 8 + (d-1)*16 + 7
+  function guidesFor(d: number) {
+    return Array.from({ length: d }, (_, i) => 8 + i * 16 + 7);
+  }
+
+  function renderFolderRow(node: FolderNode, depth: number): React.ReactElement {
     const isCollapsed = collapsed.has(node.path);
     const dropClass = dropTarget === node.path ? " drop" : "";
+    const guides = guidesFor(depth);
+    return (
+      <li
+        key={`folder:${node.path}`}
+        className={`nk-tree-item nk-tree-item--folder${dropClass}`}
+        style={{ paddingLeft: 8 + depth * 16 }}
+        onClick={() => useLayoutStore.getState().openTab({ type: "folder", path: node.path })}
+        onDragOver={(e) => {
+          if (!dragId) return;
+          e.preventDefault();
+          e.stopPropagation();
+          setDropTarget(node.path);
+        }}
+        onDragLeave={(e) => {
+          const next = e.relatedTarget as Node | null;
+          if (next && e.currentTarget.contains(next)) return;
+          if (dropTarget === node.path) setDropTarget(null);
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onDropTo(node.path);
+        }}
+      >
+        {guides.map((x) => <span key={x} className="nk-guide" style={{ left: x }} aria-hidden />)}
+        <span
+          className={"nk-disclosure" + (isCollapsed ? "" : " open")}
+          onClick={(e) => {
+            e.stopPropagation();
+            toggle(node.path);
+          }}
+          aria-hidden
+        >
+          <ChevronRight size={12} />
+        </span>
+        <Folder size={14} className="nk-tree-icon" aria-hidden />
+        <span className="nk-tree-label">{node.name}</span>
+        <span className="nk-tree-ctx-wrap">
+          <button
+            className="nk-tree-ctx-btn"
+            title="More options"
+            aria-label="More options"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCtxMenu((cur) =>
+                cur === `folder:${node.path}` ? null : `folder:${node.path}`,
+              );
+            }}
+          >
+            <MoreHorizontal size={12} aria-hidden />
+          </button>
+          {ctxMenu === `folder:${node.path}` && (
+            <TreeContextMenu
+              onClose={() => setCtxMenu(null)}
+              items={[
+                {
+                  label: "New file",
+                  onClick: () => createNewFile(node.path),
+                },
+                {
+                  label: "New folder",
+                  onClick: () => createNewFolder(node.path),
+                },
+                {
+                  label: "Delete folder",
+                  danger: true,
+                  onClick: (e) => onDeleteFolder(node.path, e),
+                },
+              ]}
+            />
+          )}
+        </span>
+      </li>
+    );
+  }
+
+  function renderNoteCtxWrap(n: Note): React.ReactElement {
+    return (
+      <span className="nk-tree-ctx-wrap">
+        <button
+          className="nk-tree-ctx-btn"
+          title="More options"
+          aria-label="More options"
+          onClick={(e) => {
+            e.stopPropagation();
+            setCtxMenu((cur) => (cur === `note:${n.id}` ? null : `note:${n.id}`));
+          }}
+        >
+          <MoreHorizontal size={12} aria-hidden />
+        </button>
+        {ctxMenu === `note:${n.id}` && (
+          <TreeContextMenu
+            onClose={() => setCtxMenu(null)}
+            items={[
+              { label: "Duplicate", onClick: (e) => onDuplicateNote(n, e) },
+              { label: "Delete", danger: true, onClick: (e) => onDeleteNote(n, e) },
+            ]}
+          />
+        )}
+      </span>
+    );
+  }
+
+  function renderNoteRow(n: Note, childDepth: number): React.ReactElement {
+    const title = noteTitle(n);
+    const preview = notePreview(n);
+    const noteGuides = guidesFor(childDepth);
+    return (
+      <li
+        key={n.id}
+        draggable
+        className={
+          "nk-tree-item nk-tree-item--note" +
+          (n.id === activeNoteId ? " active" : "")
+        }
+        style={{ paddingLeft: 8 + childDepth * 16 }}
+        onClick={() => setActive(n.id)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          promptMove(n, e);
+        }}
+        onDragStart={(e) => {
+          setDragId(n.id);
+          e.dataTransfer.effectAllowed = "move";
+          e.dataTransfer.setData("text/plain", n.id);
+        }}
+        onDragEnd={() => {
+          setDragId(null);
+          setDropTarget(null);
+        }}
+      >
+        {noteGuides.map((x) => <span key={x} className="nk-guide" style={{ left: x }} aria-hidden />)}
+        <FileText size={14} className="nk-tree-icon" aria-hidden />
+        <span className="nk-tree-stack">
+          <span className="nk-tree-label">
+            {n.encrypted && !encryptionRequired && (
+              <Lock size={11} strokeWidth={2} aria-label="Encrypted" className="nk-tree-lock" />
+            )}
+            {!contentReady && !n.body ? (
+              <span className="nk-tree-skel" aria-label="Loading" />
+            ) : (
+              title
+            )}
+          </span>
+          {preview && <span className="nk-tree-sub" aria-hidden>{preview}</span>}
+        </span>
+        {renderNoteCtxWrap(n)}
+      </li>
+    );
+  }
+
+  function renderNode(node: FolderNode, depth: number): React.ReactElement[] {
+    const isCollapsed = collapsed.has(node.path);
     const isRoot = node.path === "";
     const rows: React.ReactElement[] = [];
 
-    // All guide positions for items at a given effective depth D:
-    // depths 1..D each get a guide line at 8 + (d-1)*16 + 7
-    function guidesFor(d: number) {
-      return Array.from({ length: d }, (_, i) => 8 + i * 16 + 7);
-    }
-
     if (!isRoot) {
-      const guides = guidesFor(depth);
-      rows.push(
-        <li
-          key={`folder:${node.path}`}
-          className={`nk-tree-item nk-tree-item--folder${dropClass}`}
-          style={{ paddingLeft: 8 + depth * 16 }}
-          onClick={() => useLayoutStore.getState().openTab({ type: "folder", path: node.path })}
-          onDragOver={(e) => {
-            if (!dragId) return;
-            e.preventDefault();
-            e.stopPropagation();
-            setDropTarget(node.path);
-          }}
-          onDragLeave={(e) => {
-            const next = e.relatedTarget as Node | null;
-            if (next && e.currentTarget.contains(next)) return;
-            if (dropTarget === node.path) setDropTarget(null);
-          }}
-          onDrop={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onDropTo(node.path);
-          }}
-        >
-          {guides.map((x) => <span key={x} className="nk-guide" style={{ left: x }} aria-hidden />)}
-          <span
-            className={"nk-disclosure" + (isCollapsed ? "" : " open")}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggle(node.path);
-            }}
-            aria-hidden
-          >
-            <ChevronRight size={12} />
-          </span>
-          <Folder size={14} className="nk-tree-icon" aria-hidden />
-          <span className="nk-tree-label">{node.name}</span>
-          <span className="nk-tree-ctx-wrap">
-            <button
-              className="nk-tree-ctx-btn"
-              title="More options"
-              aria-label="More options"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCtxMenu((cur) =>
-                  cur === `folder:${node.path}` ? null : `folder:${node.path}`,
-                );
-              }}
-            >
-              <MoreHorizontal size={12} aria-hidden />
-            </button>
-            {ctxMenu === `folder:${node.path}` && (
-              <TreeContextMenu
-                onClose={() => setCtxMenu(null)}
-                items={[
-                  {
-                    label: "New file",
-                    onClick: () => createNewFile(node.path),
-                  },
-                  {
-                    label: "New folder",
-                    onClick: () => createNewFolder(node.path),
-                  },
-                  {
-                    label: "Delete folder",
-                    danger: true,
-                    onClick: (e) => onDeleteFolder(node.path, e),
-                  },
-                ]}
-              />
-            )}
-          </span>
-        </li>,
-      );
+      rows.push(renderFolderRow(node, depth));
     }
 
     if (isCollapsed && !isRoot) return rows;
 
     const childDepth = isRoot ? depth : depth + 1;
     for (const c of node.children) rows.push(...renderNode(c, childDepth));
-
-    for (const n of node.notes) {
-      const title = noteTitle(n);
-      const preview = notePreview(n);
-      const noteGuides = guidesFor(childDepth);
-      rows.push(
-        <li
-          key={n.id}
-          draggable
-          className={
-            "nk-tree-item nk-tree-item--note" +
-            (n.id === activeNoteId ? " active" : "")
-          }
-          style={{ paddingLeft: 8 + childDepth * 16 }}
-          onClick={() => setActive(n.id)}
-          onContextMenu={(e) => {
-            e.preventDefault();
-            promptMove(n, e);
-          }}
-          onDragStart={(e) => {
-            setDragId(n.id);
-            e.dataTransfer.effectAllowed = "move";
-            e.dataTransfer.setData("text/plain", n.id);
-          }}
-          onDragEnd={() => {
-            setDragId(null);
-            setDropTarget(null);
-          }}
-        >
-          {noteGuides.map((x) => <span key={x} className="nk-guide" style={{ left: x }} aria-hidden />)}
-          <FileText size={14} className="nk-tree-icon" aria-hidden />
-          <span className="nk-tree-stack">
-            <span className="nk-tree-label">
-              {n.encrypted && !encryptionRequired && (
-                <Lock
-                  size={11}
-                  strokeWidth={2}
-                  aria-label="Encrypted"
-                  className="nk-tree-lock"
-                />
-              )}
-              {!contentReady && !n.body ? (
-                <span className="nk-tree-skel" aria-label="Loading" />
-              ) : (
-                title
-              )}
-            </span>
-            {preview && (
-              <span className="nk-tree-sub" aria-hidden>
-                {preview}
-              </span>
-            )}
-          </span>
-          <span className="nk-tree-ctx-wrap">
-            <button
-              className="nk-tree-ctx-btn"
-              title="More options"
-              aria-label="More options"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCtxMenu((cur) =>
-                  cur === `note:${n.id}` ? null : `note:${n.id}`,
-                );
-              }}
-            >
-              <MoreHorizontal size={12} aria-hidden />
-            </button>
-            {ctxMenu === `note:${n.id}` && (
-              <TreeContextMenu
-                onClose={() => setCtxMenu(null)}
-                items={[
-                  {
-                    label: "Duplicate",
-                    onClick: (e) => onDuplicateNote(n, e),
-                  },
-                  {
-                    label: "Delete",
-                    danger: true,
-                    onClick: (e) => onDeleteNote(n, e),
-                  },
-                ]}
-              />
-            )}
-          </span>
-        </li>,
-      );
-    }
+    for (const n of node.notes) rows.push(renderNoteRow(n, childDepth));
 
     return rows;
   }

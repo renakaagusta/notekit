@@ -3,9 +3,9 @@
 // device's age private key, which only the desktop/web/mobile clients hold.
 // Agents can therefore *organize* secrets but never read them.
 
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { slugify } from "@notekit/core/paths";
 import {
   configureSecretsBackend,
   secretsBackendFromApi,
@@ -18,18 +18,8 @@ import {
   DEFAULT_VAULT_SLUG,
   DEFAULT_VAULT_LABEL,
 } from "@notekit/core/secrets";
+import { z } from "zod";
 import { errorContent, jsonContent, textContent } from "../lib/notekit.js";
-
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 40);
-}
 
 // eslint-disable-next-line max-lines-per-function -- registers all secret-management MCP tools in one place; splitting would scatter related tool definitions
 export function registerSecretTools(server: McpServer, nk: NoteKitApi): void {

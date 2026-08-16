@@ -1,16 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useTicketsStore } from "../stores/ticketsStore";
-import { useVaultStore } from "../stores/vaultStore";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
-import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
 import { CalendarDays, CheckSquare, Lock } from "lucide-react";
-import { BoardToolbar } from "./BoardToolbar";
-import { CardQuickActions } from "./CardQuickActions";
-import { SubtaskList } from "./SubtaskList";
-import { TicketDetail } from "./TicketDetail";
-import { ShortcutCheatsheet } from "./ShortcutCheatsheet";
-import { subtaskProgress } from "../lib/subtasks";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   BUILTIN_VIEWS,
   EMPTY_FILTERS,
@@ -26,6 +15,17 @@ import {
   saveSavedViews,
   viewDueRange,
 } from "../lib/board-filters";
+import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
+import { subtaskProgress } from "../lib/subtasks";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
+import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
+import { BoardToolbar } from "./BoardToolbar";
+import { CardQuickActions } from "./CardQuickActions";
+import { ShortcutCheatsheet } from "./ShortcutCheatsheet";
+import { SubtaskList } from "./SubtaskList";
+import { TicketDetail } from "./TicketDetail";
 
 // Shared with CalendarView so a card dragged on the board can also be dropped
 // onto a calendar cell to set its due date.

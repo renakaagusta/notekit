@@ -1,4 +1,14 @@
+import { generateIdentity, identityToRecipient } from "age-encryption";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { DeviceIdentity } from "./crypto/device-key";
+import { generateVaultKey } from "./crypto/keybox";
+import {
+  generateRecoveryMnemonic,
+  recoverySigningFromMnemonic,
+  recoveryFromMnemonic,
+} from "./crypto/recovery";
+import { deviceSigningPayload, sign, toB64 } from "./crypto/signing";
+import { encryptSecrets } from "./crypto/vault-crypto";
 import {
   CONFIG_PATH,
   DEVICES_PREFIX,
@@ -34,16 +44,6 @@ import {
   type MemberRegistry,
   type SecretsBackend,
 } from "./secrets-vault";
-import type { DeviceIdentity } from "./crypto/device-key";
-import {
-  generateRecoveryMnemonic,
-  recoverySigningFromMnemonic,
-  recoveryFromMnemonic,
-} from "./crypto/recovery";
-import { deviceSigningPayload, sign, toB64 } from "./crypto/signing";
-import { generateIdentity, identityToRecipient } from "age-encryption";
-import { encryptSecrets } from "./crypto/vault-crypto";
-import { generateVaultKey } from "./crypto/keybox";
 
 const PHRASE =
   "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";

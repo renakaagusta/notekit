@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import {
   Bell,
   Bot,
@@ -21,21 +20,8 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import { useVaultStore } from "../stores/vaultStore";
-import { useNotesStore } from "../stores/notesStore";
-import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
-import * as vaultApi from "../lib/vault-api";
-import { listAgents, type AgentProfile } from "../lib/agents-api";
-import {
-  FONT_LABELS,
-  MAX_SIZE,
-  MIN_SIZE,
-  getEditorFont,
-  getEditorSize,
-  setEditorFont,
-  setEditorSize,
-  type EditorFont,
-} from "../lib/editor-prefs";
+import { useEffect, useState } from "react";
+import { LOCALES, currentLocale, setLocale } from "../i18n";
 import {
   ACCENTS,
   ACCENT_COLORS,
@@ -46,6 +32,7 @@ import {
   setCustomAccent,
   type Accent,
 } from "../lib/accent";
+import { listAgents, type AgentProfile } from "../lib/agents-api";
 import {
   BASE_COLORS,
   BASE_LABELS,
@@ -71,9 +58,22 @@ import {
   type RadiusChoice,
   type UiFont,
 } from "../lib/appearance";
+import {
+  FONT_LABELS,
+  MAX_SIZE,
+  MIN_SIZE,
+  getEditorFont,
+  getEditorSize,
+  setEditorFont,
+  setEditorSize,
+  type EditorFont,
+} from "../lib/editor-prefs";
 import { noteTitle } from "../lib/note-display";
+import * as vaultApi from "../lib/vault-api";
+import { useNotesStore } from "../stores/notesStore";
+import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
+import { useVaultStore } from "../stores/vaultStore";
 import type { Note } from "../types/note";
-import { LOCALES, currentLocale, setLocale } from "../i18n";
 import type { User } from "../types/user";
 
 /**

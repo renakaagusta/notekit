@@ -10,9 +10,14 @@
 //
 // See `lib/scope.ts` for the exact prefix tables.
 
-import { z } from "zod";
+import { randomBytes } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { slugify } from "@notekit/core/paths";
+import type { Note } from "@notekit/core/types";
+import { z } from "zod";
+import { vaultIsEncrypted, encryptNote, decryptNote } from "../lib/crypto.js";
+import { parseMarkdown, serializeMarkdown } from "../lib/markdown.js";
 import {
   encryptedSkippedNote,
   errorContent,
@@ -21,12 +26,8 @@ import {
   listVaultFiles,
   textContent,
 } from "../lib/notekit.js";
-import { parseMarkdown, serializeMarkdown } from "../lib/markdown.js";
 import { resolveProjectContext } from "../lib/project.js";
 import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
-import { randomBytes } from "node:crypto";
-import { vaultIsEncrypted, encryptNote, decryptNote } from "../lib/crypto.js";
-import type { Note } from "@notekit/core/types";
 
 function newItemId(): string {
   return randomBytes(8).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
@@ -517,14 +518,6 @@ function normalizeTags(raw: unknown): string[] {
   return [];
 }
 
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 80);
-}
 
 function makeSnippet(body: string, needle: string, radius = 80): string {
   const idx = body.toLowerCase().indexOf(needle);

@@ -3,13 +3,12 @@
 // `nk.vault.readFile / writeFile / deleteFile` so the server enforces vault
 // access checks and audits commits.
 
+import type { NoteKitApi } from "@notekit/api-client";
+import type { Note } from "@notekit/core/types";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import { nanoid } from "nanoid";
 import { dieWithError } from "../client.js";
-import { openEditor } from "../lib/editor.js";
-import { parseFrontmatter, stringifyFrontmatter } from "../lib/frontmatter.js";
-import { getSecretsClient } from "../lib/secrets.js";
 import {
   isEncrypted,
   decryptNote,
@@ -17,7 +16,9 @@ import {
   encryptNote,
   listEncryptedNotes,
 } from "../lib/crypto.js";
-import type { Note } from "@notekit/core/types";
+import { openEditor } from "../lib/editor.js";
+import { parseFrontmatter, stringifyFrontmatter } from "../lib/frontmatter.js";
+import { getSecretsClient } from "../lib/secrets.js";
 
 const NOTES_DIR = "notes";
 const INDEX_PATH = `${NOTES_DIR}/index.json`;
@@ -418,8 +419,6 @@ export const noteCommand = defineCommand({
 });
 
 // ── helpers ────────────────────────────────────────────────────────────────
-
-import type { NoteKitApi } from "@notekit/api-client";
 
 async function readIndex(nk: NoteKitApi): Promise<{ index: NoteIndex; sha: string | null }> {
   try {

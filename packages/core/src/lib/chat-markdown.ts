@@ -7,8 +7,8 @@
  *     (still streaming) are hidden entirely until the answer arrives.
  *  2. Render markdown (bold, lists, code, links) and sanitize the result.
  */
-import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
+import MarkdownIt from "markdown-it";
 
 const md = new MarkdownIt({
   html: false, // never trust raw HTML from the model

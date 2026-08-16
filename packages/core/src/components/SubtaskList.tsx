@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   appendSubtask,
   parseSubtasks,

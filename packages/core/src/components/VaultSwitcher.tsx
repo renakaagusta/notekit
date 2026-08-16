@@ -1,19 +1,19 @@
-import { useEffect, useRef, useState } from "react";
 import { ChevronDown, FolderGit2, Settings } from "lucide-react";
-import { useVaultStore } from "../stores/vaultStore";
-import type { VaultRef } from "../lib/vault-api";
-import * as vaultApi from "../lib/vault-api";
-import { useNotesStore } from "../stores/notesStore";
-import { useTicketsStore } from "../stores/ticketsStore";
+import { useEffect, useRef, useState } from "react";
 import { reset as resetSync, start as startSync } from "../lib/sync";
-import {
-  bindVaultPersistence,
-  unbindVaultPersistence,
-} from "../lib/vault-persistence";
+import * as vaultApi from "../lib/vault-api";
+import type { VaultRef } from "../lib/vault-api";
 import {
   startVaultEventStream,
   stopVaultEventStream,
 } from "../lib/vault-events-client";
+import {
+  bindVaultPersistence,
+  unbindVaultPersistence,
+} from "../lib/vault-persistence";
+import { useNotesStore } from "../stores/notesStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
 import { AddVaultDialog } from "./AddVaultDialog";
 import { VaultSettingsDialog } from "./VaultSettingsDialog";
 
@@ -40,19 +40,28 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
 
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [addOpen, setAddOpen] = useState(false);
-  const [addProvider, setAddProvider] = useState<VaultRef["provider"]>(undefined);
+  // Returning from the GitHub App install flow (API redirects to
+  // ?github_app=installed) — open the dialog straight onto the GitHub tab,
+  // now in its "ready" state. Derive initial state lazily from the URL so we
+  // don't call setState inside an effect (react-hooks/set-state-in-effect).
+  const [addOpen, setAddOpen] = useState<boolean>(
+    () => new URLSearchParams(window.location.search).get("github_app") === "installed",
+  );
+  const [addProvider, setAddProvider] = useState<VaultRef["provider"]>(
+    () =>
+      new URLSearchParams(window.location.search).get("github_app") === "installed"
+        ? "github"
+        : undefined,
+  );
   const [settingsVault, setSettingsVault] = useState<VaultRef | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Returning from the GitHub App install flow (API redirects to
-  // ?github_app=installed) — reopen the dialog straight onto the GitHub tab,
-  // now in its "ready" state, and strip the param so a reload doesn't re-open.
+  // Strip the ?github_app param from the URL so a reload doesn't re-open the
+  // dialog. This is a side effect on an external system (history), not a
+  // setState call, so it's fine inside useEffect.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("github_app") !== "installed") return;
-    setAddProvider("github");
-    setAddOpen(true);
     params.delete("github_app");
     const qs = params.toString();
     window.history.replaceState(

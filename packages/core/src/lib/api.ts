@@ -18,8 +18,7 @@
  * calling apiFetch by hand. The wrappers in this folder will keep working
  * during the migration.
  */
-import type { NoteKitClient} from "@notekit/api-client";
-import { createNoteKitClient, type NoteKitApi } from "@notekit/api-client";
+import { createNoteKitClient, type NoteKitApi, type NoteKitClient } from "@notekit/api-client";
 
 function resolveApiUrl(): string {
   // Direct static access — Vite's define-plugin only substitutes the literal

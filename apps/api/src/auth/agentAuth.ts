@@ -4,8 +4,8 @@
  * the owning user. The token's plaintext is shown to the user ONCE at creation
  * and never persisted.
  */
-import { and, eq, isNull } from "drizzle-orm";
 import { createHash, randomBytes } from "node:crypto";
+import { and, eq, isNull } from "drizzle-orm";
 import type { Context } from "hono";
 import { nanoid } from "nanoid";
 import { db, schema } from "../db";

@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useAuthStore } from "../stores/authStore";
+import { recoverySigningFromMnemonic } from "../lib/crypto/recovery";
+import type { RecoverySigningKey } from "../lib/crypto/recovery";
+import { loadStoredRecovery } from "../lib/crypto/recovery-store";
+import {
+  admitMember,
+  mySafetyNumber,
+  previewShare,
+  revokeMember,
+  type SharePreview,
+} from "../lib/directory";
 import {
   deviceRecordTrusted,
   listDevices,
@@ -10,19 +18,11 @@ import {
   type DeviceRecord,
   type MemberRecord,
 } from "../lib/secrets-vault";
-import { VaultApproveDevice } from "./VaultPairing";
+import { useAuthStore } from "../stores/authStore";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
-import {
-  admitMember,
-  mySafetyNumber,
-  previewShare,
-  revokeMember,
-  type SharePreview,
-} from "../lib/directory";
-import { loadStoredRecovery } from "../lib/crypto/recovery-store";
-import { recoverySigningFromMnemonic } from "../lib/crypto/recovery";
-import type { RecoverySigningKey } from "../lib/crypto/recovery";
 import { SkeletonDeviceList } from "./Skeleton";
+import { VaultApproveDevice } from "./VaultPairing";
 
 /**
  * Devices, members & recovery management, opened from the account menu.
@@ -80,7 +80,7 @@ export function DevicesPanel() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh is async (fetches from vault), setState is called in a callback/async path not synchronously
     void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [device, phase, showApprove]);
 
   async function onRevokeDevice(deviceId: string, name: string) {

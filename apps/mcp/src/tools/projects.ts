@@ -12,9 +12,11 @@
 // one applies to the current cwd, and create a new project + marker on
 // the fly when the agent lands in a fresh repo.
 
-import { z } from "zod";
+import { existsSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { z } from "zod";
 import {
   errorContent,
   jsonContent,
@@ -27,8 +29,6 @@ import {
   resolveProjectContext,
   slugify,
 } from "../lib/project.js";
-import { existsSync, writeFileSync } from "node:fs";
-import path from "node:path";
 
 const PROJECTS_PREFIX = "projects/";
 

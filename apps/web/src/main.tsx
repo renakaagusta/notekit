@@ -1,6 +1,6 @@
+import { AuthGate } from "@notekit/core";
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { AuthGate } from "@notekit/core";
 import "@notekit/core/styles.css";
 
 class ErrorBoundary extends React.Component<

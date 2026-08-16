@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
 import { ExternalLink, Pencil, Trash2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useMediaSrc } from "../lib/useMediaSrc";
-import { InkCanvas } from "./InkCanvas";
 import { emptyInkDocument, type InkDocument } from "../types/ink";
 import type { LinkKind } from "../types/link";
+import { InkCanvas } from "./InkCanvas";
 
 /** Cache-resolved image thumbnail for media cards (#27/#28). */
 export function MediaThumb({

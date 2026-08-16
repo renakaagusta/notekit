@@ -1,20 +1,20 @@
+import { and, eq } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
-import { and, eq } from "drizzle-orm";
+import { getActingAgent } from "../auth/agentAuth";
+import { getCurrentUser } from "../auth/sessions";
+import { issueSseTicket, redeemSseTicket } from "../auth/sseTickets";
+import { encryptToken, decryptToken } from "../auth/tokenCrypto";
 import { db, schema } from "../db";
 import { env } from "../env";
+import { isPlus } from "../iap/entitlement";
 import {
   publishVaultEvent,
   subscribeVault,
   type VaultEvent,
 } from "../lib/vault-events";
-import { issueSseTicket, redeemSseTicket } from "../auth/sseTickets";
-import { getCurrentUser } from "../auth/sessions";
-import { getActingAgent } from "../auth/agentAuth";
-import { getVaultToken, type GitProvider } from "../vault/tokens";
-import { sanitizeVaultPath, VaultPathError } from "../vault/path-sanitize";
-import { provisionForgejoAccount, getForgejoAccount } from "../vault/forgejoAccounts";
-import { checkWriteAllowed, refreshUsedBytesIfStale } from "../vault/quota";
+import { rateLimit, tryConsume } from "../middleware/rateLimit";
+import { emitAgentEvent } from "../notifications/emit";
 import {
   parseBody,
   z,
@@ -30,16 +30,31 @@ import {
   GithubUsername,
   CollaboratorPermissionEnum,
 } from "../validation";
-import { rateLimit, tryConsume } from "../middleware/rateLimit";
-import * as gh from "../vault/github";
-import * as fj from "../vault/forgejo";
-import * as gl from "../vault/gitlab";
-import { GhError, type GitAuthor } from "../vault/github";
-import * as ghApp from "../vault/github-app";
-import { encryptToken, decryptToken } from "../auth/tokenCrypto";
 import { readAgent, defaultEmailFor } from "../vault/agents";
-import { emitAgentEvent } from "../notifications/emit";
-import { isPlus } from "../iap/entitlement";
+import * as fj from "../vault/forgejo";
+import { provisionForgejoAccount, getForgejoAccount } from "../vault/forgejoAccounts";
+import { GhError, type GitAuthor } from "../vault/github";
+import * as gh from "../vault/github";
+import * as ghApp from "../vault/github-app";
+import * as gl from "../vault/gitlab";
+import { sanitizeVaultPath, VaultPathError } from "../vault/path-sanitize";
+import { checkWriteAllowed, refreshUsedBytesIfStale } from "../vault/quota";
+import {
+  createVault,
+  deleteVault as removeVault,
+  getActiveVault,
+  getVaultById,
+  getVaultSettings,
+  listVaultsForUser,
+  renameVault,
+  setActiveVault,
+  updateVaultSettings,
+  type VaultRow,
+} from "../vault/store";
+import { getVaultToken, type GitProvider } from "../vault/tokens";
+import { pairRoutes } from "./pair";
+
+const MOBILE_FREE_NOTE_CAP = 50;
 
 function gitOps(provider: GitProvider) {
   if (provider === "notekit") return fj;
@@ -56,21 +71,6 @@ function gitOps(provider: GitProvider) {
 function isDevToken(token: string): boolean {
   return token === "dev_github_token" || token === "dev_forgejo_token";
 }
-
-const MOBILE_FREE_NOTE_CAP = 50;
-import {
-  createVault,
-  deleteVault as removeVault,
-  getActiveVault,
-  getVaultById,
-  getVaultSettings,
-  listVaultsForUser,
-  renameVault,
-  setActiveVault,
-  updateVaultSettings,
-  type VaultRow,
-} from "../vault/store";
-import { pairRoutes } from "./pair";
 
 // Folder prefixes that count as importable NoteKit content.
 const IMPORT_PREFIXES = ["notes/", "tickets/", "journal/", "attachments/"];

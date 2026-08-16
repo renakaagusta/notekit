@@ -1,5 +1,4 @@
 import "../i18n"; // initialize i18next before any component renders
-import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Menu,
@@ -7,16 +6,23 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
-import { MobileDrawer } from "./MobileDrawer";
-import { MobileBottomNav } from "./MobileBottomNav";
-import { MobileSettings } from "./MobileSettings";
-import { useNotesStore } from "../stores/notesStore";
-import { useSyncStore } from "../stores/syncStore";
-import { useVaultStore } from "../stores/vaultStore";
-import { useCryptoStore } from "../stores/cryptoStore";
+import { applyAccent } from "../lib/accent";
+import { isDesktop } from "../lib/api";
+import { applyAppearance } from "../lib/appearance";
+import { bootstrapCrypto } from "../lib/crypto-bootstrap";
+import { publishMyKeys } from "../lib/directory";
+import { applyEditorPrefs } from "../lib/editor-prefs";
+import { isValidYMD, shiftYMD, todayYMD } from "../lib/journal";
 import { noteTitle } from "../lib/note-display";
+import type { SearchHit } from "../lib/search";
+import {
+  refresh as refreshSync,
+  start as startSync,
+  pull as pullSync,
+} from "../lib/sync";
 import {
   getStatus as getVaultStatus,
   getVaultSettings,
@@ -24,51 +30,45 @@ import {
 } from "../lib/vault-api";
 import type { VaultRef, VaultStatus } from "../lib/vault-api";
 import {
-  refresh as refreshSync,
-  start as startSync,
-  pull as pullSync,
-} from "../lib/sync";
-import { bindVaultPersistence } from "../lib/vault-persistence";
-import { publishMyKeys } from "../lib/directory";
-import {
   startVaultEventStream,
   stopVaultEventStream,
 } from "../lib/vault-events-client";
-import { bootstrapCrypto } from "../lib/crypto-bootstrap";
-import type { User } from "../types/user";
-import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
-import { FirstEncryptDialog } from "./FirstEncryptDialog";
-import { ShareDialog } from "./ShareDialog";
-import { RecoveryBackupNudge } from "./RecoveryBackupNudge";
-import { RecoveryBackupSheet } from "./RecoveryBackupSheet";
-import { Sidebar } from "./Sidebar";
-import { GraphView } from "./GraphView";
-import { TasksView } from "./TasksView";
-import { HistoryView } from "./HistoryView";
-import { AgentsView } from "./AgentsView";
-import { AIAssistantPanel } from "./AIAssistantPanel";
-import { AIAssistantFab } from "./AIAssistantFab";
+import { bindVaultPersistence } from "../lib/vault-persistence";
 import { useAIChatStore } from "../stores/aiChatStore";
-import { AccessTokensView } from "./AccessTokensView";
-import { DevicesPanel } from "./DevicesPanel";
-import { NotificationsInbox } from "./NotificationsInbox";
-import { NotificationSettings } from "./NotificationSettings";
-import { VaultPicker } from "./VaultPicker";
-import { VaultSetup } from "./VaultSetup";
-import { VaultPairNewDevice } from "./VaultPairing";
-import { SearchPalette } from "./SearchPalette";
-import { SplitPane } from "./SplitPane";
-import { HomePane } from "./HomePane";
-import { useTicketsStore } from "../stores/ticketsStore";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";
 import { useLinksStore } from "../stores/linksStore";
+import { useNotesStore } from "../stores/notesStore";
+import { useSyncStore } from "../stores/syncStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
+import type { User } from "../types/user";
+import { AccessTokensView } from "./AccessTokensView";
+import { AgentsView } from "./AgentsView";
+import { AIAssistantFab } from "./AIAssistantFab";
+import { AIAssistantPanel } from "./AIAssistantPanel";
+import { DevicesPanel } from "./DevicesPanel";
+import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { parseWikilinkTarget } from "./extensions/Wikilink";
-import { isValidYMD, shiftYMD, todayYMD } from "../lib/journal";
-import { isDesktop } from "../lib/api";
-import { applyEditorPrefs } from "../lib/editor-prefs";
-import { applyAccent } from "../lib/accent";
-import { applyAppearance } from "../lib/appearance";
-import type { SearchHit } from "../lib/search";
+import { FirstEncryptDialog } from "./FirstEncryptDialog";
+import { GraphView } from "./GraphView";
+import { HistoryView } from "./HistoryView";
+import { HomePane } from "./HomePane";
+import { MobileBottomNav } from "./MobileBottomNav";
+import { MobileDrawer } from "./MobileDrawer";
+import { MobileSettings } from "./MobileSettings";
+import { NotificationSettings } from "./NotificationSettings";
+import { NotificationsInbox } from "./NotificationsInbox";
+import { RecoveryBackupNudge } from "./RecoveryBackupNudge";
+import { RecoveryBackupSheet } from "./RecoveryBackupSheet";
+import { SearchPalette } from "./SearchPalette";
+import { ShareDialog } from "./ShareDialog";
+import { Sidebar } from "./Sidebar";
+import { SplitPane } from "./SplitPane";
+import { TasksView } from "./TasksView";
+import { VaultPairNewDevice } from "./VaultPairing";
+import { VaultPicker } from "./VaultPicker";
+import { VaultSetup } from "./VaultSetup";
 
 // On macOS desktop we hide the native title bar (titleBarStyle: hiddenInset)
 // so the app chrome flows up to the window edge with the traffic lights

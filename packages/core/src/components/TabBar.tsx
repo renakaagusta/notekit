@@ -1,9 +1,9 @@
 import { Columns2, Folder, Link2, Network, CalendarDays, PanelRight, Plus, Rows2, Shield, X } from "lucide-react";
-import { useNotesStore } from "../stores/notesStore";
-import { useLinksStore } from "../stores/linksStore";
 import { noteTitle } from "../lib/note-display";
 import { tabKey } from "../stores/layoutStore";
 import type { PaneLeaf, TabEntry } from "../stores/layoutStore";
+import { useLinksStore } from "../stores/linksStore";
+import { useNotesStore } from "../stores/notesStore";
 
 interface TabBarProps {
   pane: PaneLeaf;

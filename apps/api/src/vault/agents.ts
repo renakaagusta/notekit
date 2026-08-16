@@ -13,8 +13,8 @@
  * serves its default identicon. See [[agent-avatar-final-design]].
  */
 import { env } from "../env";
-import * as gh from "./github";
 import * as fj from "./forgejo";
+import * as gh from "./github";
 import type { GitProvider } from "./tokens";
 
 function gitOps(provider: GitProvider) {

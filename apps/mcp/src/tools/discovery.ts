@@ -7,9 +7,9 @@
 // take an optional path/pattern + scope, fan out over `nk.vault.listFiles`
 // or `nk.vault.listCommits`, return a paginated summary.
 
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { z } from "zod";
 import {
   encryptedSkippedNote,
   errorContent,

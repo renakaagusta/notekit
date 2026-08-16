@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, CalendarDays, FileText, GitCommit, Ticket, X, type LucideIcon } from "lucide-react";
-import { useNotesStore } from "../stores/notesStore";
-import { useTicketsStore } from "../stores/ticketsStore";
-import { useVaultStore } from "../stores/vaultStore";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { listAgents, type AgentProfile } from "../lib/agents-api";
 import {
   searchAgents,
   searchCommits,
@@ -11,8 +9,10 @@ import {
   type SearchHit,
   type SearchKind,
 } from "../lib/search";
-import { listAgents, type AgentProfile } from "../lib/agents-api";
 import { listCommits, type VaultCommit } from "../lib/vault-api";
+import { useNotesStore } from "../stores/notesStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
 import { SkeletonLines } from "./Skeleton";
 
 interface SearchPaletteProps {

@@ -2,16 +2,15 @@
 // and delegate the actual encrypt/decrypt to the shared, storage-agnostic
 // helpers in @notekit/core/vault-e2ee. See #49.
 
+import type { NoteKitApi } from "@notekit/api-client";
 import {
   recoveryFromMnemonic,
   isValidMnemonic,
   type RecoveryIdentity,
   type DeviceIdentity,
 } from "@notekit/core/crypto";
+import type { Note, Ticket  } from "@notekit/core/types";
 import * as e2ee from "@notekit/core/vault-e2ee";
-import type { NoteKitApi } from "@notekit/api-client";
-import type { Note } from "@notekit/core/types";
-import type { Ticket } from "@notekit/core/types";
 import { getRecoveryPhrase, getDeviceIdentity } from "../keychain.js";
 
 /** Thrown when an encrypted item is hit but no recovery phrase is unlocked. */

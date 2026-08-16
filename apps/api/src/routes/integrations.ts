@@ -7,9 +7,9 @@
  */
 import { Hono } from "hono";
 import { env } from "../env";
-import { consumeStartCode } from "../notifications/channels/telegram";
 import { logger } from '../lib/logger'
 import { requireWebhookSecret } from '../middleware/webhook-auth'
+import { consumeStartCode } from "../notifications/channels/telegram";
 
 export const integrationsRoutes = new Hono();
 

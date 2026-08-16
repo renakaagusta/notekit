@@ -18,22 +18,23 @@
 //
 // Encrypted vault: files stored as links/<id>.md.age.
 
+import type { NoteKitApi } from "@notekit/api-client";
+import {
+  serializeEncryptedLink,
+  deserializeEncryptedLink,
+} from "@notekit/core/crypto";
+import { slugify } from "@notekit/core/paths";
+import type { SavedLink } from "@notekit/core/types";
+import { recipientsFor } from "@notekit/core/vault-e2ee";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import { dieWithError } from "../client.js";
-import { getSecretsClient } from "../lib/secrets.js";
 import {
   isEncrypted,
   vaultIsEncrypted,
   requireVaultIdentity,
 } from "../lib/crypto.js";
-import {
-  serializeEncryptedLink,
-  deserializeEncryptedLink,
-} from "@notekit/core/crypto";
-import { recipientsFor } from "@notekit/core/vault-e2ee";
-import type { NoteKitApi } from "@notekit/api-client";
-import type { SavedLink } from "@notekit/core/types";
+import { getSecretsClient } from "../lib/secrets.js";
 
 const LINKS_DIR = "links";
 
@@ -64,14 +65,6 @@ function titleFromUrl(url: string): string {
   }
 }
 
-function slugify(text: string): string {
-  const ascii = text.normalize("NFKD").replace(/[̀-ͯ]/g, "");
-  return ascii
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60) || "link";
-}
 
 function generateLinkId(): string {
   const u = (
@@ -130,6 +123,53 @@ function serializeLinkMarkdown(link: Omit<SavedLink, "path" | "encrypted">): str
   return `${lines.join("\n")}\n${body}\n`;
 }
 
+/** Apply a single YAML frontmatter line to the accumulator. */
+function applyYamlLine(
+  line: string,
+  fm: Record<string, unknown>,
+  state: { inList: boolean; listKey: string },
+): void {
+  const listItem = line.match(/^ {2}- (.*)$/);
+  if (listItem && state.inList) {
+    const itemVal = listItem[1] ?? "";
+    (fm[state.listKey] as string[]).push(itemVal.trim().replace(/^"|"$/g, ""));
+    return;
+  }
+  state.inList = false;
+  const kv = line.match(/^([^:]+):\s*(.*)?$/);
+  if (!kv) return;
+  const key = (kv[1] ?? "").trim();
+  const val = (kv[2] ?? "").trim();
+  if (val === "") {
+    fm[key] = [];
+    state.inList = true;
+    state.listKey = key;
+  } else if (val === "[]") {
+    fm[key] = [];
+  } else {
+    fm[key] = val.replace(/^"|"$/g, "");
+  }
+}
+
+/** Minimal YAML parser for the flat key:value structure we write. */
+function parseFrontmatter(fmText: string): Record<string, unknown> {
+  const fm: Record<string, unknown> = {};
+  const state = { inList: false, listKey: "" };
+  for (const line of fmText.split("\n")) {
+    applyYamlLine(line, fm, state);
+  }
+  return fm;
+}
+
+/** Extract title and description from the Markdown body after frontmatter. */
+function parseBody(bodyText: string): { title: string; description: string | null } {
+  const bodyLines = bodyText.trim().split("\n");
+  const titleLine = bodyLines[0] ?? "";
+  const title = titleLine.startsWith("# ") ? titleLine.slice(2).trim() : "Untitled";
+  const description = bodyLines.slice(1).join("\n").replace(/^\n+/, "").trim() || null;
+  return { title, description };
+}
+
 /** Parse a plaintext link file into a partial SavedLink. */
 function parseLinkMarkdown(path: string, content: string): Omit<SavedLink, "encrypted"> | null {
   // Split frontmatter from body.
@@ -138,39 +178,10 @@ function parseLinkMarkdown(path: string, content: string): Omit<SavedLink, "encr
   const fmText: string = match[1] ?? "";
   const bodyText: string = match[2] ?? "";
 
-  // Minimal YAML parser for the flat key:value structure we write.
-  const fm: Record<string, unknown> = {};
-  let inList = false;
-  let listKey = "";
-  for (const line of fmText.split("\n")) {
-    const listItem = line.match(/^  - (.*)$/);
-    if (listItem && inList) {
-      const itemVal = listItem[1] ?? "";
-      (fm[listKey] as string[]).push(itemVal.trim().replace(/^"|"$/g, ""));
-      continue;
-    }
-    inList = false;
-    const kv = line.match(/^([^:]+):\s*(.*)?$/);
-    if (!kv) continue;
-    const key = (kv[1] ?? "").trim();
-    const val = (kv[2] ?? "").trim();
-    if (val === "") {
-      fm[key] = [];
-      inList = true;
-      listKey = key;
-    } else if (val === "[]") {
-      fm[key] = [];
-    } else {
-      fm[key] = val.replace(/^"|"$/g, "");
-    }
-  }
-
+  const fm = parseFrontmatter(fmText);
   if (typeof fm["url"] !== "string") return null;
 
-  const bodyLines = bodyText.trim().split("\n");
-  const titleLine = bodyLines[0] ?? "";
-  const title = titleLine.startsWith("# ") ? titleLine.slice(2).trim() : "Untitled";
-  const description = bodyLines.slice(1).join("\n").replace(/^\n+/, "").trim() || null;
+  const { title, description } = parseBody(bodyText);
 
   return {
     id: String(fm["id"] ?? ""),
@@ -211,6 +222,63 @@ async function resolveLinkPath(nk: NoteKitApi, idOrPath: string): Promise<string
 
 // ── subcommands ────────────────────────────────────────────────────────────
 
+interface LinkRow {
+  id: string;
+  title: string;
+  url: string;
+  tags: string[];
+}
+
+/** Validate and parse the --limit flag; returns a capped entry count. */
+function parseLimit(rawLimit: string | undefined, fallback: number): number {
+  if (!rawLimit) return fallback;
+  const parsed = Number(rawLimit);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`--limit must be a non-negative integer, got: ${rawLimit}`);
+  }
+  return parsed;
+}
+
+async function collectEncryptedLinks(
+  nk: NoteKitApi,
+  entries: { path: string }[],
+  limit: number,
+  filterTag: string | null,
+): Promise<LinkRow[]> {
+  const identity = await requireVaultIdentity();
+  const results: LinkRow[] = [];
+  for (const e of entries) {
+    if (results.length >= limit) break;
+    if (!e.path.endsWith(".md.age") || !e.path.startsWith(`${LINKS_DIR}/`)) continue;
+    const file = await nk.vault.readFile(e.path);
+    if (!file.content) continue;
+    const link = await deserializeEncryptedLink(e.path, file.content, identity.identity);
+    if (!link) continue;
+    if (filterTag && !link.tags.includes(filterTag)) continue;
+    results.push({ id: link.id, title: link.title, url: link.url, tags: link.tags });
+  }
+  return results;
+}
+
+async function collectPlaintextLinks(
+  nk: NoteKitApi,
+  entries: { path: string }[],
+  limit: number,
+  filterTag: string | null,
+): Promise<LinkRow[]> {
+  const results: LinkRow[] = [];
+  for (const e of entries) {
+    if (results.length >= limit) break;
+    if (!e.path.endsWith(".md") || isEncrypted(e.path)) continue;
+    const file = await nk.vault.readFile(e.path);
+    const link = parseLinkMarkdown(e.path, file.content ?? "");
+    if (!link) continue;
+    if (filterTag && !link.tags.includes(filterTag)) continue;
+    results.push({ id: link.id, title: link.title, url: link.url, tags: link.tags });
+  }
+  return results;
+}
+
 const listCmd = defineCommand({
   meta: { name: "list", description: "List saved links." },
   args: {
@@ -221,42 +289,12 @@ const listCmd = defineCommand({
     try {
       const nk = await getSecretsClient({ requireAuth: true });
       const { entries } = await nk.vault.listFiles(`${LINKS_DIR}/`);
-
-      let limit = entries.length;
-      if (args.limit) {
-        const parsed = Number(args.limit);
-        if (!Number.isInteger(parsed) || parsed < 0) {
-          throw new Error(`--limit must be a non-negative integer, got: ${args.limit}`);
-        }
-        limit = parsed;
-      }
-
+      const limit = parseLimit(args.limit, entries.length);
       const filterTag = args.tag ? String(args.tag) : null;
-      const results: Array<{ id: string; title: string; url: string; tags: string[] }> = [];
 
-      if (await vaultIsEncrypted()) {
-        const identity = await requireVaultIdentity();
-        for (const e of entries) {
-          if (results.length >= limit) break;
-          if (!e.path.endsWith(".md.age") || !e.path.startsWith(`${LINKS_DIR}/`)) continue;
-          const file = await nk.vault.readFile(e.path);
-          if (!file.content) continue;
-          const link = await deserializeEncryptedLink(e.path, file.content, identity.identity);
-          if (!link) continue;
-          if (filterTag && !link.tags.includes(filterTag)) continue;
-          results.push({ id: link.id, title: link.title, url: link.url, tags: link.tags });
-        }
-      } else {
-        for (const e of entries) {
-          if (results.length >= limit) break;
-          if (!e.path.endsWith(".md") || isEncrypted(e.path)) continue;
-          const file = await nk.vault.readFile(e.path);
-          const link = parseLinkMarkdown(e.path, file.content ?? "");
-          if (!link) continue;
-          if (filterTag && !link.tags.includes(filterTag)) continue;
-          results.push({ id: link.id, title: link.title, url: link.url, tags: link.tags });
-        }
-      }
+      const results: LinkRow[] = await vaultIsEncrypted()
+        ? await collectEncryptedLinks(nk, entries, limit, filterTag)
+        : await collectPlaintextLinks(nk, entries, limit, filterTag);
 
       if (results.length === 0) {
         process.stdout.write(kleur.dim("(no links — add one with `notekit link add <url>`)\n"));

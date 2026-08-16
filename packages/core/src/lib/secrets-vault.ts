@@ -16,1463 +16,132 @@
  * human-readable display names stored in the index. The Default vault has no
  * slug — its secrets sit directly under `secrets/`.
  */
-import type { NoteKitApi } from "@notekit/api-client";
+
+// ─── Core state & primitives ─────────────────────────────────────────────────
+export {
+  type SecretsBackend,
+  configureSecretsBackend,
+  beginVaultReadWindow,
+  endVaultReadWindow,
+  vaultReadServedFromCache,
+  prefetchBootstrapFiles,
+  secretsBackendFromApi,
+  DEVICES_PREFIX,
+  RECOVERY_PATH,
+  SECRETS_PREFIX,
+  VAULTS_INDEX_PATH,
+  CONFIG_PATH,
+  KEYBOX_PATH,
+  MEMBERS_PREFIX,
+  DEFAULT_VAULT_SLUG,
+  DEFAULT_VAULT_LABEL,
+  type DeviceRecord,
+  type MemberRecord,
+  type MemberRegistry,
+  deviceRecordTrustedByMember,
+  type RecoveryRecord,
+  type SignedDeviceFields,
+  deviceRecordTrusted,
+  type VaultConfig,
+  type SecretEntry,
+  type SecretVaultRecord,
+  type SecretRef,
+  listDevices,
+  readMembers,
+  readRecovery,
+  readVaultConfig,
+  keyboxExists,
+  unlockVaultKey,
+  addSelfToKeybox,
+  setActiveVaultKey,
+  getActiveVaultKey,
+  encryptVaultContent,
+  encryptVaultContentMany,
+  decryptVaultContent,
+  getVaultBackend,
+  collectVaultRecipients,
+} from "./secrets-vault-core";
+
+// ─── Sharing ─────────────────────────────────────────────────────────────────
+export {
+  SHARES_PREFIX,
+  type ShareGrant,
+  type ShareManifest,
+  type PassphraseShare,
+  readShareManifest,
+  extraRecipientsForItem,
+  recipientsForItem,
+  shareItemWith,
+  createPassphraseShare,
+  listItemShares,
+  unshareItemWith,
+} from "./secrets-vault-sharing";
+
+// ─── Re-encryption helpers ────────────────────────────────────────────────────
+export {
+  reEncryptChats,
+  reEncryptVaultIfMembersChanged,
+} from "./secrets-vault-reencrypt";
+
+// ─── Device & member management ───────────────────────────────────────────────
+export {
+  type ForeignDeviceRecord,
+  type SelfRegisterResult,
+  addDevice,
+  removeDevice,
+  ensureOwnerMember,
+  ensureSelfRegistered,
+  addMember,
+  removeMember,
+} from "./secrets-vault-membership";
+
+// ─── Remaining imports for this module ───────────────────────────────────────
 import type { DeviceIdentity } from "./crypto/device-key";
-import {
-  classifyEncryptedPath,
-  encryptItemPayload,
-  parseEncryptedEnvelope,
-  decryptItemPayload,
-  type EncryptedItemKind,
-} from "./crypto/item-crypto";
-import {
-  type VaultKey,
-  generateVaultKey,
-  sealKeybox,
-  openKeybox,
-  keyboxSigningPayload,
-} from "./crypto/keybox";
 import type { RecoverySigningKey } from "./crypto/recovery";
-import {
-  deviceSigningPayload,
-  memberSigningPayload,
-  recoverySigningPayload,
-  sign,
-  verify,
-  toB64,
-  fromB64,
-} from "./crypto/signing";
 import {
   encryptSecrets,
   decryptSecrets,
-  encryptToPassphrase,
-  generateSharePassphrase,
 } from "./crypto/vault-crypto";
-import * as defaultVaultApi from "./vault-api";
+import {
+  backend,
+  shaCache,
+  assertValidSlug,
+  secretPath,
+  SECRETS_PREFIX,
+  VAULTS_INDEX_PATH,
+  RECOVERY_PATH,
+  LEGACY_SECRETS_PATH,
+  collectRecipients,
+  contentIdentity,
+  keyboxExists,
+  unlockVaultKey,
+  setActiveVaultKey,
+  collectVaultRecipients,
+  writeKeybox,
+  readVaultConfig,
+  writeVaultConfig,
+  writeDeviceRecord,
+  writeMemberRecord,
+  buildDeviceRecord,
+  buildMemberRecord,
+  buildRecoveryRecord,
+  writeRecoveryRecord,
+  readVaultFile,
+  ensureSha,
+  parseSecretPath,
+  toB64,
+  generateVaultKey,
+  type SecretEntry,
+  type SecretRef,
+  type VaultsIndex,
+  type SecretVaultRecord,
+} from "./secrets-vault-core";
+import {
+  reencryptSecretsTo,
+  reencryptItemsTo,
+} from "./secrets-vault-reencrypt";
 import * as fileCache from "./vault-cache";
 import { currentVaultScope } from "./vault-persistence";
-
-/**
- * File-level vault operations the secrets module depends on. Browser code
- * gets these from `./vault-api` (cookie auth, the default backend); CLI / MCP
- * inject their own backend that talks to the API via bearer auth. Calling
- * {@link configureSecretsBackend} swaps the active implementation.
- */
-export interface SecretsBackend {
-  listFiles(prefix: string): Promise<{ entries: { path: string; sha: string }[] }>;
-  readFile(path: string): Promise<{ path: string; content: string | null; sha: string | null }>;
-  readFileAtRef(
-    path: string,
-    ref: string,
-  ): Promise<{ path: string; content: string | null; sha: string | null }>;
-  writeFile(
-    path: string,
-    content: string,
-    message: string,
-    sha?: string,
-  ): Promise<{ path: string; sha: string }>;
-  deleteFile(path: string, sha: string, message?: string): Promise<{ ok: true }>;
-  /**
-   * Commit many files in ONE commit (issue #13). Optional — backends that don't
-   * implement it fall back to per-file {@link writeFile}. Used by the vault
-   * re-encrypt paths to avoid N commits (and GitHub's secondary rate limit).
-   */
-  commitFiles?(
-    files: { path: string; content: string }[],
-    message?: string,
-  ): Promise<{ commitSha: string }>;
-}
-
-let backend: SecretsBackend = {
-  listFiles: defaultVaultApi.listFiles,
-  readFile: defaultVaultApi.readFile,
-  readFileAtRef: defaultVaultApi.readFileAtRef,
-  writeFile: defaultVaultApi.writeFile,
-  deleteFile: defaultVaultApi.deleteFile,
-  commitFiles: defaultVaultApi.commitFiles,
-};
-
-/** Override the backend that the secrets module uses for vault file I/O. */
-export function configureSecretsBackend(custom: SecretsBackend): void {
-  backend = custom;
-}
-
-// ─── In-bootstrap read coalescing ────────────────────────────────────────────
-// The vault's crypto files (recovery.json, config.json, keybox.age, device &
-// member records) can't change mid-bootstrap, yet the bootstrap logic reads a
-// few of them repeatedly — recovery.json ×3 (isVaultInitialized, readRecovery,
-// unlockVaultKey) and keybox.age ×2 on the happy path. While a read window is
-// open, memoize each path's in-flight read so a file crosses the network at
-// most once and concurrent callers share one round-trip. Only active between
-// beginVaultReadWindow()/endVaultReadWindow() — every read outside the window
-// still fetches fresh, so nothing goes stale after bootstrap.
-interface VaultFileResult { path: string; content: string | null; sha: string | null }
-let vaultReadMemo: Map<string, Promise<VaultFileResult>> | null = null;
-// When true (SWR pass 1), reads serve the cache instantly without waiting on the
-// network — crypto bootstrap reaches "ready" from local state, then a network
-// pass 2 revalidates. When false (pass 2 / runtime), reads are network-first
-// (authoritative) with an offline cache fallback.
-let vaultPreferCache = false;
-// Whether any read in the current window was served from cache (→ the run is
-// optimistic and must be revalidated against the server).
-let vaultWindowServedCache = false;
-
-export function beginVaultReadWindow(opts?: { preferCache?: boolean }): void {
-  vaultReadMemo = new Map();
-  vaultPreferCache = opts?.preferCache ?? false;
-  vaultWindowServedCache = false;
-}
-export function endVaultReadWindow(): void {
-  vaultReadMemo = null;
-  vaultPreferCache = false;
-}
-/** True if the just-closed window served any read from cache (needs revalidation). */
-export function vaultReadServedFromCache(): boolean {
-  return vaultWindowServedCache;
-}
-
-/**
- * Read a vault file, cache-aware. In preferCache mode: return the cached copy
- * instantly if present (SWR pass 1). Otherwise fetch from the network, PERSIST
- * to the offline cache, and FALL BACK to cache if the server is unreachable.
- * The `.notekit/*` files here are public metadata or ciphertext — safe at rest,
- * same exposure as the git repo itself.
- */
-async function readVaultFileFresh(path: string): Promise<VaultFileResult> {
-  const scope = currentVaultScope();
-  if (vaultPreferCache && scope) {
-    const hit = await fileCache.getFile(scope, path);
-    if (hit) {
-      vaultWindowServedCache = true;
-      return { path, sha: hit.sha || null, content: hit.content };
-    }
-  }
-  try {
-    const f = await backend.readFile(path);
-    if (scope && f.sha && typeof f.content === "string") {
-      void fileCache.putFile(scope, { path, sha: f.sha, content: f.content });
-    }
-    return f;
-  } catch (err) {
-    if (scope) {
-      const hit = await fileCache.getFile(scope, path);
-      if (hit) {
-        vaultWindowServedCache = true;
-        return { path, sha: hit.sha || null, content: hit.content };
-      }
-    }
-    throw err;
-  }
-}
-
-/** Backend read that dedups within an open read window (else a fresh read). */
-function readVaultFile(path: string): Promise<VaultFileResult> {
-  if (!vaultReadMemo) return readVaultFileFresh(path);
-  const inflight = vaultReadMemo.get(path);
-  if (inflight) return inflight;
-  const p = readVaultFileFresh(path);
-  vaultReadMemo.set(path, p);
-  return p;
-}
-
-/**
- * Directory listing, cache-aware — the listing counterpart to
- * {@link readVaultFile}, so `listDevices`/`readMembers` resolve from cache in
- * SWR pass 1 and offline.
- */
-async function readVaultListing(
-  prefix: string,
-): Promise<{ entries: { path: string; sha: string }[] }> {
-  const scope = currentVaultScope();
-  const cacheKey = `@list:${prefix}`;
-  const fromCache = async (): Promise<{ entries: { path: string; sha: string }[] } | null> => {
-    if (!scope) return null;
-    const hit = await fileCache.getFile(scope, cacheKey);
-    if (hit?.content) {
-      try {
-        return { entries: JSON.parse(hit.content) as { path: string; sha: string }[] };
-      } catch {
-        /* ignore */
-      }
-    }
-    return null;
-  };
-  if (vaultPreferCache) {
-    const cached = await fromCache();
-    if (cached) {
-      vaultWindowServedCache = true;
-      return cached;
-    }
-  }
-  try {
-    const res = await backend.listFiles(prefix);
-    if (scope) {
-      void fileCache.putFile(scope, { path: cacheKey, sha: "", content: JSON.stringify(res.entries) });
-    }
-    return res;
-  } catch (err) {
-    const cached = await fromCache();
-    if (cached) {
-      vaultWindowServedCache = true;
-      return cached;
-    }
-    throw err;
-  }
-}
-
-/**
- * Kick off the reads bootstrap always needs, concurrently, into the open read
- * window — so the (order-preserving) bootstrap logic then awaits in-flight
- * fetches instead of firing them one at a time. Overlaps network latency
- * without changing any verification order. No-op outside a read window.
- */
-export function prefetchBootstrapFiles(): void {
-  if (!vaultReadMemo) return;
-  void readVaultFile(RECOVERY_PATH).catch(() => { /* real caller handles/rejects */ });
-  void readVaultFile(CONFIG_PATH).catch(() => { /* idem */ });
-  void readVaultFile(KEYBOX_PATH).catch(() => { /* idem */ });
-}
-
-/**
- * Wrap a {@link NoteKitApi} client (bearer-auth, used by CLI / MCP / desktop)
- * into the {@link SecretsBackend} shape so it can be passed to
- * {@link configureSecretsBackend}. Browser code uses the default backend and
- * doesn't need this helper.
- */
-export function secretsBackendFromApi(nk: NoteKitApi): SecretsBackend {
-  return {
-    listFiles: (prefix) => nk.vault.listFiles(prefix),
-    readFile: (path) => nk.vault.readFile(path),
-    readFileAtRef: (path, ref) => nk.vault.readFileAtRef(path, ref),
-    writeFile: (path, content, message, sha) =>
-      nk.vault.writeFile(path, content, message ?? "", sha),
-    deleteFile: (path, sha, message) => nk.vault.deleteFile(path, sha, message),
-  };
-}
-
-export const DEVICES_PREFIX = ".notekit/devices/";
-export const RECOVERY_PATH = ".notekit/recovery.json";
-export const SECRETS_PREFIX = ".notekit/secrets/";
-export const VAULTS_INDEX_PATH = ".notekit/secrets/_vaults.json";
-export const CONFIG_PATH = ".notekit/config.json";
-/** Envelope mode: the vault key, wrapped per-device. Absent ⇒ legacy vault. */
-export const KEYBOX_PATH = ".notekit/keybox.age";
-export const MEMBERS_PREFIX = ".notekit/members/";
-
-/** Slug for the unnamed root-level vault. Empty string by design. */
-export const DEFAULT_VAULT_SLUG = "";
-/** Display label for the Default vault. */
-export const DEFAULT_VAULT_LABEL = "Default";
-
-/** Path of the old single-blob format — used only for migration. */
-const LEGACY_SECRETS_PATH = ".notekit/secrets.age";
-
-const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
-
-export interface DeviceRecord {
-  deviceId: string;
-  name: string;
-  recipient: string;
-  addedAt: string;
-  /**
-   * The member this device belongs to (first-class membership). In a
-   * member-mode vault the record is signed by *this member's* signing key, and
-   * the field is verified against the member registry — so a key can't be
-   * reattributed to a different member. Absent in single-user vaults.
-   */
-  owner?: string;
-  /**
-   * Ed25519 signature (base64) over the device binding. In single-user vaults
-   * it's by the recovery signing key; in member-mode by the owner-member's key.
-   * Its absence/invalidity drops the record from the recipient set so an
-   * injected key never becomes a reader (device-key-resilience §5).
-   */
-  sig?: string;
-}
-
-/**
- * A vault member's trust record (first-class membership). Stored at
- * `.notekit/members/<memberId>.json`, signed by an *owner* signing key so only
- * an owner can admit a member. The member's `signingKey` is their root of trust:
- * their device records are signed by it. See
- * docs/architecture/first-class-membership.md.
- */
-export interface MemberRecord {
-  memberId: string;
-  displayName?: string;
-  email?: string;
-  /** Base64 Ed25519 signing key — this member's trust root. */
-  signingKey: string;
-  role: "owner" | "member";
-  addedAt: string;
-  /** memberId of the owner who admitted them. */
-  addedBy?: string;
-  /** Signature by an owner signing key (self-signed for the owner record). */
-  sig?: string;
-}
-
-export type MemberRegistry = Map<string, MemberRecord>;
-
-/**
- * Verify a device record against the member who claims to own it: looks the
- * member up in the registry and checks the signature against *their* signing
- * key. A record naming an unknown member, or signed by a different key, is
- * untrusted — this is what makes attribution unforgeable.
- */
-export function deviceRecordTrustedByMember(
-  d: SignedDeviceFields,
-  members: MemberRegistry,
-): boolean {
-  if (!d.sig || !d.owner) return false;
-  const member = members.get(d.owner);
-  if (!member) return false;
-  return deviceRecordTrusted(d, member.signingKey);
-}
-
-export interface RecoveryRecord {
-  recipient: string;
-  createdAt: string;
-  /**
-   * Base64 Ed25519 public key — the vault's root of trust. When present the
-   * vault is in "signed mode": every device record must carry a valid `sig`
-   * from this key. Derived from the recovery mnemonic (see `recovery.ts`).
-   */
-  signingKey?: string;
-  /** Self-signature binding {recipient, signingKey, createdAt} to the root. */
-  sig?: string;
-}
-
-/** The fields of a device record that the signature covers. */
-export interface SignedDeviceFields {
-  deviceId: string;
-  recipient: string;
-  addedAt: string;
-  /** Member this device belongs to (first-class membership). */
-  owner?: string;
-  sig?: string;
-}
-
-/**
- * Verify a device record's signature against a given signing key. A record with
- * no/invalid signature is untrusted and must not enter a recipient set. When the
- * record carries an `owner`, that field is bound into the signed payload so it
- * can't be reattributed. Accepts any object with the signed fields (a vault
- * `DeviceRecord`, or a directory entry fetched for another user).
- */
-export function deviceRecordTrusted(
-  d: SignedDeviceFields,
-  signingKeyB64: string,
-): boolean {
-  if (!d.sig) return false;
-  return verify(
-    deviceSigningPayload({
-      deviceId: d.deviceId,
-      recipient: d.recipient,
-      addedAt: d.addedAt,
-      owner: d.owner,
-    }),
-    d.sig,
-    fromB64(signingKeyB64),
-  );
-}
-
-/**
- * Vault-level encryption policy, fixed at creation ("born-E2EE"). We never
- * flip a cleartext vault to `required` in place — git history would retain the
- * plaintext forever (see docs/architecture/e2ee-everywhere-and-sharing.md §4).
- *
- *   - `required` — every item (note/ticket/link/journal) is sealed; the
- *     per-item plaintext escape hatch is hidden. The default for new vaults.
- *   - `off`      — legacy per-item opt-in (the historical behaviour). Also the
- *     fallback when `.notekit/config.json` is absent, so an older vault keeps
- *     working unchanged rather than suddenly sealing everything.
- */
-export interface VaultConfig {
-  version: 1;
-  encryption: "required" | "off";
-  /**
-   * Content-crypto scheme. Absent or "multi" = legacy (each file sealed to every
-   * device). "envelope" = content sealed to one vault key wrapped per-device in
-   * {@link KEYBOX_PATH}, making device-add O(1). See
-   * docs/personal/architecture/envelope-encryption.md.
-   */
-  scheme?: "multi" | "envelope";
-}
-
-export interface SecretEntry {
-  value: string;
-  updatedAt: string;
-}
-
-export interface SecretVaultRecord {
-  slug: string;
-  label: string;
-  createdAt: string;
-}
-
-export interface SecretRef {
-  /** Empty string = Default vault. */
-  vault: string;
-  name: string;
-}
-
-interface VaultsIndex {
-  version: 1;
-  vaults: SecretVaultRecord[];
-}
-
-const shaCache = new Map<string, string>();
-
-// ─── Path helpers ────────────────────────────────────────────────────────────
-
-function secretPath(name: string, vaultSlug = ""): string {
-  return vaultSlug
-    ? `${SECRETS_PREFIX}${vaultSlug}/${name}.age`
-    : `${SECRETS_PREFIX}${name}.age`;
-}
-
-/** Parse a path returned by listFiles into a secret ref, or null if not a secret. */
-function parseSecretPath(path: string): SecretRef | null {
-  if (!path.startsWith(SECRETS_PREFIX) || !path.endsWith(".age")) return null;
-  const rel = path.slice(SECRETS_PREFIX.length, -".age".length);
-  if (!rel) return null;
-  const slash = rel.indexOf("/");
-  if (slash === -1) return { vault: "", name: rel };
-  return { vault: rel.slice(0, slash), name: rel.slice(slash + 1) };
-}
-
-function devicePath(deviceId: string): string {
-  return `${DEVICES_PREFIX}${deviceId}.json`;
-}
-
-function assertValidSlug(slug: string): void {
-  if (!SLUG_RE.test(slug)) {
-    throw new Error(
-      `Invalid vault slug "${slug}". Use lowercase letters, digits, and hyphens (1–40 chars, starting with a letter or digit).`,
-    );
-  }
-}
-
-// ─── Device & recovery records ───────────────────────────────────────────────
-
-export async function listDevices(): Promise<DeviceRecord[]> {
-  const { entries } = await readVaultListing(DEVICES_PREFIX);
-  // Read device records in parallel — the sequential for-loop was N round-trips
-  // and, on a many-device vault, the bulk of the crypto-bootstrap latency.
-  const files = await Promise.all(
-    entries.filter((e) => e.path.endsWith(".json")).map((e) => readVaultFile(e.path)),
-  );
-  const devices: DeviceRecord[] = [];
-  for (const file of files) {
-    if (file.sha) shaCache.set(file.path, file.sha);
-    if (typeof file.content !== "string") continue;
-    try {
-      devices.push(JSON.parse(file.content) as DeviceRecord);
-    } catch {
-      // ignore malformed
-    }
-  }
-  return devices;
-}
-
-/** Read the member registry, keyed by memberId. Empty for single-user vaults. */
-export async function readMembers(): Promise<MemberRegistry> {
-  const map: MemberRegistry = new Map();
-  const { entries } = await readVaultListing(MEMBERS_PREFIX);
-  const files = await Promise.all(
-    entries.filter((e) => e.path.endsWith(".json")).map((e) => readVaultFile(e.path)),
-  );
-  for (const file of files) {
-    if (file.sha) shaCache.set(file.path, file.sha);
-    if (typeof file.content !== "string") continue;
-    try {
-      const m = JSON.parse(file.content) as MemberRecord;
-      if (m.memberId && m.signingKey) map.set(m.memberId, m);
-    } catch {
-      // ignore malformed
-    }
-  }
-  return map;
-}
-
-function memberPath(memberId: string): string {
-  return `${MEMBERS_PREFIX}${memberId}.json`;
-}
-
-async function writeMemberRecord(record: MemberRecord, message: string): Promise<void> {
-  const path = memberPath(record.memberId);
-  const result = await backend.writeFile(
-    path,
-    JSON.stringify(record, null, 2),
-    message,
-    shaCache.get(path),
-  );
-  shaCache.set(path, result.sha);
-}
-
-export async function readRecovery(): Promise<RecoveryRecord | null> {
-  const file = await readVaultFile(RECOVERY_PATH);
-  if (file.sha) shaCache.set(file.path, file.sha);
-  if (typeof file.content !== "string") return null;
-  let rec: RecoveryRecord;
-  try {
-    rec = JSON.parse(file.content) as RecoveryRecord;
-  } catch {
-    return null;
-  }
-  // Signed mode: the recovery record self-binds its age recipient to its
-  // signing key. A present-but-invalid self-signature means the root was
-  // tampered with — refuse to treat it as the trust anchor.
-  if (rec.signingKey) {
-    const ok =
-      !!rec.sig &&
-      verify(
-        recoverySigningPayload({
-          recipient: rec.recipient,
-          signingKey: rec.signingKey,
-          createdAt: rec.createdAt,
-        }),
-        rec.sig,
-        fromB64(rec.signingKey),
-      );
-    if (!ok) {
-      throw new Error(
-        "Recovery record signature is invalid — the vault's trust root may have been tampered with.",
-      );
-    }
-  }
-  return rec;
-}
-
-/**
- * Read the vault encryption policy. Absent or malformed config → `off`
- * (legacy opt-in), so an older vault is never silently switched to sealing.
- */
-export async function readVaultConfig(): Promise<VaultConfig> {
-  const fallback: VaultConfig = { version: 1, encryption: "off" };
-  const file = await readVaultFile(CONFIG_PATH);
-  if (file.sha) shaCache.set(file.path, file.sha);
-  if (typeof file.content !== "string" || !file.content) return fallback;
-  try {
-    const parsed = JSON.parse(file.content) as Partial<VaultConfig>;
-    return {
-      version: 1,
-      encryption: parsed.encryption === "required" ? "required" : "off",
-      ...(parsed.scheme === "envelope" ? { scheme: "envelope" as const } : {}),
-    };
-  } catch {
-    return fallback;
-  }
-}
-
-async function writeVaultConfig(config: VaultConfig, message: string) {
-  const result = await backend.writeFile(
-    CONFIG_PATH,
-    JSON.stringify(config, null, 2),
-    message,
-    shaCache.get(CONFIG_PATH),
-  );
-  shaCache.set(CONFIG_PATH, result.sha);
-}
-
-// ─── Keybox IO (envelope mode) ───────────────────────────────────────────────
-
-/** Raw armored keybox blob, or null for a legacy vault (no keybox). */
-async function readKeyboxArmored(): Promise<string | null> {
-  const file = await readVaultFile(KEYBOX_PATH);
-  if (file.sha) shaCache.set(KEYBOX_PATH, file.sha);
-  return typeof file.content === "string" && file.content ? file.content : null;
-}
-
-/** Whether this vault is in envelope mode (a keybox is present). */
-export async function keyboxExists(): Promise<boolean> {
-  return (await readKeyboxArmored()) !== null;
-}
-
-/**
- * Unlock the vault key from the keybox using this device's identity. Returns
- * null for legacy vaults (no keybox). In signed-mode the keybox signature is
- * verified against the pinned recovery signing key before V is trusted — this
- * stops a repo-writer from swapping in a keybox for a key they control.
- */
-export async function unlockVaultKey(
-  device: DeviceIdentity,
-  recoveryIdentity?: string,
-): Promise<VaultKey | null> {
-  const armored = await readKeyboxArmored();
-  if (!armored) return null;
-  // A device already in the keybox opens it directly. A device that just
-  // self-registered via the recovery phrase (not yet a keybox recipient) opens
-  // it with the recovery age identity instead, so it can then add itself.
-  let payload;
-  try {
-    payload = await openKeybox(armored, device.identity);
-  } catch (err) {
-    if (!recoveryIdentity) throw err;
-    payload = await openKeybox(armored, recoveryIdentity);
-  }
-  const recovery = await readRecovery();
-  if (recovery?.signingKey) {
-    if (!payload.sig) {
-      throw new Error("keybox: missing signature in a signed-mode vault");
-    }
-    const ok = verify(
-      keyboxSigningPayload({
-        epoch: payload.epoch,
-        recipient: payload.vaultKey.recipient,
-      }),
-      payload.sig,
-      fromB64(recovery.signingKey),
-    );
-    if (!ok) {
-      throw new Error("keybox: signature does not match the vault recovery key");
-    }
-  }
-  return payload.vaultKey;
-}
-
-/**
- * Seal + write the keybox to `recipients`, signing it with the recovery key when
- * supplied (signed-mode). This is the whole cost of adding a device: one small
- * file, one commit — O(1) in the size of the vault.
- */
-async function writeKeybox(
-  vaultKey: VaultKey,
-  recipients: string[],
-  message: string,
-  opts: { epoch?: number; recoverySigning?: RecoverySigningKey } = {},
-): Promise<void> {
-  const epoch = opts.epoch ?? 1;
-  const sig = opts.recoverySigning
-    ? sign(
-        keyboxSigningPayload({ epoch, recipient: vaultKey.recipient }),
-        opts.recoverySigning.privateKey,
-      )
-    : undefined;
-  const armored = await sealKeybox(vaultKey, recipients, { epoch, sig });
-  const result = await backend.writeFile(
-    KEYBOX_PATH,
-    armored,
-    message,
-    shaCache.get(KEYBOX_PATH),
-  );
-  shaCache.set(KEYBOX_PATH, result.sha);
-}
-
-/**
- * The keybox's current epoch, or null if legacy/unreadable. Used when adding a
- * device so the rewritten keybox keeps the same epoch (a rewrite is not a
- * rotation — only device *removal* bumps the epoch).
- */
-async function readKeyboxEpoch(
-  device: DeviceIdentity,
-  recoveryIdentity?: string,
-): Promise<number | null> {
-  const armored = await readKeyboxArmored();
-  if (!armored) return null;
-  for (const id of [device.identity, recoveryIdentity].filter(Boolean) as string[]) {
-    try {
-      return (await openKeybox(armored, id)).epoch;
-    } catch {
-      /* try next */
-    }
-  }
-  return null;
-}
-
-/**
- * Add THIS device to the keybox (owner multi-device path). Returns the unlocked
- * vault key, or null for a legacy vault. No-op rewrite when we can't sign a
- * signed-mode keybox (a non-owner member device that lacks the recovery root) —
- * it can still read via V, and an owner device reconciles it into the keybox
- * later, mirroring reconcileMemberRecipients.
- */
-export async function addSelfToKeybox(
-  device: DeviceIdentity,
-  recoveryIdentity: string,
-  recoverySigning?: RecoverySigningKey,
-): Promise<VaultKey | null> {
-  const vaultKey = await unlockVaultKey(device, recoveryIdentity);
-  if (!vaultKey) return null; // legacy vault
-  const recovery = await readRecovery();
-  const canSign =
-    !recovery?.signingKey ||
-    (recoverySigning &&
-      toB64(recoverySigning.publicKey) === recovery.signingKey);
-  if (!canSign) return vaultKey; // read-only; owner will add us to the keybox
-  const epoch = (await readKeyboxEpoch(device, recoveryIdentity)) ?? 1;
-  const recipients = await collectVaultRecipients(device);
-  await writeKeybox(
-    vaultKey,
-    recipients,
-    `Add device "${device.name}" to keybox`,
-    { epoch, recoverySigning },
-  );
-  return vaultKey;
-}
-
-async function collectRecipients(device: DeviceIdentity): Promise<string[]> {
-  return contentRecipients(device);
-}
-
-// ─── Envelope (lockbox) content-crypto seam ──────────────────────────────────
-// See docs/personal/architecture/envelope-encryption.md. In *envelope* mode all
-// content is sealed to a single random vault key V (its private identity wrapped
-// per-device inside .notekit/keybox.age), so adding a device is O(1) — it never
-// touches content. In *legacy* mode content is sealed to every device recipient
-// and read with this device's own identity, exactly as before.
-//
-// `activeVaultKey` is null until bootstrapCrypto unlocks the keybox (P3). While
-// null, `contentRecipients`/`contentIdentity` fall back to legacy behavior, so
-// every existing vault keeps working byte-for-byte.
-let activeVaultKey: VaultKey | null = null;
-
-/** Set (or clear) the session's unlocked vault key. Called by bootstrapCrypto. */
-export function setActiveVaultKey(vaultKey: VaultKey | null): void {
-  activeVaultKey = vaultKey;
-}
-
-/** The vault key unlocked this session, or null in legacy mode. */
-export function getActiveVaultKey(): VaultKey | null {
-  return activeVaultKey;
-}
-
-/** Recipients every content file is sealed to: envelope → [V]; legacy → all devices. */
-async function contentRecipients(device: DeviceIdentity): Promise<string[]> {
-  if (activeVaultKey) return [activeVaultKey.recipient];
-  return collectVaultRecipients(device);
-}
-
-/** Identity content is decrypted with: envelope → V; legacy → this device. */
-function contentIdentity(device: DeviceIdentity): string {
-  return activeVaultKey ? activeVaultKey.identity : device.identity;
-}
-
-// ─── Reusable vault-content crypto + backend (used by chats-vault, etc.) ──────
-// Same E2EE seam as notes/secrets: envelope-aware recipients + identity, and the
-// currently-configured file backend (so CLI/MCP overrides apply everywhere).
-
-/** Encrypt a JSON payload as a vault content file (envelope-aware). */
-export async function encryptVaultContent(
-  json: string,
-  device: DeviceIdentity,
-): Promise<string> {
-  return encryptSecrets(json, await contentRecipients(device));
-}
-
-/**
- * Encrypt SEVERAL payloads collecting recipients ONCE. On legacy "multi" vaults
- * `contentRecipients` fans out to ~6 GETs (recovery + members + devices); doing
- * that per file makes a two-file save do it twice. Callers writing multiple
- * files in one logical operation (e.g. a chat session + its index) should use
- * this so the recipient set is gathered a single time.
- */
-export async function encryptVaultContentMany(
-  jsons: string[],
-  device: DeviceIdentity,
-): Promise<string[]> {
-  const recipients = await contentRecipients(device);
-  return Promise.all(jsons.map((j) => encryptSecrets(j, recipients)));
-}
-
-/** Decrypt a vault content file back to its JSON string. */
-export async function decryptVaultContent(
-  content: string,
-  device: DeviceIdentity,
-): Promise<string> {
-  return decryptSecrets(content, contentIdentity(device));
-}
-
-/** The active vault file backend (honors configureSecretsBackend). */
-export function getVaultBackend(): SecretsBackend {
-  return backend;
-}
-
-/**
- * Public flavor of {@link collectRecipients} — gather every age recipient
- * that should be able to read newly encrypted data in this vault: each
- * registered device pubkey, the current device's pubkey (in case it's
- * mid-pair and not yet listed under `.notekit/devices/`), and the BIP39
- * recovery pubkey if one exists.
- *
- * Used by sync.ts to seal per-item E2EE files for the same audience that
- * already reads the secrets vault, so a user who's set up encryption for
- * API keys doesn't pick a separate passphrase for encrypted notes.
- */
-export async function collectVaultRecipients(
-  device: DeviceIdentity,
-): Promise<string[]> {
-  const [devices, recovery, members] = await Promise.all([
-    listDevices(),
-    readRecovery(),
-    readMembers(),
-  ]);
-  // Three modes, in order of strength:
-  //  - member-mode  (members/* present): each device must be validly signed by
-  //    ITS claimed member's key → unforgeable per-member attribution.
-  //  - signed-mode  (recovery.json has a signing key): each device must be
-  //    signed by the single recovery key.
-  //  - legacy       (neither): accept every record, as before.
-  // A maliciously injected device pubkey is dropped in the first two.
-  const memberMode = members.size > 0;
-  const signingKey = recovery?.signingKey;
-  const recipients = new Set<string>();
-  for (const d of devices) {
-    if (memberMode) {
-      if (!deviceRecordTrustedByMember(d, members)) {
-        continue;
-      }
-    } else if (signingKey && !deviceRecordTrusted(d, signingKey)) {
-      continue;
-    }
-    recipients.add(d.recipient);
-  }
-  // The current device is always trusted locally (it's us), even mid-pair
-  // before our own signed record has landed.
-  recipients.add(device.recipient);
-  if (recovery) recipients.add(recovery.recipient);
-  return Array.from(recipients);
-}
-
-async function ensureSha(path: string): Promise<void> {
-  if (shaCache.has(path)) return;
-  const file = await backend.readFile(path);
-  if (file.sha) shaCache.set(path, file.sha);
-}
-
-async function writeDeviceRecord(record: DeviceRecord, message: string) {
-  const path = devicePath(record.deviceId);
-  const result = await backend.writeFile(
-    path,
-    JSON.stringify(record, null, 2),
-    message,
-    shaCache.get(path),
-  );
-  shaCache.set(path, result.sha);
-}
-
-async function writeRecoveryRecord(record: RecoveryRecord, message: string) {
-  const result = await backend.writeFile(
-    RECOVERY_PATH,
-    JSON.stringify(record, null, 2),
-    message,
-    shaCache.get(RECOVERY_PATH),
-  );
-  shaCache.set(RECOVERY_PATH, result.sha);
-}
-
-/**
- * Build a device record, signing it with the recovery key when one is supplied
- * (born-signed vaults). Without a signing key the record is unsigned (legacy
- * vaults) — `collectVaultRecipients` only enforces signatures when the vault's
- * recovery.json advertises a signing key.
- */
-function buildDeviceRecord(
-  fields: { deviceId: string; name: string; recipient: string; addedAt: string },
-  signing?: RecoverySigningKey,
-  owner?: string,
-): DeviceRecord {
-  const base: DeviceRecord = owner ? { ...fields, owner } : { ...fields };
-  if (!signing) return base;
-  return {
-    ...base,
-    sig: sign(
-      deviceSigningPayload({
-        deviceId: fields.deviceId,
-        recipient: fields.recipient,
-        addedAt: fields.addedAt,
-        owner,
-      }),
-      signing.privateKey,
-    ),
-  };
-}
-
-/** Build a member record, self/owner-signed when a signing key is supplied. */
-function buildMemberRecord(
-  fields: {
-    memberId: string;
-    displayName?: string;
-    email?: string;
-    signingKey: string;
-    role: "owner" | "member";
-    addedAt: string;
-    addedBy?: string;
-  },
-  ownerSigning?: RecoverySigningKey,
-): MemberRecord {
-  if (!ownerSigning) return { ...fields };
-  return {
-    ...fields,
-    sig: sign(
-      memberSigningPayload({
-        memberId: fields.memberId,
-        signingKey: fields.signingKey,
-        role: fields.role,
-        addedAt: fields.addedAt,
-      }),
-      ownerSigning.privateKey,
-    ),
-  };
-}
-
-/** Build a recovery record, self-signed when a signing key is supplied. */
-function buildRecoveryRecord(
-  recipient: string,
-  createdAt: string,
-  signing?: RecoverySigningKey,
-): RecoveryRecord {
-  if (!signing) return { recipient, createdAt };
-  const signingKey = toB64(signing.publicKey);
-  return {
-    recipient,
-    createdAt,
-    signingKey,
-    sig: sign(
-      recoverySigningPayload({ recipient, signingKey, createdAt }),
-      signing.privateKey,
-    ),
-  };
-}
-
-/** One file in a batched commit (issue #13); `message` is used only in the
- * per-file fallback when the backend can't batch. */
-interface BatchFile { path: string; content: string; message?: string }
-
-/**
- * Write many files in a SINGLE commit when the backend supports it (issue #13),
- * else fall back to per-file writes. Collapsing N commits into one is what
- * keeps a vault re-encrypt under GitHub's secondary rate limit. After a batch
- * commit the per-file blob shas are unknown, so their shaCache entries are
- * cleared — the next write to one of them re-reads the current sha.
- */
-async function commitMany(files: BatchFile[], batchMessage: string): Promise<void> {
-  if (files.length === 0) return;
-  if (backend.commitFiles) {
-    await backend.commitFiles(
-      files.map((f) => ({ path: f.path, content: f.content })),
-      batchMessage,
-    );
-    for (const f of files) shaCache.delete(f.path);
-    return;
-  }
-  for (const f of files) {
-    const result = await backend.writeFile(f.path, f.content, f.message ?? batchMessage, shaCache.get(f.path));
-    shaCache.set(f.path, result.sha);
-  }
-}
-
-/** Re-encrypt every existing secret (across all vaults) for an updated recipient list. */
-async function reEncryptAll(
-  signer: DeviceIdentity,
-  recipients: string[],
-  commitMessage: (ref: SecretRef) => string,
-): Promise<void> {
-  const { entries } = await backend.listFiles(SECRETS_PREFIX);
-  const batch: BatchFile[] = [];
-  for (const e of entries) {
-    const ref = parseSecretPath(e.path);
-    if (!ref) continue;
-    const file = await backend.readFile(e.path);
-    if (!file.sha || typeof file.content !== "string" || !file.content) continue;
-    shaCache.set(e.path, file.sha);
-    const json = await decryptSecrets(file.content, contentIdentity(signer));
-    const armored = await encryptSecrets(json, recipients);
-    batch.push({ path: e.path, content: armored, message: commitMessage(ref) });
-  }
-  await commitMany(batch, "Re-encrypt secrets for updated recipients");
-}
-
-/**
- * Re-encrypt every chat session + index (`chats/*.age`) for an updated
- * recipient set. Chat history uses the same plain encryptSecrets envelope as
- * secrets, so — like {@link reEncryptAll} — a newly-paired device can't read
- * pre-existing chats until they're re-sealed to include its key. Skip-tolerant
- * per file. Exported so a one-off repair can be triggered too.
- */
-export async function reEncryptChats(
-  signer: DeviceIdentity,
-  recipients: string[],
-): Promise<void> {
-  let entries: { path: string; sha: string }[] = [];
-  try {
-    ({ entries } = await backend.listFiles("chats/"));
-  } catch (_err) {
-    return;
-  }
-  const batch: BatchFile[] = [];
-  for (const e of entries) {
-    if (!e.path.endsWith(".age")) continue;
-    try {
-      const file = await backend.readFile(e.path);
-      if (!file.sha || typeof file.content !== "string" || !file.content) continue;
-      shaCache.set(e.path, file.sha);
-      const json = await decryptSecrets(file.content, contentIdentity(signer));
-      const armored = await encryptSecrets(json, recipients);
-      batch.push({ path: e.path, content: armored, message: `Re-encrypt ${e.path} for updated recipients` });
-    } catch (_err) {
-      /* intentional */
-    }
-  }
-  await commitMany(batch, "Re-encrypt chats for updated recipients");
-}
-
-/**
- * Walk every E2EE note/ticket/link (`<kind>/<id>.md.age`) and re-seal it to
- * the supplied recipient set, preserving the plaintext frontmatter. Used by
- * {@link addDevice} after a new device is registered so that pre-existing
- * encrypted items can be read from that device, and by {@link removeDevice}
- * after a key is revoked so subsequent edits aren't readable by it.
- *
- * Same shape as {@link reEncryptAll} for secrets, scoped to the three item
- * prefixes. Failures on individual files are logged and skipped — a single
- * bad file shouldn't block the rest of the rewrap.
- */
-async function reencryptAllItems(
-  signer: DeviceIdentity,
-  recipients: string[],
-  commitMessage: (kind: EncryptedItemKind, id: string) => string,
-): Promise<void> {
-  const prefixes: readonly { prefix: string; kind: EncryptedItemKind }[] = [
-    { prefix: "notes/", kind: "note" },
-    { prefix: "tickets/", kind: "ticket" },
-    { prefix: "links/", kind: "link" },
-  ];
-  const batch: BatchFile[] = [];
-  for (const { prefix } of prefixes) {
-    let entries: { path: string; sha: string }[] = [];
-    try {
-      ({ entries } = await backend.listFiles(prefix));
-    } catch (_err) {
-      continue;
-    }
-    for (const e of entries) {
-      const kind = classifyEncryptedPath(e.path);
-      if (!kind) continue;
-      try {
-        const file = await backend.readFile(e.path);
-        if (!file.sha || typeof file.content !== "string" || !file.content) continue;
-        shaCache.set(e.path, file.sha);
-        const env = parseEncryptedEnvelope(file.content);
-        if (!env) {
-          continue;
-        }
-        const payload = await decryptItemPayload<unknown>(env.ciphertext, contentIdentity(signer));
-        const armored = await encryptItemPayload(payload, recipients);
-        // Header bytes are deterministic from the public frontmatter, which
-        // we preserve verbatim. Only the ciphertext below is replaced.
-        const headerEnd = file.content.indexOf("-----BEGIN AGE ENCRYPTED FILE-----");
-        const header = headerEnd >= 0 ? file.content.slice(0, headerEnd) : "---\n---\n";
-        const next = `${header}${armored}\n`;
-        batch.push({ path: e.path, content: next, message: commitMessage(kind, env.fm.id) });
-      } catch (_err) {
-        /* intentional */
-      }
-    }
-  }
-  await commitMany(batch, "Re-encrypt items for updated recipients");
-}
-
-// ─── Envelope re-seal helpers (migration + rotation) ─────────────────────────
-// Read each file with an EXPLICIT identity (not the seam) and re-seal to a single
-// vault recipient. Used when the vault key changes: migration reads legacy
-// device-sealed content (readIdentity = device); rotation reads old-V content
-// (readIdentity = current vault key). Shares are preserved by adding each item's
-// invitees to its recipient set.
-
-async function reencryptSecretsTo(
-  readIdentity: string,
-  vaultRecipient: string,
-  message: (ref: SecretRef) => string,
-): Promise<void> {
-  const { entries } = await backend.listFiles(SECRETS_PREFIX);
-  const batch: BatchFile[] = [];
-  for (const e of entries) {
-    const ref = parseSecretPath(e.path);
-    if (!ref) continue;
-    const file = await backend.readFile(e.path);
-    if (!file.sha || typeof file.content !== "string" || !file.content) continue;
-    shaCache.set(e.path, file.sha);
-    const json = await decryptSecrets(file.content, readIdentity);
-    batch.push({
-      path: e.path,
-      content: await encryptSecrets(json, [vaultRecipient]),
-      message: message(ref),
-    });
-  }
-  await commitMany(batch, "Re-encrypt secrets to the vault key");
-}
-
-async function reencryptItemsTo(
-  readIdentity: string,
-  vaultRecipient: string,
-  message: (kind: EncryptedItemKind, id: string) => string,
-): Promise<void> {
-  const itemPrefixes: readonly { prefix: string; kind: EncryptedItemKind }[] = [
-    { prefix: "notes/", kind: "note" },
-    { prefix: "tickets/", kind: "ticket" },
-    { prefix: "links/", kind: "link" },
-  ];
-  const batch: BatchFile[] = [];
-  for (const { prefix, kind } of itemPrefixes) {
-    let entries: { path: string; sha: string }[] = [];
-    try {
-      ({ entries } = await backend.listFiles(prefix));
-    } catch (_err) {
-      continue;
-    }
-    for (const e of entries) {
-      if (classifyEncryptedPath(e.path) !== kind) continue;
-      try {
-        const file = await backend.readFile(e.path);
-        if (!file.sha || typeof file.content !== "string" || !file.content) continue;
-        shaCache.set(e.path, file.sha);
-        const env = parseEncryptedEnvelope(file.content);
-        if (!env) continue;
-        const payload = await decryptItemPayload<unknown>(env.ciphertext, readIdentity);
-        const extra = await extraRecipientsForItem(kind, env.fm.id);
-        const recipients = Array.from(new Set([vaultRecipient, ...extra]));
-        const armored = await encryptItemPayload(payload, recipients);
-        const headerEnd = file.content.indexOf("-----BEGIN AGE ENCRYPTED FILE-----");
-        const header = headerEnd >= 0 ? file.content.slice(0, headerEnd) : "---\n---\n";
-        batch.push({
-          path: e.path,
-          content: `${header}${armored}\n`,
-          message: message(kind, env.fm.id),
-        });
-      } catch (_err) {
-        /* intentional */
-      }
-    }
-  }
-  await commitMany(batch, "Re-encrypt items to the vault key");
-}
-
-/**
- * Rotate the vault key: mint V', re-seal all content from the current key to V',
- * and write a fresh keybox (epoch+1) to the current recipient set. Used on device
- * removal — the revoked device knew the old V, so forward secrecy requires a new
- * one that its (now-deleted) keybox entry can't unlock. O(N), the rare path.
- */
-async function rotateVaultKey(
-  signer: DeviceIdentity,
-  recoverySigning: RecoverySigningKey | undefined,
-  reason: string,
-): Promise<VaultKey> {
-  const current = getActiveVaultKey();
-  const readIdentity = current ? current.identity : signer.identity;
-  const next = await generateVaultKey();
-  const secretLabel = (ref: SecretRef) =>
-    `Re-encrypt secret "${ref.vault ? `${ref.vault}/${ref.name}` : ref.name}" ${reason}`;
-  await reencryptSecretsTo(readIdentity, next.recipient, secretLabel);
-  await reencryptItemsTo(
-    readIdentity,
-    next.recipient,
-    (kind, id) => `Re-encrypt ${kind} "${id}" ${reason}`,
-  );
-  const epoch = ((await readKeyboxEpoch(signer)) ?? 1) + 1;
-  const recipients = await collectVaultRecipients(signer);
-  await writeKeybox(next, recipients, `Rotate keybox (epoch ${epoch}) ${reason}`, {
-    epoch,
-    recoverySigning,
-  });
-  setActiveVaultKey(next);
-  return next;
-}
-
-/** A stable signature of a recipient set, order-independent. */
-function recipientSignature(recipients: string[]): string {
-  return [...recipients].sort().join(",");
-}
-
-/**
- * Phase 2 of member device auto-register (#14): re-seal the vault to its
- * *current* recipient set, but ONLY when that set has changed since
- * `previousSignature` (so it doesn't churn on every boot). Skip-tolerant — a
- * device that can't decrypt an item (e.g. the just-self-registered newcomer)
- * silently skips it, making this a safe no-op there; an already-authorized
- * device re-seals everything, which is what pulls history into a new member
- * device's reach.
- *
- * Returns the current signature so the caller can persist it. (Uses the same
- * per-file re-encrypt as {@link addMember}/{@link addDevice}; issue #13 will
- * batch all of these into a single commit.)
- */
-export async function reEncryptVaultIfMembersChanged(
-  signer: DeviceIdentity,
-  previousSignature: string | null,
-): Promise<{ changed: boolean; signature: string }> {
-  const recipients = await collectVaultRecipients(signer);
-  const signature = recipientSignature(recipients);
-  // Envelope mode: content is sealed to the vault key, never to member/device
-  // recipients — so a membership change must NOT re-seal content (that would
-  // seal it to devices and make it unreadable via V). New member devices are
-  // admitted by rewriting the keybox, an owner-driven step (holds the recovery
-  // key). This auto path just no-ops on content.
-  if (await keyboxExists()) return { changed: false, signature };
-  if (signature === previousSignature) return { changed: false, signature };
-
-  // Secrets: skip-tolerant (reEncryptAll throws on undecryptable; here we don't),
-  // collected into one batched commit (issue #13).
-  const { entries } = await backend.listFiles(SECRETS_PREFIX);
-  const batch: BatchFile[] = [];
-  for (const e of entries) {
-    const ref = parseSecretPath(e.path);
-    if (!ref) continue;
-    try {
-      const file = await backend.readFile(e.path);
-      if (!file.sha || typeof file.content !== "string" || !file.content) continue;
-      shaCache.set(e.path, file.sha);
-      const json = await decryptSecrets(file.content, contentIdentity(signer));
-      const armored = await encryptSecrets(json, recipients);
-      const label = ref.vault ? `${ref.vault}/${ref.name}` : ref.name;
-      batch.push({ path: e.path, content: armored, message: `Re-encrypt secret "${label}" for current members` });
-    } catch {
-      // can't decrypt or transient — skip; an authorized device re-seals it.
-    }
-  }
-  await commitMany(batch, "Re-encrypt secrets for current members");
-  // Items: reencryptAllItems is already skip-tolerant per file and now batched.
-  await reencryptAllItems(
-    signer,
-    recipients,
-    (kind, id) => `Re-encrypt ${kind} "${id}" for current members`,
-  );
-  await reEncryptChats(signer, recipients);
-  return { changed: true, signature };
-}
-
-// ─── Per-item sharing ────────────────────────────────────────────────────────
-
-export const SHARES_PREFIX = ".notekit/shares/";
-
-/** A single grant: one invitee an item has been shared with. */
-export interface ShareGrant {
-  /** Invitee's account email (how they were looked up in the directory). */
-  email: string;
-  /** Invitee's recovery signing key — kept so the grant can be re-verified. */
-  signingKey: string;
-  /** Invitee's verified device recipients the item is sealed to. */
-  recipients: string[];
-  grantedAt: string;
-}
-
-/**
- * The shared-recipients record for one item, committed to
- * `.notekit/shares/{kind}-{id}.json`. This is the **persistent source of
- * truth** for an item's extra recipients — sync consults it on every re-seal
- * via {@link recipientsForItem}, so editing a shared note doesn't silently
- * drop the people it was shared with. Recipients are public keys, so the
- * manifest is cleartext (it does leak *which* items are shared with whom).
- */
-export interface ShareManifest {
-  version: 1;
-  kind: EncryptedItemKind;
-  id: string;
-  shares: ShareGrant[];
-}
-
-function sharePath(kind: EncryptedItemKind, id: string): string {
-  return `${SHARES_PREFIX}${kind}-${id}.json`;
-}
-
-function itemPrefix(kind: EncryptedItemKind): string {
-  return kind === "note" ? "notes/" : kind === "ticket" ? "tickets/" : "links/";
-}
-
-export async function readShareManifest(
-  kind: EncryptedItemKind,
-  id: string,
-): Promise<ShareManifest | null> {
-  const file = await backend.readFile(sharePath(kind, id));
-  if (file.sha) shaCache.set(file.path, file.sha);
-  if (typeof file.content !== "string" || !file.content) return null;
-  try {
-    return JSON.parse(file.content) as ShareManifest;
-  } catch {
-    return null;
-  }
-}
-
-async function writeShareManifest(m: ShareManifest, message: string): Promise<void> {
-  const path = sharePath(m.kind, m.id);
-  const result = await backend.writeFile(
-    path,
-    JSON.stringify(m, null, 2),
-    message,
-    shaCache.get(path),
-  );
-  shaCache.set(path, result.sha);
-}
-
-/** Recipients an item is shared with, beyond the vault's own devices. */
-export async function extraRecipientsForItem(
-  kind: EncryptedItemKind,
-  id: string,
-): Promise<string[]> {
-  const m = await readShareManifest(kind, id);
-  if (!m) return [];
-  const set = new Set<string>();
-  for (const g of m.shares) for (const r of g.recipients) set.add(r);
-  return Array.from(set);
-}
-
-/**
- * Full recipient set for sealing a specific item: the vault's own recipients
- * plus anyone the item is shared with. Sync uses this (not the bare
- * {@link collectVaultRecipients}) so shared items keep their invitees.
- */
-export async function recipientsForItem(
-  kind: EncryptedItemKind,
-  id: string,
-  device: DeviceIdentity,
-): Promise<string[]> {
-  // Base = the vault's own content recipients (envelope → [V]; legacy → all
-  // devices). `extra` = per-item invitees (cross-user shares), who hold their
-  // own keys, never V — so a shared item is sealed to [V, …invitees] and your
-  // devices still open it via V while adding a device stays O(1).
-  const [base, extra] = await Promise.all([
-    contentRecipients(device),
-    extraRecipientsForItem(kind, id),
-  ]);
-  return Array.from(new Set([...base, ...extra]));
-}
-
-/** Re-seal a single encrypted item to a new recipient set. */
-async function reencryptItem(
-  kind: EncryptedItemKind,
-  id: string,
-  signer: DeviceIdentity,
-  recipients: string[],
-  message: string,
-): Promise<boolean> {
-  const { entries } = await backend.listFiles(itemPrefix(kind));
-  for (const e of entries) {
-    if (classifyEncryptedPath(e.path) !== kind) continue;
-    const file = await backend.readFile(e.path);
-    if (!file.sha || typeof file.content !== "string" || !file.content) continue;
-    const env = parseEncryptedEnvelope(file.content);
-    if (!env || env.fm.id !== id) continue;
-    const payload = await decryptItemPayload<unknown>(env.ciphertext, contentIdentity(signer));
-    const armored = await encryptItemPayload(payload, recipients);
-    const headerEnd = file.content.indexOf("-----BEGIN AGE ENCRYPTED FILE-----");
-    const header = headerEnd >= 0 ? file.content.slice(0, headerEnd) : "---\n---\n";
-    const result = await backend.writeFile(e.path, `${header}${armored}\n`, message, file.sha);
-    shaCache.set(e.path, result.sha);
-    return true;
-  }
-  return false;
-}
-
-/**
- * Share an item with an already-verified invitee: record the grant in the
- * item's share manifest and re-encrypt the item to include their recipients.
- * The caller must have verified the invitee's keys (via
- * `directory.fetchVerifiedKeys`) — this function trusts the passed recipients.
- *
- * Repo *read* access is a separate concern handled by the collaborator-invite
- * flow; this only manages the E2EE recipient set.
- */
-export async function shareItemWith(
-  kind: EncryptedItemKind,
-  id: string,
-  grant: { email: string; signingKey: string; recipients: string[] },
-  signer: DeviceIdentity,
-): Promise<void> {
-  const now = new Date().toISOString();
-  const existing =
-    (await readShareManifest(kind, id)) ??
-    ({ version: 1, kind, id, shares: [] } as ShareManifest);
-  // Replace any prior grant to the same email (re-share with refreshed keys).
-  const shares = existing.shares.filter((s) => s.email !== grant.email);
-  shares.push({ ...grant, grantedAt: now });
-  await writeShareManifest(
-    { version: 1, kind, id, shares },
-    `Share ${kind} "${id}" with ${grant.email}`,
-  );
-  const recipients = await recipientsForItem(kind, id, signer);
-  await reencryptItem(
-    kind,
-    id,
-    signer,
-    recipients,
-    `Re-encrypt ${kind} "${id}" for share with ${grant.email}`,
-  );
-}
-
-export interface PassphraseShare {
-  /** The generated passphrase — deliver out-of-band, never via the same channel. */
-  passphrase: string;
-  /** ASCII-armored age file the recipient decrypts with the passphrase. */
-  armored: string;
-}
-
-/**
- * Produce a passphrase-encrypted copy of an item for someone with no NoteKit
- * account. Decrypts the item with this device, then re-encrypts the payload to
- * a freshly generated passphrase (age scrypt). The recipient decrypts with any
- * age client; the server never sees plaintext. Returns null if the item isn't
- * found. This is a point-in-time snapshot — it does not update on edits.
- */
-export async function createPassphraseShare(
-  kind: EncryptedItemKind,
-  id: string,
-  signer: DeviceIdentity,
-): Promise<PassphraseShare | null> {
-  const { entries } = await backend.listFiles(itemPrefix(kind));
-  for (const e of entries) {
-    if (classifyEncryptedPath(e.path) !== kind) continue;
-    const file = await backend.readFile(e.path);
-    if (typeof file.content !== "string" || !file.content) continue;
-    const env = parseEncryptedEnvelope(file.content);
-    if (!env || env.fm.id !== id) continue;
-    const payload = await decryptItemPayload<unknown>(env.ciphertext, contentIdentity(signer));
-    const passphrase = generateSharePassphrase();
-    const armored = await encryptToPassphrase(JSON.stringify(payload), passphrase);
-    return { passphrase, armored };
-  }
-  return null;
-}
-
-/** Who an item is currently shared with (empty if never shared). */
-export async function listItemShares(
-  kind: EncryptedItemKind,
-  id: string,
-): Promise<ShareGrant[]> {
-  return (await readShareManifest(kind, id))?.shares ?? [];
-}
-
-/**
- * Revoke an invitee from an item: drop their grant and re-encrypt the item to
- * the reduced set. **Forward-only** — Git can't claw back history, so the
- * revoked user can still decrypt versions they already pulled. New versions
- * exclude them. Returns false if they weren't shared with. Callers should
- * surface the forward-only caveat in the UI.
- */
-export async function unshareItemWith(
-  kind: EncryptedItemKind,
-  id: string,
-  email: string,
-  signer: DeviceIdentity,
-): Promise<boolean> {
-  const manifest = await readShareManifest(kind, id);
-  if (!manifest) return false;
-  const shares = manifest.shares.filter((s) => s.email !== email);
-  if (shares.length === manifest.shares.length) return false; // not shared with them
-  await writeShareManifest(
-    { version: 1, kind, id, shares },
-    `Revoke ${email} from ${kind} "${id}"`,
-  );
-  const recipients = await recipientsForItem(kind, id, signer);
-  await reencryptItem(
-    kind,
-    id,
-    signer,
-    recipients,
-    `Re-encrypt ${kind} "${id}" after revoking ${email}`,
-  );
-  return true;
-}
 
 // ─── Vault index ─────────────────────────────────────────────────────────────
 
@@ -1503,16 +172,11 @@ async function writeVaultsIndex(index: VaultsIndex, message: string): Promise<vo
   shaCache.set(VAULTS_INDEX_PATH, result.sha);
 }
 
-/**
- * Return all named secret vaults registered in the index, sorted by label.
- * The Default vault is implicit and not included.
- */
 export async function listSecretVaults(): Promise<SecretVaultRecord[]> {
   const idx = await readVaultsIndex();
   return idx.vaults.slice().sort((a, b) => a.label.localeCompare(b.label));
 }
 
-/** Create a new named secret vault. Throws if the slug already exists. */
 export async function createSecretVault(slug: string, label: string): Promise<SecretVaultRecord> {
   assertValidSlug(slug);
   const trimmed = label.trim();
@@ -1531,7 +195,6 @@ export async function createSecretVault(slug: string, label: string): Promise<Se
   return record;
 }
 
-/** Rename a vault's display label. Slug (folder) stays the same. */
 export async function renameSecretVault(slug: string, newLabel: string): Promise<SecretVaultRecord> {
   const trimmed = newLabel.trim();
   if (!trimmed) throw new Error("Vault label cannot be empty.");
@@ -1544,10 +207,6 @@ export async function renameSecretVault(slug: string, newLabel: string): Promise
   return found;
 }
 
-/**
- * Delete a named vault. By default the vault must be empty; pass
- * `{ force: true }` to remove any remaining secrets first.
- */
 export async function deleteSecretVault(
   slug: string,
   opts: { force?: boolean } = {},
@@ -1587,30 +246,9 @@ export async function isVaultInitialized(): Promise<boolean> {
 export interface InitVaultArgs {
   device: DeviceIdentity;
   recoveryRecipient: string;
-  /**
-   * Encryption policy to stamp on the vault at birth. Defaults to `required`
-   * (E2EE-everywhere) — the policy is fixed here and never changed in place.
-   */
   encryption?: "required" | "off";
-  /**
-   * Recovery signing key (Ed25519) to make this a "signed mode" vault: the
-   * recovery record advertises its public signing key and the bootstrap device
-   * record is signed by it. Omit only to create a legacy unsigned vault.
-   */
   recoverySigning?: RecoverySigningKey;
-  /**
-   * The vault owner's account identity — when provided (with `recoverySigning`),
-   * the vault is "born with membership": the owner is written as the first
-   * member (`.notekit/members/<memberId>.json`, role `owner`) and the bootstrap
-   * device is attributed to them. Omit for a plain single-user vault.
-   */
   owner?: { memberId: string; displayName?: string; email?: string };
-  /**
-   * Content-crypto scheme for the new vault. "envelope" seals content to a single
-   * vault key wrapped per-device in the keybox → O(1) device-add. "multi" (the
-   * current default) creates a legacy per-device vault. The default flips to
-   * "envelope" once bootstrap + migration are wired end-to-end (P4/P5).
-   */
   scheme?: "multi" | "envelope";
 }
 
@@ -1620,8 +258,6 @@ export async function initVault({
   encryption = "required",
   recoverySigning,
   owner,
-  // Default stays "multi" until bootstrap+migration land end-to-end (P4/P5);
-  // callers opt in with scheme:"envelope". The default flips in the final phase.
   scheme = "multi",
 }: InitVaultArgs): Promise<void> {
   const now = new Date().toISOString();
@@ -1633,8 +269,6 @@ export async function initVault({
     buildRecoveryRecord(recoveryRecipient, now, recoverySigning),
     "Initialize crypto vault: set recovery key",
   );
-  // Born-with-membership: record the owner as member #0, signing key = the
-  // recovery signing key. Their devices are attributed to them.
   if (owner && recoverySigning) {
     await writeMemberRecord(
       buildMemberRecord(
@@ -1660,9 +294,6 @@ export async function initVault({
     ),
     `Initialize crypto vault: register device "${device.name}"`,
   );
-  // Envelope mode: mint the vault key and seal it into the keybox for this
-  // first device + the recovery key. bootstrapCrypto unlocks it on load and
-  // installs it via setActiveVaultKey, after which all content is sealed to V.
   if (scheme === "envelope") {
     const vaultKey = await generateVaultKey();
     await writeKeybox(
@@ -1675,35 +306,16 @@ export async function initVault({
   }
 }
 
-/**
- * One-time, idempotent legacy→envelope migration, run by an authorized device.
- * Mints the vault key V, re-seals every secret + item from per-device recipients
- * to [V] (the SAME O(N) cost as one legacy device-add, paid once), writes the
- * keybox, and stamps `config.scheme = "envelope"`. After this, every future
- * device-add is O(1).
- *
- * Reads use this device's identity — the content is still legacy (device-sealed)
- * and the seam is NOT yet active — so recipients/identity are passed explicitly
- * rather than through {@link contentRecipients}/{@link contentIdentity}. The
- * keybox + scheme are written LAST, and only then is the seam activated, so a
- * crash mid-migration leaves a still-readable legacy vault (idempotent re-run).
- *
- * Returns V, or the already-unlocked key if the vault is already envelope.
- */
 export async function migrateToEnvelope(
   device: DeviceIdentity,
   recoverySigning?: RecoverySigningKey,
-): Promise<VaultKey | null> {
+) {
   if (await keyboxExists()) {
-    // Already migrated — idempotent no-op. Hand back the unlocked key.
     return unlockVaultKey(device);
   }
   const vaultKey = await generateVaultKey();
   const vaultRecipient = vaultKey.recipient;
 
-  // Read legacy content with THIS device's identity (content is device-sealed,
-  // the seam isn't active yet) and re-seal to [V] — secrets, then items (shares
-  // preserved). Same O(N) cost as one legacy device-add, paid once.
   await reencryptSecretsTo(
     device.identity,
     vaultRecipient,
@@ -1715,7 +327,6 @@ export async function migrateToEnvelope(
     (kind, id) => `Migrate ${kind} "${id}" to envelope`,
   );
 
-  // ── Commit point: write the keybox + scheme LAST, then activate the seam. ──
   const recipients = await collectVaultRecipients(device);
   await writeKeybox(vaultKey, recipients, "Migrate: create keybox", {
     epoch: 1,
@@ -1730,10 +341,6 @@ export async function migrateToEnvelope(
   return vaultKey;
 }
 
-/**
- * List secret names within a specific vault. Pass an empty string (the
- * default) for the Default/root vault. Returns sorted names.
- */
 export async function listSecretNames(vaultSlug = ""): Promise<string[]> {
   const refs = await listAllSecrets();
   return refs
@@ -1742,7 +349,6 @@ export async function listSecretNames(vaultSlug = ""): Promise<string[]> {
     .sort();
 }
 
-/** List every secret across every vault, including Default. */
 export async function listAllSecrets(): Promise<SecretRef[]> {
   const { entries } = await backend.listFiles(SECRETS_PREFIX);
   const refs: SecretRef[] = [];
@@ -1758,11 +364,6 @@ export async function listAllSecrets(): Promise<SecretRef[]> {
 }
 
 // ─── Offline-first (SWR) cache for the Secrets list view ─────────────────────
-// The list view needs only plaintext metadata — vault labels + secret names —
-// which are already server-visible (they're folder/file names in git, not
-// encrypted). Secret *values* are never here (read on-demand via getSecret). So
-// caching this payload leaks nothing beyond what the repo layout already does,
-// and lets the Secrets tab render instantly (and offline) before revalidating.
 const SECRETS_VIEW_KEY = "@blob:secrets-view";
 
 export interface SecretsViewPayload {
@@ -1770,7 +371,6 @@ export interface SecretsViewPayload {
   secrets: SecretRef[];
 }
 
-/** Persist the last-known Secrets list view for instant/offline render. */
 export async function cacheSecretsView(payload: SecretsViewPayload): Promise<void> {
   const scope = currentVaultScope();
   if (!scope) return;
@@ -1781,7 +381,6 @@ export async function cacheSecretsView(payload: SecretsViewPayload): Promise<voi
   });
 }
 
-/** Cache-only read of the Secrets list view (no network), or null on miss. */
 export async function readCachedSecretsView(): Promise<SecretsViewPayload | null> {
   const scope = currentVaultScope();
   if (!scope) return null;
@@ -1847,11 +446,6 @@ export async function removeSecret(
   shaCache.delete(path);
 }
 
-/**
- * Move a secret to a different vault (or to/from Default). Re-encrypts under
- * a new path and deletes the old one. Both vault arguments are slugs; "" =
- * Default.
- */
 export async function moveSecret(
   name: string,
   fromVault: string,
@@ -1867,7 +461,6 @@ export async function moveSecret(
   const fromPath = secretPath(name, fromVault);
   const toPath = secretPath(name, toVault);
 
-  // Refuse to overwrite an existing secret with the same name at the destination.
   await ensureSha(toPath);
   if (shaCache.has(toPath)) {
     throw new Error(
@@ -1897,432 +490,6 @@ export async function moveSecret(
   }
 }
 
-export async function addDevice(
-  newDevice: { deviceId: string; name: string; recipient: string },
-  signer: DeviceIdentity,
-  recoverySigning?: RecoverySigningKey,
-): Promise<void> {
-  const now = new Date().toISOString();
-  // In a signed-mode vault the new record must carry a recovery signature, or
-  // `collectVaultRecipients` would just drop it again. Approving therefore
-  // requires the recovery signing key (held by the origin device, or supplied
-  // by entering the recovery phrase on a secondary device).
-  const recovery = await readRecovery();
-  if (recovery?.signingKey && !recoverySigning) {
-    throw new Error(
-      "This vault requires the recovery phrase to approve a new device (it signs the device record).",
-    );
-  }
-  // In a member-mode vault, attribute the new device to the member whose
-  // signing key is approving it (so it's owned by the right person, not just
-  // "a device"). Falls back to no owner for plain signed/legacy vaults.
-  let owner: string | undefined;
-  if (recoverySigning) {
-    const members = await readMembers();
-    const signerKeyB64 = toB64(recoverySigning.publicKey);
-    for (const m of members.values()) {
-      if (m.signingKey === signerKeyB64) { owner = m.memberId; break; }
-    }
-  }
-  await writeDeviceRecord(
-    buildDeviceRecord(
-      { deviceId: newDevice.deviceId, name: newDevice.name, recipient: newDevice.recipient, addedAt: now },
-      recoverySigning,
-      owner,
-    ),
-    `Add device "${newDevice.name}"`,
-  );
-
-  // ── Envelope mode: O(1). Content is sealed to the vault key, not to devices,
-  // so nothing content-side changes — we only teach the keybox the new device's
-  // key. One small file, one commit, independent of vault size. ──
-  const vaultKey = await unlockVaultKey(signer);
-  if (vaultKey) {
-    const epoch = (await readKeyboxEpoch(signer)) ?? 1;
-    const recipients = await collectVaultRecipients(signer);
-    // collectVaultRecipients already includes the just-written new device
-    // (trusted once its signed record lands) and the recovery recipient.
-    await writeKeybox(
-      vaultKey,
-      recipients,
-      `Add device "${newDevice.name}" to keybox`,
-      { epoch, recoverySigning },
-    );
-    return;
-  }
-
-  // ── Legacy mode: O(N). Re-seal every secret + item to the new recipient set
-  // so the newly-paired device can read what already exists. ──
-  const recipients = await collectRecipients(signer);
-  await reEncryptAll(
-    signer,
-    recipients,
-    (r) => {
-      const label = r.vault ? `${r.vault}/${r.name}` : r.name;
-      return `Re-encrypt secret "${label}" for device "${newDevice.name}"`;
-    },
-  );
-  // Failures here don't undo the device add (the secret re-encryption already
-  // succeeded), but they do surface so the operator can investigate.
-  await reencryptAllItems(
-    signer,
-    recipients,
-    (kind, id) =>
-      `Re-encrypt ${kind} "${id}" for device "${newDevice.name}"`,
-  );
-  await reEncryptChats(signer, recipients);
-}
-
-export async function removeDevice(
-  deviceId: string,
-  signer: DeviceIdentity,
-  recoverySigning?: RecoverySigningKey,
-): Promise<void> {
-  const path = devicePath(deviceId);
-  const file = await backend.readFile(path);
-  if (!file.sha) return;
-  let removedName = deviceId;
-  if (typeof file.content === "string") {
-    try { removedName = (JSON.parse(file.content) as DeviceRecord).name ?? deviceId; } catch { /* keep id */ }
-  }
-  // Signed-mode envelope: rotating the keybox needs a recovery-key signature.
-  const recovery = await readRecovery();
-  const envelope = await keyboxExists();
-  if (envelope && recovery?.signingKey && !recoverySigning) {
-    throw new Error(
-      "This vault requires the recovery phrase to revoke a device (it re-signs the rotated keybox).",
-    );
-  }
-  await backend.deleteFile(path, file.sha, `Revoke device "${removedName}"`);
-  shaCache.delete(path);
-
-  // ── Envelope mode: rotate the vault key. The revoked device knew the old V
-  // (from its keybox entry), so we mint V', re-seal all content to it, and write
-  // a fresh keybox (epoch+1) to the REMAINING recipients — its deleted entry
-  // can't unlock V'. Forward-secret from the next change on. ──
-  if (envelope) {
-    await rotateVaultKey(signer, recoverySigning, `after revoking "${removedName}"`);
-    return;
-  }
-
-  // ── Legacy mode: re-seal to the remaining device recipients. ──
-  const recipients = await collectRecipients(signer);
-  await reEncryptAll(
-    signer,
-    recipients,
-    (r) => {
-      const label = r.vault ? `${r.vault}/${r.name}` : r.name;
-      return `Re-encrypt secret "${label}" after revoking "${removedName}"`;
-    },
-  );
-  // Items get the same treatment so a revoked device can no longer
-  // decrypt newly-pushed history (it could already cache older ciphertext
-  // it had access to, but the next change shouldn't be readable).
-  await reencryptAllItems(
-    signer,
-    recipients,
-    (kind, id) =>
-      `Re-encrypt ${kind} "${id}" after revoking "${removedName}"`,
-  );
-  await reEncryptChats(signer, recipients);
-}
-
-/**
- * Membership upkeep. A device record copied from another member is the
- * member's own self-signed record — its `sig` is by *their* key, so we must
- * copy it verbatim (never re-sign) for it to keep verifying.
- */
-export interface ForeignDeviceRecord {
-  deviceId: string;
-  name?: string;
-  recipient: string;
-  addedAt: string;
-  owner?: string;
-  sig?: string;
-}
-
-/**
- * One-time migration from signed-mode to member-mode: register the vault owner
- * as a member and attribute their existing devices to them. Idempotent.
- *
- * Required before admitting any other member — once `members/*` exists,
- * `collectVaultRecipients` switches to member-mode and drops every device that
- * isn't validly signed by *its* member. The owner's pre-membership devices
- * carry a recovery signature but no `owner`, so without this they'd be dropped
- * and the owner would lock themselves out by admitting someone. New vaults are
- * born with membership (see `initVault`), so this only fires for vaults created
- * on `feat/e2ee-everywhere` before Pt 2a.
- */
-export async function ensureOwnerMember(
-  owner: { memberId: string; displayName?: string; email?: string },
-  ownerSigning: RecoverySigningKey,
-): Promise<void> {
-  const ownerKeyB64 = toB64(ownerSigning.publicKey);
-  const members = await readMembers();
-  if (!members.has(owner.memberId)) {
-    const recovery = await readRecovery();
-    const now = new Date().toISOString();
-    await writeMemberRecord(
-      buildMemberRecord(
-        {
-          memberId: owner.memberId,
-          displayName: owner.displayName,
-          email: owner.email,
-          signingKey: ownerKeyB64,
-          role: "owner",
-          addedAt: recovery?.createdAt ?? now,
-          addedBy: owner.memberId,
-        },
-        ownerSigning,
-      ),
-      `Register owner "${owner.memberId}" as vault member`,
-    );
-  }
-  // Re-stamp the owner's own devices with their `owner` so they survive
-  // member-mode enforcement. Only devices already validly signed by the owner
-  // (= recovery) key are touched; anything else is left for member-mode to
-  // drop, which is the correct security outcome.
-  const devices = await listDevices();
-  for (const d of devices) {
-    if (d.owner) continue;
-    if (!deviceRecordTrusted(d, ownerKeyB64)) continue;
-    await writeDeviceRecord(
-      buildDeviceRecord(
-        { deviceId: d.deviceId, name: d.name, recipient: d.recipient, addedAt: d.addedAt },
-        ownerSigning,
-        owner.memberId,
-      ),
-      `Attribute device "${d.name}" to owner "${owner.memberId}"`,
-    );
-  }
-}
-
-/** Outcome of {@link ensureSelfRegistered}. */
-export interface SelfRegisterResult {
-  registered: boolean;
-  reason?:
-    | "not_member_mode"
-    | "not_a_member"
-    | "signing_key_mismatch"
-    | "already_registered";
-}
-
-/**
- * Member device auto-register (membership Pt 3, issue #14). When a member's
- * *new* device opens a vault it belongs to, it writes its own device record —
- * signed by the member's signing key, `owner=<me>` — so it joins the recipient
- * set for future writes without the owner re-admitting it.
- *
- * Phase 1 only: this writes the record but does NOT re-encrypt existing items,
- * because a brand-new device can't decrypt them yet (it isn't a recipient, and
- * the member's recovery key isn't this vault's recovery recipient). Historical
- * items get re-sealed by an already-authorized device on its next sync.
- *
- * No safety-number re-check is needed: the member's signing key is already
- * trusted in `members/<me>.json` (verified once at admission), and the record
- * is signed by that key — so `deviceRecordTrustedByMember` accepts it.
- *
- * Requires the caller's member signing key (from their stored recovery
- * mnemonic). A device paired by approval-code only — without the mnemonic —
- * can't self-sign and should stay `needs-pair` instead.
- */
-export async function ensureSelfRegistered(
-  account: { memberId: string },
-  device: DeviceIdentity,
-  signing: RecoverySigningKey,
-): Promise<SelfRegisterResult> {
-  const members = await readMembers();
-  if (members.size === 0) return { registered: false, reason: "not_member_mode" };
-  const me = members.get(account.memberId);
-  if (!me) return { registered: false, reason: "not_a_member" };
-  // Only self-register if we actually hold this member's signing key — the
-  // record must verify against `members/<me>.json` or it'd be dropped.
-  if (me.signingKey !== toB64(signing.publicKey)) {
-    return { registered: false, reason: "signing_key_mismatch" };
-  }
-  const devices = await listDevices();
-  if (devices.some((d) => d.deviceId === device.deviceId)) {
-    return { registered: false, reason: "already_registered" };
-  }
-  await writeDeviceRecord(
-    buildDeviceRecord(
-      {
-        deviceId: device.deviceId,
-        name: device.name,
-        recipient: device.recipient,
-        addedAt: new Date().toISOString(),
-      },
-      signing,
-      account.memberId,
-    ),
-    `Self-register device "${device.name}" for member "${account.memberId}"`,
-  );
-  return { registered: true };
-}
-
-/**
- * Admit a member into the vault (first-class membership, Pt 2b). The owner has
- * already verified the member's signing key out-of-band (safety number); this
- * writes the owner-signed member record, copies the member's self-signed device
- * records into the vault, and re-encrypts everything to the widened set.
- *
- * The owner only *vouches* for the member's signing key (the member record is
- * owner-signed). The device records stay signed by the **member's** key — the
- * owner relays them verbatim and can't forge them. A record whose signature
- * doesn't verify against the member's key is skipped (defense in depth — the
- * directory already verified before handing them over).
- *
- * Call {@link ensureOwnerMember} first so the owner's own devices survive the
- * switch to member-mode.
- */
-// eslint-disable-next-line max-lines-per-function -- member admission involves device verification, keybox update, and content re-encryption; splitting would fragment the atomic operation
-export async function addMember(
-  member: {
-    memberId: string;
-    displayName?: string;
-    email?: string;
-    signingKey: string;
-  },
-  deviceRecords: ForeignDeviceRecord[],
-  signer: DeviceIdentity,
-  ownerSigning: RecoverySigningKey,
-): Promise<{ devicesAdded: number; devicesSkipped: number }> {
-  const now = new Date().toISOString();
-  // Attribute the admission to whichever member's signing key is the owner key.
-  const members = await readMembers();
-  const ownerKeyB64 = toB64(ownerSigning.publicKey);
-  let addedBy: string | undefined;
-  for (const m of members.values()) {
-    if (m.signingKey === ownerKeyB64) { addedBy = m.memberId; break; }
-  }
-  await writeMemberRecord(
-    buildMemberRecord(
-      {
-        memberId: member.memberId,
-        displayName: member.displayName,
-        email: member.email,
-        signingKey: member.signingKey,
-        role: "member",
-        addedAt: now,
-        addedBy,
-      },
-      ownerSigning,
-    ),
-    `Add member "${member.memberId}"`,
-  );
-  let devicesAdded = 0;
-  let devicesSkipped = 0;
-  for (const d of deviceRecords) {
-    const record: DeviceRecord = {
-      deviceId: d.deviceId,
-      name: d.name ?? member.displayName ?? member.memberId,
-      recipient: d.recipient,
-      addedAt: d.addedAt,
-      owner: member.memberId,
-      sig: d.sig,
-    };
-    // The record must verify against the member's key with `owner` bound in.
-    if (!record.owner || record.owner !== member.memberId || !deviceRecordTrusted(record, member.signingKey)) {
-      devicesSkipped++;
-      continue;
-    }
-    await writeDeviceRecord(record, `Add device "${record.name}" for member "${member.memberId}"`);
-    devicesAdded++;
-  }
-
-  // ── Envelope mode: content is sealed to V and unchanged by adding a member.
-  // Don't re-encrypt content — just admit the new member's devices into the
-  // keybox (owner signs it, so they can now unlock V). This is also the member
-  // keybox-reconcile: their devices become keybox recipients here. ──
-  if (await keyboxExists()) {
-    const vaultKey = await unlockVaultKey(signer);
-    if (vaultKey) {
-      const epoch = (await readKeyboxEpoch(signer)) ?? 1;
-      const recipients = await collectVaultRecipients(signer);
-      await writeKeybox(
-        vaultKey,
-        recipients,
-        `Add member "${member.memberId}" to keybox`,
-        { epoch, recoverySigning: ownerSigning },
-      );
-    }
-    return { devicesAdded, devicesSkipped };
-  }
-
-  // ── Legacy mode: re-seal all content to the new member+device recipients. ──
-  const recipients = await collectRecipients(signer);
-  await reEncryptAll(
-    signer,
-    recipients,
-    (r) => {
-      const label = r.vault ? `${r.vault}/${r.name}` : r.name;
-      return `Re-encrypt secret "${label}" for member "${member.memberId}"`;
-    },
-  );
-  await reencryptAllItems(
-    signer,
-    recipients,
-    (kind, id) => `Re-encrypt ${kind} "${id}" for member "${member.memberId}"`,
-  );
-  await reEncryptChats(signer, recipients);
-  return { devicesAdded, devicesSkipped };
-}
-
-/**
- * Remove a member and all their devices, then re-encrypt to the reduced set.
- * Forward-only: git history a member already pulled stays readable to them
- * (see {@link removeDevice}). The owner member can't be removed this way.
- */
-export async function removeMember(
-  memberId: string,
-  signer: DeviceIdentity,
-): Promise<void> {
-  const members = await readMembers();
-  const member = members.get(memberId);
-  if (member?.role === "owner") {
-    throw new Error("The vault owner can't be removed.");
-  }
-  // Drop the member's device records first so they leave the recipient set.
-  const devices = await listDevices();
-  for (const d of devices) {
-    if (d.owner !== memberId) continue;
-    const path = devicePath(d.deviceId);
-    await ensureSha(path);
-    const sha = shaCache.get(path);
-    if (!sha) continue;
-    await backend.deleteFile(path, sha, `Remove device "${d.name}" of member "${memberId}"`);
-    shaCache.delete(path);
-  }
-  // Then the member record itself.
-  const memPath = memberPath(memberId);
-  await ensureSha(memPath);
-  const memSha = shaCache.get(memPath);
-  if (memSha) {
-    await backend.deleteFile(memPath, memSha, `Remove member "${memberId}"`);
-    shaCache.delete(memPath);
-  }
-  const recipients = await collectRecipients(signer);
-  await reEncryptAll(
-    signer,
-    recipients,
-    (r) => {
-      const label = r.vault ? `${r.vault}/${r.name}` : r.name;
-      return `Re-encrypt secret "${label}" after removing member "${memberId}"`;
-    },
-  );
-  await reencryptAllItems(
-    signer,
-    recipients,
-    (kind, id) => `Re-encrypt ${kind} "${id}" after removing member "${memberId}"`,
-  );
-  await reEncryptChats(signer, recipients);
-}
-
-/**
- * Restore a secret to the value it held at a given commit SHA.
- * Fetches the encrypted file at that commit, decrypts it with the current
- * device key, then re-encrypts and writes it as the new HEAD version.
- */
 export async function restoreSecret(
   name: string,
   commitSha: string,
@@ -2339,12 +506,6 @@ export async function restoreSecret(
   await setSecret(name, entry.value, device, vaultSlug);
 }
 
-/**
- * One-time migration: if the legacy single-blob `.notekit/secrets.age` exists,
- * split it into per-secret files then delete the blob. Migrated secrets land
- * in the Default vault (root of `.notekit/secrets/`).
- * Returns true if migration ran, false if there was nothing to migrate.
- */
 export async function migrateFromBlob(device: DeviceIdentity): Promise<boolean> {
   const file = await backend.readFile(LEGACY_SECRETS_PATH);
   if (!file.sha || typeof file.content !== "string" || !file.content) return false;

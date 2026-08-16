@@ -1,15 +1,21 @@
 import {
+  Camera,
   Check,
   FileText,
   History,
+  ImagePlus,
   ListChecks,
+  Loader2,
+  Lock,
   Plus,
   Search,
+  Send,
   Sparkles,
   Trash2,
   Wrench,
   X,
 } from "lucide-react";
+import type React from "react";
 import { DEFAULT_SYSTEM_PROMPT } from "../lib/agents-api";
 import type { AgentProfile } from "../lib/agents-api";
 import { renderAssistantHtml } from "../lib/chat-markdown";
@@ -416,6 +422,377 @@ export function buildContextBlock({
     }
   }
   return block;
+}
+
+interface PanelChatActiveViewProps {
+  selection: string;
+  activeNote: Note | null;
+  activeNoteId: string | null;
+  contextItems: ContextItem[];
+  includeNoteContext: boolean;
+  pickerOpen: boolean;
+  pickerQuery: string;
+  allNotes: Note[];
+  tickets: Ticket[];
+  onToggleNoteContext: () => void;
+  onRemoveContext: (id: string) => void;
+  onTogglePicker: () => void;
+  onPickerQueryChange: (q: string) => void;
+  onAddContext: (item: ContextItem) => void;
+  messages: ChatMessage[];
+  pendingApproval: PendingApproval | null;
+  error: string | null;
+  scrollRef: React.RefObject<HTMLDivElement>;
+  onResolveApproval: (ok: boolean) => void;
+  composerProps: PanelComposerViewProps;
+}
+
+function PanelChatActiveView({
+  selection, activeNote, activeNoteId, contextItems, includeNoteContext,
+  pickerOpen, pickerQuery, allNotes, tickets,
+  onToggleNoteContext, onRemoveContext, onTogglePicker, onPickerQueryChange, onAddContext,
+  messages, pendingApproval, error, scrollRef, onResolveApproval, composerProps,
+}: PanelChatActiveViewProps) {
+  return (
+    <>
+      <ContextChipsBar
+        selection={selection}
+        activeNote={activeNote}
+        activeNoteId={activeNoteId}
+        contextItems={contextItems}
+        includeNoteContext={includeNoteContext}
+        pickerOpen={pickerOpen}
+        pickerQuery={pickerQuery}
+        allNotes={allNotes}
+        tickets={tickets}
+        onToggleNoteContext={onToggleNoteContext}
+        onRemoveContext={onRemoveContext}
+        onTogglePicker={onTogglePicker}
+        onPickerQueryChange={onPickerQueryChange}
+        onAddContext={onAddContext}
+      />
+      <ChatBodyView
+        messages={messages}
+        pendingApproval={pendingApproval}
+        error={error}
+        scrollRef={scrollRef}
+        onResolveApproval={onResolveApproval}
+      />
+      <PanelComposerView {...composerProps} />
+    </>
+  );
+}
+
+interface PanelBodyViewHistoryProps {
+  sessions: ChatSessionMeta[];
+  currentSessionId: string | null;
+  historyQuery: string;
+  onHistoryQueryChange: (q: string) => void;
+  onOpenSession: (id: string) => void;
+  onRemoveSession: (id: string) => void;
+}
+
+interface PanelBodyViewProps {
+  notReady: boolean;
+  needsSetup: boolean;
+  loaded: boolean;
+  showHistory: boolean;
+  noAgents: boolean;
+  noKey: boolean;
+  onOpenAgents?: () => void;
+  historyProps: PanelBodyViewHistoryProps;
+  chatProps: PanelChatActiveViewProps;
+}
+
+export function PanelBodyView({
+  notReady, needsSetup, loaded, showHistory,
+  noAgents, noKey, onOpenAgents, historyProps, chatProps,
+}: PanelBodyViewProps) {
+  if (notReady) {
+    return (
+      <div className="nk-ai-gate">
+        <Sparkles size={30} aria-hidden />
+        <p>Vault belum siap.</p>
+        <p className="nk-ai-gate-hint">
+          Buka & buka-kunci vault terenkripsi dulu untuk memakai asisten AI.
+        </p>
+      </div>
+    );
+  }
+  if (needsSetup) {
+    return (
+      <div className="nk-ai-gate">
+        <Sparkles size={30} aria-hidden />
+        <p>Siapkan AI dulu</p>
+        <p className="nk-ai-gate-hint">
+          {noAgents
+            ? "Buat satu profil AI (provider, key, model) untuk mulai."
+            : "Profil ini belum punya API key. Buka profil di pengaturan AI untuk mengisinya."}
+        </p>
+        {onOpenAgents && (
+          <button className="nk-btn nk-btn--primary" onClick={onOpenAgents}>
+            <Sparkles size={14} aria-hidden />{" "}
+            {noKey ? "Buka pengaturan AI" : "Buat profil AI"}
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (!loaded) {
+    return (
+      <div className="nk-ai-gate">
+        <Loader2 size={22} className="nk-ai-spin" aria-hidden />
+      </div>
+    );
+  }
+  if (showHistory) {
+    return <HistoryPageView {...historyProps} />;
+  }
+  return <PanelChatActiveView {...chatProps} />;
+}
+
+interface PanelHeaderViewProps {
+  agents: AgentProfile[] | null;
+  selectedAgentSlug: string | null | undefined;
+  notReady: boolean;
+  loaded: boolean;
+  needsSetup: boolean;
+  showHistory: boolean;
+  onSelectAgent: (slug: string) => void;
+  onNewChat: () => void;
+  onToggleHistory: () => void;
+  onClose: () => void;
+}
+
+export function PanelHeaderView({
+  agents,
+  selectedAgentSlug,
+  notReady,
+  loaded,
+  needsSetup,
+  showHistory,
+  onSelectAgent,
+  onNewChat,
+  onToggleHistory,
+  onClose,
+}: PanelHeaderViewProps) {
+  return (
+    <header className="nk-ai-panel-hd">
+      <span className="nk-ai-panel-title">
+        <Sparkles size={15} aria-hidden /> AI
+      </span>
+      {agents && agents.length > 0 && (
+        <select
+          className="nk-ai-agent-picker"
+          value={selectedAgentSlug ?? ""}
+          onChange={(e) => onSelectAgent(e.target.value)}
+          aria-label="AI profile"
+          title="Pilih profil AI"
+        >
+          {agents.map((a) => (
+            <option key={a.slug} value={a.slug}>
+              {a.emoji ? `${a.emoji} ` : ""}
+              {a.name}
+            </option>
+          ))}
+        </select>
+      )}
+      {!notReady && loaded && !needsSetup && (
+        <>
+          <button
+            className="nk-iconbtn"
+            onClick={onNewChat}
+            aria-label="Obrolan baru"
+            title="Obrolan baru"
+          >
+            <Plus size={15} aria-hidden />
+          </button>
+          <button
+            className={`nk-iconbtn${showHistory ? " is-on" : ""}`}
+            onClick={onToggleHistory}
+            aria-label="Riwayat obrolan"
+            title="Riwayat"
+          >
+            <History size={15} aria-hidden />
+          </button>
+        </>
+      )}
+      <button
+        className="nk-iconbtn"
+        onClick={onClose}
+        aria-label="Tutup asisten"
+        title="Tutup"
+      >
+        <X size={15} aria-hidden />
+      </button>
+    </header>
+  );
+}
+
+interface SendButtonProps {
+  streaming: boolean;
+  draft: string;
+  attachments: string[];
+  onSend: () => void;
+  onStop: () => void;
+}
+
+function SendButton({ streaming, draft, attachments, onSend, onStop }: SendButtonProps) {
+  if (streaming) {
+    return (
+      <button className="nk-ai-send" onClick={onStop} title="Hentikan" aria-label="Hentikan">
+        <Loader2 size={16} className="nk-ai-spin" aria-hidden />
+      </button>
+    );
+  }
+  return (
+    <button
+      className="nk-ai-send"
+      onClick={onSend}
+      disabled={!draft.trim() && attachments.length === 0}
+      title="Kirim (Enter)"
+      aria-label="Kirim"
+    >
+      <Send size={16} aria-hidden />
+    </button>
+  );
+}
+
+interface CaptureButtonProps {
+  capturing: boolean;
+  streaming: boolean;
+  onCapture: () => void;
+}
+
+function CaptureButton({ capturing, streaming, onCapture }: CaptureButtonProps) {
+  return (
+    <button
+      className="nk-ai-attachbtn"
+      onClick={onCapture}
+      disabled={streaming || capturing}
+      title="Capture catatan aktif"
+      aria-label="Capture catatan"
+    >
+      {capturing ? (
+        <Loader2 size={16} className="nk-ai-spin" aria-hidden />
+      ) : (
+        <Camera size={16} aria-hidden />
+      )}
+    </button>
+  );
+}
+
+interface AttachmentGridProps {
+  attachments: string[];
+  onRemoveAttachment: (index: number) => void;
+}
+
+function AttachmentGrid({ attachments, onRemoveAttachment }: AttachmentGridProps) {
+  if (attachments.length === 0) return null;
+  return (
+    <div className="nk-ai-attachments">
+      {attachments.map((url, i) => (
+        <div key={i} className="nk-ai-attachment">
+          <img src={url} alt="Lampiran" />
+          <button
+            className="nk-ai-attachment-x"
+            onClick={() => onRemoveAttachment(i)}
+            aria-label="Hapus lampiran"
+          >
+            <X size={11} aria-hidden />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+interface PanelComposerViewProps {
+  attachments: string[];
+  streaming: boolean;
+  capturing: boolean;
+  draft: string;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
+  onAddImageFiles: (files: File[]) => void;
+  onCaptureNote: () => void;
+  onPaste: (e: React.ClipboardEvent) => void;
+  onSend: () => void;
+  onStop: () => void;
+  onDraftChange: (value: string) => void;
+  onRemoveAttachment: (index: number) => void;
+}
+
+export function PanelComposerView({
+  attachments,
+  streaming,
+  capturing,
+  draft,
+  fileInputRef,
+  inputRef,
+  onAddImageFiles,
+  onCaptureNote,
+  onPaste,
+  onSend,
+  onStop,
+  onDraftChange,
+  onRemoveAttachment,
+}: PanelComposerViewProps) {
+  return (
+    <>
+      <AttachmentGrid attachments={attachments} onRemoveAttachment={onRemoveAttachment} />
+      <div className="nk-ai-composer">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          onChange={(e) => {
+            onAddImageFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
+        />
+        <button
+          className="nk-ai-attachbtn"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={streaming}
+          title="Lampirkan gambar"
+          aria-label="Lampirkan gambar"
+        >
+          <ImagePlus size={16} aria-hidden />
+        </button>
+        <CaptureButton capturing={capturing} streaming={streaming} onCapture={onCaptureNote} />
+        <textarea
+          ref={inputRef}
+          className="nk-ai-input"
+          placeholder="Tanya asisten…"
+          value={draft}
+          onChange={(e) => onDraftChange(e.target.value)}
+          onPaste={onPaste}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onSend();
+            }
+          }}
+          rows={1}
+          disabled={streaming}
+        />
+        <SendButton
+          streaming={streaming}
+          draft={draft}
+          attachments={attachments}
+          onSend={onSend}
+          onStop={onStop}
+        />
+      </div>
+      <div className="nk-ai-privacy">
+        <Lock size={11} aria-hidden /> Key kamu, langsung ke provider — tanpa
+        relay server NoteKit.
+      </div>
+    </>
+  );
 }
 
 export function buildSystemPrompt(agent: AgentProfile, permissions: string): string {

@@ -75,9 +75,6 @@ export default tseslint.config(
       'max-depth': ['error', 4],
       'max-lines-per-function': ['error', { max: 80, skipComments: true, skipBlankLines: true }],
       'max-params': ['error', 5],
-      // File length ceiling (CONVENTIONS #6) — downgraded to warn because 5 pre-existing files
-      // exceed 800 code-lines and require deliberate architectural splits (see follow-up plan below)
-      'max-lines': ['warn', { max: 800, skipComments: true, skipBlankLines: true }],
 
       // Type safety
       '@typescript-eslint/no-explicit-any': 'error',
@@ -104,9 +101,12 @@ export default tseslint.config(
       ],
 
       // Cognitive complexity (CONVENTIONS #0)
-      'sonarjs/cognitive-complexity': ['warn', 15],
-      'sonarjs/no-identical-functions': 'warn',
-      'sonarjs/no-duplicate-string': ['warn', { threshold: 5 }],
+      'sonarjs/cognitive-complexity': ['error', 15],
+      'sonarjs/no-identical-functions': 'error',
+      'sonarjs/no-duplicate-string': ['error', { threshold: 5 }],
+
+      // File size ceiling (CONVENTIONS #0 / #6)
+      'max-lines': ['error', { max: 800, skipComments: true, skipBlankLines: true }],
 
       // Suppression hygiene (CONVENTIONS #7)
       'eslint-comments/require-description': 'error',

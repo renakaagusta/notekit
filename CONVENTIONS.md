@@ -19,8 +19,7 @@ Enforcement layers, cheapest-first (a change must clear all of them):
 
 `knip` is wired but **report-only in CI** (`pnpm knip || true`) until its large pre-existing
 dead-code backlog is burned down; `pnpm knip` locally still exits non-zero so the debt stays
-visible. File size is enforced by ESLint `max-lines` (currently `warn`, see #0), not a separate
-ratchet.
+visible. File size is enforced by ESLint `max-lines` at `error` (see #0), not a separate ratchet.
 
 Unlike paprika (3 separate Go repos needing a `parity-check` to stop config drift),
 NoteKit is **one pnpm monorepo with one config** — there is nothing to keep in sync, so
@@ -34,18 +33,17 @@ included (we do not diff-gate against a merge base; the tree is kept green).
 | Metric | Limit | ESLint rule | Level |
 |---|---|---|---|
 | Cyclomatic complexity | 15 | `complexity` | error |
-| Cognitive complexity | 15 | `sonarjs/cognitive-complexity` | warn* |
+| Cognitive complexity | 15 | `sonarjs/cognitive-complexity` | error |
 | Function length | 80 lines | `max-lines-per-function` | error |
 | Nesting depth | 4 | `max-depth` | error |
 | Params | 5 | `max-params` | error |
-| File length | 800 lines (hard ceiling) | `max-lines` | warn* |
+| File length | 800 lines (hard ceiling) | `max-lines` | error |
 
-\* `sonarjs/cognitive-complexity` and `max-lines` are currently `warn` (not `error`) because a
-pre-existing backlog exceeds them: ~45 cognitive-complexity hotspots and 5 files over the
-800-line ceiling (`apps/api/src/routes/{auth,vault}.ts`,
-`packages/core/src/components/{AIAssistantPanel,App}.tsx`, `packages/core/src/lib/secrets-vault.ts`).
-Refactoring these into helpers/split files flips both back to `error`. New code should still
-respect the budgets — the warning is loud on purpose.
+All budgets are `error` and the whole tree is clean against them. The pre-existing backlog
+(cognitive-complexity hotspots + oversized `apps/api/src/routes/{auth,vault}.ts`,
+`packages/core/src/components/{AIAssistantPanel,App}.tsx`, `packages/core/src/lib/secrets-vault.ts`)
+was burned down by extracting helpers and splitting each oversized file into wired sibling
+modules — so the ceilings could be raised from `warn` to `error`.
 
 **Why:** the same reasoning as paprika — past these thresholds a function/file stops
 fitting in one head. **How to comply:** extract cohesive helpers; do NOT paper over it

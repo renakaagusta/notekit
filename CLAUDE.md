@@ -106,10 +106,10 @@ Enforcement per rule → see `CONVENTIONS.md`. In short:
    reimplemented per file/per surface (enforced by `@notekit/eslint-plugin/no-reinvent-core`).
    Architecture boundaries (enforced by `dependency-cruiser`): `@notekit/core` must **not**
    import `apps/*`; `@notekit/api-client` must **not** import React/DOM; no import cycles.
-6. **No god-files.** Healthy target ≲ ~500 lines, hard ceiling 800 (ESLint `max-lines`,
-   currently `warn` while the pre-existing backlog is burned down). Complexity budgets:
-   cyclomatic & cognitive ≤ 15, function ≤ 80 lines, nesting ≤ 4, params ≤ 5. Over the limit =
-   **extract a helper**, never `// eslint-disable`.
+6. **No god-files.** Healthy target ≲ ~500 lines, hard ceiling 800 (ESLint `max-lines`, error).
+   Complexity budgets (all error): cyclomatic & cognitive ≤ 15, function ≤ 80 lines, nesting ≤ 4,
+   params ≤ 5. Over the limit = **extract a helper** (split the file into wired siblings), never
+   `// eslint-disable`.
 7. **Avoid comments.** Good code explains itself. Comments only for **why** (not **what**) or a
    public contract. **English only** (public OSS repo). Ideally none; if unavoidable, keep it
    short. No work-tracker codes in comments (`P0`, `Phase N`, `#NN` issue, bare `TODO`) —

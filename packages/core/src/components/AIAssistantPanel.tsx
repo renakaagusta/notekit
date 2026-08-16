@@ -1,4 +1,3 @@
-import { Camera, History, ImagePlus, Loader2, Lock, Plus, Send, Sparkles, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -28,9 +27,8 @@ import { useVaultStore } from "../stores/vaultStore";
 import {
   buildContextBlock,
   buildSystemPrompt,
-  ChatBodyView,
-  ContextChipsBar,
-  HistoryPageView,
+  PanelBodyView,
+  PanelHeaderView,
 } from "./AIAssistantPanelParts";
 
 interface Props {
@@ -486,209 +484,72 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
 
   return (
     <aside className="nk-ai-panel">
-      <header className="nk-ai-panel-hd">
-        <span className="nk-ai-panel-title">
-          <Sparkles size={15} aria-hidden /> AI
-        </span>
-        {agents && agents.length > 0 && (
-          <select
-            className="nk-ai-agent-picker"
-            value={selectedAgent?.slug ?? ""}
-            onChange={(e) => selectAgent(e.target.value)}
-            aria-label="AI profile"
-            title="Pilih profil AI"
-          >
-            {agents.map((a) => (
-              <option key={a.slug} value={a.slug}>
-                {a.emoji ? `${a.emoji} ` : ""}
-                {a.name}
-              </option>
-            ))}
-          </select>
-        )}
-        {!notReady && loaded && !needsSetup && (
-          <>
-            <button
-              className="nk-iconbtn"
-              onClick={newChat}
-              aria-label="Obrolan baru"
-              title="Obrolan baru"
-            >
-              <Plus size={15} aria-hidden />
-            </button>
-            <button
-              className={`nk-iconbtn${showHistory ? " is-on" : ""}`}
-              onClick={() => setShowHistory((v) => !v)}
-              aria-label="Riwayat obrolan"
-              title="Riwayat"
-            >
-              <History size={15} aria-hidden />
-            </button>
-          </>
-        )}
-        <button
-          className="nk-iconbtn"
-          onClick={() => setOpen(false)}
-          aria-label="Tutup asisten"
-          title="Tutup"
-        >
-          <X size={15} aria-hidden />
-        </button>
-      </header>
+      <PanelHeaderView
+        agents={agents}
+        selectedAgentSlug={selectedAgent?.slug}
+        notReady={notReady}
+        loaded={loaded}
+        needsSetup={needsSetup}
+        showHistory={showHistory}
+        onSelectAgent={selectAgent}
+        onNewChat={newChat}
+        onToggleHistory={() => setShowHistory((v) => !v)}
+        onClose={() => setOpen(false)}
+      />
 
-      {notReady ? (
-        <div className="nk-ai-gate">
-          <Sparkles size={30} aria-hidden />
-          <p>Vault belum siap.</p>
-          <p className="nk-ai-gate-hint">
-            Buka & buka-kunci vault terenkripsi dulu untuk memakai asisten AI.
-          </p>
-        </div>
-      ) : needsSetup ? (
-        <div className="nk-ai-gate">
-          <Sparkles size={30} aria-hidden />
-          <p>Siapkan AI dulu</p>
-          <p className="nk-ai-gate-hint">
-            {noAgents
-              ? "Buat satu profil AI (provider, key, model) untuk mulai."
-              : "Profil ini belum punya API key. Buka profil di pengaturan AI untuk mengisinya."}
-          </p>
-          {onOpenAgents && (
-            <button className="nk-btn nk-btn--primary" onClick={onOpenAgents}>
-              <Sparkles size={14} aria-hidden />{" "}
-              {noKey ? "Buka pengaturan AI" : "Buat profil AI"}
-            </button>
-          )}
-        </div>
-      ) : !loaded ? (
-        <div className="nk-ai-gate">
-          <Loader2 size={22} className="nk-ai-spin" aria-hidden />
-        </div>
-      ) : showHistory ? (
-        <HistoryPageView
-          sessions={sessions}
-          currentSessionId={currentSessionId}
-          historyQuery={historyQuery}
-          onHistoryQueryChange={setHistoryQuery}
-          onOpenSession={(id) => void openSession(id)}
-          onRemoveSession={(id) => void removeSession(id)}
-        />
-      ) : (
-        <>
-          {/* Context chips — selection + active note + pinned notes/tasks + add. */}
-          <ContextChipsBar
-            selection={selection}
-            activeNote={activeNote}
-            activeNoteId={activeNoteId}
-            contextItems={contextItems}
-            includeNoteContext={includeNoteContext}
-            pickerOpen={pickerOpen}
-            pickerQuery={pickerQuery}
-            allNotes={allNotes}
-            tickets={tickets}
-            onToggleNoteContext={() => setIncludeNoteContext(!includeNoteContext)}
-            onRemoveContext={removeContext}
-            onTogglePicker={() => setPickerOpen((v) => !v)}
-            onPickerQueryChange={setPickerQuery}
-            onAddContext={addContext}
-          />
-
-          <ChatBodyView
-            messages={messages}
-            pendingApproval={pendingApproval}
-            error={error}
-            scrollRef={scrollRef}
-            onResolveApproval={resolveApproval}
-          />
-
-          {attachments.length > 0 && (
-            <div className="nk-ai-attachments">
-              {attachments.map((url, i) => (
-                <div key={i} className="nk-ai-attachment">
-                  <img src={url} alt="Lampiran" />
-                  <button
-                    className="nk-ai-attachment-x"
-                    onClick={() => setAttachments((a) => a.filter((_, j) => j !== i))}
-                    aria-label="Hapus lampiran"
-                  >
-                    <X size={11} aria-hidden />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="nk-ai-composer">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              onChange={(e) => {
-                void addImageBlobs(Array.from(e.target.files ?? []));
-                e.target.value = "";
-              }}
-            />
-            <button
-              className="nk-ai-attachbtn"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={streaming}
-              title="Lampirkan gambar"
-              aria-label="Lampirkan gambar"
-            >
-              <ImagePlus size={16} aria-hidden />
-            </button>
-            <button
-              className="nk-ai-attachbtn"
-              onClick={() => void captureNote()}
-              disabled={streaming || capturing}
-              title="Capture catatan aktif"
-              aria-label="Capture catatan"
-            >
-              {capturing ? (
-                <Loader2 size={16} className="nk-ai-spin" aria-hidden />
-              ) : (
-                <Camera size={16} aria-hidden />
-              )}
-            </button>
-            <textarea
-              ref={inputRef}
-              className="nk-ai-input"
-              placeholder="Tanya asisten…"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onPaste={onPasteComposer}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void onSend();
-                }
-              }}
-              rows={1}
-              disabled={streaming}
-            />
-            {streaming ? (
-              <button className="nk-ai-send" onClick={onStop} title="Hentikan" aria-label="Hentikan">
-                <Loader2 size={16} className="nk-ai-spin" aria-hidden />
-              </button>
-            ) : (
-              <button
-                className="nk-ai-send"
-                onClick={() => void onSend()}
-                disabled={!draft.trim() && attachments.length === 0}
-                title="Kirim (Enter)"
-                aria-label="Kirim"
-              >
-                <Send size={16} aria-hidden />
-              </button>
-            )}
-          </div>
-          <div className="nk-ai-privacy">
-            <Lock size={11} aria-hidden /> Key kamu, langsung ke provider — tanpa
-            relay server NoteKit.
-          </div>
-        </>
-      )}
+      <PanelBodyView
+        notReady={notReady}
+        needsSetup={needsSetup}
+        loaded={loaded}
+        showHistory={showHistory}
+        noAgents={noAgents}
+        noKey={noKey}
+        onOpenAgents={onOpenAgents}
+        historyProps={{
+          sessions,
+          currentSessionId,
+          historyQuery,
+          onHistoryQueryChange: setHistoryQuery,
+          onOpenSession: (id) => void openSession(id),
+          onRemoveSession: (id) => void removeSession(id),
+        }}
+        chatProps={{
+          selection,
+          activeNote,
+          activeNoteId,
+          contextItems,
+          includeNoteContext,
+          pickerOpen,
+          pickerQuery,
+          allNotes,
+          tickets,
+          onToggleNoteContext: () => setIncludeNoteContext(!includeNoteContext),
+          onRemoveContext: removeContext,
+          onTogglePicker: () => setPickerOpen((v) => !v),
+          onPickerQueryChange: setPickerQuery,
+          onAddContext: addContext,
+          messages,
+          pendingApproval,
+          error,
+          scrollRef,
+          onResolveApproval: resolveApproval,
+          composerProps: {
+            attachments,
+            streaming,
+            capturing,
+            draft,
+            fileInputRef,
+            inputRef,
+            onAddImageFiles: (files) => void addImageBlobs(files),
+            onCaptureNote: () => void captureNote(),
+            onPaste: onPasteComposer,
+            onSend: () => void onSend(),
+            onStop,
+            onDraftChange: setDraft,
+            onRemoveAttachment: (i) => setAttachments((a) => a.filter((_, j) => j !== i)),
+          },
+        }}
+      />
     </aside>
   );
 }

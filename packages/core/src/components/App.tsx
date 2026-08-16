@@ -133,6 +133,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
       ? "home"
       : "notes",
   );
+  // Which rail icon is "current". Tracked separately from `view` because Graph
+  // and Tasks render as tabs in the notes pane (they set view="notes"), so the
+  // rail can't derive its active icon from `view` alone. Set on every rail click.
+  const [railSurface, setRailSurface] = useState<MainView>(view);
   const [agentsOpen, setAgentsOpen] = useState(false);
   // Bump when the Agents modal closes so the AI panel re-checks its setup
   // state (key added? profile created?) without needing a full reopen.
@@ -310,6 +314,15 @@ export function App({ user, onSignOut }: AppProps = {}) {
     if (cur?.type === "note" && cur.id === activeNoteId) return;
     openNoteInLayout(activeNoteId);
   }, [activeNoteId, openNoteInLayout]);
+
+  // Opening a note from anywhere (search, wikilink, Home, the tree) means we're
+  // on the Notes surface — keep the rail's highlight in sync even when the nav
+  // didn't go through the rail's onView. Graph/Tasks don't touch activeNoteId,
+  // so their rail selection (set in onView) survives.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- mirror the rail highlight onto the Notes surface when a note is activated from any path
+    if (activeNoteId) setRailSurface("notes");
+  }, [activeNoteId]);
 
   useEffect(() => {
     function onOpen(e: Event) {
@@ -779,7 +792,9 @@ export function App({ user, onSignOut }: AppProps = {}) {
       >
         <Sidebar
           view={view}
+          railSurface={railSurface}
           onView={(next) => {
+            setRailSurface(next);
             if (next === "graph") {
               useLayoutStore.getState().openTab({ type: "graph" });
               setView("notes");

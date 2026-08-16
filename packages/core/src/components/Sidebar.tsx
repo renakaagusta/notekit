@@ -51,6 +51,10 @@ const NAV: {
 
 interface SidebarProps {
   view: SidebarView;
+  // The surface the user last selected from the rail. Distinct from `view`
+  // because Graph/Tasks render as tabs in the notes pane (they set view="notes"),
+  // so `view` can't tell the rail which icon to light — this can.
+  railSurface: SidebarView;
   onView(v: SidebarView): void;
   user?: User | null;
   onSignOut?: () => void;
@@ -69,6 +73,7 @@ interface SidebarProps {
 // eslint-disable-next-line complexity, max-lines-per-function -- sidebar dispatches across multiple views, mobile/desktop shell, and user menu state
 export function Sidebar({
   view,
+  railSurface,
   onView,
   user,
   onSignOut,
@@ -157,18 +162,21 @@ export function Sidebar({
         </div>
 
         <nav className="nk-rail-nav" aria-label="Surfaces">
-          {NAV.map(({ view: v, label, Icon }) => (
-            <button
-              key={v}
-              className={"nk-rail-item" + (view === v ? " active" : "")}
-              onClick={() => onView(v)}
-              title={label}
-              aria-label={label}
-              aria-current={view === v ? "page" : undefined}
-            >
-              <Icon size={18} aria-hidden />
-            </button>
-          ))}
+          {NAV.map(({ view: v, label, Icon }) => {
+            const active = railSurface === v;
+            return (
+              <button
+                key={v}
+                className={"nk-rail-item" + (active ? " active" : "")}
+                onClick={() => onView(v)}
+                title={label}
+                aria-label={label}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon size={18} aria-hidden />
+              </button>
+            );
+          })}
         </nav>
 
         <div className="nk-rail-foot">

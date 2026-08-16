@@ -90,7 +90,6 @@ export function EditorPane({
   const draftJournal = useNotesStore((s) => s.draftJournal);
   const upsert = useNotesStore((s) => s.upsert);
   const activeSettings = useVaultStore((s) => s.activeSettings);
-  const _vaultReady = useVaultStore((s) => s.phase === "ready");
   const setTicketStatus = useTicketsStore((s) => s.setStatus);
 
   // ⌘⇧K → inline AI transform on the current selection. (⌘K / ⌘P are the

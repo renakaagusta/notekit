@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { listCommits, type VaultCommit } from "../lib/vault-api";
 import { Skeleton } from "./Skeleton";
 
-const _DAYS_BACK = 364; // 52 weeks * 7 = 364, plus today = 365 cells
 const COMMITS_LIMIT = 500;
 
 interface HeatmapProps {

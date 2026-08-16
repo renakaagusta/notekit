@@ -320,11 +320,6 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
     if (focusedId && !locate(focusedId)) setFocusedId(null);
   }, [focusedId, grid, locate]);
 
-  function _cycleStatus(t: Ticket) {
-    const idx = STATUS_ORDER.indexOf(t.status);
-    const next = STATUS_ORDER[(idx + 1) % STATUS_ORDER.length] ?? "todo";
-    setStatus(t.id, next);
-  }
 
   function onCardDragStart(t: Ticket, e: React.DragEvent) {
     // Don't initiate a drag when the user is editing/interacting with anything

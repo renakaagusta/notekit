@@ -104,7 +104,6 @@ export const BUILTIN_VIEWS: BoardView[] = [
     name: "Due this week",
     builtin: true,
     resolve: ({ tickets: _tickets }) => {
-      const _week = currentWeekRange();
       const assignees: string[] = [];
       // Due-this-week is implemented at the matcher boundary as a status filter
       // (open tickets) plus a label-side filter via dueDate. Since BoardFilters

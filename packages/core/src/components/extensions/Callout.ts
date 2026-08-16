@@ -111,7 +111,6 @@ export const Callout = Node.create({
           const type = node.attrs.type || "note";
           const title = node.attrs.title ? ` ${node.attrs.title}` : "";
           // Write [!TYPE] header, then prefix every content line with "> "
-          const _before = state.out;
           state.write(`> [!${type.toUpperCase()}]${title}\n`);
           // Render content into a temporary buffer then prefix each line
           const tmpOut = state.out;

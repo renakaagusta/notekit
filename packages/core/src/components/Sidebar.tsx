@@ -24,7 +24,6 @@ import {
 import { useTranslation } from "react-i18next";
 import { LOCALES, setLocale } from "../i18n";
 import { useNotesStore } from "../stores/notesStore";
-import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
 import * as vaultApi from "../lib/vault-api";
 import type { User } from "../types/user";
@@ -86,7 +85,6 @@ export function Sidebar({
 }: SidebarProps) {
   const { i18n } = useTranslation();
   const notesCount = useNotesStore((s) => s.all().length);
-  const _ticketsCount = useTicketsStore((s) => s.all().length);
   const vaultReady = useVaultStore((s) => s.phase === "ready");
   const activeVaultId = useVaultStore((s) => s.activeId);
   const activeSettings = useVaultStore((s) => s.activeSettings);

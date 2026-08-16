@@ -35,7 +35,8 @@ import * as gh from "../vault/github";
 import * as fj from "../vault/forgejo";
 import * as gl from "../vault/gitlab";
 import { GhError, type GitAuthor } from "../vault/github";
-import { encryptToken } from "../auth/tokenCrypto";
+import * as ghApp from "../vault/github-app";
+import { encryptToken, decryptToken } from "../auth/tokenCrypto";
 import { readAgent, defaultEmailFor } from "../vault/agents";
 import { emitAgentEvent } from "../notifications/emit";
 import { isPlus } from "../iap/entitlement";
@@ -1503,6 +1504,78 @@ vaultRoutes.delete("/gitlab/connect", vaultMutationLimit, async (c) => {
       ),
     );
   return c.json({ ok: true });
+});
+
+// ── GitHub App vault backend (create-centric, least-privilege) ────────────────
+// The App only ever touches the repos NoteKit creates for vaults. Listing uses
+// the installation's own repository set; creating makes a repo (as the user)
+// then adds just that repo to the installation. Sync tokens (elsewhere) are
+// short-lived installation tokens minted from the stored installation_id.
+
+async function githubInstallationFor(userId: string) {
+  return (
+    (await db.query.githubAppInstallations.findFirst({
+      where: eq(schema.githubAppInstallations.userId, userId),
+    })) ?? null
+  );
+}
+
+/** GET /vault/github-app/status — is the App installed, and for which account? */
+vaultRoutes.get("/github-app/status", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  if (!ghApp.githubAppConfigured()) return c.json({ configured: false, installed: false });
+  const inst = await githubInstallationFor(user.id);
+  return c.json({
+    configured: true,
+    installed: !!inst,
+    slug: env.githubApp.slug,
+    accountLogin: inst?.accountLogin ?? null,
+  });
+});
+
+/** GET /vault/github-app/repos — the vault repos this App can access (only its own). */
+vaultRoutes.get("/github-app/repos", async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const inst = await githubInstallationFor(user.id);
+  if (!inst) return c.json({ error: "github_app_not_installed" }, 400);
+  try {
+    const repos = await ghApp.listInstallationRepos(inst.installationId);
+    return c.json({ repos });
+  } catch (err) {
+    return ghErr(c, err);
+  }
+});
+
+const GithubAppCreateBody = z.object({
+  name: z.string().min(1).max(100),
+  private: z.boolean().optional(),
+});
+
+/** POST /vault/github-app/create — create a vault repo + add it to the installation. */
+vaultRoutes.post("/github-app/create", vaultMutationLimit, async (c) => {
+  const user = await getCurrentUser(c);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const inst = await githubInstallationFor(user.id);
+  if (!inst) return c.json({ error: "github_app_not_installed" }, 400);
+  if (!inst.userToken) return c.json({ error: "github_app_reauth_required" }, 400);
+  const parsed = await parseBody(c, GithubAppCreateBody);
+  if (!parsed.ok) return c.json(parsed.body, parsed.status);
+  try {
+    const userToken = decryptToken(inst.userToken);
+    const repo = await ghApp.createUserRepo(userToken, parsed.data.name, parsed.data.private ?? true);
+    // Add just this repo to the installation so its short-lived tokens can reach
+    // it. No-op/ignored when the user installed on "all repositories".
+    try {
+      await ghApp.addRepoToInstallation(userToken, inst.installationId, repo.id);
+    } catch {
+      /* all-repos install or manual grant — the repo is created regardless */
+    }
+    return c.json({ repo });
+  } catch (err) {
+    return ghErr(c, err);
+  }
 });
 
 // ── NoteKit-hosted Git (Forgejo) endpoints ────────────────────────────────────

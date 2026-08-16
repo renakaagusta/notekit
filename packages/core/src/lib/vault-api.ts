@@ -1,4 +1,4 @@
-import { apiFetch } from "./api";
+import { apiFetch, apiUrl } from "./api";
 
 export interface VaultRepo {
   id: number;
@@ -85,6 +85,64 @@ export function createGitlabRepo(name: string, isPrivate: boolean) {
     method: "POST",
     body: JSON.stringify({ name, private: isPrivate }),
   });
+}
+
+// ── GitHub App (create-centric vault backend) ─────────────────────────────────
+
+interface GhRepoRaw {
+  id: number;
+  name: string;
+  full_name: string;
+  owner: { login: string };
+  private: boolean;
+  default_branch: string;
+  description: string | null;
+  updated_at: string;
+}
+
+function ghToVaultRepo(r: GhRepoRaw): VaultRepo {
+  return {
+    id: r.id,
+    name: r.name,
+    fullName: r.full_name,
+    owner: r.owner.login,
+    private: r.private,
+    defaultBranch: r.default_branch,
+    description: r.description,
+    updatedAt: r.updated_at,
+  };
+}
+
+export function githubAppStatus(): Promise<{
+  configured: boolean;
+  installed: boolean;
+  slug?: string | null;
+  accountLogin?: string | null;
+}> {
+  return apiFetch("/vault/github-app/status");
+}
+
+/** The vault repos the App manages (only the ones NoteKit created). */
+export async function githubAppRepos(): Promise<{ repos: VaultRepo[] }> {
+  const res = await apiFetch<{ repos: GhRepoRaw[] }>("/vault/github-app/repos");
+  return { repos: res.repos.map(ghToVaultRepo) };
+}
+
+/** Create a new vault repo + add it to the installation. */
+export async function githubAppCreate(
+  name: string,
+  isPrivate: boolean,
+): Promise<{ owner: string; name: string; defaultBranch: string }> {
+  const res = await apiFetch<{ repo: GhRepoRaw }>("/vault/github-app/create", {
+    method: "POST",
+    body: JSON.stringify({ name, private: isPrivate }),
+  });
+  return { owner: res.repo.owner.login, name: res.repo.name, defaultBranch: res.repo.default_branch };
+}
+
+/** Browser navigation target that begins the App install flow (carries session). */
+export function githubAppInstallUrl(): string {
+  return `${apiUrl}/auth/github-app/install`;
 }
 
 // ── NoteKit-hosted Git (Forgejo) ──────────────────────────────────────────────

@@ -422,6 +422,26 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    // GitHub App: one row per user recording their installation of the NoteKit
+    // App + the encrypted user-to-server token (used to create repos and add
+    // them to the installation). Sync itself uses short-lived installation
+    // tokens minted from the installation_id, so this row is create-path state.
+    id: "014_github_app_installations",
+    up: async (client) => {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS github_app_installations (
+          user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+          installation_id BIGINT NOT NULL,
+          account_login TEXT,
+          user_token TEXT,
+          refresh_token TEXT,
+          token_expires_at BIGINT,
+          created_at BIGINT NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 export async function runMigrations(pool: Pool): Promise<void> {

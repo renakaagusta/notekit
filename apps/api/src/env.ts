@@ -70,6 +70,17 @@ export const env = {
     clientId: optional("GITHUB_CLIENT_ID"),
     clientSecret: optional("GITHUB_CLIENT_SECRET"),
   },
+  // GitHub App (create-centric vault backend): least-privilege access to only
+  // the repos it creates/manages, via short-lived installation tokens. All
+  // optional — when unset the GitHub-App vault path is simply unavailable.
+  githubApp: {
+    appId: optional("GITHUB_APP_ID"),
+    slug: optional("GITHUB_APP_SLUG"),
+    clientId: optional("GITHUB_APP_CLIENT_ID"),
+    clientSecret: optional("GITHUB_APP_CLIENT_SECRET"),
+    privateKey: optionalPem("GITHUB_APP_PRIVATE_KEY"),
+    webhookSecret: optional("GITHUB_APP_WEBHOOK_SECRET"),
+  },
   google: {
     clientId: optional("GOOGLE_CLIENT_ID"),
     clientSecret: optional("GOOGLE_CLIENT_SECRET"),

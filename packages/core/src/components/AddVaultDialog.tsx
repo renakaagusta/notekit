@@ -9,21 +9,26 @@ type Provider = "github" | "gitlab" | "notekit";
 type SubMode = "list" | "create";
 type NotekitStep = "idle" | "provisioning" | "ready";
 type GitlabStep = "idle" | "checking" | "needs-connect" | "ready";
+type GithubStep = "checking" | "needs-install" | "ready";
 
 interface AddVaultDialogProps {
   onAdded(vault: VaultRef): void;
   onCancel(): void;
+  /** Provider tab to open on. Defaults to the recommended NoteKit-hosted Git. */
+  initialProvider?: Provider;
 }
 
 // eslint-disable-next-line max-lines-per-function, complexity -- large dialog manages three provider flows (GitHub/GitLab/NoteKit); splitting would require prop-drilling all shared state across sub-components
-export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
+export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultDialogProps) {
   // NoteKit-hosted Git (Forgejo) is the recommended default: a new user gets
   // an encrypted vault with no third-party account to connect. GitHub/GitLab
   // remain explicit "bring your own" choices. See #39.
-  const [provider, setProvider] = useState<Provider>("notekit");
+  const [provider, setProvider] = useState<Provider>(initialProvider ?? "notekit");
   const [githubMode, setGithubMode] = useState<SubMode>("list");
   const [repos, setRepos] = useState<VaultRepo[] | null>(null);
   const [githubLoaded, setGithubLoaded] = useState(false);
+  const [githubStep, setGithubStep] = useState<GithubStep>("checking");
+  const [githubAccount, setGithubAccount] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [newName, setNewName] = useState("notekit-vault");
@@ -46,18 +51,34 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
   const [gitlabPrivate, setGitlabPrivate] = useState(true);
   const [gitlabMode, setGitlabMode] = useState<"list" | "create">("list");
 
-  // Load GitHub repos lazily — only when the GitHub tab is first opened.
-  // Avoids spilling a "vault_token_missing" error onto other provider tabs.
+  // GitHub uses the create-centric GitHub App: check whether it's installed,
+  // then either prompt to install or list the vault repos it manages. Loaded
+  // lazily when the GitHub tab first opens.
   useEffect(() => {
     if (provider !== "github" || githubLoaded) return;
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot guard to prevent double-fetching when provider tab re-renders
     setGithubLoaded(true);
     setLoadErr(null);
+    setGithubStep("checking");
     vaultApi
-      .listRepos()
+      .githubAppStatus()
+      .then((s) => {
+        if (cancelled) return undefined;
+        if (!s.configured) {
+          setLoadErr("GitHub App isn't configured on the server.");
+          return undefined;
+        }
+        if (!s.installed) {
+          setGithubStep("needs-install");
+          return undefined;
+        }
+        setGithubAccount(s.accountLogin ?? null);
+        setGithubStep("ready");
+        return vaultApi.githubAppRepos();
+      })
       .then((r) => {
-        if (!cancelled) setRepos(r.repos);
+        if (!cancelled && r) setRepos(r.repos);
       })
       .catch((e: Error) => {
         if (!cancelled) setLoadErr(e.message);
@@ -121,16 +142,17 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
     }
   }
 
-  async function createAndPick() {
+  /** Create a fresh vault repo via the App, add it to the installation, then open it. */
+  async function createGithubVault() {
     setBusy(true);
     setLoadErr(null);
     try {
-      const created = await vaultApi.createRepo(newName, newPrivate);
+      const created = await vaultApi.githubAppCreate(newName.trim(), newPrivate);
       const res = await vaultApi.addVault({
         provider: "github",
-        owner: created.repo.owner,
-        repo: created.repo.name,
-        branch: created.repo.defaultBranch,
+        owner: created.owner,
+        repo: created.name,
+        branch: created.defaultBranch,
       });
       onAdded(res.vault);
     } catch (e) {
@@ -320,81 +342,113 @@ export function AddVaultDialog({ onAdded, onCancel }: AddVaultDialogProps) {
 
         {provider === "github" && (
           <div className="nk-modal-body">
-            <div className="nk-modal-tabs nk-modal-tabs--sub">
-              <button
-                className={githubMode === "list" ? "active" : ""}
-                onClick={() => setGithubMode("list")}
-              >
-                Existing repo
-              </button>
-              <button
-                className={githubMode === "create" ? "active" : ""}
-                onClick={() => setGithubMode("create")}
-              >
-                Create new repo
-              </button>
-            </div>
+            {githubStep === "checking" && !loadErr && (
+              <p className="nk-empty-hint">Checking GitHub App…</p>
+            )}
 
-            {githubMode === "list" && (
+            {githubStep === "needs-install" && (
               <>
-                {!repos && !loadErr && <SkeletonRepoList count={5} />}
-                {repos && repos.length === 0 && (
-                  <p className="nk-empty-hint">
-                    No repos found. Create a new one instead.
-                  </p>
-                )}
-                {repos && repos.length > 0 && (
-                  <ul className="nk-repo-list">
-                    {repos.map((r) => (
-                      <li key={r.id}>
-                        <button
-                          className="nk-repo-row"
-                          onClick={() => pick(r)}
-                          disabled={busy}
-                        >
-                          <div className="nk-repo-row-main">
-                            <span className="nk-repo-name">{r.fullName}</span>
-                            {r.private && <span className="nk-chip">private</span>}
-                          </div>
-                          {r.description && (
-                            <div className="nk-repo-desc">{r.description}</div>
-                          )}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <p className="nk-empty-hint" style={{ marginBottom: 12 }}>
+                  NoteKit uses a GitHub App scoped to <b>only the vault repos it
+                  creates</b> — it never sees your other repositories. Install it
+                  once to continue.
+                </p>
+                <button
+                  className="nk-signin-btn"
+                  onClick={() => {
+                    window.location.href = vaultApi.githubAppInstallUrl();
+                  }}
+                >
+                  Install NoteKit on GitHub
+                </button>
               </>
             )}
 
-            {githubMode === "create" && (
+            {githubStep === "ready" && (
               <>
-                <label className="nk-field">
-                  <span>Repo name</span>
-                  <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    disabled={busy}
-                    placeholder="notekit-vault"
-                  />
-                </label>
-                <label className="nk-field nk-field--row">
-                  <input
-                    type="checkbox"
-                    checked={newPrivate}
-                    onChange={(e) => setNewPrivate(e.target.checked)}
-                    disabled={busy}
-                  />
-                  <span>Make repo private (recommended)</span>
-                </label>
-                <button
-                  className="nk-signin-btn"
-                  onClick={createAndPick}
-                  disabled={busy || !newName.trim()}
-                >
-                  {busy ? "Creating…" : "Create and use this repo"}
-                </button>
+                {githubAccount && (
+                  <p
+                    className="nk-empty-hint"
+                    style={{ marginBottom: 12, fontSize: 12 }}
+                  >
+                    Installed on <code>{githubAccount}</code>.
+                  </p>
+                )}
+                <div className="nk-modal-tabs nk-modal-tabs--sub">
+                  <button
+                    className={githubMode === "list" ? "active" : ""}
+                    onClick={() => setGithubMode("list")}
+                  >
+                    Existing vault
+                  </button>
+                  <button
+                    className={githubMode === "create" ? "active" : ""}
+                    onClick={() => setGithubMode("create")}
+                  >
+                    Create new vault
+                  </button>
+                </div>
+
+                {githubMode === "list" && (
+                  <>
+                    {!repos && !loadErr && <SkeletonRepoList count={3} />}
+                    {repos && repos.length === 0 && (
+                      <p className="nk-empty-hint">No vaults yet. Create one.</p>
+                    )}
+                    {repos && repos.length > 0 && (
+                      <ul className="nk-repo-list">
+                        {repos.map((r) => (
+                          <li key={r.id}>
+                            <button
+                              className="nk-repo-row"
+                              onClick={() => pick(r)}
+                              disabled={busy}
+                            >
+                              <div className="nk-repo-row-main">
+                                <span className="nk-repo-name">{r.fullName}</span>
+                                {r.private && <span className="nk-chip">private</span>}
+                              </div>
+                              {r.description && (
+                                <div className="nk-repo-desc">{r.description}</div>
+                              )}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )}
+
+                {githubMode === "create" && (
+                  <>
+                    <label className="nk-field">
+                      <span>Vault name</span>
+                      <input
+                        type="text"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        disabled={busy}
+                        placeholder="notekit-vault"
+                      />
+                    </label>
+                    <label className="nk-field nk-field--row">
+                      <input
+                        type="checkbox"
+                        checked={newPrivate}
+                        onChange={(e) => setNewPrivate(e.target.checked)}
+                        disabled={busy}
+                      />
+                      <span>Make repo private (recommended)</span>
+                    </label>
+                    <button
+                      className="nk-signin-btn"
+                      onClick={createGithubVault}
+                      disabled={busy || !newName.trim()}
+                    >
+                      {busy ? "Creating…" : "Create vault"}
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>

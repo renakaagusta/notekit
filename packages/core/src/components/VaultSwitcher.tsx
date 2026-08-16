@@ -41,8 +41,26 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [addProvider, setAddProvider] = useState<VaultRef["provider"]>(undefined);
   const [settingsVault, setSettingsVault] = useState<VaultRef | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Returning from the GitHub App install flow (API redirects to
+  // ?github_app=installed) — reopen the dialog straight onto the GitHub tab,
+  // now in its "ready" state, and strip the param so a reload doesn't re-open.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("github_app") !== "installed") return;
+    setAddProvider("github");
+    setAddOpen(true);
+    params.delete("github_app");
+    const qs = params.toString();
+    window.history.replaceState(
+      {},
+      "",
+      window.location.pathname + (qs ? `?${qs}` : "") + window.location.hash,
+    );
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -261,6 +279,7 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
             <button
               className="nk-vault-add"
               onClick={() => {
+                setAddProvider(undefined);
                 setAddOpen(true);
                 setOpen(false);
               }}
@@ -275,6 +294,7 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
         <AddVaultDialog
           onAdded={onAdded}
           onCancel={() => setAddOpen(false)}
+          initialProvider={addProvider}
         />
       )}
 

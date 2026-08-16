@@ -17,6 +17,7 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "../db";
 import { decryptToken } from "../auth/tokenCrypto";
 import { getForgejoToken } from "./forgejoAccounts";
+import * as ghApp from "./github-app";
 import { getActiveVault } from "./store";
 import type { VaultRow } from "./store";
 import { logger } from '../lib/logger'
@@ -24,6 +25,22 @@ import { logger } from '../lib/logger'
 export type GitProvider = "github" | "gitlab" | "notekit";
 
 export async function getGithubToken(userId: string): Promise<string | null> {
+  // Prefer a GitHub App installation token — short-lived and scoped to only the
+  // vault repos the App manages — when the user has installed the App. Fall back
+  // to a legacy OAuth `repo`-scoped token for users connected the old way.
+  if (ghApp.githubAppConfigured()) {
+    const inst = await db.query.githubAppInstallations.findFirst({
+      where: eq(schema.githubAppInstallations.userId, userId),
+    });
+    if (inst) {
+      try {
+        return await ghApp.installationToken(inst.installationId);
+      } catch (err) {
+        logger.error({ err, userId }, "[tokens] failed to mint github app installation token");
+        // fall through to the OAuth token below
+      }
+    }
+  }
   const row = await db.query.oauthAccounts.findFirst({
     where: and(
       eq(schema.oauthAccounts.provider, "github"),

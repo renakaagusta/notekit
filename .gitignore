@@ -42,3 +42,6 @@ apps/mobile/android/
 
 # Vite production env (developer-local; copy from .env.production.example).
 apps/web/.env.production
+
+# GitHub App setup credentials (private key + secrets) — never commit
+github-app-creds.json

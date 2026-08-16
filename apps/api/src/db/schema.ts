@@ -43,6 +43,21 @@ export const oauthAccounts = pgTable(
   ],
 );
 
+/** GitHub App installations — the create-centric vault backend (see migration 014). */
+export const githubAppInstallations = pgTable("github_app_installations", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  installationId: bigint("installation_id", { mode: "number" }).notNull(),
+  accountLogin: text("account_login"),
+  userToken: text("user_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: bigint("token_expires_at", { mode: "number" }),
+  createdAt: bigint("created_at", { mode: "number" })
+    .notNull()
+    .$defaultFn(() => Date.now()),
+});
+
 export const sessions = pgTable("sessions", {
   id: text("id").primaryKey(),
   userId: text("user_id")

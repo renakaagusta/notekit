@@ -1,10 +1,11 @@
 'use client'
 
-import React, { FC, ReactNode } from 'react'
 import { motion } from 'framer-motion'
+import type { FC, ReactNode } from 'react';
+import React from 'react'
 import { blurPopUp } from '@/lib/animations'
 
-type Props = {
+interface Props {
 	children: ReactNode
 	delay?: number
 	className?: string

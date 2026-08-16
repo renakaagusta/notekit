@@ -1,7 +1,7 @@
 import { MonitorIcon, MoonIcon, SunIcon } from 'lucide-react'
 import { motion } from 'motion/react'
 import { useTheme } from 'next-themes'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { cn } from '@/utils/cn'
 
@@ -13,11 +13,7 @@ const themes = [
 
 export function ThemeSwitcher({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const [mounted] = useState(() => typeof window !== 'undefined')
 
   if (!mounted) {
     return null

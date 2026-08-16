@@ -1,5 +1,5 @@
-import { type FC } from 'react'
 import Link from 'next/link'
+import type { FC } from 'react'
 import { footerSections } from '@/lib/constant'
 import FooterSection from './footerSection'
 import styles from './styles.module.css'

@@ -1,3 +1,4 @@
+import { useNavigate } from '@tanstack/react-router'
 import {
   CreditCardIcon,
   DatabaseIcon,
@@ -7,8 +8,10 @@ import {
 } from 'lucide-react'
 import * as React from 'react'
 
-import { NavMain } from '@/components/nav-main'
+import { toast } from 'sonner'
 import { BrandMark } from '@/components/BrandMark'
+import { NavMain } from '@/components/nav-main'
+import { ThemeSwitcher } from '@/components/theme-switcher'
 import {
   Sidebar,
   SidebarContent,
@@ -19,13 +22,10 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
-import { ThemeSwitcher } from '@/components/theme-switcher'
-import { useStore } from '@/store'
-import { useNavigate } from '@tanstack/react-router'
-import { setSessionToken } from '@/lib/http'
 import { authClient } from '@/lib/auth-client'
+import { setSessionToken } from '@/lib/http'
 import { queryClient } from '@/lib/queryClient'
-import { toast } from 'sonner'
+import { useStore } from '@/store'
 
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboardIcon },

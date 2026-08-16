@@ -1,6 +1,6 @@
-import { type FC } from 'react'
 import Link from 'next/link'
-import { type FooterSection } from '@/lib/constant'
+import type { FC } from 'react'
+import type { FooterSection } from '@/lib/constant'
 import styles from './styles.module.css'
 
 const FooterSectionComponent: FC<FooterSection> = ({ title, items }) => {

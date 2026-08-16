@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/utils/cn'
 
-type FieldContextValue = {
+interface FieldContextValue {
   id: string
   fieldId: string
   labelId: string
@@ -142,7 +142,7 @@ function FieldContent({ className, ...props }: React.ComponentProps<'div'>) {
   )
 }
 
-type FieldControlProps = {
+interface FieldControlProps {
   id?: string
   'aria-labelledby'?: string
   'aria-describedby'?: string
@@ -282,7 +282,7 @@ function FieldError({
   id,
   ...props
 }: React.ComponentProps<'div'> & {
-  errors?: Array<{ message?: string } | undefined>
+  errors?: ({ message?: string } | undefined)[]
 }) {
   const context = useFieldContext()
   const hasErrors = !!(children || errors?.some((e) => e?.message))
@@ -305,7 +305,7 @@ function FieldError({
       ...new Map(errors.map((error) => [error?.message, error])).values(),
     ]
 
-    if (uniqueErrors?.length == 1) {
+    if (uniqueErrors?.length === 1) {
       return uniqueErrors[0]?.message
     }
 

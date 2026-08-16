@@ -1,8 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { createFileRoute } from '@tanstack/react-router'
 import { DatabaseIcon, BotIcon } from 'lucide-react'
-import { StatsCard } from '@/components/stats-card'
 import { PageHeader } from '@/components/page-header'
+import { StatsCard } from '@/components/stats-card'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -11,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { backend } from '@/lib/backend'
 
 export const Route = createFileRoute('/_authenticated/vaults')({
@@ -21,14 +21,14 @@ export const Route = createFileRoute('/_authenticated/vaults')({
 interface VaultsData {
   totalVaults: number
   totalAgents: number
-  vaults: Array<{
+  vaults: {
     id: string
     owner: string
     backend: 'forgejo' | 'github' | 'gitlab'
     encrypted: boolean
     quotaUsedMb: number
     agents: number
-  }>
+  }[]
 }
 
 const EMPTY: VaultsData = { totalVaults: 0, totalAgents: 0, vaults: [] }

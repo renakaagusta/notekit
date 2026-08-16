@@ -1,5 +1,17 @@
 'use client'
 
+import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -17,20 +29,8 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn } from '@/utils/cn'
-import { CheckIcon, ChevronDownIcon, XIcon } from 'lucide-react'
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ComponentPropsWithoutRef,
-  type ReactNode,
-} from 'react'
 
-type MultiSelectContextType = {
+interface MultiSelectContextType {
   open: boolean
   setOpen: (open: boolean) => void
   selectedValues: Set<string>

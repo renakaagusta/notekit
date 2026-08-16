@@ -1,6 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { createFileRoute } from '@tanstack/react-router'
 import { PageHeader } from '@/components/page-header'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -9,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { backend } from '@/lib/backend'
 
 export const Route = createFileRoute('/_authenticated/users')({

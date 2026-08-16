@@ -1,7 +1,7 @@
 import type { FC, ReactNode } from 'react'
 import styles from './styles.module.css'
 
-type Props = {
+interface Props {
 	children: ReactNode
 }
 

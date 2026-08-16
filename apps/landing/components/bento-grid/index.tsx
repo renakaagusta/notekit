@@ -1,7 +1,7 @@
-import { ReactNode, type FC } from 'react'
+import type { ReactNode, FC } from 'react';
 import styles from './index.module.css'
 
-type Props = {
+interface Props {
 	children: ReactNode
 }
 

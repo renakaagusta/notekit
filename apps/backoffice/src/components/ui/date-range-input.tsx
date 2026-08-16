@@ -1,5 +1,9 @@
 'use client'
 
+import { differenceInDays, format, parse } from 'date-fns'
+import { ChevronDownIcon, type LucideIcon } from 'lucide-react'
+import { useRef, useState } from 'react'
+import type { DateRange } from 'react-day-picker'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -9,10 +13,6 @@ import {
 } from '@/components/ui/popover'
 import { useControlledState } from '@/hooks/use-controlled-state'
 import { cn } from '@/utils/cn'
-import { differenceInDays, format, parse } from 'date-fns'
-import { ChevronDownIcon, type LucideIcon } from 'lucide-react'
-import { useRef, useState } from 'react'
-import type { DateRange } from 'react-day-picker'
 
 export interface DateRangeInputProps extends Omit<
   React.ComponentProps<typeof Button>,

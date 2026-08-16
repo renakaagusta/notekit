@@ -65,8 +65,10 @@ Open in full lifecycle order with NO gaps:
 vault (git commit) → sync`. For actions, also verify parity in `apps/cli` + `apps/mcp`.
 
 ## Repo boundaries
-- Edit freely in `packages/*` + `apps/*`. `apps/landing` (Next) & `apps/backoffice` have their
-  own config/pipeline — respect that.
+- Edit freely in `packages/*` + `apps/*`. `apps/landing` (Next) & `apps/backoffice` (Vite admin)
+  have their own build/deploy pipeline, but share the SAME root ESLint config + budgets — no
+  per-app lint config. Vendored shadcn primitives under `apps/backoffice/src/components/ui/**`
+  are exempt from the maintainability heuristics (size/complexity) since they track upstream.
 - **Do not touch `.claude/worktrees/**`** — those are other agents' worktrees (lint-ignored).
   Commit early / use an isolated worktree so your work isn't clobbered when another agent
   switches branches.

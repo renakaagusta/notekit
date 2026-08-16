@@ -1,13 +1,14 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { createFileRoute } from '@tanstack/react-router'
 import {
   UsersIcon,
   DatabaseIcon,
   CreditCardIcon,
   BotIcon,
 } from 'lucide-react'
-import { StatsCard } from '@/components/stats-card'
 import { PageHeader } from '@/components/page-header'
+import { StatsCard } from '@/components/stats-card'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -16,7 +17,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { backend } from '@/lib/backend'
 
 export const Route = createFileRoute('/_authenticated/dashboard')({
@@ -28,7 +28,7 @@ interface Overview {
   activeVaults: number
   plusSubscribers: number
   agents: number
-  recentSignups: Array<{ id: string; name: string; email: string; plan: string; joinedAt: string }>
+  recentSignups: { id: string; name: string; email: string; plan: string; joinedAt: string }[]
 }
 
 // Endpoints are not wired on the API yet — fall back to a sensible empty

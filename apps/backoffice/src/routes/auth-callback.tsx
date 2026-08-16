@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { LoaderIcon } from 'lucide-react'
 import { useEffect } from 'react'
 import { toast } from 'sonner'
-import { LoaderIcon } from 'lucide-react'
 import { authClient, getMe } from '@/lib/auth-client'
-import { useStore } from '@/store'
 import { setSessionToken } from '@/lib/http'
+import { useStore } from '@/store'
 
 export const Route = createFileRoute('/auth-callback')({
   component: AuthCallback,

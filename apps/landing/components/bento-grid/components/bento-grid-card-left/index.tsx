@@ -1,8 +1,8 @@
-import { ReactNode, type FC } from 'react'
-import styles from './styles.module.css'
+import type { ReactNode, FC } from 'react';
 import BentoCardHeading from '../bento-card-heading'
+import styles from './styles.module.css'
 
-type Props = {
+interface Props {
 	title: string
 	description: string
 	children: ReactNode

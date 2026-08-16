@@ -1,8 +1,8 @@
-import { type FC } from 'react'
-import styles from './styles.module.css'
+import type { FC } from 'react'
 import { cn } from '@/lib/utils'
+import styles from './styles.module.css'
 
-type Props = {
+interface Props {
 	badgeText: string
 	badgeStyle?: string
 	heading: string

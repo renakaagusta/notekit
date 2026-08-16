@@ -1,11 +1,11 @@
 'use client'
 
-import { Button } from '@/components/ui/button'
-import { cn } from '@/utils/cn'
 import { Eraser } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { cn } from '@/utils/cn'
 
-type SignatureInputProps = {
+interface SignatureInputProps {
   canvasRef?: React.RefObject<HTMLCanvasElement | null>
   /** The signature value (data URL). Use for controlled mode. */
   value?: string | null

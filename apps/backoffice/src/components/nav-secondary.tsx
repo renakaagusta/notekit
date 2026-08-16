@@ -1,4 +1,5 @@
-import { type LucideIcon } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import type { LucideIcon } from 'lucide-react'
 import * as React from 'react'
 
 import {
@@ -8,7 +9,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { Link } from '@tanstack/react-router'
 
 export function NavSecondary({
   items,

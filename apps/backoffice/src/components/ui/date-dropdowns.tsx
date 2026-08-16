@@ -1,5 +1,7 @@
 'use client'
 
+import { format, getDaysInMonth, parse } from 'date-fns'
+import * as React from 'react'
 import {
   Select,
   SelectContent,
@@ -8,8 +10,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/utils/cn'
-import { format, getDaysInMonth, parse } from 'date-fns'
-import * as React from 'react'
 
 function getLocalizedMonths(locale?: string) {
   const formatter = new Intl.DateTimeFormat(locale, { month: 'long' })
@@ -182,7 +182,7 @@ export function DateDropdowns({
   const initialDate = React.useMemo(() => {
     const v = value !== undefined ? value : defaultValue
     return parseDate(v ?? null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally run once on mount; parseDate and value/defaultValue are stable initial props
   }, [])
 
   // Track individual selections separately (allows partial selections)

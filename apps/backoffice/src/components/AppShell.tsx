@@ -1,8 +1,8 @@
-import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
-import { AppSidebar } from '@/components/AppSidebar'
-import { Separator } from '@/components/ui/separator'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb'
 import { useRouterState } from '@tanstack/react-router'
+import { AppSidebar } from '@/components/AppSidebar'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage } from '@/components/ui/breadcrumb'
+import { Separator } from '@/components/ui/separator'
+import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar'
 
 const routeLabels: Record<string, string> = {
   '/dashboard': 'Dashboard',

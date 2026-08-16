@@ -1,4 +1,4 @@
-export type FooterSection = {
+export interface FooterSection {
 	title: string
 	items: { id: string | number; link: string; item: string }[]
 }
@@ -49,7 +49,7 @@ export const footerSections: FooterSection[] = [
 	},
 ]
 
-export type FoundationListItem = {
+export interface FoundationListItem {
 	id: string | number
 	label: string
 	value: string

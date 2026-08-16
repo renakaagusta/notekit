@@ -1,6 +1,6 @@
-import { cn } from '@/utils/cn'
 import { Link } from '@tanstack/react-router'
 import { ArrowRightIcon } from 'lucide-react'
+import { cn } from '@/utils/cn'
 
 interface StatsCardProps {
   title: string

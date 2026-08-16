@@ -1,5 +1,3 @@
-import { Toggle } from '@/components/ui/toggle'
-import { cn } from '@/utils/cn'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Markdown } from '@tiptap/markdown'
 import { EditorContent, useEditor, type Editor } from '@tiptap/react'
@@ -16,6 +14,8 @@ import {
   Undo2Icon,
 } from 'lucide-react'
 import * as React from 'react'
+import { Toggle } from '@/components/ui/toggle'
+import { cn } from '@/utils/cn'
 
 interface TiptapToolbarProps {
   editor: Editor | null

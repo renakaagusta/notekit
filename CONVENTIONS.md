@@ -24,7 +24,11 @@ visible. File size is enforced by ESLint `max-lines` at `error` (see #0), not a 
 Unlike paprika (3 separate Go repos needing a `parity-check` to stop config drift),
 NoteKit is **one pnpm monorepo with one config** — there is nothing to keep in sync, so
 there is no parity gate. Everything is enforced against the **whole tree**, existing code
-included (we do not diff-gate against a merge base; the tree is kept green).
+included (we do not diff-gate against a merge base; the tree is kept green). This covers every
+surface — including `apps/backoffice` (Vite admin) and `apps/landing` (Next), which share this
+root config rather than carrying their own. The only scoped exemptions are for genuinely
+vendored/generated code (shadcn `ui/**` primitives, `routeTree.gen.ts`), mirroring paprika's
+`generated: strict` — those are exempt from the maintainability heuristics but still type-checked.
 
 ---
 

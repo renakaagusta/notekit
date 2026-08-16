@@ -1,10 +1,10 @@
 'use client'
 
-import type { FC, ReactNode } from 'react'
 import { motion } from 'framer-motion'
+import type { FC, ReactNode } from 'react'
 import { illustrate } from '@/lib/animations'
 
-type Props = {
+interface Props {
 	children: ReactNode
 	className?: string
 	delay?: number

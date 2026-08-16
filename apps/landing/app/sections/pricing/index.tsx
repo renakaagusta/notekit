@@ -1,7 +1,7 @@
-import { type FC } from 'react'
-import styles from './styles.module.css'
-import LayoutWrapper from '@/components/layout-wrapper'
 import Link from 'next/link'
+import type { FC } from 'react'
+import LayoutWrapper from '@/components/layout-wrapper'
+import styles from './styles.module.css'
 
 const plans = [
 	{

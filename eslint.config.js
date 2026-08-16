@@ -42,10 +42,8 @@ export default tseslint.config(
       '**/ios/App/App/public/**',
       '**/android/app/src/main/assets/public/**',
       '**/*.min.js',
-      // landing uses next lint separately
-      'apps/landing/**',
-      // backoffice has its own config
-      'apps/backoffice/**',
+      // generated router tree — not hand-edited
+      '**/routeTree.gen.ts',
     ],
   },
 
@@ -96,6 +94,9 @@ export default tseslint.config(
         'error',
         {
           groups: ['builtin', 'external', 'internal', 'parent', 'sibling', 'index'],
+          // Treat the `@/` app alias as internal regardless of cwd, so ordering
+          // is deterministic whether eslint runs from the repo root or a package.
+          pathGroups: [{ pattern: '@/**', group: 'internal', position: 'before' }],
           alphabetize: { order: 'asc', caseInsensitive: true },
         },
       ],
@@ -127,15 +128,52 @@ export default tseslint.config(
     },
   },
 
-  // React packages (core + web)
+  // React apps/packages (core + web + backoffice admin + landing marketing)
   {
-    files: ['packages/core/**/*.{ts,tsx}', 'apps/web/**/*.{ts,tsx}'],
+    files: [
+      'packages/core/**/*.{ts,tsx}',
+      'apps/web/**/*.{ts,tsx}',
+      'apps/backoffice/**/*.{ts,tsx}',
+      'apps/landing/**/*.{ts,tsx}',
+    ],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs['recommended-latest'].rules,
     },
     languageOptions: {
       globals: globals.browser,
+    },
+  },
+
+  // Backoffice admin + landing marketing — separately-deployed surfaces where
+  // console output is acceptable; otherwise held to the same shared ruleset.
+  {
+    files: ['apps/backoffice/**/*.{ts,tsx}', 'apps/landing/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'warn',
+    },
+  },
+
+  // Vendored shadcn/ui primitives — copied from upstream and regenerated, not
+  // hand-authored NoteKit code. The maintainability heuristics (size/complexity/
+  // dedup) target our own code; refactoring these would fork them from upstream.
+  // Safety/correctness rules (types, hooks, imports) still apply.
+  {
+    files: ['apps/backoffice/src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'max-lines-per-function': 'off',
+      'max-lines': 'off',
+      complexity: 'off',
+      'sonarjs/cognitive-complexity': 'off',
+      'sonarjs/no-duplicate-string': 'off',
+      // Upstream shadcn idioms our strict config would otherwise reject:
+      // the SSR mount flag (setState-in-effect), ref non-null on mount, and
+      // the newer react-compiler purity/immutability rules.
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
 

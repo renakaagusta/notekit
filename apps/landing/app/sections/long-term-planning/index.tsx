@@ -1,13 +1,13 @@
-import { type FC } from 'react'
-import styles from './styles.module.css'
-import LayoutWrapper from '@/components/layout-wrapper'
-import SectionHeading from '@/components/sectionHeading'
+import type { FC } from 'react'
 import {
 	BentoGrid,
 	BentoGridFeatureLookupWrapper,
 	BentoGridSeperator,
 } from '@/components/bento-grid'
 import BentoGridFeatureLookUpCard from '@/components/bento-grid/components/bento-grid-feature-lookup-card'
+import LayoutWrapper from '@/components/layout-wrapper'
+import SectionHeading from '@/components/sectionHeading'
+import styles from './styles.module.css'
 
 const featureLookup = [
 	{

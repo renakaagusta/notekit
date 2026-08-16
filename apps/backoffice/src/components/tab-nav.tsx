@@ -1,5 +1,5 @@
-import { cn } from '@/utils/cn'
 import { Link } from '@tanstack/react-router'
+import { cn } from '@/utils/cn'
 
 export interface TabNavItem {
   title: string

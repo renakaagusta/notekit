@@ -27,6 +27,10 @@ interface AgentsViewProps {
   focusAgent?: AgentFocusPulse | null;
 }
 
+const CSS_INPUT = "nk-input" as const;
+const MONO_FONT = "var(--mono-font)" as const;
+const GAP_2 = "var(--gap-2)" as const;
+
 /** Anthropic models offered in the profile picker. Keep labels human-friendly. */
 export const AGENT_MODELS: { value: string; label: string; hint: string }[] = [
   { value: "claude-3-5-haiku-latest", label: "Haiku 3.5", hint: "Cepat & murah" },
@@ -255,7 +259,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
       <div
         style={{
           display: "flex",
-          gap: "var(--gap-2)",
+          gap: GAP_2,
           alignItems: "flex-start",
           padding: "var(--gap-2) var(--gap-3)",
           fontSize: "0.85em",
@@ -297,13 +301,13 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
             you won't see it again. If you lose it, delete the agent and create
             a new one.
           </div>
-          <div style={{ display: "flex", gap: "var(--gap-2)" }}>
+          <div style={{ display: "flex", gap: GAP_2 }}>
             <input
-              className="nk-input"
+              className={CSS_INPUT}
               readOnly
               value={reveal.token}
               onFocus={(e) => e.currentTarget.select()}
-              style={{ flex: 1, fontFamily: "var(--mono-font)" }}
+              style={{ flex: 1, fontFamily: MONO_FONT }}
             />
             <button
               className="nk-iconbtn"
@@ -330,15 +334,15 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: "var(--gap-2)",
-              paddingTop: "var(--gap-2)",
+              gap: GAP_2,
+              paddingTop: GAP_2,
               borderTop: "1px solid rgba(245, 197, 24, 0.25)",
             }}
           >
             <img className="nk-commit-avatar" src={gravatarUrlFor(reveal.email)} alt="" />
             <div style={{ flex: 1, fontSize: "0.9em" }}>
               To give this agent a profile picture, register{" "}
-              <code style={{ fontFamily: "var(--mono-font)" }}>{reveal.email}</code>{" "}
+              <code style={{ fontFamily: MONO_FONT }}>{reveal.email}</code>{" "}
               on Gravatar. The avatar then appears here, on GitHub commits, and on
               Forgejo.
             </div>
@@ -432,13 +436,13 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
                       <div className="nk-agent-desc">{a.description}</div>
                     )}
                     <div className="nk-commit-meta">
-                      <code style={{ fontFamily: "var(--mono-font)" }}>
+                      <code style={{ fontFamily: MONO_FONT }}>
                         {a.email}
                       </code>
                       {" · "}
                       created {formatTime(a.createdAt)}
                       {" · "}
-                      <code style={{ fontFamily: "var(--mono-font)" }}>
+                      <code style={{ fontFamily: MONO_FONT }}>
                         agents/{a.slug}.json
                       </code>
                     </div>
@@ -482,7 +486,92 @@ interface AgentFormProps {
   keyStored?: boolean;
 }
 
-// eslint-disable-next-line max-lines-per-function, complexity -- AgentForm renders the full agent profile form; provider/model/key/permission branches make it complex but splitting sub-components would hurt readability
+interface ModelPickerProps {
+  provider: AgentProvider;
+  model: string;
+  models: string[];
+  loadingModels: boolean;
+  modelError: string | null;
+  disabled?: boolean;
+  onModelChange(model: string): void;
+  onLoadModels(): void;
+}
+
+function ModelPicker({
+  provider,
+  model,
+  models,
+  loadingModels,
+  modelError,
+  disabled,
+  onModelChange,
+  onLoadModels,
+}: ModelPickerProps) {
+  if (provider === "anthropic") {
+    return (
+      <select
+        className={CSS_INPUT}
+        aria-label="Model"
+        value={model}
+        onChange={(e) => onModelChange(e.target.value)}
+        disabled={disabled}
+      >
+        {AGENT_MODELS.map((m) => (
+          <option key={m.value} value={m.value}>
+            {m.label} — {m.hint}
+          </option>
+        ))}
+      </select>
+    );
+  }
+  return (
+    <>
+      <div style={{ display: "flex", gap: GAP_2 }}>
+        {models.length > 0 ? (
+          <select
+            className={CSS_INPUT}
+            aria-label="Model"
+            value={model}
+            onChange={(e) => onModelChange(e.target.value)}
+            disabled={disabled}
+            style={{ flex: 1 }}
+          >
+            {models.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className={CSS_INPUT}
+            placeholder={
+              loadingModels
+                ? "Memuat daftar model…"
+                : "Model id — isi Base URL & key untuk memuat daftar"
+            }
+            value={model}
+            onChange={(e) => onModelChange(e.target.value)}
+            disabled={disabled}
+            style={{ flex: 1 }}
+          />
+        )}
+        <button
+          type="button"
+          className="nk-btn"
+          onClick={onLoadModels}
+          disabled={disabled || loadingModels}
+          title="Ambil daftar model dari endpoint"
+        >
+          {loadingModels ? "Memuat…" : models.length ? "Muat ulang" : "Muat model"}
+        </button>
+      </div>
+      {modelError && <p className="nk-inline-ai-error">{modelError}</p>}
+    </>
+  );
+}
+
+// eslint-disable-next-line max-lines-per-function -- AgentForm renders the full agent profile form; ModelPicker extracted but remaining branches (provider/key/permission/avatar) are each required UI sections
 function AgentForm({
   draft,
   onChange,
@@ -545,11 +634,11 @@ function AgentForm({
         padding: "var(--gap-3)",
         display: "flex",
         flexDirection: "column",
-        gap: "var(--gap-2)",
+        gap: GAP_2,
       }}
     >
       <input
-        className="nk-input"
+        className={CSS_INPUT}
         placeholder="Agent name (e.g. Triage Bot)"
         autoFocus={autoFocus}
         value={draft.name}
@@ -561,7 +650,7 @@ function AgentForm({
         disabled={disabled}
       />
       <input
-        className="nk-input"
+        className={CSS_INPUT}
         placeholder={
           emailHint ??
           "Email (optional — server picks a default if you leave it blank; pick a Gravatar-registered email to get a real avatar)"
@@ -571,7 +660,7 @@ function AgentForm({
         disabled={disabled}
       />
       <textarea
-        className="nk-input"
+        className={CSS_INPUT}
         placeholder="Description — what this agent does, who runs it, scope of authority…"
         value={draft.description}
         onChange={(e) => onChange({ ...draft, description: e.target.value })}
@@ -586,7 +675,7 @@ function AgentForm({
        * whether it may modify the vault. */}
       <div className="nk-agent-section-label">AI assistant</div>
       <select
-        className="nk-input"
+        className={CSS_INPUT}
         aria-label="Provider"
         value={draft.provider}
         onChange={(e) => {
@@ -603,7 +692,7 @@ function AgentForm({
 
       {draft.provider === "openai-compatible" && (
         <input
-          className="nk-input"
+          className={CSS_INPUT}
           placeholder="Base URL — mis. https://9router.stackbase.id/v1"
           value={draft.baseUrl}
           onChange={(e) => onChange({ ...draft, baseUrl: e.target.value })}
@@ -614,7 +703,7 @@ function AgentForm({
       {/* API key comes before model — for openai-compatible we need the key to
           fetch the model list. */}
       <input
-        className="nk-input"
+        className={CSS_INPUT}
         type="password"
         autoComplete="off"
         placeholder={
@@ -633,68 +722,20 @@ function AgentForm({
         di file profil), dipanggil langsung ke provider — tanpa relay NoteKit.
       </p>
 
-      {draft.provider === "anthropic" ? (
-        <select
-          className="nk-input"
-          aria-label="Model"
-          value={draft.model}
-          onChange={(e) => onChange({ ...draft, model: e.target.value })}
-          disabled={disabled}
-        >
-          {AGENT_MODELS.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label} — {m.hint}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <>
-          <div style={{ display: "flex", gap: "var(--gap-2)" }}>
-            {models.length > 0 ? (
-              <select
-                className="nk-input"
-                aria-label="Model"
-                value={draft.model}
-                onChange={(e) => onChange({ ...draft, model: e.target.value })}
-                disabled={disabled}
-                style={{ flex: 1 }}
-              >
-                {models.map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                className="nk-input"
-                placeholder={
-                  loadingModels
-                    ? "Memuat daftar model…"
-                    : "Model id — isi Base URL & key untuk memuat daftar"
-                }
-                value={draft.model}
-                onChange={(e) => onChange({ ...draft, model: e.target.value })}
-                disabled={disabled}
-                style={{ flex: 1 }}
-              />
-            )}
-            <button
-              type="button"
-              className="nk-btn"
-              onClick={loadModels}
-              disabled={disabled || loadingModels}
-              title="Ambil daftar model dari endpoint"
-            >
-              {loadingModels ? "Memuat…" : models.length ? "Muat ulang" : "Muat model"}
-            </button>
-          </div>
-          {modelError && <p className="nk-inline-ai-error">{modelError}</p>}
-        </>
-      )}
+      <ModelPicker
+        provider={draft.provider}
+        model={draft.model}
+        models={models}
+        loadingModels={loadingModels}
+        modelError={modelError}
+        disabled={disabled}
+        onModelChange={(model) => onChange({ ...draft, model })}
+        onLoadModels={loadModels}
+      />
+
       <textarea
-        className="nk-input"
-        placeholder="System prompt — persona & rules (e.g. “Kamu asisten penulisan bahasa Indonesia yang ringkas dan tidak bertele-tele.”)"
+        className={CSS_INPUT}
+        placeholder={'System prompt — persona & rules (e.g. “Kamu asisten penulisan bahasa Indonesia yang ringkas dan tidak bertele-tele.”)'}
         value={draft.systemPrompt}
         onChange={(e) => onChange({ ...draft, systemPrompt: e.target.value })}
         disabled={disabled}
@@ -738,7 +779,7 @@ function AgentForm({
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "var(--gap-2)",
+            gap: GAP_2,
             fontSize: "0.85em",
             color: "var(--text-dim)",
           }}
@@ -751,7 +792,7 @@ function AgentForm({
           />
           <span>
             Avatar comes from Gravatar for{" "}
-            <code style={{ fontFamily: "var(--mono-font)" }}>
+            <code style={{ fontFamily: MONO_FONT }}>
               {draft.email.trim()}
             </code>
             . Register that email at{" "}
@@ -767,7 +808,7 @@ function AgentForm({
           </span>
         </div>
       )}
-      <div style={{ display: "flex", gap: "var(--gap-2)" }}>
+      <div style={{ display: "flex", gap: GAP_2 }}>
         <button
           className="nk-btn nk-btn--primary"
           onClick={onSubmit}

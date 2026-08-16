@@ -38,6 +38,8 @@ export interface ToolContext {
   defaultFolder?: string | null;
 }
 
+const REJECTED_BY_USER = "ditolak pengguna";
+
 function snippet(body: string, max = 140): string {
   const flat = body.replace(/\s+/g, " ").trim();
   return flat.length > max ? flat.slice(0, max) + "…" : flat;
@@ -329,7 +331,7 @@ export function buildAssistantTools(
           `Buat catatan "${title}"`,
           { title, body, folder },
         );
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         const note = useNotesStore.getState().upsert({
           title,
           body: withTitleHeading(title, body ?? ""),
@@ -354,7 +356,7 @@ export function buildAssistantTools(
           `Ubah catatan "${noteTitle(n)}"`,
           { id, body },
         );
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         useNotesStore.getState().updateBody(id, body);
         return { ok: true as const };
       },
@@ -373,7 +375,7 @@ export function buildAssistantTools(
           `Pindahkan "${noteTitle(n)}" ke ${dest ?? "(root)"}`,
           { id, folder: dest },
         );
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         useNotesStore.getState().setFolder(id, dest);
         return { ok: true as const, folder: dest };
       },
@@ -389,7 +391,7 @@ export function buildAssistantTools(
           `Hapus catatan "${noteTitle(n)}"`,
           { id },
         );
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         useNotesStore.getState().remove(id);
         return { ok: true as const };
       },
@@ -407,7 +409,7 @@ export function buildAssistantTools(
           title,
           tags,
         });
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         const link = useLinksStore.getState().upsert({ url, title, tags });
         return { ok: true as const, id: link.id };
       },
@@ -425,7 +427,7 @@ export function buildAssistantTools(
           body,
           priority,
         });
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         const t = useTicketsStore.getState().upsert({ title, body, priority });
         return { ok: true as const, id: t.id };
       },
@@ -445,7 +447,7 @@ export function buildAssistantTools(
           `Ubah status "${t.title}" → ${status}`,
           { id, status },
         );
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         useTicketsStore.getState().setStatus(id, status);
         return { ok: true as const };
       },
@@ -461,7 +463,7 @@ export function buildAssistantTools(
           `Hapus task "${t.title}"`,
           { id },
         );
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         useTicketsStore.getState().remove(id);
         return { ok: true as const };
       },
@@ -480,7 +482,7 @@ export function buildAssistantTools(
           ? `Tetapkan task "${t.title}" ke "${assignee}"`
           : `Hapus penugasan task "${t.title}"`;
         const ok = await ctx.requestApproval("assign_task", label, { id, assignee });
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         useTicketsStore.getState().setAssignee(id, assignee);
         return { ok: true as const };
       },
@@ -497,7 +499,7 @@ export function buildAssistantTools(
           `Hapus link "${l.title || l.url}"`,
           { id },
         );
-        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        if (!ok) return { ok: false as const, reason: REJECTED_BY_USER };
         useLinksStore.getState().remove(id);
         return { ok: true as const };
       },

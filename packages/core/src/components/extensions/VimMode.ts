@@ -1,6 +1,7 @@
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state";
 import type { EditorState, Transaction } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+import type { Editor } from "@tiptap/react";
 import { Extension } from "@tiptap/react";
 
 // Basic vim normal/insert mode for Tiptap.
@@ -71,6 +72,100 @@ function wordBack(state: EditorState): Transaction {
   return state.tr.setSelection(TextSelection.create(state.doc, pos));
 }
 
+function handleInsertModeEntry(key: string, state: EditorState, view: EditorView): boolean {
+  if (key === "i") {
+    view.dispatch(state.tr.setMeta(PLUGIN_KEY, "insert" as VimMode));
+    return true;
+  }
+  if (key === "a") {
+    const tr = state.tr
+      .setMeta(PLUGIN_KEY, "insert" as VimMode)
+      .setSelection(TextSelection.create(state.doc, state.selection.from + 1));
+    view.dispatch(tr);
+    return true;
+  }
+  if (key === "A") {
+    const { to: lineEnd } = currentLineRange(state);
+    const tr = state.tr
+      .setMeta(PLUGIN_KEY, "insert" as VimMode)
+      .setSelection(TextSelection.create(state.doc, lineEnd));
+    view.dispatch(tr);
+    return true;
+  }
+  if (key === "o") {
+    const { to: lineEnd } = currentLineRange(state);
+    const tr = state.tr
+      .setMeta(PLUGIN_KEY, "insert" as VimMode)
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- paragraph node is a built-in ProseMirror node type that always exists in Tiptap's schema
+      .insert(lineEnd, state.schema.nodes.paragraph!.create())
+      .setSelection(TextSelection.create(state.tr.doc, lineEnd + 1));
+    view.dispatch(tr);
+    return true;
+  }
+  if (key === "O") {
+    const { from: lineStart } = currentLineRange(state);
+    const tr = state.tr
+      .setMeta(PLUGIN_KEY, "insert" as VimMode)
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- paragraph node is a built-in ProseMirror node type that always exists in Tiptap's schema
+      .insert(lineStart - 1, state.schema.nodes.paragraph!.create())
+      .setSelection(TextSelection.create(state.tr.doc, lineStart - 1));
+    view.dispatch(tr);
+    return true;
+  }
+  return false;
+}
+
+function handleMotionKey(key: string, state: EditorState, view: EditorView): boolean {
+  if (key === "h") { view.dispatch(moveH(state, -1)); return true; }
+  if (key === "l") { view.dispatch(moveH(state, 1)); return true; }
+  if (key === "j") { view.dispatch(moveToLineVert(state, 1)); return true; }
+  if (key === "k") { view.dispatch(moveToLineVert(state, -1)); return true; }
+  if (key === "w") { view.dispatch(wordForward(state)); return true; }
+  if (key === "b") { view.dispatch(wordBack(state)); return true; }
+  if (key === "0") {
+    const { from } = currentLineRange(state);
+    view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, from)));
+    return true;
+  }
+  if (key === "$") {
+    const { to } = currentLineRange(state);
+    view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, to)));
+    return true;
+  }
+  if (key === "g") {
+    view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1)));
+    return true;
+  }
+  if (key === "G") {
+    const end = state.doc.content.size - 1;
+    view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, end)));
+    return true;
+  }
+  return false;
+}
+
+function handleEditKey(key: string, ctrlKey: boolean, state: EditorState, view: EditorView, editor: Editor): boolean {
+  if (key === "x") {
+    const { from } = state.selection;
+    view.dispatch(state.tr.delete(from, from + 1));
+    return true;
+  }
+  if (key === "d") {
+    const $from = resolvedPos(state, state.selection.from);
+    view.dispatch(state.tr.delete($from.before(), $from.after()));
+    return true;
+  }
+  if (key === "u" && !ctrlKey) {
+    editor.commands.undo();
+    return true;
+  }
+  if (key === "r" && ctrlKey) {
+    editor.commands.redo();
+    return true;
+  }
+  return false;
+}
+
 export const VimMode = Extension.create({
   name: "vimMode",
 
@@ -78,7 +173,6 @@ export const VimMode = Extension.create({
     return { enabled: false };
   },
 
-  // eslint-disable-next-line max-lines-per-function -- registers a single ProseMirror plugin with all vim keybindings; splitting would require passing shared state across multiple functions
   addProseMirrorPlugins() {
     if (!this.options.enabled) return [];
 
@@ -103,114 +197,22 @@ export const VimMode = Extension.create({
           };
         },
         props: {
-          // eslint-disable-next-line max-lines-per-function, complexity -- vim normal-mode key dispatch requires a branch per key; each branch is 2-3 lines but there are many keys to cover
           handleKeyDown(view, event) {
             const mode = PLUGIN_KEY.getState(view.state) ?? "insert";
 
-            // Always allow Escape to go to normal mode
             if (event.key === "Escape") {
-              const tr = view.state.tr.setMeta(PLUGIN_KEY, "normal" as VimMode);
-              view.dispatch(tr);
+              view.dispatch(view.state.tr.setMeta(PLUGIN_KEY, "normal" as VimMode));
               event.preventDefault();
               return true;
             }
 
-            if (mode === "insert") return false; // let Tiptap handle it
+            if (mode === "insert") return false;
 
-            // ── Normal mode ──────────────────────────────────────────
             const { state } = view;
 
-            // Switch to insert mode
-            if (event.key === "i") {
-              view.dispatch(state.tr.setMeta(PLUGIN_KEY, "insert" as VimMode));
-              return true;
-            }
-            if (event.key === "a") {
-              const tr = state.tr
-                .setMeta(PLUGIN_KEY, "insert" as VimMode)
-                .setSelection(TextSelection.create(state.doc, state.selection.from + 1));
-              view.dispatch(tr);
-              return true;
-            }
-            if (event.key === "A") {
-              const { to: lineEnd } = currentLineRange(state);
-              const tr = state.tr
-                .setMeta(PLUGIN_KEY, "insert" as VimMode)
-                .setSelection(TextSelection.create(state.doc, lineEnd));
-              view.dispatch(tr);
-              return true;
-            }
-            if (event.key === "o") {
-              const { to: lineEnd } = currentLineRange(state);
-              const tr = state.tr
-                .setMeta(PLUGIN_KEY, "insert" as VimMode)
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- paragraph node is a built-in ProseMirror node type that always exists in Tiptap's schema
-                .insert(lineEnd, state.schema.nodes.paragraph!.create())
-                .setSelection(TextSelection.create(state.tr.doc, lineEnd + 1));
-              view.dispatch(tr);
-              return true;
-            }
-            if (event.key === "O") {
-              const { from: lineStart } = currentLineRange(state);
-              const tr = state.tr
-                .setMeta(PLUGIN_KEY, "insert" as VimMode)
-                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- paragraph node is a built-in ProseMirror node type that always exists in Tiptap's schema
-                .insert(lineStart - 1, state.schema.nodes.paragraph!.create())
-                .setSelection(TextSelection.create(state.tr.doc, lineStart - 1));
-              view.dispatch(tr);
-              return true;
-            }
-
-            // Motion keys
-            if (event.key === "h") { view.dispatch(moveH(state, -1)); return true; }
-            if (event.key === "l") { view.dispatch(moveH(state, 1)); return true; }
-            if (event.key === "j") { view.dispatch(moveToLineVert(state, 1)); return true; }
-            if (event.key === "k") { view.dispatch(moveToLineVert(state, -1)); return true; }
-            if (event.key === "w") { view.dispatch(wordForward(state)); return true; }
-            if (event.key === "b") { view.dispatch(wordBack(state)); return true; }
-            if (event.key === "0") {
-              const { from } = currentLineRange(state);
-              view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, from)));
-              return true;
-            }
-            if (event.key === "$") {
-              const { to } = currentLineRange(state);
-              view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, to)));
-              return true;
-            }
-            if (event.key === "g") {
-              // gg — handled on second g keypress via a simple approach: just jump to 0
-              view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, 1)));
-              return true;
-            }
-            if (event.key === "G") {
-              const end = state.doc.content.size - 1;
-              view.dispatch(state.tr.setSelection(TextSelection.create(state.doc, end)));
-              return true;
-            }
-
-            // Editing
-            if (event.key === "x") {
-              const { from } = state.selection;
-              const tr = state.tr.delete(from, from + 1);
-              view.dispatch(tr);
-              return true;
-            }
-            if (event.key === "d") {
-              // dd — delete current line/block
-              const $from = resolvedPos(state, state.selection.from);
-              const tr = state.tr.delete($from.before(), $from.after());
-              view.dispatch(tr);
-              return true;
-            }
-            if (event.key === "u" && !event.ctrlKey) {
-              editor.commands.undo();
-              return true;
-            }
-            if (event.key === "r" && event.ctrlKey) {
-              editor.commands.redo();
-              return true;
-            }
+            if (handleInsertModeEntry(event.key, state, view)) return true;
+            if (handleMotionKey(event.key, state, view)) return true;
+            if (handleEditKey(event.key, event.ctrlKey, state, view, editor)) return true;
 
             // Block unhandled keys in normal mode
             return true;

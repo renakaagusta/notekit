@@ -349,6 +349,39 @@ const rmCmd = defineCommand({
   },
 });
 
+async function searchEncryptedNotes(nk: NoteKitApi, q: string): Promise<number> {
+  let hits = 0;
+  for (const n of await listEncryptedNotes(nk)) {
+    if (n.title.toLowerCase().includes(q) || n.body.toLowerCase().includes(q)) {
+      process.stdout.write(`${kleur.dim(n.id)}  ${n.title}\n`);
+      hits++;
+    }
+  }
+  return hits;
+}
+
+async function searchPlaintextNotes(nk: NoteKitApi, q: string): Promise<number> {
+  const { index: idx } = await readIndex(nk);
+  let hits = 0;
+  for (const n of idx.notes) {
+    const titleHit = n.title.toLowerCase().includes(q);
+    let bodyHit = false;
+    if (!titleHit) {
+      try {
+        const file = await nk.vault.readFile(n.path);
+        bodyHit = (file.content ?? "").toLowerCase().includes(q);
+      } catch {
+        // skip
+      }
+    }
+    if (titleHit || bodyHit) {
+      process.stdout.write(`${kleur.dim(n.id)}  ${n.title}\n`);
+      hits++;
+    }
+  }
+  return hits;
+}
+
 const searchCmd = defineCommand({
   meta: {
     name: "search",
@@ -361,41 +394,12 @@ const searchCmd = defineCommand({
     try {
       const nk = await getSecretsClient({ requireAuth: true });
       const q = String(args.query).toLowerCase();
-      let hits = 0;
 
       // E2EE vault → scan + decrypt every note and match title/body in memory.
-      if (await vaultIsEncrypted()) {
-        for (const n of await listEncryptedNotes(nk)) {
-          if (
-            n.title.toLowerCase().includes(q) ||
-            n.body.toLowerCase().includes(q)
-          ) {
-            process.stdout.write(`${kleur.dim(n.id)}  ${n.title}\n`);
-            hits++;
-          }
-        }
-        if (hits === 0) process.stdout.write(kleur.dim("no matches\n"));
-        return;
-      }
+      const hits = (await vaultIsEncrypted())
+        ? await searchEncryptedNotes(nk, q)
+        : await searchPlaintextNotes(nk, q);
 
-      const { index: idx } = await readIndex(nk);
-      // Plaintext: fetch every indexed note and substring-match.
-      for (const n of idx.notes) {
-        const titleHit = n.title.toLowerCase().includes(q);
-        let bodyHit = false;
-        if (!titleHit) {
-          try {
-            const file = await nk.vault.readFile(n.path);
-            bodyHit = (file.content ?? "").toLowerCase().includes(q);
-          } catch {
-            // skip
-          }
-        }
-        if (titleHit || bodyHit) {
-          process.stdout.write(`${kleur.dim(n.id)}  ${n.title}\n`);
-          hits++;
-        }
-      }
       if (hits === 0) {
         process.stdout.write(kleur.dim("no matches\n"));
       }

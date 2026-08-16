@@ -63,47 +63,19 @@ export class NoteKitClient {
     this.fetchFn = f.bind(globalThis);
   }
 
-  // eslint-disable-next-line complexity -- handles all HTTP error codes, auth injection, and retry logic in a single transport method
   async request<T = unknown>(path: string, init: NoteKitRequestInit = {}): Promise<T> {
-    const url = new URL(path, this.opts.baseUrl);
-    if (init.query) {
-      for (const [k, v] of Object.entries(init.query)) {
-        if (v === undefined || v === null) continue;
-        url.searchParams.set(k, String(v));
-      }
-    }
-
-    const headers: Record<string, string> = {};
-    let body: BodyInit | undefined;
-
-    if (init.body !== undefined) {
-      if (init.form) {
-        headers["Content-Type"] = "application/x-www-form-urlencoded";
-        body = encodeForm(init.body);
-      } else {
-        headers["Content-Type"] = "application/json";
-        body = JSON.stringify(init.body);
-      }
-    }
-
-    if (this.opts.auth.mode === "bearer") {
-      const token = await this.opts.auth.getToken();
-      if (token) headers["Authorization"] = `Bearer ${token}`;
-    }
+    const url = buildUrl(path, this.opts.baseUrl, init.query);
+    const { headers, body } = buildRequestBody(init);
+    await injectAuthHeader(this.opts.auth, headers);
 
     this.opts.onRequest?.({ method: init.method ?? "GET", url: url.toString() });
 
-    let res: Response;
-    try {
-      res = await this.fetchFn(url.toString(), {
-        method: init.method ?? "GET",
-        headers,
-        body,
-        credentials: this.opts.auth.mode === "cookie" ? "include" : "omit",
-      });
-    } catch (err) {
-      throw new NoteKitNetworkError(`network error calling ${url.toString()}`, err);
-    }
+    const res = await executeHttpRequest(this.fetchFn, url, {
+      method: init.method,
+      headers,
+      body,
+      authMode: this.opts.auth.mode,
+    });
 
     if (res.status === 204) return undefined as T;
 
@@ -117,6 +89,75 @@ export class NoteKitClient {
     }
 
     return parsed as T;
+  }
+}
+
+function buildUrl(
+  path: string,
+  baseUrl: string,
+  query: NoteKitRequestInit["query"],
+): URL {
+  const url = new URL(path, baseUrl);
+  if (query) {
+    for (const [k, v] of Object.entries(query)) {
+      if (v === undefined || v === null) continue;
+      url.searchParams.set(k, String(v));
+    }
+  }
+  return url;
+}
+
+function buildRequestBody(init: NoteKitRequestInit): {
+  headers: Record<string, string>;
+  body: BodyInit | undefined;
+} {
+  const headers: Record<string, string> = {};
+  let body: BodyInit | undefined;
+
+  if (init.body !== undefined) {
+    if (init.form) {
+      headers["Content-Type"] = "application/x-www-form-urlencoded";
+      body = encodeForm(init.body);
+    } else {
+      headers["Content-Type"] = "application/json";
+      body = JSON.stringify(init.body);
+    }
+  }
+
+  return { headers, body };
+}
+
+async function injectAuthHeader(
+  auth: NoteKitClientOptions["auth"],
+  headers: Record<string, string>,
+): Promise<void> {
+  if (auth.mode === "bearer") {
+    const token = await auth.getToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  }
+}
+
+interface HttpRequestArgs {
+  method: NoteKitRequestInit["method"];
+  headers: Record<string, string>;
+  body: BodyInit | undefined;
+  authMode: NoteKitClientOptions["auth"]["mode"];
+}
+
+async function executeHttpRequest(
+  fetchFn: typeof fetch,
+  url: URL,
+  args: HttpRequestArgs,
+): Promise<Response> {
+  try {
+    return await fetchFn(url.toString(), {
+      method: args.method ?? "GET",
+      headers: args.headers,
+      body: args.body,
+      credentials: args.authMode === "cookie" ? "include" : "omit",
+    });
+  } catch (err) {
+    throw new NoteKitNetworkError(`network error calling ${url.toString()}`, err);
   }
 }
 

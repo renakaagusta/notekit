@@ -165,4 +165,15 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+
+  // Test files — repeated fixture literals and near-identical cases are idiomatic;
+  // the sonarjs dedup/complexity heuristics are noise here (they target production code).
+  {
+    files: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}'],
+    rules: {
+      'sonarjs/no-duplicate-string': 'off',
+      'sonarjs/no-identical-functions': 'off',
+      'sonarjs/cognitive-complexity': 'off',
+    },
+  },
 )

@@ -56,6 +56,13 @@ interface FolderNode {
   notes: Note[];
 }
 
+function allFolderPaths(node: FolderNode): string[] {
+  return [
+    ...(node.path ? [node.path] : []),
+    ...node.children.flatMap(allFolderPaths),
+  ];
+}
+
 function buildTree(notes: Note[], extraFolders: string[], sort: SortMode): FolderNode {
   const root: FolderNode = { name: "", path: "", children: [], notes: [] };
   const byPath = new Map<string, FolderNode>();
@@ -121,7 +128,7 @@ function buildTree(notes: Note[], extraFolders: string[], sort: SortMode): Folde
   return root;
 }
 
-// eslint-disable-next-line max-lines-per-function, complexity -- file-tree component with drag-and-drop, context menus, folder management, sorting, and multiple interaction modes
+// eslint-disable-next-line max-lines-per-function, complexity, sonarjs/cognitive-complexity -- file-tree component with drag-and-drop, context menus, folder management, sorting, and multiple interaction modes; render helpers extracted where possible
 export function NoteList({
   mobileShell = false,
 }: {
@@ -188,13 +195,7 @@ export function NoteList({
   }, [sortMenuOpen]);
 
   function collapseAll() {
-    const paths = new Set<string>();
-    function collect(node: FolderNode) {
-      if (node.path) paths.add(node.path);
-      node.children.forEach(collect);
-    }
-    collect(tree);
-    setCollapsed(paths);
+    setCollapsed(new Set(allFolderPaths(tree)));
   }
 
   function expandAll() {
@@ -202,12 +203,6 @@ export function NoteList({
   }
 
   const allCollapsed = useMemo(() => {
-    function allFolderPaths(node: FolderNode): string[] {
-      return [
-        ...(node.path ? [node.path] : []),
-        ...node.children.flatMap(allFolderPaths),
-      ];
-    }
     const paths = allFolderPaths(tree);
     return paths.length > 0 && paths.every((p) => collapsed.has(p));
   }, [tree, collapsed]);

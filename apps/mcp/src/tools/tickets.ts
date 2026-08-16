@@ -45,6 +45,14 @@ const projectSchema = z
     "Override the active project slug for this call. Implies `scope` defaults to `project`.",
   );
 
+interface TicketFilters {
+  status: (typeof STATUSES)[number] | undefined;
+  priority: (typeof PRIORITIES)[number] | undefined;
+  assignee: string | undefined;
+}
+
+type TicketRecord = Record<string, unknown>;
+
 // eslint-disable-next-line max-lines-per-function -- registers multiple MCP tools; each tool handler is a self-contained unit and cannot be extracted without breaking the registration pattern
 export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(
@@ -63,63 +71,14 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
-    // eslint-disable-next-line complexity -- handler iterates encrypted and plaintext tickets with multiple filter branches
     async ({ status, priority, assignee, limit, scope, project }) => {
       const max = limit ?? 25;
       try {
         const ctx = resolveProjectContext();
         const resolved = resolveScope("tickets", { scope, project, ctx });
         const candidatePaths = await collectCandidatePaths(nk, resolved.readPrefixes);
-        const tickets: Record<string, unknown>[] = [];
-        let encryptedSkipped = 0;
-        for (const filePath of candidatePaths) {
-          // Encrypted ticket → decrypt (if unlocked) and include; else skip.
-          if (isEncryptedItemPath(filePath)) {
-            let t = null;
-            try {
-              const file = await nk.vault.readFile(filePath);
-              t = file.content ? await decryptTicket(filePath, file.content) : null;
-            } catch {
-              t = null;
-            }
-            if (!t) {
-              encryptedSkipped++;
-              continue;
-            }
-            if (status && t.status !== status) continue;
-            if (priority && t.priority !== priority) continue;
-            if (assignee && t.assignee !== assignee) continue;
-            tickets.push({
-              path: filePath,
-              title: t.title,
-              status: t.status,
-              priority: t.priority,
-              assignee: t.assignee,
-              labels: t.labels,
-              dueDate: t.dueDate,
-              snippet: t.body.slice(0, 160).trim(),
-            });
-            if (tickets.length >= max) break;
-            continue;
-          }
-          if (!filePath.endsWith(".md")) continue;
-          const file = await nk.vault.readFile(filePath);
-          const { frontmatter, body } = parseMarkdown(file.content ?? "");
-          if (status && frontmatter["status"] !== status) continue;
-          if (priority && frontmatter["priority"] !== priority) continue;
-          if (assignee && frontmatter["assignee"] !== assignee) continue;
-          tickets.push({
-            path: filePath,
-            title: frontmatter["title"] ?? deriveTitle(filePath),
-            status: frontmatter["status"] ?? "todo",
-            priority: frontmatter["priority"] ?? "medium",
-            assignee: frontmatter["assignee"] ?? null,
-            labels: frontmatter["labels"] ?? [],
-            dueDate: frontmatter["dueDate"] ?? null,
-            snippet: body.slice(0, 160).trim(),
-          });
-          if (tickets.length >= max) break;
-        }
+        const filters: TicketFilters = { status, priority, assignee };
+        const { tickets, encryptedSkipped } = await runTicketList(nk, candidatePaths, filters, max);
         return jsonContent({
           count: tickets.length,
           scope: resolved.effective,
@@ -287,7 +246,6 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false },
     },
-    // eslint-disable-next-line complexity -- handler branches on encrypted vs plaintext path plus all patchable fields
     async ({ path, body, commitMessage, ...patch }) => {
       try {
         const existing = await nk.vault.readFile(path);
@@ -295,13 +253,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         if (existing.content && isEncryptedItemPath(path)) {
           const ticket = await decryptTicket(path, existing.content);
           if (!ticket) return errorContent(`tasks_update: couldn't decrypt ${path}`);
-          if (body !== undefined) ticket.body = body;
-          if (patch.title !== undefined) ticket.title = patch.title;
-          if (patch.status !== undefined) ticket.status = patch.status;
-          if (patch.priority !== undefined) ticket.priority = patch.priority;
-          if (patch.assignee !== undefined) ticket.assignee = patch.assignee;
-          if (patch.labels !== undefined) ticket.labels = patch.labels;
-          if (patch.dueDate !== undefined) ticket.dueDate = patch.dueDate;
+          applyTicketPatch(ticket, body, patch);
           ticket.updatedAt = new Date().toISOString();
           const sealed = await encryptTicket(ticket);
           await nk.vault.writeFile(
@@ -388,3 +340,128 @@ function deriveTitle(path: string): string {
   return base.replace(/\.md$/, "");
 }
 
+/**
+ * Run the full ticket list loop over candidate paths.
+ */
+async function runTicketList(
+  nk: NoteKitApi,
+  candidatePaths: string[],
+  filters: TicketFilters,
+  max: number,
+): Promise<{ tickets: TicketRecord[]; encryptedSkipped: number }> {
+  const tickets: TicketRecord[] = [];
+  let encryptedSkipped = 0;
+  for (const filePath of candidatePaths) {
+    const entry = await resolveTicketEntry(nk, filePath, filters);
+    if (entry === "encrypted-failed") { encryptedSkipped++; continue; }
+    if (!entry) continue;
+    tickets.push(entry);
+    if (tickets.length >= max) break;
+  }
+  return { tickets, encryptedSkipped };
+}
+
+/**
+ * Resolve a single candidate path for the ticket list loop.
+ * Returns the ticket record (if matched), null (no match / not a ticket file),
+ * or 'encrypted-failed' (locked vault).
+ */
+async function resolveTicketEntry(
+  nk: NoteKitApi,
+  filePath: string,
+  filters: TicketFilters,
+): Promise<TicketRecord | null | "encrypted-failed"> {
+  if (isEncryptedItemPath(filePath)) {
+    const record = await tryDecryptAndReadTicket(nk, filePath);
+    if (record === "encrypted-failed") return "encrypted-failed";
+    if (!record || !matchesTicketFilters(record, filters)) return null;
+    return record;
+  }
+  if (!filePath.endsWith(".md")) return null;
+  const record = await readPlaintextTicket(nk, filePath);
+  return matchesTicketFilters(record, filters) ? record : null;
+}
+
+/**
+ * Try to decrypt an encrypted ticket for the list handler.
+ * Returns the ticket record on success, null when it doesn't decrypt, or
+ * 'encrypted-failed' when the vault is locked / unreadable.
+ */
+async function tryDecryptAndReadTicket(
+  nk: NoteKitApi,
+  filePath: string,
+): Promise<TicketRecord | null | "encrypted-failed"> {
+  let t: Ticket | null = null;
+  try {
+    const file = await nk.vault.readFile(filePath);
+    t = file.content ? await decryptTicket(filePath, file.content) : null;
+  } catch {
+    t = null;
+  }
+  if (!t) return "encrypted-failed";
+  return {
+    path: filePath,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+    assignee: t.assignee,
+    labels: t.labels,
+    dueDate: t.dueDate,
+    snippet: t.body.slice(0, 160).trim(),
+  };
+}
+
+/**
+ * Read and parse a plaintext ticket for the list handler.
+ */
+async function readPlaintextTicket(
+  nk: NoteKitApi,
+  filePath: string,
+): Promise<TicketRecord> {
+  const file = await nk.vault.readFile(filePath);
+  const { frontmatter, body } = parseMarkdown(file.content ?? "");
+  return {
+    path: filePath,
+    title: frontmatter["title"] ?? deriveTitle(filePath),
+    status: frontmatter["status"] ?? "todo",
+    priority: frontmatter["priority"] ?? "medium",
+    assignee: frontmatter["assignee"] ?? null,
+    labels: frontmatter["labels"] ?? [],
+    dueDate: frontmatter["dueDate"] ?? null,
+    snippet: body.slice(0, 160).trim(),
+  };
+}
+
+function matchesTicketFilters(record: TicketRecord, filters: TicketFilters): boolean {
+  if (filters.status && record["status"] !== filters.status) return false;
+  if (filters.priority && record["priority"] !== filters.priority) return false;
+  if (filters.assignee && record["assignee"] !== filters.assignee) return false;
+  return true;
+}
+
+interface TicketPatch {
+  title?: string;
+  status?: (typeof STATUSES)[number];
+  priority?: (typeof PRIORITIES)[number];
+  assignee?: string | null;
+  labels?: string[];
+  dueDate?: string | null;
+}
+
+/**
+ * Mutate a Ticket in-place with the fields from a tasks_update call.
+ * Does NOT set updatedAt — the caller sets that after.
+ */
+function applyTicketPatch(
+  ticket: Ticket,
+  body: string | undefined,
+  patch: TicketPatch,
+): void {
+  if (body !== undefined) ticket.body = body;
+  if (patch.title !== undefined) ticket.title = patch.title;
+  if (patch.status !== undefined) ticket.status = patch.status;
+  if (patch.priority !== undefined) ticket.priority = patch.priority;
+  if (patch.assignee !== undefined) ticket.assignee = patch.assignee;
+  if (patch.labels !== undefined) ticket.labels = patch.labels;
+  if (patch.dueDate !== undefined) ticket.dueDate = patch.dueDate;
+}

@@ -152,6 +152,23 @@ async function installVaultKey(device: DeviceIdentity): Promise<void> {
 }
 
 /**
+ * Attempt to join a vault via member self-registration (issue #14). Installs
+ * the vault key and marks the session ready when successful. Returns `true` if
+ * the device is now ready, `false` if it still needs the pairing flow.
+ * Background flag controls whether to schedule the member reconcile.
+ */
+async function tryMemberJoin(
+  device: DeviceIdentity,
+  background: boolean,
+): Promise<boolean> {
+  if (!(await tryMemberSelfRegister(device))) return false;
+  await installVaultKey(device);
+  useCryptoStore.getState().setPhase("ready");
+  if (!background) scheduleReconcile(device);
+  return true;
+}
+
+/**
  * One bootstrap pass. `background` = SWR pass 2 (network revalidation): don't
  * flash "checking", don't re-schedule the member reconcile, and swallow errors
  * (a failed revalidation just leaves the last-known state until next launch).
@@ -191,12 +208,7 @@ async function runBootstrap(background: boolean): Promise<void> {
       // self-register (issue #14) and skip pairing entirely.
       const fresh = await createDeviceIdentity();
       store.setDevice(fresh);
-      if (await tryMemberSelfRegister(fresh)) {
-        await installVaultKey(fresh);
-        store.setPhase("ready");
-        if (!background) scheduleReconcile(fresh);
-        return;
-      }
+      if (await tryMemberJoin(fresh, background)) return;
       store.setPhase("needs-pair");
       return;
     }
@@ -206,12 +218,7 @@ async function runBootstrap(background: boolean): Promise<void> {
     if (!known) {
       store.setDevice(existing);
       // A member's existing device that isn't in *this* vault yet self-joins.
-      if (await tryMemberSelfRegister(existing)) {
-        await installVaultKey(existing);
-        store.setPhase("ready");
-        if (!background) scheduleReconcile(existing);
-        return;
-      }
+      if (await tryMemberJoin(existing, background)) return;
       store.setPhase("needs-pair");
       return;
     }

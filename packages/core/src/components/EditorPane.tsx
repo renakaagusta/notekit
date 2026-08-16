@@ -4,6 +4,7 @@ import { parseInk, serializeInk } from "../lib/ink";
 import { journalYMDFromPath } from "../lib/journal";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";
+import type { PaneLeaf } from "../stores/layoutStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
@@ -33,7 +34,228 @@ interface EditorPaneProps {
   onHistoryClick: () => void;
 }
 
-// eslint-disable-next-line max-lines-per-function, complexity -- large React component; complex dispatch over multiple tab types, content modes, and panel states
+interface EditorBinding {
+  key: string;
+  body: string;
+  onChange: (v: string) => void;
+}
+
+interface PaneContentProps {
+  pane: PaneLeaf;
+  paneId: string;
+  editorRef: React.RefObject<EditorHandle>;
+  editorBinding: EditorBinding | null;
+  isInkNote: boolean;
+  activeNoteId: string | null;
+  vimMode: boolean;
+  onHistoryClick: () => void;
+  zenMode: boolean;
+  onZenToggle: () => void;
+  onVimToggle: () => void;
+  activeSettings: ReturnType<typeof useVaultStore.getState>["activeSettings"];
+  upsert: ReturnType<typeof useNotesStore.getState>["upsert"];
+  openNote: ReturnType<typeof useLayoutStore.getState>["openNote"];
+  closeTab: ReturnType<typeof useLayoutStore.getState>["closeTab"];
+  setTicketStatus: ReturnType<typeof useTicketsStore.getState>["setStatus"];
+  updateBody: ReturnType<typeof useNotesStore.getState>["updateBody"];
+}
+
+function PaneContent({
+  pane,
+  paneId,
+  editorRef,
+  editorBinding,
+  isInkNote,
+  activeNoteId,
+  vimMode,
+  onHistoryClick,
+  zenMode,
+  onZenToggle,
+  onVimToggle,
+  activeSettings,
+  upsert,
+  openNote,
+  closeTab,
+  setTicketStatus,
+  updateBody,
+}: PaneContentProps) {
+  const activeTab = pane.activeTab;
+
+  function handleNewNote() {
+    const folder = activeSettings?.defaultFolder ?? null;
+    const created = upsert({ title: "Untitled", body: "", folder });
+    openNote(created.id, paneId);
+  }
+
+  return (
+    <div className="nk-editor-col">
+      {editorBinding && !isInkNote && (
+        <EditorToolbar
+          getEditor={() => editorRef.current?.editor ?? null}
+          onHistoryClick={onHistoryClick}
+          zenMode={zenMode}
+          onZenToggle={onZenToggle}
+          vimMode={vimMode}
+          onVimToggle={onVimToggle}
+        />
+      )}
+      <div className="nk-editor-wrap">
+        <div className="nk-editor-main">
+          <PaneMainContent
+            paneId={paneId}
+            editorRef={editorRef}
+            editorBinding={editorBinding}
+            isInkNote={isInkNote}
+            activeNoteId={activeNoteId}
+            activeTab={activeTab}
+            vimMode={vimMode}
+            activeSettings={activeSettings}
+            upsert={upsert}
+            openNote={openNote}
+            closeTab={closeTab}
+            setTicketStatus={setTicketStatus}
+            updateBody={updateBody}
+            onNewNote={handleNewNote}
+          />
+        </div>
+      </div>{/* nk-editor-wrap */}
+    </div>
+  );
+}
+
+interface PaneMainContentProps {
+  paneId: string;
+  editorRef: React.RefObject<EditorHandle>;
+  editorBinding: EditorBinding | null;
+  isInkNote: boolean;
+  activeNoteId: string | null;
+  activeTab: PaneLeaf["activeTab"];
+  vimMode: boolean;
+  activeSettings: ReturnType<typeof useVaultStore.getState>["activeSettings"];
+  upsert: ReturnType<typeof useNotesStore.getState>["upsert"];
+  openNote: ReturnType<typeof useLayoutStore.getState>["openNote"];
+  closeTab: ReturnType<typeof useLayoutStore.getState>["closeTab"];
+  setTicketStatus: ReturnType<typeof useTicketsStore.getState>["setStatus"];
+  updateBody: ReturnType<typeof useNotesStore.getState>["updateBody"];
+  onNewNote: () => void;
+}
+
+// eslint-disable-next-line max-lines-per-function, complexity -- dispatches over all tab/content types (ink, md, graph, tasks, link, secret, folder, vault, notFound, home); each branch is a single render leaf with no safe further reduction
+function PaneMainContent({
+  paneId,
+  editorRef,
+  editorBinding,
+  isInkNote,
+  activeNoteId,
+  activeTab,
+  vimMode,
+  activeSettings,
+  upsert,
+  openNote,
+  closeTab,
+  setTicketStatus,
+  updateBody,
+  onNewNote,
+}: PaneMainContentProps) {
+  if (editorBinding && isInkNote && activeNoteId) {
+    return (
+      <div className="nk-ink-wrap">
+        <InkCanvas
+          key={editorBinding.key}
+          doc={parseInk(editorBinding.body)}
+          onChange={(d) => updateBody(activeNoteId, serializeInk(d))}
+        />
+      </div>
+    );
+  }
+
+  if (editorBinding) {
+    return (
+      <Editor
+        key={editorBinding.key}
+        ref={editorRef}
+        value={editorBinding.body}
+        onChange={editorBinding.onChange}
+        vimMode={vimMode}
+      />
+    );
+  }
+
+  if (activeTab?.type === "graph") return <GraphView />;
+
+  if (activeTab?.type === "tasks") return <TasksView focusTicket={null} />;
+
+  if (activeTab?.type === "link") {
+    return (
+      <LinkDetail
+        linkId={activeTab.id}
+        onClose={() => closeTab(activeTab, paneId)}
+      />
+    );
+  }
+
+  if (activeTab?.type === "secret") {
+    return (
+      <SecretDetail
+        vault={activeTab.vault}
+        name={activeTab.name}
+        onClose={() => closeTab(activeTab, paneId)}
+      />
+    );
+  }
+
+  if (activeTab?.type === "folder") {
+    return <FolderDetail path={activeTab.path} paneId={paneId} />;
+  }
+
+  if (activeTab?.type === "linkfolder") {
+    return <LinkFolderDetail path={activeTab.path} paneId={paneId} />;
+  }
+
+  if (activeTab?.type === "vault") {
+    return <VaultDetail slug={activeTab.slug} label={activeTab.label} paneId={paneId} />;
+  }
+
+  if (activeNoteId) {
+    return (
+      <div className="nk-empty nk-empty--center">
+        <FileText
+          size={36}
+          aria-hidden
+          style={{ color: "var(--muted)", opacity: 0.4, marginBottom: 14 }}
+        />
+        <p>Note not found.</p>
+        <p className="nk-empty-hint">This note may still be syncing.</p>
+        <div className="nk-empty-cta-row">
+          {/* eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- activeNoteId is truthy so activeTab is set */}
+          <button className="nk-empty-cta" onClick={() => closeTab(activeTab!, paneId)}>
+            <X size={14} aria-hidden /> Close tab
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <HomePane
+      onNewNote={onNewNote}
+      onNewDrawing={() => {
+        const folder = activeSettings?.defaultFolder ?? null;
+        const created = upsert({
+          title: "Drawing",
+          body: serializeInk(emptyInkDocument()),
+          folder,
+          format: "ink",
+        });
+        openNote(created.id, paneId);
+      }}
+      onOpenNote={(id) => openNote(id, paneId)}
+      onToggleTicket={(id) => setTicketStatus(id, "done")}
+    />
+  );
+}
+
+// eslint-disable-next-line max-lines-per-function, complexity, sonarjs/cognitive-complexity -- root pane shell: hooks, drag resize, editorBinding, and panel routing all live here; cannot split without breaking hook order
 export function EditorPane({
   paneId,
   zenMode,
@@ -121,7 +343,7 @@ export function EditorPane({
   // Draft journal belongs to the focused pane when no tab is active there
   const showDraft = isActive && !activeNoteId && !!draftJournal;
 
-  const editorBinding = showDraft
+  const editorBinding: EditorBinding | null = showDraft
     ? {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- showDraft guarantees draftJournal is non-null
         key: `journal-${draftJournal!.date}`,
@@ -147,12 +369,6 @@ export function EditorPane({
     if (!isActive) setActivePaneId(paneId);
   }
 
-  function handleNewNote() {
-    const folder = activeSettings?.defaultFolder ?? null;
-    const created = upsert({ title: "Untitled", body: "", folder });
-    openNote(created.id, paneId);
-  }
-
   return (
     <div
       className={`nk-pane${isActive ? " nk-pane--active" : ""}`}
@@ -165,7 +381,11 @@ export function EditorPane({
         canClose={canClose}
         onActivateTab={(tab) => activateTab(tab, paneId)}
         onCloseTab={(tab) => closeTab(tab, paneId)}
-        onNewTab={handleNewNote}
+        onNewTab={() => {
+          const folder = activeSettings?.defaultFolder ?? null;
+          const created = upsert({ title: "Untitled", body: "", folder });
+          openNote(created.id, paneId);
+        }}
         onSplitH={() => splitPane(paneId, "horizontal")}
         onSplitV={() => splitPane(paneId, "vertical")}
         onClosePane={() => closePane(paneId)}
@@ -175,92 +395,25 @@ export function EditorPane({
       />
 
       <div className={`nk-pane-body${(outlineOpen || infoPanelOpen) && editorBinding && !isInkNote ? " nk-pane-body--with-panel" : ""}`}>
-        <div className="nk-editor-col">
-          {editorBinding && !isInkNote && (
-            <EditorToolbar
-              getEditor={() => editorRef.current?.editor ?? null}
-              onHistoryClick={onHistoryClick}
-              zenMode={zenMode}
-              onZenToggle={onZenToggle}
-              vimMode={vimMode}
-              onVimToggle={onVimToggle}
-            />
-          )}
-          <div className="nk-editor-wrap">
-            <div className="nk-editor-main">
-              {editorBinding && isInkNote && activeNoteId ? (
-                <div className="nk-ink-wrap">
-                  <InkCanvas
-                    key={editorBinding.key}
-                    doc={parseInk(editorBinding.body)}
-                    onChange={(d) => updateBody(activeNoteId, serializeInk(d))}
-                  />
-                </div>
-              ) : editorBinding ? (
-                <Editor
-                  key={editorBinding.key}
-                  ref={editorRef}
-                  value={editorBinding.body}
-                  onChange={editorBinding.onChange}
-                  vimMode={vimMode}
-                />
-              ) : activeTab?.type === "graph" ? (
-                <GraphView />
-              ) : activeTab?.type === "tasks" ? (
-                <TasksView focusTicket={null} />
-              ) : activeTab?.type === "link" ? (
-                <LinkDetail
-                  linkId={activeTab.id}
-                  onClose={() => closeTab(activeTab, paneId)}
-                />
-              ) : activeTab?.type === "secret" ? (
-                <SecretDetail
-                  vault={activeTab.vault}
-                  name={activeTab.name}
-                  onClose={() => closeTab(activeTab, paneId)}
-                />
-              ) : activeTab?.type === "folder" ? (
-                <FolderDetail path={activeTab.path} paneId={paneId} />
-              ) : activeTab?.type === "linkfolder" ? (
-                <LinkFolderDetail path={activeTab.path} paneId={paneId} />
-              ) : activeTab?.type === "vault" ? (
-                <VaultDetail slug={activeTab.slug} label={activeTab.label} paneId={paneId} />
-              ) : activeNoteId ? (
-                <div className="nk-empty nk-empty--center">
-                  <FileText
-                    size={36}
-                    aria-hidden
-                    style={{ color: "var(--muted)", opacity: 0.4, marginBottom: 14 }}
-                  />
-                  <p>Note not found.</p>
-                  <p className="nk-empty-hint">This note may still be syncing.</p>
-                  <div className="nk-empty-cta-row">
-                    {/* eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- activeNoteId is truthy so activeTab is set */}
-                    <button className="nk-empty-cta" onClick={() => closeTab(activeTab!, paneId)}>
-                      <X size={14} aria-hidden /> Close tab
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <HomePane
-                  onNewNote={handleNewNote}
-                  onNewDrawing={() => {
-                    const folder = activeSettings?.defaultFolder ?? null;
-                    const created = upsert({
-                      title: "Drawing",
-                      body: serializeInk(emptyInkDocument()),
-                      folder,
-                      format: "ink",
-                    });
-                    openNote(created.id, paneId);
-                  }}
-                  onOpenNote={(id) => openNote(id, paneId)}
-                  onToggleTicket={(id) => setTicketStatus(id, "done")}
-                />
-              )}
-            </div>
-          </div>{/* nk-editor-wrap */}
-        </div>{/* nk-editor-col */}
+        <PaneContent
+          pane={pane}
+          paneId={paneId}
+          editorRef={editorRef}
+          editorBinding={editorBinding}
+          isInkNote={isInkNote}
+          activeNoteId={activeNoteId}
+          vimMode={vimMode}
+          onHistoryClick={onHistoryClick}
+          zenMode={zenMode}
+          onZenToggle={onZenToggle}
+          onVimToggle={onVimToggle}
+          activeSettings={activeSettings}
+          upsert={upsert}
+          openNote={openNote}
+          closeTab={closeTab}
+          setTicketStatus={setTicketStatus}
+          updateBody={updateBody}
+        />
         {/* Right panels — full height, resizable */}
         {(outlineOpen || infoPanelOpen) && editorBinding && !isInkNote && (
           <div className="nk-right-panel" style={{ width: rightPanelWidth }}>
@@ -296,4 +449,3 @@ export function EditorPane({
     </div>
   );
 }
-

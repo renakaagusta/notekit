@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { DeviceIdentity } from "../lib/crypto/device-key";
 import { recoverySigningFromMnemonic } from "../lib/crypto/recovery";
 import type { RecoverySigningKey } from "../lib/crypto/recovery";
 import { loadStoredRecovery } from "../lib/crypto/recovery-store";
@@ -36,6 +37,33 @@ import { VaultApproveDevice } from "./VaultPairing";
  *    one-tap approval (no phrase); only admitting another *person* asks you
  *    to confirm their emoji safety number.
  */
+async function revokeDeviceWithRecovery(
+  deviceId: string,
+  device: DeviceIdentity,
+): Promise<void> {
+  try {
+    await removeDevice(deviceId, device);
+  } catch (e) {
+    if (!/recovery phrase/i.test((e as Error).message)) throw e;
+    const stored = await loadStoredRecovery();
+    let signing = stored?.mnemonic
+      ? await recoverySigningFromMnemonic(stored.mnemonic)
+      : null;
+    if (!signing) {
+      const phrase = window.prompt(
+        "Enter your 24-word recovery phrase to revoke a device (it re-signs the rotated keybox):",
+      );
+      signing = phrase?.trim()
+        ? await recoverySigningFromMnemonic(phrase.trim())
+        : null;
+    }
+    if (!signing) {
+      throw new Error("Your recovery phrase is needed to revoke a device.");
+    }
+    await removeDevice(deviceId, device, signing);
+  }
+}
+
 // eslint-disable-next-line max-lines-per-function -- React component that handles device listing, member management, revocation flows, and approval UI
 export function DevicesPanel() {
   const phase = useCryptoStore((s) => s.phase);
@@ -99,30 +127,9 @@ export function DevicesPanel() {
     setBusy(true);
     setError(null);
     try {
-      try {
-        // Legacy vaults revoke directly (no prompt). Envelope+signed vaults
-        // rotate the vault key, which must be re-signed by the recovery key —
-        // removeDevice throws asking for it, and we retry with the phrase.
-        await removeDevice(deviceId, device);
-      } catch (e) {
-        if (!/recovery phrase/i.test((e as Error).message)) throw e;
-        const stored = await loadStoredRecovery();
-        let signing = stored?.mnemonic
-          ? await recoverySigningFromMnemonic(stored.mnemonic)
-          : null;
-        if (!signing) {
-          const phrase = window.prompt(
-            "Enter your 24-word recovery phrase to revoke a device (it re-signs the rotated keybox):",
-          );
-          signing = phrase?.trim()
-            ? await recoverySigningFromMnemonic(phrase.trim())
-            : null;
-        }
-        if (!signing) {
-          throw new Error("Your recovery phrase is needed to revoke a device.");
-        }
-        await removeDevice(deviceId, device, signing);
-      }
+      // Legacy vaults revoke directly (no prompt). Envelope+signed vaults
+      // rotate the vault key — revokeDeviceWithRecovery handles the phrase prompt.
+      await revokeDeviceWithRecovery(deviceId, device);
       await refresh();
     } catch (e) {
       setError((e as Error).message);

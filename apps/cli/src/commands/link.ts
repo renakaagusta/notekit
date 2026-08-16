@@ -78,6 +78,22 @@ function shortFromId(id: string): string {
   return id.replace(/[^A-Za-z0-9]/g, "").slice(-6) || "x";
 }
 
+/** Quote a scalar value for our flat YAML subset. */
+function yamlString(v: string): string {
+  if (v === "") return '""';
+  if (/^[A-Za-z0-9 _\-.,/:]+$/.test(v)) return v;
+  return JSON.stringify(v);
+}
+
+/** Serialize one YAML field into one or more lines. */
+function yamlLines(k: string, v: unknown): string[] {
+  if (Array.isArray(v)) {
+    if (v.length === 0) return [`${k}: []`];
+    return [`${k}:`, ...v.map((item) => `  - ${yamlString(String(item))}`)];
+  }
+  return [`${k}: ${yamlString(String(v))}`];
+}
+
 /**
  * Serialize a SavedLink to Markdown with YAML frontmatter.
  * Mirrors `serializeLinkMarkdown` in apps/mcp/src/tools/links.ts and
@@ -94,31 +110,16 @@ function serializeLinkMarkdown(link: Omit<SavedLink, "path" | "encrypted">): str
     updatedAt: link.updatedAt,
   };
 
-  function yamlString(v: string): string {
-    if (v === "") return '""';
-    if (/^[A-Za-z0-9 _\-.,/:]+$/.test(v)) return v;
-    return JSON.stringify(v);
-  }
-
   const lines: string[] = ["---"];
   for (const [k, v] of Object.entries(fm)) {
     if (v === null || v === undefined) continue;
-    if (Array.isArray(v)) {
-      if (v.length === 0) lines.push(`${k}: []`);
-      else {
-        lines.push(`${k}:`);
-        for (const item of v) lines.push(`  - ${yamlString(String(item))}`);
-      }
-    } else {
-      lines.push(`${k}: ${yamlString(String(v))}`);
-    }
+    lines.push(...yamlLines(k, v));
   }
   lines.push("---");
 
-  const body =
-    link.description
-      ? `# ${link.title}\n\n${link.description}`
-      : `# ${link.title}`;
+  const body = link.description
+    ? `# ${link.title}\n\n${link.description}`
+    : `# ${link.title}`;
 
   return `${lines.join("\n")}\n${body}\n`;
 }
@@ -310,6 +311,58 @@ const listCmd = defineCommand({
   },
 });
 
+interface NewLinkFields {
+  id: string;
+  url: string;
+  displayTitle: string;
+  platform: string | null;
+  folder: string | null;
+  tags: string[];
+  now: string;
+}
+
+async function saveEncryptedLink(nk: NoteKitApi, fields: NewLinkFields): Promise<void> {
+  const identity = await requireVaultIdentity();
+  const link: SavedLink = {
+    id: fields.id,
+    path: `${LINKS_DIR}/${fields.id}.md.age`,
+    url: fields.url,
+    title: fields.displayTitle,
+    description: null,
+    platform: fields.platform,
+    folder: fields.folder,
+    tags: fields.tags,
+    createdAt: fields.now,
+    updatedAt: fields.now,
+  };
+  const recipients = await recipientsFor(identity);
+  const sealed = await serializeEncryptedLink(link, recipients);
+  await nk.vault.writeFile(link.path, sealed, `link: save ${fields.id}`);
+  process.stdout.write(`${kleur.green("saved (encrypted)")} ${link.path}\n`);
+}
+
+async function savePlaintextLink(nk: NoteKitApi, fields: NewLinkFields): Promise<void> {
+  const slug = `${slugify(fields.displayTitle)}--${shortFromId(fields.id)}`;
+  const folderSegment = fields.folder ? `${fields.folder}/` : "";
+  const targetPath = `${LINKS_DIR}/${folderSegment}${slug}.md`;
+
+  const link: Omit<SavedLink, "path" | "encrypted"> = {
+    id: fields.id,
+    url: fields.url,
+    title: fields.displayTitle,
+    description: null,
+    platform: fields.platform,
+    folder: fields.folder,
+    tags: fields.tags,
+    createdAt: fields.now,
+    updatedAt: fields.now,
+  };
+
+  const content = serializeLinkMarkdown(link);
+  await nk.vault.writeFile(targetPath, content, `link: save ${fields.displayTitle}`);
+  process.stdout.write(`${kleur.green("saved")} ${targetPath}\n`);
+}
+
 const addCmd = defineCommand({
   meta: { name: "add", description: "Save a URL to the vault." },
   args: {
@@ -322,57 +375,21 @@ const addCmd = defineCommand({
     try {
       const nk = await getSecretsClient({ requireAuth: true });
 
-      const url = String(args.url);
-      const displayTitle = (args.title ? String(args.title).trim() : "") || titleFromUrl(url);
-      const platform = detectPlatform(url);
-      const id = generateLinkId();
-      const now = new Date().toISOString();
-      const tags = args.tag
-        ? String(args.tag).split(",").map((t) => t.trim()).filter(Boolean)
-        : [];
-      const folder = args.folder ? String(args.folder).trim() || null : null;
-
-      // E2EE vault → seal the link as <id>.md.age for the whole vault audience.
-      if (await vaultIsEncrypted()) {
-        const identity = await requireVaultIdentity();
-        const link: SavedLink = {
-          id,
-          path: `${LINKS_DIR}/${id}.md.age`,
-          url,
-          title: displayTitle,
-          description: null,
-          platform,
-          folder,
-          tags,
-          createdAt: now,
-          updatedAt: now,
-        };
-        const recipients = await recipientsFor(identity);
-        const sealed = await serializeEncryptedLink(link, recipients);
-        await nk.vault.writeFile(link.path, sealed, `link: save ${id}`);
-        process.stdout.write(`${kleur.green("saved (encrypted)")} ${link.path}\n`);
-        return;
-      }
-
-      const slug = `${slugify(displayTitle)}--${shortFromId(id)}`;
-      const folderSegment = folder ? `${folder}/` : "";
-      const targetPath = `${LINKS_DIR}/${folderSegment}${slug}.md`;
-
-      const link: Omit<SavedLink, "path" | "encrypted"> = {
-        id,
-        url,
-        title: displayTitle,
-        description: null,
-        platform,
-        folder,
-        tags,
-        createdAt: now,
-        updatedAt: now,
+      const fields: NewLinkFields = {
+        id: generateLinkId(),
+        url: String(args.url),
+        displayTitle: (args.title ? String(args.title).trim() : "") || titleFromUrl(String(args.url)),
+        platform: detectPlatform(String(args.url)),
+        folder: args.folder ? String(args.folder).trim() || null : null,
+        tags: args.tag ? String(args.tag).split(",").map((t) => t.trim()).filter(Boolean) : [],
+        now: new Date().toISOString(),
       };
 
-      const content = serializeLinkMarkdown(link);
-      await nk.vault.writeFile(targetPath, content, `link: save ${displayTitle}`);
-      process.stdout.write(`${kleur.green("saved")} ${targetPath}\n`);
+      if (await vaultIsEncrypted()) {
+        await saveEncryptedLink(nk, fields);
+      } else {
+        await savePlaintextLink(nk, fields);
+      }
     } catch (err) {
       dieWithError(err);
     }

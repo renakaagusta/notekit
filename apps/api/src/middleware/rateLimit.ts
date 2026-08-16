@@ -85,6 +85,25 @@ export function rateLimit(opts: RateLimitOptions): MiddlewareHandler {
   };
 }
 
+/**
+ * Consume one unit of a rate-limit bucket imperatively (outside middleware).
+ * Use when only *some* code paths should count against the budget — e.g. an
+ * idempotent endpoint that should only rate-limit the expensive create path,
+ * not cheap "already done" returns. Returns a 429 Response when over budget,
+ * or null when the request may proceed.
+ */
+export async function tryConsume(
+  c: Context,
+  opts: RateLimitOptions,
+): Promise<Response | null> {
+  const principal = await principalId(c);
+  const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+  const key = principal ? `${principal}:${opts.bucket}` : `ip:${ip}:${opts.bucket}`;
+  const r = await check(key, opts.windowMs, opts.max);
+  if (!r.allowed) return rateLimitedResponse(c, opts, r);
+  return null;
+}
+
 function rateLimitedResponse(
   c: Context,
   opts: RateLimitOptions,

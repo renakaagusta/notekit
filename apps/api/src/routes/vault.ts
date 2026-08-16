@@ -13,7 +13,7 @@ import { getCurrentUser } from "../auth/sessions";
 import { getActingAgent } from "../auth/agentAuth";
 import { getVaultToken, type GitProvider } from "../vault/tokens";
 import { sanitizeVaultPath, VaultPathError } from "../vault/path-sanitize";
-import { provisionForgejoAccount } from "../vault/forgejoAccounts";
+import { provisionForgejoAccount, getForgejoAccount } from "../vault/forgejoAccounts";
 import { checkWriteAllowed, refreshUsedBytesIfStale } from "../vault/quota";
 import {
   parseBody,
@@ -30,7 +30,7 @@ import {
   GithubUsername,
   CollaboratorPermissionEnum,
 } from "../validation";
-import { rateLimit } from "../middleware/rateLimit";
+import { rateLimit, tryConsume } from "../middleware/rateLimit";
 import * as gh from "../vault/github";
 import * as fj from "../vault/forgejo";
 import * as gl from "../vault/gitlab";
@@ -92,15 +92,17 @@ const importLimit = rateLimit({
   windowMs: 60 * 60_000, // 1 hour
   max: 5,
 });
-// Auto-provisioning creates a real Forgejo user + repo on our infra, so the
-// limit is strict: a single user shouldn't need more than one provision
-// attempt per hour under normal use, and a hard daily cap stops abuse from
-// turning a free signup into a free file host.
-const provisionLimit = rateLimit({
+// Creating a real Forgejo user on our infra is the thing worth guarding against
+// abuse — NOT the idempotent "is my account ready?" check the Add-vault dialog
+// fires on every open. So this budget is consumed imperatively (tryConsume)
+// ONLY on the genuine account-creation path; already-provisioned users return
+// early and never touch it. A generous cap absorbs retries during real
+// creation while still stopping a signup from becoming a free file-host farm.
+const provisionCreateLimit = {
   bucket: "vault-provision",
   windowMs: 60 * 60_000, // 1 hour
-  max: 3,
-});
+  max: 10,
+};
 
 export const vaultRoutes = new Hono();
 
@@ -1584,12 +1586,26 @@ vaultRoutes.post("/github-app/create", vaultMutationLimit, async (c) => {
  * POST /vault/notekit/provision — create (or retrieve) the user's Forgejo
  * account. Idempotent. Requires FORGEJO_ADMIN_TOKEN to be set on the server.
  */
-vaultRoutes.post("/notekit/provision", provisionLimit, async (c) => {
+vaultRoutes.post("/notekit/provision", async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   if (!env.forgejo.adminToken) {
     return c.json({ error: "forgejo_not_configured" }, 503);
   }
+  // Fast path: the account already exists. The dialog re-fires this on every
+  // open, so returning early here (before any rate-limit) is what keeps normal
+  // use from ever hitting a 429.
+  const existing = await getForgejoAccount(user.id);
+  if (existing) {
+    return c.json({
+      ok: true,
+      username: existing.username,
+      gitUrl: env.forgejo.url ?? null,
+    });
+  }
+  // First-time creation only — this is the path worth budgeting.
+  const limited = await tryConsume(c, provisionCreateLimit);
+  if (limited) return limited;
   try {
     const account = await provisionForgejoAccount(
       user.id,

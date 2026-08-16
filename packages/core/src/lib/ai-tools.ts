@@ -106,6 +106,8 @@ export function describeToolCall(toolName: string, input: unknown): string {
       return `Membuat "${String(inp.title ?? "")}"`;
     case "update_note":
       return `Mengubah "${titleById(inp.id)}"`;
+    case "move_note":
+      return `Memindahkan "${titleById(inp.id)}" → ${inp.folder ? String(inp.folder) : "(root)"}`;
     case "delete_note":
       return `Menghapus "${titleById(inp.id)}"`;
     default:
@@ -347,6 +349,25 @@ export function buildAssistantTools(
         if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
         useNotesStore.getState().updateBody(id, body);
         return { ok: true as const };
+      },
+    }),
+    move_note: tool({
+      description:
+        "Pindahkan catatan ke sebuah folder (ubah folder-nya; id & isi tetap). " +
+        "folder boleh bertingkat, mis. \"Trading/Teknikal\". Kirim null atau string kosong untuk memindahkan ke root. Minta persetujuan dulu.",
+      inputSchema: z.object({ id: z.string(), folder: z.string().nullable() }),
+      execute: async ({ id, folder }) => {
+        const n = useNotesStore.getState().notes[id];
+        if (!n) return { ok: false as const, reason: "not_found" };
+        const dest = folder && folder.trim() ? folder.trim() : null;
+        const ok = await ctx.requestApproval(
+          "move_note",
+          `Pindahkan “${noteTitle(n)}” ke ${dest ?? "(root)"}`,
+          { id, folder: dest },
+        );
+        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        useNotesStore.getState().setFolder(id, dest);
+        return { ok: true as const, folder: dest };
       },
     }),
     delete_note: tool({

@@ -254,6 +254,72 @@ const editCmd = defineCommand({
   },
 });
 
+const mvCmd = defineCommand({
+  meta: {
+    name: "mv",
+    description: "Move a note into a folder (updates its folder, keeps the id). Empty or '/' = root.",
+  },
+  args: {
+    idOrPath: { type: "positional", description: "Note id or vault path.", required: true },
+    folder: {
+      type: "positional",
+      description: "Target folder path (e.g. Trading/Teknikal). Empty or '/' = root.",
+      required: true,
+    },
+  },
+  async run({ args }) {
+    try {
+      const nk = await getSecretsClient({ requireAuth: true });
+      const path = await resolveNotePath(nk, String(args.idOrPath));
+      const file = await nk.vault.readFile(path);
+      const encrypted = isEncrypted(path);
+      // Normalise: trim, strip leading/trailing slashes; empty or "/" clears it.
+      const raw = String(args.folder).trim().replace(/^\/+|\/+$/g, "");
+      const folder = raw === "" ? null : raw;
+      const now = new Date().toISOString();
+      const dest = folder ?? "(root)";
+
+      // E2EE note: folder lives inside the sealed payload, so decrypt → set
+      // folder → re-seal for the whole vault audience. The path is unchanged.
+      if (encrypted) {
+        const note = file.content ? await decryptNote(path, file.content) : null;
+        if (!note) throw new Error(`couldn't decrypt ${path}`);
+        const updated: Note = { ...note, folder, updatedAt: now };
+        const sealed = await encryptNote(updated);
+        await nk.vault.writeFile(
+          path,
+          sealed,
+          `note: move ${note.id} -> ${dest}`,
+          file.sha ?? undefined,
+        );
+        process.stdout.write(`${kleur.green("moved (encrypted)")} ${note.title} ${kleur.dim("->")} ${dest}\n`);
+        return;
+      }
+
+      // Plaintext note: folder is a frontmatter field.
+      const { data, body } = parseFrontmatter(file.content ?? "");
+      if (folder === null) delete data.folder;
+      else data.folder = folder;
+      data.updatedAt = now;
+      const content = stringifyFrontmatter(data, body);
+      await nk.vault.writeFile(
+        path,
+        content,
+        `note: move ${data.id ?? path} -> ${dest}`,
+        file.sha ?? undefined,
+      );
+      await updateIndex(nk, (idx) => {
+        const found = idx.notes.find((n) => n.path === path);
+        if (found) found.updatedAt = now;
+        return idx;
+      });
+      process.stdout.write(`${kleur.green("moved")} ${String(data.title ?? path)} ${kleur.dim("->")} ${dest}\n`);
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
 const rmCmd = defineCommand({
   meta: { name: "rm", description: "Delete a note." },
   args: {
@@ -345,6 +411,7 @@ export const noteCommand = defineCommand({
     list: listCmd,
     read: readCmd,
     edit: editCmd,
+    mv: mvCmd,
     rm: rmCmd,
     search: searchCmd,
   },

@@ -280,7 +280,8 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
     {
       title: "Update note",
       description:
-        "Update an existing note. Merges the provided frontmatter into the existing frontmatter (use `null` to clear a field) and replaces the body if `body` is provided. Use when the user wants to edit, append to, or retag a note.",
+        "Update an existing note. Merges the provided frontmatter into the existing frontmatter (use `null` to clear a field) and replaces the body if `body` is provided. Use when the user wants to edit, append to, or retag a note. " +
+        "TO MOVE A NOTE INTO A FOLDER (the sidebar folder shown in the app), pass `frontmatterPatch: { folder: \"Trading/Teknikal\" }` (or `null` for root) — this works for encrypted notes too, and is the correct way to group/organize notes. `notes_move` is different: it renames the file PATH and does not work on encrypted notes.",
       inputSchema: {
         path: z.string().min(1).describe("Vault-relative path of the note to update."),
         body: z.string().optional().describe("New full Markdown body (replaces existing body)."),

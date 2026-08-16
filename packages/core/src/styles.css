@@ -5085,11 +5085,17 @@ a.nk-commit-sha:hover {
   box-shadow: 0 0 0 1px var(--nk-accent, #60a5fa);
 }
 
-/* Sub-tabs live inside the modal body (existing vs new). */
+/* Sub-tabs live inside the modal body (existing vs new). Styled as a
+   segmented control so the *inactive* segment still reads as a tab: the whole
+   bar sits on a filled track, and the active segment lifts above it. */
 .nk-modal-tabs--sub {
-  padding: 0;
+  padding: 3px;
+  gap: 3px;
   margin-bottom: 12px;
   border-bottom: none;
+  background: var(--surface-2);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--r-md);
 }
 
 .nk-modal-tabs button:hover {
@@ -5101,6 +5107,27 @@ a.nk-commit-sha:hover {
   color: var(--text);
   background: var(--surface-2);
   border-color: var(--border-soft);
+}
+
+/* Segmented-control segments: transparent on the track, active one lifts. */
+.nk-modal-tabs--sub button {
+  font-weight: 500;
+  border-color: transparent;
+  transition: background 0.12s, color 0.12s, box-shadow 0.12s;
+}
+
+.nk-modal-tabs--sub button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.nk-modal-tabs--sub button.active {
+  color: var(--text);
+  background: var(--surface);
+  border-color: transparent;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.08),
+    0 0 0 1px var(--border-soft);
 }
 
 .nk-modal-body {

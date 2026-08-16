@@ -125,9 +125,9 @@ describe("createMcpServer — tool inventory", () => {
       expect(names).toContain("notes_read");
       expect(names).toContain("notes_create");
       expect(names).toContain("notes_update");
-      expect(names).toContain("tickets_list");
-      expect(names).toContain("tickets_create");
-      expect(names).toContain("tickets_update");
+      expect(names).toContain("tasks_list");
+      expect(names).toContain("tasks_create");
+      expect(names).toContain("tasks_update");
       expect(names).toContain("project_list");
       expect(names).toContain("project_current");
       expect(names).toContain("project_create");
@@ -135,7 +135,7 @@ describe("createMcpServer — tool inventory", () => {
       expect(names).toContain("notes_delete");
       expect(names).toContain("notes_move");
       expect(names).toContain("notes_append");
-      expect(names).toContain("tickets_delete");
+      expect(names).toContain("tasks_delete");
       expect(names).toContain("inbox_append");
       expect(names).toContain("links_list");
       expect(names).toContain("links_create");
@@ -155,7 +155,7 @@ describe("createMcpServer — tool inventory", () => {
       const names = list.prompts.map((p) => p.name).sort();
       expect(names).toContain("notekit:daily");
       expect(names).toContain("notekit:capture");
-      expect(names).toContain("notekit:ticket-triage");
+      expect(names).toContain("notekit:task-triage");
     } finally {
       await client.close();
       await server.close();
@@ -169,7 +169,7 @@ describe("createMcpServer — tool inventory", () => {
       const byName = new Map(list.tools.map((t) => [t.name, t]));
       expect(byName.get("notes_search")?.annotations?.readOnlyHint).toBe(true);
       expect(byName.get("notes_delete")?.annotations?.destructiveHint).toBe(true);
-      expect(byName.get("tickets_delete")?.annotations?.destructiveHint).toBe(true);
+      expect(byName.get("tasks_delete")?.annotations?.destructiveHint).toBe(true);
       expect(byName.get("recent_activity")?.annotations?.readOnlyHint).toBe(true);
       expect(byName.get("vault_grep")?.annotations?.readOnlyHint).toBe(true);
       expect(byName.get("list_directory")?.annotations?.readOnlyHint).toBe(true);

@@ -21,12 +21,13 @@ const main = defineCommand({
   meta: {
     name: "notekit",
     version: "0.4.0",
-    description: "NoteKit CLI — notes, tickets, and vaults in your terminal.",
+    description: "NoteKit CLI — notes, tasks, and vaults in your terminal.",
   },
   subCommands: {
     auth: authCommand,
     note: noteCommand,
-    ticket: ticketCommand,
+    task: ticketCommand,
+    ticket: ticketCommand, // backward-compatible alias
     link: linkCommand,
     vault: vaultCommand,
     secret: secretCommand,

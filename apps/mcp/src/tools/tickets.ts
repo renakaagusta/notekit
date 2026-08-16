@@ -47,11 +47,11 @@ const projectSchema = z
 // eslint-disable-next-line max-lines-per-function -- registers multiple MCP tools; each tool handler is a self-contained unit and cannot be extracted without breaking the registration pattern
 export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(
-    "tickets_list",
+    "tasks_list",
     {
-      title: "List tickets",
+      title: "List tasks",
       description:
-        "List tickets in the active scope, optionally filtered by status, priority, or assignee. Returns a compact summary. Use this when the user asks 'what am I working on', 'show me open tickets', or before tickets_create to check for duplicates. Scope-aware (see `scope`).",
+        "List tasks in the active scope, optionally filtered by status, priority, or assignee. Returns a compact summary. Use this when the user asks 'what am I working on', 'show me open tasks', or before tasks_create to check for duplicates. Scope-aware (see `scope`).",
       inputSchema: {
         status: z.enum(STATUSES).optional().describe("Filter by ticket status."),
         priority: z.enum(PRIORITIES).optional().describe("Filter by priority."),
@@ -127,17 +127,17 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
           ...(encryptedSkippedNote(encryptedSkipped, "ticket") ?? {}),
         });
       } catch (err) {
-        return errorContent(`tickets_list failed: ${(err as Error).message}`);
+        return errorContent(`tasks_list failed: ${(err as Error).message}`);
       }
     },
   );
 
   server.registerTool(
-    "tickets_read",
+    "tasks_read",
     {
-      title: "Read ticket",
+      title: "Read task",
       description:
-        "Read the full contents of a ticket by vault-relative path (e.g. `tickets/fix-login-bug.md` or `projects/notekit/tickets/NK-42.md`). Returns frontmatter fields and the Markdown body. Use this after tickets_list, or when the user names a specific ticket.",
+        "Read the full contents of a task by vault-relative path (e.g. `tickets/fix-login-bug.md` or `projects/notekit/tickets/NK-42.md`). Returns frontmatter fields and the Markdown body. Use this after tasks_list, or when the user names a specific task.",
       inputSchema: {
         path: z
           .string()
@@ -152,7 +152,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         // Encrypted ticket → decrypt with NOTEKIT_RECOVERY_PHRASE (#49).
         if (file.content && isEncryptedItemPath(path)) {
           const ticket = await decryptTicket(path, file.content);
-          if (!ticket) return errorContent(`tickets_read: couldn't decrypt ${path}`);
+          if (!ticket) return errorContent(`tasks_read: couldn't decrypt ${path}`);
           return jsonContent({
             path,
             sha: file.sha,
@@ -177,17 +177,17 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
           body: parsed.body,
         });
       } catch (err) {
-        return errorContent(`tickets_read failed: ${(err as Error).message}`);
+        return errorContent(`tasks_read failed: ${(err as Error).message}`);
       }
     },
   );
 
   server.registerTool(
-    "tickets_create",
+    "tasks_create",
     {
-      title: "Create ticket",
+      title: "Create task",
       description:
-        "Create a new ticket. Default path is `<writePrefix><slugified-title>.md` (project-scoped folder if a `.notekit` marker is present). Defaults: status=`todo`, priority=`medium`.",
+        "Create a new task. Default path is `<writePrefix><slugified-title>.md` (project-scoped folder if a `.notekit` marker is present). Defaults: status=`todo`, priority=`medium`.",
       inputSchema: {
         title: z.string().min(1).describe("Ticket title."),
         body: z.string().optional().describe("Optional Markdown description."),
@@ -262,17 +262,17 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         );
         return textContent(`Created ticket at ${targetPath}`);
       } catch (err) {
-        return errorContent(`tickets_create failed: ${(err as Error).message}`);
+        return errorContent(`tasks_create failed: ${(err as Error).message}`);
       }
     },
   );
 
   server.registerTool(
-    "tickets_update",
+    "tasks_update",
     {
-      title: "Update ticket",
+      title: "Update task",
       description:
-        "Update a ticket's status, priority, assignee, labels, due date, or body. Use when the user moves a ticket between columns ('mark X done'), reassigns it, or edits the description.",
+        "Update a task's status, priority, assignee, labels, due date, or body. Use when the user moves a task between columns ('mark X done'), reassigns it, or edits the description.",
       inputSchema: {
         path: z.string().min(1).describe("Vault path of the ticket."),
         title: z.string().optional(),
@@ -293,7 +293,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         // Encrypted ticket → decrypt, patch, re-encrypt (#49).
         if (existing.content && isEncryptedItemPath(path)) {
           const ticket = await decryptTicket(path, existing.content);
-          if (!ticket) return errorContent(`tickets_update: couldn't decrypt ${path}`);
+          if (!ticket) return errorContent(`tasks_update: couldn't decrypt ${path}`);
           if (body !== undefined) ticket.body = body;
           if (patch.title !== undefined) ticket.title = patch.title;
           if (patch.status !== undefined) ticket.status = patch.status;
@@ -330,17 +330,17 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         );
         return textContent(`Updated ${path}`);
       } catch (err) {
-        return errorContent(`tickets_update failed: ${(err as Error).message}`);
+        return errorContent(`tasks_update failed: ${(err as Error).message}`);
       }
     },
   );
 
   server.registerTool(
-    "tickets_delete",
+    "tasks_delete",
     {
-      title: "Delete ticket",
+      title: "Delete task",
       description:
-        "Delete a ticket. The deletion is committed to Git — it stays in history. Use when the user wants to remove a ticket entirely (not just close it — for that, use `tickets_update` with `status: 'archived'`).",
+        "Delete a task. The deletion is committed to Git — it stays in history. Use when the user wants to remove a task entirely (not just close it — for that, use `tasks_update` with `status: 'archived'`).",
       inputSchema: {
         path: z.string().min(1).describe("Vault path of the ticket."),
         commitMessage: z.string().optional().describe("Git commit message."),
@@ -352,13 +352,13 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         const file = await nk.vault.readFile(path);
         if (!file.sha) {
           return errorContent(
-            `tickets_delete: ${path} has no SHA — refusing to delete to avoid surprises.`,
+            `tasks_delete: ${path} has no SHA — refusing to delete to avoid surprises.`,
           );
         }
         await nk.vault.deleteFile(path, file.sha, commitMessage ?? `notekit: delete ticket ${path}`);
         return textContent(`Deleted ${path}`);
       } catch (err) {
-        return errorContent(`tickets_delete failed: ${(err as Error).message}`);
+        return errorContent(`tasks_delete failed: ${(err as Error).message}`);
       }
     },
   );

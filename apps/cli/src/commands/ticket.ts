@@ -41,9 +41,9 @@ const STATUSES: TicketStatus[] = ["todo", "in_progress", "blocked", "done", "arc
 const PRIORITIES: TicketPriority[] = ["low", "medium", "high", "urgent"];
 
 const newCmd = defineCommand({
-  meta: { name: "new", description: "Create a new ticket." },
+  meta: { name: "new", description: "Create a new task." },
   args: {
-    title: { type: "positional", description: "Ticket title.", required: true },
+    title: { type: "positional", description: "Task title.", required: true },
     body: { type: "string", description: "Body text (skip the editor).", required: false },
     priority: { type: "string", description: "low|medium|high|urgent (default medium).", required: false },
     assignee: { type: "string", description: "Assignee ref, e.g. user:abc or agent:xyz.", required: false },
@@ -102,7 +102,7 @@ const newCmd = defineCommand({
 });
 
 const listCmd = defineCommand({
-  meta: { name: "list", description: "List tickets, optionally filtered by status." },
+  meta: { name: "list", description: "List tasks, optionally filtered by status." },
   args: {
     status: { type: "string", description: "Filter: todo|in_progress|blocked|done|archived.", required: false },
     all: { type: "boolean", description: "Include archived/done.", required: false },
@@ -127,7 +127,7 @@ const listCmd = defineCommand({
         rows = rows.filter((t) => t.status !== "done" && t.status !== "archived");
       }
       if (rows.length === 0) {
-        process.stdout.write(kleur.dim("(no tickets)\n"));
+        process.stdout.write(kleur.dim("(no tasks)\n"));
         return;
       }
       for (const t of rows) {
@@ -142,8 +142,8 @@ const listCmd = defineCommand({
 });
 
 const showCmd = defineCommand({
-  meta: { name: "show", description: "Show a ticket." },
-  args: { id: { type: "positional", description: "Ticket id or path.", required: true } },
+  meta: { name: "show", description: "Show a task." },
+  args: { id: { type: "positional", description: "Task id or path.", required: true } },
   async run({ args }) {
     try {
       const nk = await getSecretsClient({ requireAuth: true });
@@ -162,25 +162,25 @@ const showCmd = defineCommand({
 });
 
 const closeCmd = defineCommand({
-  meta: { name: "close", description: "Mark a ticket as done." },
-  args: { id: { type: "positional", description: "Ticket id or path.", required: true } },
+  meta: { name: "close", description: "Mark a task as done." },
+  args: { id: { type: "positional", description: "Task id or path.", required: true } },
   async run({ args }) {
     await transition(String(args.id), "done", "ticket: close");
   },
 });
 
 const reopenCmd = defineCommand({
-  meta: { name: "reopen", description: "Move a ticket back to todo." },
-  args: { id: { type: "positional", description: "Ticket id or path.", required: true } },
+  meta: { name: "reopen", description: "Move a task back to todo." },
+  args: { id: { type: "positional", description: "Task id or path.", required: true } },
   async run({ args }) {
     await transition(String(args.id), "todo", "ticket: reopen");
   },
 });
 
 const assignCmd = defineCommand({
-  meta: { name: "assign", description: "Set or clear the ticket assignee." },
+  meta: { name: "assign", description: "Set or clear the task assignee." },
   args: {
-    id: { type: "positional", description: "Ticket id or path.", required: true },
+    id: { type: "positional", description: "Task id or path.", required: true },
     assignee: { type: "positional", description: "Assignee ref (user:id, agent:id, or `none`).", required: true },
   },
   async run({ args }) {
@@ -207,9 +207,9 @@ const assignCmd = defineCommand({
 });
 
 const rmCmd = defineCommand({
-  meta: { name: "rm", description: "Delete a ticket." },
+  meta: { name: "rm", description: "Delete a task." },
   args: {
-    idOrPath: { type: "positional", description: "Ticket id or vault path.", required: true },
+    idOrPath: { type: "positional", description: "Task id or vault path.", required: true },
   },
   async run({ args }) {
     try {
@@ -235,7 +235,7 @@ const rmCmd = defineCommand({
 });
 
 export const ticketCommand = defineCommand({
-  meta: { name: "ticket", description: "Track work items as markdown tickets." },
+  meta: { name: "task", description: "Track work items as markdown tasks." },
   subCommands: {
     new: newCmd,
     list: listCmd,

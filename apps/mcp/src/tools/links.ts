@@ -17,8 +17,8 @@
 //
 //   <description>
 //
-// We keep encryption out of scope here — the MCP server can't see ciphertext,
-// so anything we'd save is plaintext by design.
+// E2EE vaults: links are stored as `links/<id>.md.age` (sealed with age).
+// The server reads NOTEKIT_RECOVERY_PHRASE to decrypt/re-encrypt on the fly.
 
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -34,6 +34,8 @@ import {
 import { parseMarkdown } from "../lib/markdown.js";
 import { resolveProjectContext } from "../lib/project.js";
 import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
+import { vaultIsEncrypted, encryptLink, decryptLink } from "../lib/crypto.js";
+import type { SavedLink } from "@notekit/core/types";
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 
@@ -59,7 +61,6 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
-    // eslint-disable-next-line complexity -- link list handler filters by multiple independent criteria (tag, folder, encryption, dedup)
     async ({ limit, tag, folder, scope, project }) => {
       try {
         const max = limit ?? 50;
@@ -69,40 +70,9 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
         const links: Record<string, unknown>[] = [];
         let encryptedSkipped = 0;
         for (const prefix of resolved.readPrefixes) {
-          const entries = await listVaultFiles(nk, prefix);
-          for (const entry of entries) {
-            if (!isUnderAnyPrefix(entry.path, [prefix])) continue;
-            if (seen.has(entry.path)) continue;
-            seen.add(entry.path);
-            if (isEncryptedItemPath(entry.path)) {
-              encryptedSkipped++;
-              continue;
-            }
-            if (!entry.path.endsWith(".md")) continue;
-            const file = await nk.vault.readFile(entry.path);
-            const parsed = parseMarkdown(file.content ?? "");
-            const fm = parsed.frontmatter;
-            if (typeof fm["url"] !== "string") continue;
-            const tags = Array.isArray(fm["tags"]) ? (fm["tags"] as unknown[]).map((t) => String(t)) : [];
-            if (tag && !tags.includes(tag)) continue;
-            const entryFolder = resolveLinkFolder(fm["folder"], entry.path, prefix);
-            if (folder !== undefined && !matchesFolderFilter(entryFolder, folder)) {
-              continue;
-            }
-            links.push({
-              path: entry.path,
-              id: String(fm["id"] ?? ""),
-              url: fm["url"],
-              title: extractTitle(parsed.body),
-              description: extractDescription(parsed.body),
-              platform: fm["platform"] ?? null,
-              folder: entryFolder,
-              tags,
-              createdAt: fm["createdAt"] ?? null,
-              updatedAt: fm["updatedAt"] ?? null,
-            });
-            if (links.length >= max) break;
-          }
+          const result = await collectLinksFromPrefix(nk, prefix, { tag, folder, max, seen });
+          encryptedSkipped += result.encryptedSkipped;
+          links.push(...result.links);
           if (links.length >= max) break;
         }
         return jsonContent({
@@ -143,14 +113,39 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
     },
     async ({ url, title, description, tags, folder, scope, project, commitMessage }) => {
       try {
-        const ctx = resolveProjectContext();
-        const resolved = resolveScope("links", { scope, project, ctx });
         const now = new Date().toISOString();
         const displayTitle = (title ?? titleFromUrl(url)).trim() || titleFromUrl(url);
         const platform = detectPlatform(url);
         const id = generateLinkId();
-        const slug = `${slugify(displayTitle)}--${shortFromId(id)}`;
         const cleanedFolder = sanitizeFolder(folder);
+
+        // Born-E2EE vault → seal the link as `links/<id>.md.age` (no slug/folder
+        // in the path; folder lives inside the ciphertext as private metadata).
+        if (await vaultIsEncrypted()) {
+          const linkObj: SavedLink = {
+            id,
+            path: `links/${id}.md.age`,
+            url,
+            title: displayTitle,
+            description: description ?? null,
+            platform,
+            tags: tags ?? [],
+            folder: cleanedFolder,
+            createdAt: now,
+            updatedAt: now,
+          };
+          const sealed = await encryptLink(linkObj);
+          await nk.vault.writeFile(
+            linkObj.path,
+            sealed,
+            commitMessage ?? `notekit: save ${displayTitle}`,
+          );
+          return textContent(`Saved ${url} → ${linkObj.path}`);
+        }
+
+        const ctx = resolveProjectContext();
+        const resolved = resolveScope("links", { scope, project, ctx });
+        const slug = `${slugify(displayTitle)}--${shortFromId(id)}`;
         const folderSegment = cleanedFolder ? `${cleanedFolder}/` : "";
         const targetPath = `${resolved.writePrefix}${folderSegment}${slug}.md`;
         const fm: Record<string, unknown> = {
@@ -206,14 +201,44 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false },
     },
+    // eslint-disable-next-line complexity -- update handler branches on E2EE path, encrypted link fields, and plaintext merge; unavoidable without losing context
     async ({ path, url, title, description, tags, folder, commitMessage }) => {
       try {
-        if (isEncryptedItemPath(path)) {
-          return errorContent(
-            `links_update: ${path} is end-to-end encrypted — edit on a device.`,
-          );
-        }
         const existing = await nk.vault.readFile(path);
+
+        // Encrypted link → decrypt, merge fields, re-encrypt (#49).
+        if (isEncryptedItemPath(path)) {
+          if (!existing.content) {
+            return errorContent(`links_update: ${path} is empty`);
+          }
+          const link = await decryptLink(path, existing.content);
+          if (!link) return errorContent(`links_update: couldn't decrypt ${path}`);
+          if (url !== undefined) {
+            link.url = url;
+            link.platform = detectPlatform(url);
+          }
+          if (title !== undefined) link.title = title;
+          if (description !== undefined) link.description = description;
+          if (tags !== undefined) link.tags = tags;
+          if (folder !== undefined) {
+            if (folder === null) {
+              link.folder = null;
+            } else {
+              const cleaned = sanitizeFolder(folder);
+              link.folder = cleaned;
+            }
+          }
+          link.updatedAt = new Date().toISOString();
+          const sealed = await encryptLink(link);
+          await nk.vault.writeFile(
+            path,
+            sealed,
+            commitMessage ?? `notekit: update link ${path}`,
+            existing.sha ?? undefined,
+          );
+          return textContent(`Updated ${path}`);
+        }
+
         const parsed = parseMarkdown(existing.content ?? "");
         const fm: Record<string, unknown> = { ...parsed.frontmatter };
 
@@ -224,7 +249,6 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
         if (tags !== undefined) fm["tags"] = tags;
         if (folder !== undefined) {
           if (folder === null) {
-            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing folder key when user requests root placement
             delete fm["folder"];
           } else {
             const cleaned = sanitizeFolder(folder);
@@ -291,6 +315,122 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
       }
     },
   );
+}
+
+interface CollectLinksOptions {
+  tag: string | undefined;
+  folder: string | undefined;
+  max: number;
+  seen: Set<string>;
+}
+
+interface CollectLinksResult {
+  links: Record<string, unknown>[];
+  encryptedSkipped: number;
+}
+
+/**
+ * Walk one read-prefix and collect matching link records up to `max`. Tracks
+ * already-seen paths via `seen` so duplicate entries across prefixes are
+ * deduplicated. Returns the collected links and a count of encrypted entries
+ * that were skipped because the vault was locked.
+ */
+async function collectLinksFromPrefix(
+  nk: NoteKitApi,
+  prefix: string,
+  { tag, folder, max, seen }: CollectLinksOptions,
+): Promise<CollectLinksResult> {
+  const links: Record<string, unknown>[] = [];
+  let encryptedSkipped = 0;
+  const entries = await listVaultFiles(nk, prefix);
+  for (const entry of entries) {
+    if (!isUnderAnyPrefix(entry.path, [prefix])) continue;
+    if (seen.has(entry.path)) continue;
+    seen.add(entry.path);
+    if (isEncryptedItemPath(entry.path)) {
+      const result = await readEncryptedLinkEntry(nk, entry.path, tag, folder);
+      if (!result) { encryptedSkipped++; continue; }
+      links.push(result);
+      if (links.length >= max) break;
+      continue;
+    }
+    if (!entry.path.endsWith(".md")) continue;
+    const record = await readPlaintextLinkEntry(nk, entry.path, prefix, tag, folder);
+    if (!record) continue;
+    links.push(record);
+    if (links.length >= max) break;
+  }
+  return { links, encryptedSkipped };
+}
+
+/**
+ * Read and decrypt a single encrypted link entry for the list handler.
+ * Returns the link record if decryption succeeded and filters pass, or
+ * null if the vault is locked or the entry does not match the filters.
+ */
+async function readEncryptedLinkEntry(
+  nk: NoteKitApi,
+  path: string,
+  tag: string | undefined,
+  folder: string | undefined,
+): Promise<Record<string, unknown> | null> {
+  let link: SavedLink | null = null;
+  try {
+    const file = await nk.vault.readFile(path);
+    link = file.content ? await decryptLink(path, file.content) : null;
+  } catch {
+    link = null;
+  }
+  if (!link) return null;
+  if (tag && !link.tags.includes(tag)) return null;
+  const entryFolder = link.folder ?? null;
+  if (folder !== undefined && !matchesFolderFilter(entryFolder, folder)) return null;
+  return {
+    path,
+    id: link.id,
+    url: link.url,
+    title: link.title,
+    description: link.description,
+    platform: link.platform,
+    folder: entryFolder,
+    tags: link.tags,
+    createdAt: link.createdAt,
+    updatedAt: link.updatedAt,
+  };
+}
+
+/**
+ * Read and parse a single plaintext `.md` link file for the list handler.
+ * Returns the link record if it passes the tag/folder filters, or null if the
+ * file is not a valid link or does not match.
+ */
+async function readPlaintextLinkEntry(
+  nk: NoteKitApi,
+  path: string,
+  prefix: string,
+  tag: string | undefined,
+  folder: string | undefined,
+): Promise<Record<string, unknown> | null> {
+  const file = await nk.vault.readFile(path);
+  const parsed = parseMarkdown(file.content ?? "");
+  const fm = parsed.frontmatter;
+  if (typeof fm["url"] !== "string") return null;
+  const tags = Array.isArray(fm["tags"]) ? (fm["tags"] as unknown[]).map((t) => String(t)) : [];
+  if (tag && !tags.includes(tag)) return null;
+  const entryFolder = resolveLinkFolder(fm["folder"], path, prefix);
+  if (folder !== undefined && !matchesFolderFilter(entryFolder, folder)) return null;
+  return {
+    path,
+    id: String(fm["id"] ?? ""),
+    url: fm["url"],
+    title: extractTitle(parsed.body),
+    description: extractDescription(parsed.body),
+    platform: fm["platform"] ?? null,
+    folder: entryFolder,
+    tags,
+    createdAt: fm["createdAt"] ?? null,
+    updatedAt: fm["updatedAt"] ?? null,
+  };
 }
 
 function extractTitle(body: string): string {

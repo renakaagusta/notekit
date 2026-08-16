@@ -7,9 +7,12 @@
 import {
   recoveryFromMnemonic,
   isValidMnemonic,
+  serializeEncryptedLink,
   type RecoveryIdentity,
 } from "@notekit/core/crypto";
 import * as e2ee from "@notekit/core/vault-e2ee";
+import type { NoteKitApi } from "@notekit/api-client";
+import type { SavedLink } from "@notekit/core/types";
 
 export class VaultLockedError extends Error {
   constructor() {
@@ -62,4 +65,26 @@ export async function listEncryptedTickets(
   nk: Parameters<typeof e2ee.listEncryptedTickets>[0],
 ) {
   return e2ee.listEncryptedTickets(nk, await requireVaultIdentity());
+}
+export async function decryptLink(path: string, content: string) {
+  return e2ee.decryptLink(path, content, await requireVaultIdentity());
+}
+export async function encryptLink(link: SavedLink) {
+  const identity = await requireVaultIdentity();
+  const recipients = await e2ee.recipientsFor(identity);
+  return serializeEncryptedLink(link, recipients);
+}
+export async function listEncryptedLinks(nk: NoteKitApi): Promise<SavedLink[]> {
+  const identity = await requireVaultIdentity();
+  const { entries } = await nk.vault.listFiles("links/");
+  const out: SavedLink[] = [];
+  for (const e of entries) {
+    if (!e.path.endsWith(".md.age")) continue;
+    const file = await nk.vault.readFile(e.path);
+    if (!file.content) continue;
+    const link = await e2ee.decryptLink(e.path, file.content, identity);
+    if (link) out.push(link);
+  }
+  out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return out;
 }

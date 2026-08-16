@@ -13,7 +13,7 @@ export function registerVaultTools(server: McpServer, nk: NoteKitApi): void {
     {
       title: "List vaults",
       description:
-        "List all vaults the user can access, marking which one is currently selected. Use this before notes_/tickets_ operations if the user mentions 'switch vault' or seems unsure which vault is active.",
+        "List all vaults the user can access, marking which one is currently selected. Use this before notes_/tasks_ operations if the user mentions 'switch vault' or seems unsure which vault is active.",
       inputSchema: {},
       annotations: { readOnlyHint: true, idempotentHint: true },
     },

@@ -92,10 +92,10 @@ export function registerNoteKitPrompts(server: McpServer): void {
   );
 
   server.registerPrompt(
-    "notekit:ticket-triage",
+    "notekit:task-triage",
     {
-      title: "NoteKit · Ticket triage",
-      description: "Walk through open tickets in the active project and propose next steps.",
+      title: "NoteKit · Task triage",
+      description: "Walk through open tasks in the active project and propose next steps.",
     },
     async () => {
       const ctx = resolveProjectContext();
@@ -109,16 +109,16 @@ export function registerNoteKitPrompts(server: McpServer): void {
             content: {
               type: "text",
               text: [
-                "Triage my open NoteKit tickets.",
+                "Triage my open NoteKit tasks.",
                 "",
                 scopeLine,
                 "",
                 "Steps:",
-                "1. Call `tickets_list` with `status: 'todo'`. Read all results.",
-                "2. Then call `tickets_list` with `status: 'in_progress'`.",
-                "3. For each ticket, give a one-line status: blocker / unblocked / stale (no updates in >14 days) / fine.",
-                "4. Propose 1–3 concrete next actions, naming the ticket path each refers to.",
-                "5. Do NOT call `tickets_update` or `tickets_delete` without asking me first.",
+                "1. Call `tasks_list` with `status: 'todo'`. Read all results.",
+                "2. Then call `tasks_list` with `status: 'in_progress'`.",
+                "3. For each task, give a one-line status: blocker / unblocked / stale (no updates in >14 days) / fine.",
+                "4. Propose 1–3 concrete next actions, naming the task path each refers to.",
+                "5. Do NOT call `tasks_update` or `tasks_delete` without asking me first.",
               ].join("\n"),
             },
           },

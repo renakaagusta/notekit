@@ -47,11 +47,11 @@ export function createMcpServer(opts: CreateServerOptions): McpServer {
     },
     {
       instructions: [
-        "You are talking to a user's NoteKit vault — a Git-backed Markdown notes and tickets system.",
+        "You are talking to a user's NoteKit vault — a Git-backed Markdown notes and tasks system.",
         "One vault may host many projects, each living under `projects/<slug>/`. Top-level `notes/` and `tickets/` hold cross-project / personal items.",
         projectLine,
-        "Every tool that reads or writes notes/tickets accepts a `scope` arg: `project` (default), `global`, or `all`. Read-everywhere, write-locally — searches see both the project folder and top-level, but new files go into the project's folder.",
-        "Prefer `notes_search` / `tickets_list` before reading or writing, so you don't clobber existing files. Use `project_list` to discover what scopes exist.",
+        "Every tool that reads or writes notes/tasks accepts a `scope` arg: `project` (default), `global`, or `all`. Read-everywhere, write-locally — searches see both the project folder and top-level, but new files go into the project's folder.",
+        "Prefer `notes_search` / `tasks_list` before reading or writing, so you don't clobber existing files. Use `project_list` to discover what scopes exist.",
         "Every write is a Git commit — keep commit messages concise and present-tense.",
       ].join(" "),
     },

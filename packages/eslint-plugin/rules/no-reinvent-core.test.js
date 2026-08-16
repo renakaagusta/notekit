@@ -62,6 +62,18 @@ describe('no-reinvent-core', () => {
           options: [{ helpers }],
           errors: [{ messageId: 'noReinventCore', data: { name: 'detectLinkKind' } }],
         },
+        // Exported function declaration — the common shape of a reinvented helper
+        {
+          code: `export function slugify(text) { return text }`,
+          options: [{ helpers }],
+          errors: [{ messageId: 'noReinventCore', data: { name: 'slugify' } }],
+        },
+        // Exported arrow const
+        {
+          code: `export const notePathFor = (id) => ""`,
+          options: [{ helpers: ['notePathFor'] }],
+          errors: [{ messageId: 'noReinventCore', data: { name: 'notePathFor' } }],
+        },
       ],
     })
   })

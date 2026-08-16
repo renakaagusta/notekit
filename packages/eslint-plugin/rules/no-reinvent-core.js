@@ -51,13 +51,15 @@ const rule = {
     }
 
     return {
-      // Top-level function declarations: function slugify(...) {}
-      'Program > FunctionDeclaration'(node) {
+      // Top-level function declarations, whether bare or exported:
+      //   function slugify(...) {}      /      export function slugify(...) {}
+      ':matches(Program, ExportNamedDeclaration, ExportDefaultDeclaration) > FunctionDeclaration'(node) {
         if (node.id) checkName(node.id.name, node.id)
       },
 
-      // Top-level arrow/function const: const slugify = () => {}
-      'Program > VariableDeclaration > VariableDeclarator'(node) {
+      // Top-level arrow/function const, whether bare or exported:
+      //   const slugify = () => {}      /      export const slugify = () => {}
+      ':matches(Program, ExportNamedDeclaration) > VariableDeclaration > VariableDeclarator'(node) {
         if (
           node.id.type === 'Identifier' &&
           node.init &&

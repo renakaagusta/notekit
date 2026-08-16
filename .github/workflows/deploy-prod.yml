@@ -100,3 +100,13 @@ jobs:
           GRAFANA_URL: http://localhost:3000
           GRAFANA_FOLDER: NoteKit
         run: bash observability/grafana/sync.sh
+
+      - name: Mark deploy on Grafana (annotation)
+        if: steps.cfg.outputs.svc == 'api'
+        env:
+          GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+        run: |
+          [ -z "$GRAFANA_TOKEN" ] && exit 0
+          curl -s -o /dev/null -H "Authorization: Bearer $GRAFANA_TOKEN" -H "Content-Type: application/json" \
+            -X POST http://localhost:3000/api/annotations \
+            -d "{\"tags\":[\"deploy\",\"notekit\"],\"text\":\"deploy ${GITHUB_SHA::7}\"}" || true

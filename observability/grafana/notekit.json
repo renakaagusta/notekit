@@ -1,179 +1,947 @@
 {
   "uid": "notekit-app",
   "title": "NoteKit — API",
-  "tags": ["notekit", "app", "generated"],
+  "tags": [
+    "notekit",
+    "app",
+    "generated"
+  ],
   "timezone": "browser",
   "schemaVersion": 39,
   "version": 1,
   "editable": true,
   "refresh": "30s",
-  "time": { "from": "now-6h", "to": "now" },
-  "templating": { "list": [] },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": []
+  },
   "panels": [
-    { "id": 1, "type": "row", "title": "Golden Signals (RED via span-metrics)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 } },
     {
-      "id": 2, "type": "stat", "title": "Request rate",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
-      "fieldConfig": { "defaults": { "unit": "reqps", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "blue" } } },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
-      "targets": [ { "refId": "A", "expr": "sum(rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))" } ]
+      "id": 1,
+      "type": "row",
+      "title": "Golden Signals (RED via span-metrics)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
     },
     {
-      "id": 3, "type": "stat", "title": "Error rate",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
-      "fieldConfig": { "defaults": { "unit": "percent", "decimals": 2, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 5 } ] } } },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background", "graphMode": "area" },
-      "targets": [ { "refId": "A", "expr": "100 * sum(rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\", status_code=\"STATUS_CODE_ERROR\"}[$__rate_interval])) / clamp_min(sum(rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])), 0.001)" } ]
-    },
-    {
-      "id": 4, "type": "stat", "title": "Latency p95",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
-      "fieldConfig": { "defaults": { "unit": "s", "decimals": 3, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.5 }, { "color": "red", "value": 2 } ] } } },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
-      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))" } ]
-    },
-    {
-      "id": 5, "type": "stat", "title": "Latency p99",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
-      "fieldConfig": { "defaults": { "unit": "s", "decimals": 3, "color": { "mode": "thresholds" }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 3 } ] } } },
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value", "graphMode": "area" },
-      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.99, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))" } ]
-    },
-
-    { "id": 10, "type": "row", "title": "Traffic & Latency", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 5 } },
-    {
-      "id": 11, "type": "timeseries", "title": "Request rate by operation",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 6 },
-      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 15, "stacking": { "mode": "normal" } } } },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["mean"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [ { "refId": "A", "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))", "legendFormat": "{{span_name}}" } ]
-    },
-    {
-      "id": 12, "type": "timeseries", "title": "Latency percentiles",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 6 },
-      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "id": 2,
+      "type": "stat",
+      "title": "Request rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 2,
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "blue"
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
       "targets": [
-        { "refId": "A", "expr": "histogram_quantile(0.50, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))", "legendFormat": "p50" },
-        { "refId": "B", "expr": "histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))", "legendFormat": "p95" },
-        { "refId": "C", "expr": "histogram_quantile(0.99, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))", "legendFormat": "p99" }
+        {
+          "refId": "A",
+          "expr": "sum(rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))"
+        }
       ]
     },
     {
-      "id": 13, "type": "table", "title": "Top operations",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 6 },
-      "fieldConfig": { "defaults": { "custom": { "align": "auto", "filterable": true } }, "overrides": [
-        { "matcher": { "id": "byName", "options": "req/s" }, "properties": [ { "id": "unit", "value": "reqps" }, { "id": "decimals", "value": 3 } ] },
-        { "matcher": { "id": "byName", "options": "p95 (s)" }, "properties": [ { "id": "unit", "value": "s" }, { "id": "decimals", "value": 3 } ] }
-      ] },
-      "options": { "showHeader": true, "sortBy": [ { "displayName": "req/s", "desc": true } ] },
+      "id": 3,
+      "type": "stat",
+      "title": "Error rate",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 2,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "area"
+      },
       "targets": [
-        { "refId": "A", "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__range]))", "format": "table", "instant": true },
-        { "refId": "B", "expr": "histogram_quantile(0.95, sum by (span_name, le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__range])))", "format": "table", "instant": true }
+        {
+          "refId": "A",
+          "expr": "100 * sum(rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\", status_code=\"STATUS_CODE_ERROR\"}[$__rate_interval])) / clamp_min(sum(rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])), 0.001)"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Latency p95",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Latency p99",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 3,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Traffic & Latency",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      }
+    },
+    {
+      "id": 11,
+      "type": "timeseries",
+      "title": "Request rate by operation",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "mean"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval]))",
+          "legendFormat": "{{span_name}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "timeseries",
+      "title": "Latency percentiles",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.50, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
+          "legendFormat": "p95"
+        },
+        {
+          "refId": "C",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__rate_interval])))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Top operations",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "req/s"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "reqps"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95 (s)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "sortBy": [
+          {
+            "displayName": "req/s",
+            "desc": true
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (span_name) (rate(traces_spanmetrics_calls_total{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__range]))",
+          "format": "table",
+          "instant": true
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (span_name, le) (rate(traces_spanmetrics_latency_bucket{service=\"notekit-api\", span_kind=\"SPAN_KIND_SERVER\"}[$__range])))",
+          "format": "table",
+          "instant": true
+        }
       ],
       "transformations": [
-        { "id": "joinByField", "options": { "byField": "span_name", "mode": "outer" } },
-        { "id": "organize", "options": { "excludeByName": { "Time 1": true, "Time 2": true }, "renameByName": { "span_name": "Operation", "Value #A": "req/s", "Value #B": "p95 (s)" } } }
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "span_name",
+            "mode": "outer"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time 1": true,
+              "Time 2": true
+            },
+            "renameByName": {
+              "span_name": "Operation",
+              "Value #A": "req/s",
+              "Value #B": "p95 (s)"
+            }
+          }
+        }
       ]
     },
-
-    { "id": 20, "type": "row", "title": "Node.js runtime", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 14 } },
     {
-      "id": 21, "type": "timeseries", "title": "Event loop utilization",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 15 },
-      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "drawStyle": "line", "fillOpacity": 20 }, "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 0.7 }, { "color": "red", "value": 0.9 } ] } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-      "targets": [ { "refId": "A", "expr": "avg(nodejs_eventloop_utilization{job=\"notekit-api\"})", "legendFormat": "utilization" } ]
+      "id": 20,
+      "type": "row",
+      "title": "Node.js runtime",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      }
     },
     {
-      "id": 22, "type": "timeseries", "title": "Event loop delay",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 15 },
-      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi", "sort": "desc" } },
+      "id": 21,
+      "type": "timeseries",
+      "title": "Event loop utilization",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 15
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.9
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
       "targets": [
-        { "refId": "A", "expr": "avg(nodejs_eventloop_delay_p50{job=\"notekit-api\"})", "legendFormat": "p50" },
-        { "refId": "B", "expr": "avg(nodejs_eventloop_delay_p90{job=\"notekit-api\"})", "legendFormat": "p90" },
-        { "refId": "C", "expr": "avg(nodejs_eventloop_delay_p99{job=\"notekit-api\"})", "legendFormat": "p99" }
+        {
+          "refId": "A",
+          "expr": "avg(nodejs_eventloop_utilization{job=\"notekit-api\"})",
+          "legendFormat": "utilization"
+        }
       ]
     },
     {
-      "id": 23, "type": "timeseries", "title": "GC pause p95",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 15 },
-      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "single" } },
-      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(v8js_gc_duration_bucket{job=\"notekit-api\"}[$__rate_interval])))", "legendFormat": "gc p95" } ]
-    },
-    {
-      "id": 24, "type": "timeseries", "title": "V8 heap memory",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 22 },
-      "fieldConfig": { "defaults": { "unit": "bytes", "custom": { "drawStyle": "line", "fillOpacity": 15 } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "id": 22,
+      "type": "timeseries",
+      "title": "Event loop delay",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 15
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "targets": [
-        { "refId": "A", "expr": "sum(v8js_memory_heap_used{job=\"notekit-api\"})", "legendFormat": "heap used" },
-        { "refId": "B", "expr": "sum(v8js_memory_heap_space_size{job=\"notekit-api\"})", "legendFormat": "heap total" }
+        {
+          "refId": "A",
+          "expr": "avg(nodejs_eventloop_delay_p50{job=\"notekit-api\"})",
+          "legendFormat": "p50"
+        },
+        {
+          "refId": "B",
+          "expr": "avg(nodejs_eventloop_delay_p90{job=\"notekit-api\"})",
+          "legendFormat": "p90"
+        },
+        {
+          "refId": "C",
+          "expr": "avg(nodejs_eventloop_delay_p99{job=\"notekit-api\"})",
+          "legendFormat": "p99"
+        }
       ]
     },
     {
-      "id": 25, "type": "timeseries", "title": "Active handles / requests",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 22 },
-      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "expr": "sum by (type) (v8js_resource_active{job=\"notekit-api\"})", "legendFormat": "{{type}}" } ]
-    },
-
-    { "id": 30, "type": "row", "title": "Database & outbound HTTP", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 29 } },
-    {
-      "id": 31, "type": "timeseries", "title": "DB operation p95 by operation",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 30 },
-      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (db_operation_name, le) (rate(db_client_operation_duration_bucket{job=\"notekit-api\"}[$__rate_interval])))", "legendFormat": "{{db_operation_name}}" } ]
-    },
-    {
-      "id": 32, "type": "timeseries", "title": "DB connections by state",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 30 },
-      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 20, "stacking": { "mode": "normal" } } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "expr": "sum by (db_client_connection_state) (db_client_connection_count{job=\"notekit-api\"})", "legendFormat": "{{db_client_connection_state}}" } ]
-    },
-    {
-      "id": 33, "type": "timeseries", "title": "Outbound HTTP p95 by host",
-      "datasource": { "type": "prometheus", "uid": "mimir" },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 30 },
-      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } } },
-      "options": { "legend": { "displayMode": "table", "placement": "right", "calcs": ["max"] }, "tooltip": { "mode": "multi", "sort": "desc" } },
-      "targets": [ { "refId": "A", "expr": "histogram_quantile(0.95, sum by (server_address, le) (rate(http_client_request_duration_bucket{job=\"notekit-api\"}[$__rate_interval])))", "legendFormat": "{{server_address}}" } ]
-    },
-
-    { "id": 40, "type": "row", "title": "Logs (Loki)", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 37 } },
-    {
-      "id": 41, "type": "timeseries", "title": "Log volume by level",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 38 },
-      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 70, "stacking": { "mode": "normal" } } } },
-      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
-      "targets": [ { "refId": "A", "expr": "sum by (detected_level) (count_over_time({service_name=\"notekit-api\"} [$__auto]))", "legendFormat": "{{detected_level}}" } ]
+      "id": 23,
+      "type": "timeseries",
+      "title": "GC pause p95",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 15
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(v8js_gc_duration_bucket{job=\"notekit-api\"}[$__rate_interval])))",
+          "legendFormat": "gc p95"
+        }
+      ]
     },
     {
-      "id": 42, "type": "logs", "title": "Recent logs",
-      "datasource": { "type": "loki", "uid": "loki" },
-      "gridPos": { "h": 12, "w": 16, "x": 8, "y": 38 },
-      "options": { "showTime": true, "wrapLogMessage": true, "prettifyLogMessage": true, "enableLogDetails": true, "sortOrder": "Descending" },
-      "targets": [ { "refId": "A", "expr": "{service_name=\"notekit-api\"}" } ]
+      "id": 24,
+      "type": "timeseries",
+      "title": "V8 heap memory",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 0,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 15
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(v8js_memory_heap_used{job=\"notekit-api\"})",
+          "legendFormat": "heap used"
+        },
+        {
+          "refId": "B",
+          "expr": "sum(v8js_memory_heap_space_size{job=\"notekit-api\"})",
+          "legendFormat": "heap total"
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "type": "timeseries",
+      "title": "Active handles / requests",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 22
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (type) (v8js_resource_active{job=\"notekit-api\"})",
+          "legendFormat": "{{type}}"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "row",
+      "title": "Database & outbound HTTP",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      }
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "DB operation p95 by operation",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 0,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (db_operation_name, le) (rate(db_client_operation_duration_bucket{job=\"notekit-api\"}[$__rate_interval])))",
+          "legendFormat": "{{db_operation_name}}"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "DB connections by state",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (db_client_connection_state) (db_client_connection_count{job=\"notekit-api\"})",
+          "legendFormat": "{{db_client_connection_state}}"
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "type": "timeseries",
+      "title": "Outbound HTTP p95 by host",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "mimir"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 30
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "fillOpacity": 10
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (server_address, le) (rate(http_client_request_duration_bucket{job=\"notekit-api\"}[$__rate_interval])))",
+          "legendFormat": "{{server_address}}"
+        }
+      ]
+    },
+    {
+      "id": 40,
+      "type": "row",
+      "title": "Logs (Loki)",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      }
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "Log volume by level",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 38
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 70,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (detected_level) (count_over_time({service_name=\"notekit-api\"} [$__auto]))",
+          "legendFormat": "{{detected_level}}"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "type": "logs",
+      "title": "Recent logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "h": 12,
+        "w": 16,
+        "x": 8,
+        "y": 38
+      },
+      "options": {
+        "showTime": true,
+        "wrapLogMessage": true,
+        "prettifyLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service_name=\"notekit-api\"}"
+        }
+      ]
     }
-  ]
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Deploys",
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "iconColor": "green",
+        "target": {
+          "type": "tags",
+          "tags": [
+            "deploy",
+            "notekit"
+          ],
+          "limit": 100,
+          "matchAny": false
+        },
+        "hide": false
+      }
+    ]
+  }
 }

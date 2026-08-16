@@ -37,7 +37,7 @@ import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 
-// eslint-disable-next-line max-lines-per-function -- registration function that wires up two tools with their full schemas and handlers
+// eslint-disable-next-line max-lines-per-function -- registration function that wires up four tools with their full schemas and handlers
 export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(
     "links_list",
@@ -177,6 +177,117 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
         return textContent(`Saved ${url} → ${targetPath}`);
       } catch (err) {
         return errorContent(`links_create failed: ${(err as Error).message}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "links_update",
+    {
+      title: "Update saved link",
+      description:
+        "Update a saved link's url, title, description, or tags. Reads the existing file, merges the provided fields, and writes back using the same Markdown/frontmatter format. The vault path is unchanged. Use when the user wants to retag, retitle, or correct a saved link.",
+      inputSchema: {
+        path: z.string().min(1).describe("Vault-relative path of the link to update."),
+        url: z.string().url().optional().describe("New URL (replaces existing)."),
+        title: z.string().optional().describe("New title (replaces the `# heading` in the body)."),
+        description: z
+          .string()
+          .nullable()
+          .optional()
+          .describe("New description. Pass `null` to remove it."),
+        tags: z.array(z.string()).optional().describe("New tag list (replaces existing tags)."),
+        folder: z
+          .string()
+          .nullable()
+          .optional()
+          .describe("Move the link to a different folder (updates frontmatter only, path stays the same). Pass `null` to clear."),
+        commitMessage: z.string().optional().describe("Git commit message."),
+      },
+      annotations: { destructiveHint: false, idempotentHint: false },
+    },
+    async ({ path, url, title, description, tags, folder, commitMessage }) => {
+      try {
+        if (isEncryptedItemPath(path)) {
+          return errorContent(
+            `links_update: ${path} is end-to-end encrypted — edit on a device.`,
+          );
+        }
+        const existing = await nk.vault.readFile(path);
+        const parsed = parseMarkdown(existing.content ?? "");
+        const fm: Record<string, unknown> = { ...parsed.frontmatter };
+
+        if (url !== undefined) {
+          fm["url"] = url;
+          fm["platform"] = detectPlatform(url);
+        }
+        if (tags !== undefined) fm["tags"] = tags;
+        if (folder !== undefined) {
+          if (folder === null) {
+            // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing folder key when user requests root placement
+            delete fm["folder"];
+          } else {
+            const cleaned = sanitizeFolder(folder);
+            if (cleaned) fm["folder"] = cleaned;
+          }
+        }
+        fm["updatedAt"] = new Date().toISOString();
+
+        // Rebuild body: derive display title from arg or existing heading, then
+        // reattach description.
+        const existingTitle = extractTitle(parsed.body);
+        const displayTitle = (title ?? existingTitle).trim() || existingTitle;
+        let body: string;
+        if (description === null) {
+          body = `# ${displayTitle}`;
+        } else if (description !== undefined) {
+          body = `# ${displayTitle}\n\n${description}`;
+        } else {
+          // Keep existing description but update heading if title changed.
+          const existingDesc = extractDescription(parsed.body);
+          body = existingDesc
+            ? `# ${displayTitle}\n\n${existingDesc}`
+            : `# ${displayTitle}`;
+        }
+
+        const content = serializeLinkMarkdown(fm, body);
+        await nk.vault.writeFile(
+          path,
+          content,
+          commitMessage ?? `notekit: update link ${path}`,
+          existing.sha ?? undefined,
+        );
+        return textContent(`Updated ${path}`);
+      } catch (err) {
+        return errorContent(`links_update failed: ${(err as Error).message}`);
+      }
+    },
+  );
+
+  server.registerTool(
+    "links_delete",
+    {
+      title: "Delete saved link",
+      description:
+        "Delete a saved link. The deletion is committed to Git — it stays in history but won't appear in the UI. Use when the user explicitly asks to remove a saved link. Always prefer `links_list` first to confirm you have the right file.",
+      inputSchema: {
+        path: z.string().min(1).describe("Vault-relative path of the link to delete."),
+        commitMessage: z.string().optional().describe("Git commit message."),
+      },
+      annotations: { destructiveHint: true, idempotentHint: true },
+    },
+    async ({ path, commitMessage }) => {
+      try {
+        const file = await nk.vault.readFile(path);
+        if (!file.sha) {
+          return errorContent(
+            `links_delete: ${path} has no SHA — refusing to delete to avoid surprises.`,
+          );
+        }
+        await nk.vault.deleteFile(path, file.sha, commitMessage ?? `notekit: delete link ${path}`);
+        return textContent(`Deleted ${path}`);
+      } catch (err) {
+        return errorContent(`links_delete failed: ${(err as Error).message}`);
       }
     },
   );

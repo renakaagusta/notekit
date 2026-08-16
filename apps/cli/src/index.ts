@@ -11,6 +11,7 @@ import { defineCommand, runMain } from "citty";
 import { authCommand } from "./commands/auth.js";
 import { noteCommand } from "./commands/note.js";
 import { ticketCommand } from "./commands/ticket.js";
+import { linkCommand } from "./commands/link.js";
 import { vaultCommand } from "./commands/vault.js";
 import { secretCommand } from "./commands/secret.js";
 import { mcpCommand } from "./commands/mcp.js";
@@ -26,6 +27,7 @@ const main = defineCommand({
     auth: authCommand,
     note: noteCommand,
     ticket: ticketCommand,
+    link: linkCommand,
     vault: vaultCommand,
     secret: secretCommand,
     mcp: mcpCommand,

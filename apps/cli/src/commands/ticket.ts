@@ -206,6 +206,34 @@ const assignCmd = defineCommand({
   },
 });
 
+const rmCmd = defineCommand({
+  meta: { name: "rm", description: "Delete a ticket." },
+  args: {
+    idOrPath: { type: "positional", description: "Ticket id or vault path.", required: true },
+  },
+  async run({ args }) {
+    try {
+      const nk = await getSecretsClient({ requireAuth: true });
+      const path = await resolveTicketPath(nk, String(args.idOrPath));
+      const existing = await nk.vault.readFile(path);
+      if (!existing.sha) {
+        throw new Error(`cannot delete ${path}: no sha returned from server`);
+      }
+      await nk.vault.deleteFile(path, existing.sha, `ticket: delete ${path}`);
+      // E2EE vaults have no plaintext index to maintain.
+      if (!isEncrypted(path)) {
+        await updateIndex(nk, (idx) => {
+          idx.tickets = idx.tickets.filter((t) => t.path !== path);
+          return idx;
+        });
+      }
+      process.stdout.write(`${kleur.yellow("removed")} ${path}\n`);
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
 export const ticketCommand = defineCommand({
   meta: { name: "ticket", description: "Track work items as markdown tickets." },
   subCommands: {
@@ -215,6 +243,7 @@ export const ticketCommand = defineCommand({
     close: closeCmd,
     reopen: reopenCmd,
     assign: assignCmd,
+    rm: rmCmd,
   },
 });
 

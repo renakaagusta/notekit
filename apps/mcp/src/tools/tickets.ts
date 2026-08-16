@@ -133,6 +133,56 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
   );
 
   server.registerTool(
+    "tickets_read",
+    {
+      title: "Read ticket",
+      description:
+        "Read the full contents of a ticket by vault-relative path (e.g. `tickets/fix-login-bug.md` or `projects/notekit/tickets/NK-42.md`). Returns frontmatter fields and the Markdown body. Use this after tickets_list, or when the user names a specific ticket.",
+      inputSchema: {
+        path: z
+          .string()
+          .min(1)
+          .describe("Vault-relative path, e.g. `tickets/fix-login-bug.md`."),
+      },
+      annotations: { readOnlyHint: true, idempotentHint: true },
+    },
+    async ({ path }) => {
+      try {
+        const file = await nk.vault.readFile(path);
+        // Encrypted ticket → decrypt with NOTEKIT_RECOVERY_PHRASE (#49).
+        if (file.content && isEncryptedItemPath(path)) {
+          const ticket = await decryptTicket(path, file.content);
+          if (!ticket) return errorContent(`tickets_read: couldn't decrypt ${path}`);
+          return jsonContent({
+            path,
+            sha: file.sha,
+            frontmatter: {
+              title: ticket.title,
+              status: ticket.status,
+              priority: ticket.priority,
+              assignee: ticket.assignee,
+              labels: ticket.labels,
+              dueDate: ticket.dueDate,
+              createdAt: ticket.createdAt,
+              updatedAt: ticket.updatedAt,
+            },
+            body: ticket.body,
+          });
+        }
+        const parsed = parseMarkdown(file.content ?? "");
+        return jsonContent({
+          path: file.path,
+          sha: file.sha,
+          frontmatter: parsed.frontmatter,
+          body: parsed.body,
+        });
+      } catch (err) {
+        return errorContent(`tickets_read failed: ${(err as Error).message}`);
+      }
+    },
+  );
+
+  server.registerTool(
     "tickets_create",
     {
       title: "Create ticket",

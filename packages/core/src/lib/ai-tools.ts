@@ -110,6 +110,14 @@ export function describeToolCall(toolName: string, input: unknown): string {
       return `Memindahkan "${titleById(inp.id)}" → ${inp.folder ? String(inp.folder) : "(root)"}`;
     case "delete_note":
       return `Menghapus "${titleById(inp.id)}"`;
+    case "delete_task":
+      return `Menghapus task "${String(inp.id ?? "")}"`;
+    case "assign_task":
+      return inp.assignee
+        ? `Menetapkan task ke "${String(inp.assignee)}"`
+        : `Menghapus penugasan task`;
+    case "delete_link":
+      return `Menghapus link "${String(inp.id ?? "")}"`;
     default:
       return toolName;
   }
@@ -318,7 +326,7 @@ export function buildAssistantTools(
       execute: async ({ title, body, folder }) => {
         const ok = await ctx.requestApproval(
           "create_note",
-          `Buat catatan “${title}”`,
+          `Buat catatan "${title}"`,
           { title, body, folder },
         );
         if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
@@ -343,7 +351,7 @@ export function buildAssistantTools(
         if (!n) return { ok: false as const, reason: "not_found" };
         const ok = await ctx.requestApproval(
           "update_note",
-          `Ubah catatan “${noteTitle(n)}”`,
+          `Ubah catatan "${noteTitle(n)}"`,
           { id, body },
         );
         if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
@@ -362,7 +370,7 @@ export function buildAssistantTools(
         const dest = folder && folder.trim() ? folder.trim() : null;
         const ok = await ctx.requestApproval(
           "move_note",
-          `Pindahkan “${noteTitle(n)}” ke ${dest ?? "(root)"}`,
+          `Pindahkan "${noteTitle(n)}" ke ${dest ?? "(root)"}`,
           { id, folder: dest },
         );
         if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
@@ -378,7 +386,7 @@ export function buildAssistantTools(
         if (!n) return { ok: false as const, reason: "not_found" };
         const ok = await ctx.requestApproval(
           "delete_note",
-          `Hapus catatan “${noteTitle(n)}”`,
+          `Hapus catatan "${noteTitle(n)}"`,
           { id },
         );
         if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
@@ -394,7 +402,7 @@ export function buildAssistantTools(
         tags: z.array(z.string()).optional(),
       }),
       execute: async ({ url, title, tags }) => {
-        const ok = await ctx.requestApproval("create_link", `Simpan link “${title || url}”`, {
+        const ok = await ctx.requestApproval("create_link", `Simpan link "${title || url}"`, {
           url,
           title,
           tags,
@@ -412,7 +420,7 @@ export function buildAssistantTools(
         priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
       }),
       execute: async ({ title, body, priority }) => {
-        const ok = await ctx.requestApproval("create_task", `Buat task “${title}”`, {
+        const ok = await ctx.requestApproval("create_task", `Buat task "${title}"`, {
           title,
           body,
           priority,
@@ -434,11 +442,63 @@ export function buildAssistantTools(
         if (!t) return { ok: false as const, reason: "not_found" };
         const ok = await ctx.requestApproval(
           "set_task_status",
-          `Ubah status “${t.title}” → ${status}`,
+          `Ubah status "${t.title}" → ${status}`,
           { id, status },
         );
         if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
         useTicketsStore.getState().setStatus(id, status);
+        return { ok: true as const };
+      },
+    }),
+    delete_task: tool({
+      description: "Hapus sebuah task/tiket berdasarkan id. Minta persetujuan dulu.",
+      inputSchema: z.object({ id: z.string() }),
+      execute: async ({ id }) => {
+        const t = useTicketsStore.getState().all().find((x) => x.id === id);
+        if (!t) return { ok: false as const, reason: "not_found" };
+        const ok = await ctx.requestApproval(
+          "delete_task",
+          `Hapus task "${t.title}"`,
+          { id },
+        );
+        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        useTicketsStore.getState().remove(id);
+        return { ok: true as const };
+      },
+    }),
+    assign_task: tool({
+      description:
+        "Tetapkan atau hapus penugasan (assignee) sebuah task/tiket berdasarkan id. Kirim null untuk menghapus penugasan. Minta persetujuan dulu.",
+      inputSchema: z.object({
+        id: z.string(),
+        assignee: z.string().nullable().describe("Username/nama penerima tugas, atau null untuk menghapus"),
+      }),
+      execute: async ({ id, assignee }) => {
+        const t = useTicketsStore.getState().all().find((x) => x.id === id);
+        if (!t) return { ok: false as const, reason: "not_found" };
+        const label = assignee
+          ? `Tetapkan task "${t.title}" ke "${assignee}"`
+          : `Hapus penugasan task "${t.title}"`;
+        const ok = await ctx.requestApproval("assign_task", label, { id, assignee });
+        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        useTicketsStore.getState().setAssignee(id, assignee);
+        return { ok: true as const };
+      },
+    }),
+    delete_link: tool({
+      description: "Hapus sebuah link/bookmark tersimpan berdasarkan id. Minta persetujuan dulu.",
+      inputSchema: z.object({ id: z.string() }),
+      execute: async ({ id }) => {
+        const links = useLinksStore.getState().links;
+        const l = links[id];
+        if (!l) return { ok: false as const, reason: "not_found" };
+        const ok = await ctx.requestApproval(
+          "delete_link",
+          `Hapus link "${l.title || l.url}"`,
+          { id },
+        );
+        if (!ok) return { ok: false as const, reason: "ditolak pengguna" };
+        useLinksStore.getState().remove(id);
         return { ok: true as const };
       },
     }),

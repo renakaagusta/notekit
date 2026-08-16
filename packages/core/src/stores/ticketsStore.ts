@@ -11,6 +11,7 @@ interface TicketsState {
   tickets: Record<string, Ticket>;
   upsert(input: Partial<Ticket> & { title: string }): Ticket;
   setStatus(id: string, status: TicketStatus): void;
+  setAssignee(id: string, assignee: string | null): void;
   setDueDate(id: string, dueDate: string | null): void;
   setRemotePath(id: string, path: string): void;
   /**
@@ -75,6 +76,15 @@ export const useTicketsStore = create<TicketsState>()(
         const ticket = state.tickets[id];
         if (!ticket) return;
         ticket.status = status;
+        ticket.updatedAt = now();
+      });
+    },
+
+    setAssignee(id, assignee) {
+      set((state) => {
+        const ticket = state.tickets[id];
+        if (!ticket) return;
+        ticket.assignee = assignee;
         ticket.updatedAt = now();
       });
     },

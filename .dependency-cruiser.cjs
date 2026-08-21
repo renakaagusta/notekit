@@ -95,6 +95,46 @@ module.exports = {
       from: { path: "^apps/desktop/src/" },
       to: { path: "^apps/(web|api|cli|mcp|mobile)/src/" },
     },
+    {
+      name: "domain-no-external",
+      comment: "packages/core/src/domain/* must not import external npm modules (domain layer is decoupled from frameworks/deps)",
+      severity: "error",
+      from: { path: "^packages/core/src/domain/" },
+      to: {
+        dependencyTypes: ["npm"],
+        pathNot: "^(uuid|decimal\\.js|node:).*",
+      },
+    },
+    {
+      name: "application-no-adapters",
+      comment: "packages/core/src/application/* must not import from packages/core/src/adapters/* (inner never imports outer)",
+      severity: "error",
+      from: { path: "^packages/core/src/application/" },
+      to: { path: "^packages/core/src/adapters/" },
+    },
+    {
+      name: "driven-not-driving",
+      comment: "packages/core/src/adapters/driven/* must not import from packages/core/src/adapters/driving/* (driven adapters remain passive)",
+      severity: "error",
+      from: { path: "^packages/core/src/adapters/driven/" },
+      to: { path: "^packages/core/src/adapters/driving/" },
+    },
+    {
+      name: "driving-not-driven",
+      comment: "packages/core/src/adapters/driving/* must not import from packages/core/src/adapters/driven/* (no reverse coupling)",
+      severity: "error",
+      from: { path: "^packages/core/src/adapters/driving/" },
+      to: { path: "^packages/core/src/adapters/driven/" },
+    },
+    {
+      name: "domain-no-application",
+      comment: "packages/core/src/domain/* must not import from packages/core/src/application/* or packages/core/src/adapters/* (inner never imports outer layers)",
+      severity: "error",
+      from: { path: "^packages/core/src/domain/" },
+      to: {
+        path: "^packages/core/src/(application|adapters)/",
+      },
+    },
   ],
   options: {
     doNotFollow: {

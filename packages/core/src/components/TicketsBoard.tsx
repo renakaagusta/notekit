@@ -1,16 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useTicketsStore } from "../stores/ticketsStore";
-import { useVaultStore } from "../stores/vaultStore";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
-import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
 import { CalendarDays, CheckSquare, Lock } from "lucide-react";
-import { BoardToolbar } from "./BoardToolbar";
-import { CardQuickActions } from "./CardQuickActions";
-import { SubtaskList } from "./SubtaskList";
-import { TicketDetail } from "./TicketDetail";
-import { ShortcutCheatsheet } from "./ShortcutCheatsheet";
-import { subtaskProgress } from "../lib/subtasks";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   BUILTIN_VIEWS,
   EMPTY_FILTERS,
@@ -26,6 +15,17 @@ import {
   saveSavedViews,
   viewDueRange,
 } from "../lib/board-filters";
+import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
+import { subtaskProgress } from "../lib/subtasks";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
+import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
+import { BoardToolbar } from "./BoardToolbar";
+import { CardQuickActions } from "./CardQuickActions";
+import { ShortcutCheatsheet } from "./ShortcutCheatsheet";
+import { SubtaskList } from "./SubtaskList";
+import { TicketDetail } from "./TicketDetail";
 
 // Shared with CalendarView so a card dragged on the board can also be dropped
 // onto a calendar cell to set its due date.
@@ -77,6 +77,103 @@ const PRIORITY_CLASS: Record<TicketPriority, string> = {
   medium: "priority-p2",
   low: "priority-p3",
 };
+
+function isEditingElement(el: HTMLElement | null): boolean {
+  if (!el) return false;
+  return (
+    el.tagName === "INPUT" ||
+    el.tagName === "TEXTAREA" ||
+    el.tagName === "SELECT" ||
+    el.isContentEditable
+  );
+}
+
+function handleVertKey(
+  key: string,
+  here: [number, number] | null,
+  focusAt: (col: number, row: number) => void,
+  e: KeyboardEvent,
+): boolean {
+  if (key === "j" || key === "ArrowDown") {
+    e.preventDefault();
+    if (!here) { focusAt(0, 0); return true; }
+    focusAt(here[0], here[1] + 1);
+    return true;
+  }
+  if (key === "k" || key === "ArrowUp") {
+    e.preventDefault();
+    if (!here) { focusAt(0, 0); return true; }
+    focusAt(here[0], here[1] - 1);
+    return true;
+  }
+  return false;
+}
+
+function handleHorizKey(
+  key: string,
+  here: [number, number] | null,
+  grid: Ticket[][],
+  focusAt: (col: number, row: number) => void,
+  e: KeyboardEvent,
+): boolean {
+  if (key === "l" || key === "ArrowRight") {
+    e.preventDefault();
+    if (!here) { focusAt(0, 0); return true; }
+    focusAt(here[0] + 1 < grid.length ? here[0] + 1 : here[0], here[1]);
+    return true;
+  }
+  if (key === "h" || key === "ArrowLeft") {
+    e.preventDefault();
+    if (!here) { focusAt(0, 0); return true; }
+    focusAt(here[0] > 0 ? here[0] - 1 : 0, here[1]);
+    return true;
+  }
+  return false;
+}
+
+function handleNavKey(
+  key: string,
+  here: [number, number] | null,
+  grid: Ticket[][],
+  focusAt: (col: number, row: number) => void,
+  e: KeyboardEvent,
+): boolean {
+  return handleVertKey(key, here, focusAt, e) || handleHorizKey(key, here, grid, focusAt, e);
+}
+
+interface ActionKeyContext {
+  focusedTicket: Ticket;
+  cardRefs: React.MutableRefObject<Map<string, HTMLElement>>;
+  setDetailId: (id: string) => void;
+  setStatus: (id: string, status: TicketStatus) => void;
+}
+
+function handleActionKey(key: string, ctx: ActionKeyContext, e: KeyboardEvent): boolean {
+  const { focusedTicket, cardRefs, setDetailId, setStatus } = ctx;
+  const num = ["1", "2", "3", "4", "5"].indexOf(key);
+  if (num >= 0 && num < STATUS_ORDER.length) {
+    e.preventDefault();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- num is bounded by STATUS_ORDER.length check above
+    setStatus(focusedTicket.id, STATUS_ORDER[num]!);
+    return true;
+  }
+  if (key === "e" || key === "Enter") {
+    e.preventDefault();
+    setDetailId(focusedTicket.id);
+    return true;
+  }
+  if (key === "a") {
+    e.preventDefault();
+    cardRefs.current.get(focusedTicket.id)?.querySelector<HTMLButtonElement>(".nk-assignee-trigger")?.click();
+    return true;
+  }
+  if (key === ".") {
+    e.preventDefault();
+    cardRefs.current.get(focusedTicket.id)?.querySelector<HTMLButtonElement>(".nk-qa-trigger")?.click();
+    return true;
+  }
+  return false;
+}
 
 // eslint-disable-next-line max-lines-per-function -- TicketsBoard is a large board component combining state, keyboard handling, drag-drop, and column rendering
 export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
@@ -224,91 +321,27 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
   );
 
   useEffect(() => {
-    // eslint-disable-next-line complexity -- keyboard handler dispatches over many keys (j/k/l/h/arrows/1-5/e/a/.) plus modifiers
     function handler(e: KeyboardEvent) {
-      // Don't intercept while the user is typing in an input or editing text.
-      const active = document.activeElement as HTMLElement | null;
-      const isEditing =
-        !!active &&
-        (active.tagName === "INPUT" ||
-          active.tagName === "TEXTAREA" ||
-          active.tagName === "SELECT" ||
-          active.isContentEditable);
-      if (isEditing) return;
+      if (isEditingElement(document.activeElement as HTMLElement | null)) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-      // Help overlay.
       if (e.key === "?") {
         e.preventDefault();
         setCheatsheetOpen((v) => !v);
         return;
       }
       if (cheatsheetOpen) return;
-
-      // Detail drawer owns its own keys while open.
       if (detailId) return;
 
       const here = locate(focusedId);
 
-      if (e.key === "j" || e.key === "ArrowDown") {
-        e.preventDefault();
-        if (!here) return focusAt(0, 0);
-        focusAt(here[0], here[1] + 1);
-        return;
-      }
-      if (e.key === "k" || e.key === "ArrowUp") {
-        e.preventDefault();
-        if (!here) return focusAt(0, 0);
-        focusAt(here[0], here[1] - 1);
-        return;
-      }
-      if (e.key === "l" || e.key === "ArrowRight") {
-        e.preventDefault();
-        if (!here) return focusAt(0, 0);
-        focusAt(here[0] + 1 < grid.length ? here[0] + 1 : here[0], here[1]);
-        return;
-      }
-      if (e.key === "h" || e.key === "ArrowLeft") {
-        e.preventDefault();
-        if (!here) return focusAt(0, 0);
-        focusAt(here[0] > 0 ? here[0] - 1 : 0, here[1]);
-        return;
-      }
+      if (handleNavKey(e.key, here, grid, focusAt, e)) return;
 
       if (!here || !focusedId) return;
       const focusedTicket = grid[here[0]]?.[here[1]];
       if (!focusedTicket) return;
 
-      // Status hotkeys.
-      const num = ["1", "2", "3", "4", "5"].indexOf(e.key);
-      if (num >= 0 && num < STATUS_ORDER.length) {
-        e.preventDefault();
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- num is bounded by STATUS_ORDER.length check above
-        setStatus(focusedTicket.id, STATUS_ORDER[num]!);
-        return;
-      }
-
-      if (e.key === "e" || e.key === "Enter") {
-        e.preventDefault();
-        setDetailId(focusedTicket.id);
-        return;
-      }
-
-      if (e.key === "a") {
-        e.preventDefault();
-        const el = cardRefs.current.get(focusedTicket.id);
-        const trigger = el?.querySelector<HTMLButtonElement>(".nk-assignee-trigger");
-        trigger?.click();
-        return;
-      }
-
-      if (e.key === ".") {
-        e.preventDefault();
-        const el = cardRefs.current.get(focusedTicket.id);
-        const trigger = el?.querySelector<HTMLButtonElement>(".nk-qa-trigger");
-        trigger?.click();
-        return;
-      }
+      handleActionKey(e.key, { focusedTicket, cardRefs, setDetailId, setStatus }, e);
     }
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);

@@ -11,18 +11,17 @@
 // successfully wrote the config, so the user has an audit trail and a
 // recovery path if anything looks off.
 
-import { defineCommand } from "citty";
-import kleur from "kleur";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import path from "node:path";
 import { homedir } from "node:os";
+import path from "node:path";
 
 import { runMcpServer } from "@notekit/mcp/run";
+import { defineCommand } from "citty";
+import kleur from "kleur";
 
 import { getClient } from "../client.js";
 import { loadConfig } from "../config.js";
-import { NOTEKIT_SKILL_MD } from "../lib/skill.js";
-import { getToken } from "../keychain.js";
+import { getToken, getRecoveryPhrase } from "../keychain.js";
 import {
   ALL_CLIENTS,
   buildEntry,
@@ -30,6 +29,7 @@ import {
   resolveNotekitBinary,
   type ClientId,
 } from "../lib/mcp-clients.js";
+import { NOTEKIT_SKILL_MD } from "../lib/skill.js";
 
 const serveCmd = defineCommand({
   meta: {
@@ -63,6 +63,17 @@ const serveCmd = defineCommand({
     // (parity with the historical standalone-binary entrypoint).
     process.env["NOTEKIT_API_URL"] = cfg.apiUrl;
     process.env["NOTEKIT_TOKEN"] = token;
+
+    // Bridge the recovery phrase from the OS keychain (stored by
+    // `notekit vault unlock`) into the env the MCP crypto layer reads, so an
+    // E2EE vault decrypts without the user hand-plumbing NOTEKIT_RECOVERY_PHRASE
+    // into every client config. Keychain-only: nothing is written to disk, and
+    // if the vault was never unlocked the server simply runs locked (sees note
+    // paths, not plaintext) — same as before.
+    if (!process.env["NOTEKIT_RECOVERY_PHRASE"]) {
+      const phrase = await getRecoveryPhrase();
+      if (phrase) process.env["NOTEKIT_RECOVERY_PHRASE"] = phrase;
+    }
 
     try {
       await runMcpServer({

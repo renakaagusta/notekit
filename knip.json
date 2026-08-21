@@ -1,0 +1,58 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "ignore": [
+    "apps/landing/**",
+    "apps/backoffice/**",
+    ".claude/**",
+    "**/DerivedData/**",
+    "**/ios/App/App/public/**",
+    "**/android/app/src/main/assets/public/**"
+  ],
+  "ignoreDependencies": [
+    "turbo",
+    "@types/node"
+  ],
+  "workspaces": {
+    "apps/web": {
+      "entry": ["src/main.tsx"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "apps/api": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/cli": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/mcp": {
+      "entry": ["src/run.ts", "src/server.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "apps/desktop": {
+      "entry": ["src/main.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/core": {
+      "entry": [
+        "src/index.ts",
+        "src/types/index.ts",
+        "src/stores/index.ts",
+        "src/components/index.ts",
+        "src/lib/secrets-vault.ts",
+        "src/lib/crypto/index.ts",
+        "src/lib/file-paths.ts",
+        "src/lib/vault-e2ee.ts"
+      ],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/api-client": {
+      "entry": ["src/index.ts"],
+      "project": ["src/**/*.ts"]
+    },
+    "packages/eslint-plugin": {
+      "entry": ["index.js"],
+      "project": ["**/*.js"]
+    }
+  }
+}

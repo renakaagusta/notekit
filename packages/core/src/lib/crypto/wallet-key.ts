@@ -18,12 +18,12 @@
  * numbers, trust store — is identical to the recovery path. See
  * docs/architecture/wallet-unlock.md.
  */
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { sha512, sha256 } from "@noble/hashes/sha2.js";
+import { hexToBytes } from "@noble/hashes/utils.js";
 import { bech32 } from "@scure/base";
 import { identityToRecipient } from "age-encryption";
-import { ed25519 } from "@noble/curves/ed25519.js";
-import { sha512, sha256 } from "@noble/hashes/sha2.js";
-import { hkdf } from "@noble/hashes/hkdf.js";
-import { hexToBytes } from "@noble/hashes/utils.js";
 import type { RecoveryIdentity, RecoverySigningKey } from "./recovery";
 
 export type { RecoveryIdentity, RecoverySigningKey };

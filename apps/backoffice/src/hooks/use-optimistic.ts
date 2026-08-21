@@ -97,7 +97,8 @@ export function useOptimisticValueMap<
   const [map, setMap] = React.useState<Map<K, T>>(new Map())
 
   const getValue = (key: K, actualValue: T): T => {
-    return map.has(key) ? map.get(key)! : actualValue
+    const optimistic = map.get(key)
+    return map.has(key) && optimistic !== undefined ? optimistic : actualValue
   }
 
   const setValue = React.useCallback((key: K, value: T) => {

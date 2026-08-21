@@ -9,13 +9,13 @@
 
 import { defineCommand, runMain } from "citty";
 import { authCommand } from "./commands/auth.js";
-import { noteCommand } from "./commands/note.js";
-import { ticketCommand } from "./commands/ticket.js";
 import { linkCommand } from "./commands/link.js";
-import { vaultCommand } from "./commands/vault.js";
-import { secretCommand } from "./commands/secret.js";
 import { mcpCommand } from "./commands/mcp.js";
+import { noteCommand } from "./commands/note.js";
+import { secretCommand } from "./commands/secret.js";
+import { ticketCommand } from "./commands/ticket.js";
 import { upgradeCommand } from "./commands/upgrade.js";
+import { vaultCommand } from "./commands/vault.js";
 
 const main = defineCommand({
   meta: {

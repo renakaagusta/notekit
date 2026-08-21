@@ -1,3 +1,5 @@
+import { Link } from '@tanstack/react-router'
+import { ChevronRight, type LucideIcon } from 'lucide-react'
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,8 +15,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from '@/components/ui/sidebar'
-import { Link } from '@tanstack/react-router'
-import { ChevronRight, type LucideIcon } from 'lucide-react'
 export function NavMain({
   label,
   items,

@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { useEffect, useState } from "react";
 import * as vaultApi from "../lib/vault-api";
-import { SkeletonRepoList } from "./Skeleton";
-import { GithubIcon, GitlabIcon, NotekitIcon } from "./BrandIcons";
 import type { VaultRef, VaultRepo } from "../lib/vault-api";
+import { GithubIcon, GitlabIcon, NotekitIcon } from "./BrandIcons";
+import { SkeletonRepoList } from "./Skeleton";
 
 type Provider = "github" | "gitlab" | "notekit";
 type SubMode = "list" | "create";
@@ -86,7 +86,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [provider]);
 
   // Provision Forgejo account when switching to notekit tab.
@@ -121,7 +121,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [provider]);
 
   async function pick(repo: VaultRepo) {
@@ -196,7 +196,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [provider]);
 
   async function connectGitlab() {

@@ -2,9 +2,9 @@
 // command that needs the API calls `getClient()` — never construct one inline.
 
 import { createNoteKitClient, type NoteKitApi } from "@notekit/api-client";
+import kleur from "kleur";
 import { loadConfig } from "./config.js";
 import { getToken } from "./keychain.js";
-import kleur from "kleur";
 
 export class NotAuthenticatedError extends Error {
   constructor() {

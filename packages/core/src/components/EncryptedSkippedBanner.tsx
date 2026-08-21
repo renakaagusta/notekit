@@ -10,10 +10,10 @@
  * clicks Dismiss for the session.
  */
 
-import { useState } from "react";
 import { Lock, X } from "lucide-react";
-import { useSyncStore } from "../stores/syncStore";
+import { useState } from "react";
 import { useCryptoStore } from "../stores/cryptoStore";
+import { useSyncStore } from "../stores/syncStore";
 
 export function EncryptedSkippedBanner() {
   const skipped = useSyncStore((s) => s.encryptedSkipped);

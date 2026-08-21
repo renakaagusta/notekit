@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
-import { toast } from 'sonner'
 import { LoaderIcon, MailIcon } from 'lucide-react'
+import { type Dispatch, type SetStateAction, useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { toast } from 'sonner'
+import { z } from 'zod'
 
 import { sendMagicLink, signInWithGoogle } from '@/lib/auth-client'
 
@@ -53,6 +53,115 @@ function GoogleIcon() {
   )
 }
 
+interface LoginFormProps {
+  onSent: (email: string) => void
+}
+
+function LoginForm({ onSent }: LoginFormProps) {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({ resolver: zodResolver(schema) })
+
+  async function onSubmit(data: FormData) {
+    const result = await sendMagicLink(data.email)
+    if (result.error) {
+      toast.error(result.error)
+      return
+    }
+    onSent(data.email)
+  }
+
+  return (
+    <>
+      <div className="nk-signin-buttons">
+        <button className="nk-signin-btn" onClick={signInWithGoogle}>
+          <GoogleIcon />
+          Continue with Google
+        </button>
+      </div>
+
+      <div className="bo-divider">or</div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="nk-signin-token-form">
+        <label htmlFor="email" className="bo-field-label">Email address</label>
+        <input
+          id="email"
+          type="email"
+          className="nk-signin-token-input"
+          placeholder="you@notekit.online"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          autoComplete="email"
+          {...register('email')}
+        />
+        {errors.email && (
+          <p className="nk-signin-error" role="alert">{errors.email.message}</p>
+        )}
+        <button
+          type="submit"
+          className="nk-signin-btn bo-signin-btn-primary"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <LoaderIcon className="animate-spin" size={18} />
+          ) : (
+            <MailIcon size={18} />
+          )}
+          Send login link
+        </button>
+      </form>
+    </>
+  )
+}
+
+interface CheckEmailViewProps {
+  email: string
+  countdown: number
+  onResend: () => void
+  onBack: () => void
+}
+
+function CheckEmailView({ email, countdown, onResend, onBack }: CheckEmailViewProps) {
+  return (
+    <div className="nk-signin-token-form">
+      <div className="bo-check-email">
+        <MailIcon size={34} style={{ margin: '0 auto 10px', color: 'var(--auth-muted)' }} />
+        <h2 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>Check your email</h2>
+        <p style={{ margin: 0, fontSize: 13, color: 'var(--auth-lead)', lineHeight: 1.55 }}>
+          We sent a login link to <strong>{email}</strong>. It expires in 30 minutes.
+        </p>
+      </div>
+      <button
+        className="nk-signin-btn"
+        disabled={countdown > 0}
+        onClick={onResend}
+      >
+        {countdown > 0 ? `Resend in ${countdown}s` : 'Resend login link'}
+      </button>
+      <button
+        type="button"
+        className="nk-signin-btn-link"
+        onClick={onBack}
+      >
+        Use a different email
+      </button>
+    </div>
+  )
+}
+
+function startResendCountdown(setCountdown: Dispatch<SetStateAction<number>>) {
+  setCountdown(60)
+  const interval = setInterval(() => {
+    setCountdown((c) => {
+      if (c <= 1) { clearInterval(interval); return 0 }
+      return c - 1
+    })
+  }, 1000)
+}
+
 /**
  * Split-screen dark auth matching app.notekit.online: left = brand + a faint
  * live-data motif on a hairline grid, right = the auth stack (Google OAuth +
@@ -63,35 +172,10 @@ export function LoginPage() {
   const [submittedEmail, setSubmittedEmail] = useState('')
   const [resendCountdown, setResendCountdown] = useState(0)
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({ resolver: zodResolver(schema) })
-
-  function handleGoogleSignIn() {
-    signInWithGoogle()
-  }
-
-  async function onSubmit(data: FormData) {
-    const result = await sendMagicLink(data.email)
-    if (result.error) {
-      toast.error(result.error)
-      return
-    }
-    setSubmittedEmail(data.email)
+  function handleSent(email: string) {
+    setSubmittedEmail(email)
     setView('check-email')
-    startResendCountdown()
-  }
-
-  function startResendCountdown() {
-    setResendCountdown(60)
-    const interval = setInterval(() => {
-      setResendCountdown((c) => {
-        if (c <= 1) { clearInterval(interval); return 0 }
-        return c - 1
-      })
-    }, 1000)
+    startResendCountdown(setResendCountdown)
   }
 
   async function handleResend() {
@@ -101,7 +185,7 @@ export function LoginPage() {
       return
     }
     toast.success('Login link resent')
-    startResendCountdown()
+    startResendCountdown(setResendCountdown)
   }
 
   return (
@@ -143,70 +227,14 @@ export function LoginPage() {
           </p>
 
           {view === 'login' ? (
-            <>
-              <div className="nk-signin-buttons">
-                <button className="nk-signin-btn" onClick={handleGoogleSignIn}>
-                  <GoogleIcon />
-                  Continue with Google
-                </button>
-              </div>
-
-              <div className="bo-divider">or</div>
-
-              <form onSubmit={handleSubmit(onSubmit)} className="nk-signin-token-form">
-                <label htmlFor="email" className="bo-field-label">Email address</label>
-                <input
-                  id="email"
-                  type="email"
-                  className="nk-signin-token-input"
-                  placeholder="you@notekit.online"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  autoComplete="email"
-                  {...register('email')}
-                />
-                {errors.email && (
-                  <p className="nk-signin-error" role="alert">{errors.email.message}</p>
-                )}
-                <button
-                  type="submit"
-                  className="nk-signin-btn bo-signin-btn-primary"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <LoaderIcon className="animate-spin" size={18} />
-                  ) : (
-                    <MailIcon size={18} />
-                  )}
-                  Send login link
-                </button>
-              </form>
-            </>
+            <LoginForm onSent={handleSent} />
           ) : (
-            <div className="nk-signin-token-form">
-              <div className="bo-check-email">
-                <MailIcon size={34} style={{ margin: '0 auto 10px', color: 'var(--auth-muted)' }} />
-                <h2 style={{ margin: '0 0 6px', fontSize: 16, fontWeight: 700 }}>Check your email</h2>
-                <p style={{ margin: 0, fontSize: 13, color: 'var(--auth-lead)', lineHeight: 1.55 }}>
-                  We sent a login link to <strong>{submittedEmail}</strong>. It expires in 30 minutes.
-                </p>
-              </div>
-              <button
-                className="nk-signin-btn"
-                disabled={resendCountdown > 0}
-                onClick={handleResend}
-              >
-                {resendCountdown > 0 ? `Resend in ${resendCountdown}s` : 'Resend login link'}
-              </button>
-              <button
-                type="button"
-                className="nk-signin-btn-link"
-                onClick={() => setView('login')}
-              >
-                Use a different email
-              </button>
-            </div>
+            <CheckEmailView
+              email={submittedEmail}
+              countdown={resendCountdown}
+              onResend={handleResend}
+              onBack={() => setView('login')}
+            />
           )}
 
           <div className="nk-auth-rule" />

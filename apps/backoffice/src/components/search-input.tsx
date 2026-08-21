@@ -1,8 +1,8 @@
-import * as React from 'react'
 import { SearchIcon, XIcon } from 'lucide-react'
+import * as React from 'react'
 
-import { cn } from '@/utils/cn'
 import { Input } from '@/components/ui/input'
+import { cn } from '@/utils/cn'
 
 interface SearchInputProps extends Omit<
   React.ComponentProps<typeof Input>,

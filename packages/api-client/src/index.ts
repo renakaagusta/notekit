@@ -8,12 +8,12 @@
 //   const me = await nk.auth.me();
 //   const vaults = await nk.vault.list();
 
-import { NoteKitClient, type NoteKitClientOptions } from "./transport";
-import { authEndpoints } from "./endpoints/auth";
-import { vaultEndpoints } from "./endpoints/vault";
 import { agentEndpoints } from "./endpoints/agents";
-import { notificationEndpoints } from "./endpoints/notifications";
+import { authEndpoints } from "./endpoints/auth";
 import { iapEndpoints } from "./endpoints/iap";
+import { notificationEndpoints } from "./endpoints/notifications";
+import { vaultEndpoints } from "./endpoints/vault";
+import { NoteKitClient, type NoteKitClientOptions } from "./transport";
 
 export type { NoteKitClientOptions } from "./transport";
 export { NoteKitClient } from "./transport";

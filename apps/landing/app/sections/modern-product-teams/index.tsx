@@ -1,4 +1,4 @@
-import { type FC } from 'react'
+import type { FC } from 'react'
 import LayoutWrapper from '@/components/layout-wrapper'
 import styles from './styles.module.css'
 

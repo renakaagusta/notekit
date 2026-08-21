@@ -11,8 +11,8 @@
 // MCP tools the agent should use to satisfy the request, so a fresh
 // session lands on the right loop without prior context.
 
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { resolveProjectContext } from "../lib/project.js";
 
 // eslint-disable-next-line max-lines-per-function -- registers all MCP prompts in one place; splitting would scatter related prompt definitions

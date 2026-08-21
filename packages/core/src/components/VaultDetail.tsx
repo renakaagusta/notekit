@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
 import { ChevronRight, KeyRound, Shield } from "lucide-react";
-import { useLayoutStore } from "../stores/layoutStore";
+import { useEffect, useState } from "react";
 import { listAllSecrets, type SecretRef } from "../lib/secrets-vault";
+import { useLayoutStore } from "../stores/layoutStore";
 
 /**
  * The contents of a secret vault rendered as a pane tab: every secret in the

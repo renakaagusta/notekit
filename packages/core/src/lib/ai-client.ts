@@ -4,8 +4,8 @@
  * key never leaves the user's device in plaintext over our infra — it's
  * decrypted in memory and posted straight to the provider.
  */
-import { getSecret } from "./secrets-vault";
 import type { DeviceIdentity } from "./crypto/device-key";
+import { getSecret } from "./secrets-vault";
 
 export type AIProvider = "openai" | "anthropic";
 

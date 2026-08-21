@@ -1,5 +1,8 @@
 'use client'
 
+import { useState } from 'react'
+import type { ColorSpace } from 'react-aria-components'
+import * as Aria from 'react-aria-components'
 import {
   Popover,
   PopoverContent,
@@ -13,9 +16,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/utils/cn'
-import { useState } from 'react'
-import type { ColorSpace } from 'react-aria-components'
-import * as Aria from 'react-aria-components'
 import { Button } from './button'
 
 function ColorPicker(props: Aria.ColorPickerProps) {

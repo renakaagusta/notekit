@@ -10,9 +10,14 @@
 //
 // See `lib/scope.ts` for the exact prefix tables.
 
-import { z } from "zod";
+import { randomBytes } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { slugify } from "@notekit/core/paths";
+import type { Note } from "@notekit/core/types";
+import { z } from "zod";
+import { vaultIsEncrypted, encryptNote, decryptNote } from "../lib/crypto.js";
+import { parseMarkdown, serializeMarkdown } from "../lib/markdown.js";
 import {
   encryptedSkippedNote,
   errorContent,
@@ -21,12 +26,8 @@ import {
   listVaultFiles,
   textContent,
 } from "../lib/notekit.js";
-import { parseMarkdown, serializeMarkdown } from "../lib/markdown.js";
 import { resolveProjectContext } from "../lib/project.js";
 import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
-import { randomBytes } from "node:crypto";
-import { vaultIsEncrypted, encryptNote, decryptNote } from "../lib/crypto.js";
-import type { Note } from "@notekit/core/types";
 
 function newItemId(): string {
   return randomBytes(8).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
@@ -47,6 +48,8 @@ const projectSchema = z
   .describe(
     "Override the active project slug for this call. Implies `scope` defaults to `project`.",
   );
+
+interface NoteHit { path: string; title: string; snippet: string; tags: string[] }
 
 // eslint-disable-next-line max-lines-per-function -- registers all note MCP tools in one place; splitting would scatter related tool definitions across files
 export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
@@ -73,65 +76,18 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
-    // eslint-disable-next-line complexity -- search handler fans out across prefixes with per-file E2EE branching; cannot be split without losing context
     async ({ query, limit, scope, project }) => {
       const max = limit ?? 10;
-      // Cap the candidate read fan-out so an LLM eagerly calling search on
-      // a large vault doesn't trigger thousands of API round-trips. The
-      // factor of 5 leaves headroom past `max` so frontmatter-only matches
-      // don't immediately starve full-body matches.
-      const maxCandidates = max * 5;
       try {
         const ctx = resolveProjectContext();
         const resolved = resolveScope("notes", { scope, project, ctx });
         const candidatePaths = await collectCandidatePaths(nk, resolved.readPrefixes);
         const needle = query.toLowerCase();
-        const hits: { path: string; title: string; snippet: string; tags: string[] }[] = [];
+        const hits: NoteHit[] = [];
         let encryptedSkipped = 0;
-        let scanned = 0;
-        for (const filePath of candidatePaths) {
-          // Encrypted note → decrypt (if unlocked) and match; otherwise note
-          // it as skipped rather than failing the whole search (#49).
-          if (isEncryptedItemPath(filePath)) {
-            let note = null;
-            try {
-              const file = await nk.vault.readFile(filePath);
-              note = file.content ? await decryptNote(filePath, file.content) : null;
-            } catch {
-              note = null; // locked or undecryptable
-            }
-            if (!note) {
-              encryptedSkipped++;
-              continue;
-            }
-            const hay = `${note.title}\n${note.tags.join(" ")}\n${note.body}`.toLowerCase();
-            if (!hay.includes(needle)) continue;
-            hits.push({
-              path: filePath,
-              title: note.title,
-              tags: note.tags,
-              snippet: makeSnippet(note.body, needle),
-            });
-            if (hits.length >= max) break;
-            continue;
-          }
-          if (!filePath.endsWith(".md")) continue;
-          if (scanned >= maxCandidates && hits.length === 0) break;
-          scanned++;
-          const file = await nk.vault.readFile(filePath);
-          const { frontmatter, body } = parseMarkdown(file.content ?? "");
-          const title = String(frontmatter["title"] ?? deriveTitle(filePath));
-          const tags = normalizeTags(frontmatter["tags"]);
-          const hay = `${title}\n${tags.join(" ")}\n${body}`.toLowerCase();
-          if (!hay.includes(needle)) continue;
-          hits.push({
-            path: filePath,
-            title,
-            tags,
-            snippet: makeSnippet(body, needle),
-          });
-          if (hits.length >= max) break;
-        }
+        const result = await runNoteSearch(nk, candidatePaths, needle, max);
+        encryptedSkipped = result.encryptedSkipped;
+        hits.push(...result.hits);
         return jsonContent({
           count: hits.length,
           scope: resolved.effective,
@@ -293,7 +249,6 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false },
     },
-    // eslint-disable-next-line complexity -- update handler branches on E2EE path, encrypted note fields, and frontmatter patch keys; unavoidable without losing context
     async ({ path, body, frontmatterPatch, commitMessage }) => {
       try {
         const existing = await nk.vault.readFile(path);
@@ -301,20 +256,7 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
         if (existing.content && isEncryptedItemPath(path)) {
           const note = await decryptNote(path, existing.content);
           if (!note) return errorContent(`notes_update: couldn't decrypt ${path}`);
-          if (body !== undefined) note.body = body;
-          if (frontmatterPatch) {
-            if ("title" in frontmatterPatch) {
-              note.title = frontmatterPatch["title"] === null || frontmatterPatch["title"] === undefined ? "" : String(frontmatterPatch["title"]);
-            }
-            if ("tags" in frontmatterPatch) {
-              const t = frontmatterPatch["tags"];
-              note.tags = Array.isArray(t) ? t.map(String) : [];
-            }
-            if ("folder" in frontmatterPatch) {
-              const f = frontmatterPatch["folder"];
-              note.folder = f === null || f === undefined ? null : String(f);
-            }
-          }
+          applyNoteEncryptedPatch(note, body, frontmatterPatch);
           note.updatedAt = new Date().toISOString();
           const sealed = await encryptNote(note);
           await nk.vault.writeFile(
@@ -326,25 +268,7 @@ export function registerNoteTools(server: McpServer, nk: NoteKitApi): void {
           return textContent(`Updated ${path}`);
         }
         const parsed = parseMarkdown(existing.content ?? "");
-        const mergedFm: Record<string, unknown> = { ...parsed.frontmatter };
-        if (frontmatterPatch) {
-          const keysToRemove = new Set<string>();
-          for (const [k, v] of Object.entries(frontmatterPatch)) {
-            if (v === null) keysToRemove.add(k);
-            else mergedFm[k] = v;
-          }
-          if (keysToRemove.size > 0) {
-            const filtered = Object.fromEntries(
-              Object.entries(mergedFm).filter(([k]) => !keysToRemove.has(k)),
-            );
-            // Replace contents of mergedFm in-place (can't reassign const)
-            for (const key of Object.keys(mergedFm)) {
-              // eslint-disable-next-line @typescript-eslint/no-dynamic-delete -- clearing old keys before repopulating; keys come from trusted mergedFm object
-              delete mergedFm[key];
-            }
-            Object.assign(mergedFm, filtered);
-          }
-        }
+        const mergedFm = mergeNoteFrontmatter(parsed.frontmatter, frontmatterPatch ?? {});
         mergedFm["updatedAt"] = new Date().toISOString();
         const nextContent = serializeMarkdown({
           frontmatter: mergedFm,
@@ -517,14 +441,6 @@ function normalizeTags(raw: unknown): string[] {
   return [];
 }
 
-function slugify(s: string): string {
-  return s
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 80);
-}
 
 function makeSnippet(body: string, needle: string, radius = 80): string {
   const idx = body.toLowerCase().indexOf(needle);
@@ -534,4 +450,153 @@ function makeSnippet(body: string, needle: string, radius = 80): string {
   const prefix = start > 0 ? "…" : "";
   const suffix = end < body.length ? "…" : "";
   return `${prefix}${body.slice(start, end).replace(/\s+/g, " ").trim()}${suffix}`;
+}
+
+type NoteEntryResult =
+  | { kind: "hit"; item: NoteHit; countedScan: boolean }
+  | { kind: "miss"; countedScan: boolean }
+  | { kind: "stop" }
+  | { kind: "encrypted-failed" };
+
+/**
+ * Run the full note search loop over candidate paths, returning hits and
+ * a count of encrypted entries that couldn't be decrypted.
+ */
+async function runNoteSearch(
+  nk: NoteKitApi,
+  candidatePaths: string[],
+  needle: string,
+  max: number,
+): Promise<{ hits: NoteHit[]; encryptedSkipped: number }> {
+  // Cap the candidate read fan-out so an LLM eagerly calling search on
+  // a large vault doesn't trigger thousands of API round-trips. The
+  // factor of 5 leaves headroom past `max` so frontmatter-only matches
+  // don't immediately starve full-body matches.
+  const maxCandidates = max * 5;
+  const hits: NoteHit[] = [];
+  let encryptedSkipped = 0;
+  let scanned = 0;
+  for (const filePath of candidatePaths) {
+    const entry = await resolveNoteEntry(nk, filePath, needle, { scanned, maxCandidates, hitCount: hits.length });
+    if (entry.kind === "stop") break;
+    if (entry.kind === "encrypted-failed") { encryptedSkipped++; continue; }
+    if (entry.kind === "miss") { if (entry.countedScan) scanned++; continue; }
+    if (entry.countedScan) scanned++;
+    hits.push(entry.item);
+    if (hits.length >= max) break;
+  }
+  return { hits, encryptedSkipped };
+}
+
+interface NoteSearchCursor { scanned: number; maxCandidates: number; hitCount: number }
+
+/**
+ * Resolve a single candidate path for the note search loop.
+ */
+async function resolveNoteEntry(
+  nk: NoteKitApi,
+  filePath: string,
+  needle: string,
+  cursor: NoteSearchCursor,
+): Promise<NoteEntryResult> {
+  if (isEncryptedItemPath(filePath)) {
+    const result = await tryDecryptAndMatchNote(nk, filePath, needle);
+    if (result === "encrypted-failed") return { kind: "encrypted-failed" };
+    if (!result) return { kind: "miss", countedScan: false };
+    return { kind: "hit", item: result, countedScan: false };
+  }
+  if (!filePath.endsWith(".md")) return { kind: "miss", countedScan: false };
+  if (cursor.scanned >= cursor.maxCandidates && cursor.hitCount === 0) return { kind: "stop" };
+  const hit = await matchPlaintextNote(nk, filePath, needle);
+  if (!hit) return { kind: "miss", countedScan: true };
+  return { kind: "hit", item: hit, countedScan: true };
+}
+
+/**
+ * Try to decrypt and match an encrypted note against the search needle.
+ * Returns the hit record on match, null when the note doesn't match, or
+ * 'encrypted-failed' when decryption was not possible (locked vault).
+ */
+async function tryDecryptAndMatchNote(
+  nk: NoteKitApi,
+  filePath: string,
+  needle: string,
+): Promise<NoteHit | null | "encrypted-failed"> {
+  let note: Note | null = null;
+  try {
+    const file = await nk.vault.readFile(filePath);
+    note = file.content ? await decryptNote(filePath, file.content) : null;
+  } catch {
+    note = null;
+  }
+  if (!note) return "encrypted-failed";
+  const hay = `${note.title}\n${note.tags.join(" ")}\n${note.body}`.toLowerCase();
+  if (!hay.includes(needle)) return null;
+  return {
+    path: filePath,
+    title: note.title,
+    tags: note.tags,
+    snippet: makeSnippet(note.body, needle),
+  };
+}
+
+/**
+ * Read and match a plaintext note against the search needle.
+ * Returns the hit record on match, or null when the note doesn't match.
+ */
+async function matchPlaintextNote(
+  nk: NoteKitApi,
+  filePath: string,
+  needle: string,
+): Promise<NoteHit | null> {
+  const file = await nk.vault.readFile(filePath);
+  const { frontmatter, body } = parseMarkdown(file.content ?? "");
+  const title = String(frontmatter["title"] ?? deriveTitle(filePath));
+  const tags = normalizeTags(frontmatter["tags"]);
+  const hay = `${title}\n${tags.join(" ")}\n${body}`.toLowerCase();
+  if (!hay.includes(needle)) return null;
+  return { path: filePath, title, tags, snippet: makeSnippet(body, needle) };
+}
+
+/**
+ * Mutate an encrypted Note in-place with the fields from a notes_update call.
+ * Does NOT set updatedAt — the caller sets that after.
+ */
+function applyNoteEncryptedPatch(
+  note: Note,
+  body: string | undefined,
+  frontmatterPatch: Record<string, unknown> | undefined,
+): void {
+  if (body !== undefined) note.body = body;
+  if (!frontmatterPatch) return;
+  if ("title" in frontmatterPatch) {
+    const t = frontmatterPatch["title"];
+    note.title = t === null || t === undefined ? "" : String(t);
+  }
+  if ("tags" in frontmatterPatch) {
+    const t = frontmatterPatch["tags"];
+    note.tags = Array.isArray(t) ? t.map(String) : [];
+  }
+  if ("folder" in frontmatterPatch) {
+    const f = frontmatterPatch["folder"];
+    note.folder = f === null || f === undefined ? null : String(f);
+  }
+}
+
+/**
+ * Merge a frontmatter patch into an existing frontmatter object. Fields with
+ * a `null` value in the patch are removed; all others are set.
+ */
+function mergeNoteFrontmatter(
+  existing: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Record<string, unknown> {
+  const merged: Record<string, unknown> = { ...existing };
+  const keysToRemove = new Set<string>();
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) keysToRemove.add(k);
+    else merged[k] = v;
+  }
+  if (keysToRemove.size === 0) return merged;
+  return Object.fromEntries(Object.entries(merged).filter(([k]) => !keysToRemove.has(k)));
 }

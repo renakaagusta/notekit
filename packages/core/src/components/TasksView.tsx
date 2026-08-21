@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { CalendarDays, SquareKanban } from "lucide-react";
-import { TicketsBoard } from "./TicketsBoard";
+import { useState } from "react";
+import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { CalendarView } from "./CalendarView";
 import { MobileTasksView } from "./MobileTasksView";
-import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
+import { TicketsBoard } from "./TicketsBoard";
 
 type TasksMode = "kanban" | "calendar";
 

@@ -3,10 +3,10 @@
 // (when no body is provided), etc.
 
 import { spawn } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
 
 export interface OpenEditorOptions {
   /** Initial file contents. */

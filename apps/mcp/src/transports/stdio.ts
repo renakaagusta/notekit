@@ -2,8 +2,8 @@
 // the `notekit-mcp` binary. The SDK does all the actual JSON-RPC framing; we
 // just wire up the McpServer to stdin/stdout and surface a shutdown hook.
 
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 export async function runStdio(server: McpServer): Promise<void> {
   const transport = new StdioServerTransport();

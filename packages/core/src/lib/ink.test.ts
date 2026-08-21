@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { serializeInk, parseInk, simplifyStroke, simplifyInk } from "./ink";
 import { emptyInkDocument, type InkDocument } from "../types/ink";
+import { serializeInk, parseInk, simplifyStroke, simplifyInk } from "./ink";
 
 const doc: InkDocument = {
   v: 1,

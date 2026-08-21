@@ -13,9 +13,9 @@
 import type { Note } from "../types/note";
 import type { Ticket } from "../types/ticket";
 import type { AgentProfile } from "./agents-api";
-import type { VaultCommit } from "./vault-api";
-import { noteTitle } from "./note-display";
 import { journalYMDFromPath } from "./journal";
+import { noteTitle } from "./note-display";
+import type { VaultCommit } from "./vault-api";
 
 export type SearchKind =
   | "journal"
@@ -127,6 +127,19 @@ function freshness(iso: string | undefined): number {
 
 // ─── Source: notes (including journals) ─────────────────────────────────
 
+function noteSubtitle(ymd: string | null, folder: string | null | undefined): string {
+  if (ymd) return "Journal";
+  return folder ?? "Notes";
+}
+
+function notePayload(
+  note: Note,
+  ymd: string | null,
+): SearchHit["payload"] {
+  if (ymd) return { kind: "journal", noteId: note.id, ymd };
+  return { kind: "note", noteId: note.id };
+}
+
 export function searchNotes(query: string, notes: Note[]): SearchHit[] {
   if (!query.trim()) return [];
   const hits: SearchHit[] = [];
@@ -142,16 +155,10 @@ export function searchNotes(query: string, notes: Note[]): SearchHit[] {
       kind: ymd ? "journal" : "note",
       key: `${ymd ? "j" : "n"}:${note.id}`,
       title,
-      subtitle: ymd
-        ? "Journal"
-        : note.folder
-          ? note.folder
-          : "Notes",
+      subtitle: noteSubtitle(ymd, note.folder),
       snippet: at >= 0 ? makeSnippet(note.body, at, query) : undefined,
       score,
-      payload: ymd
-        ? { kind: "journal", noteId: note.id, ymd }
-        : { kind: "note", noteId: note.id },
+      payload: notePayload(note, ymd),
     });
   }
   return topN(hits);

@@ -1,16 +1,17 @@
+import type { Editor as TipTapEditor } from "@tiptap/react";
+import { Loader2, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, Sparkles } from "lucide-react";
-import type { Editor as TipTapEditor } from "@tiptap/react";
-import type { DeviceIdentity } from "../lib/crypto/device-key";
-import { streamAssistant } from "../lib/ai-agent";
-import { useAIChatStore } from "../stores/aiChatStore";
+import { useTranslation } from "react-i18next";
 import {
   listAgents,
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
   type AgentProfile,
 } from "../lib/agents-api";
+import { streamAssistant } from "../lib/ai-agent";
+import type { DeviceIdentity } from "../lib/crypto/device-key";
+import { useAIChatStore } from "../stores/aiChatStore";
 
 export interface InlineSelection {
   from: number;
@@ -28,42 +29,40 @@ interface Props {
   onClose(): void;
 }
 
-interface Preset { id: string; label: string; build(text: string): string; append?: boolean }
+/** `id` doubles as the i18n key under `inlineAi.preset.*` for the button label. */
+interface Preset { id: "rewrite" | "summarize" | "continue" | "grammar"; build(text: string): string; append?: boolean }
 
 const PRESETS: Preset[] = [
   {
     id: "rewrite",
-    label: "Tulis ulang",
-    build: (t) =>
-      `Tulis ulang teks berikut agar lebih jelas dan ringkas tanpa mengubah maknanya. Balas HANYA teks hasilnya, tanpa penjelasan atau tanda kutip:\n\n${t}`,
+    build: (text) =>
+      `Rewrite the following text to be clearer and more concise without changing its meaning. Reply with ONLY the result, no explanation or quotes:\n\n${text}`,
   },
   {
     id: "summarize",
-    label: "Ringkas",
-    build: (t) =>
-      `Ringkas teks berikut menjadi poin-poin singkat. Balas hanya ringkasannya:\n\n${t}`,
+    build: (text) =>
+      `Summarize the following text into short bullet points. Reply with only the summary:\n\n${text}`,
   },
   {
     id: "continue",
-    label: "Lanjutkan",
     append: true,
-    build: (t) =>
-      `Lanjutkan tulisan berikut secara natural dengan gaya yang sama. Balas hanya kelanjutannya:\n\n${t}`,
+    build: (text) =>
+      `Continue the following writing naturally in the same style. Reply with only the continuation:\n\n${text}`,
   },
   {
     id: "grammar",
-    label: "Perbaiki tata bahasa",
-    build: (t) =>
-      `Perbaiki ejaan dan tata bahasa teks berikut tanpa mengubah gaya atau makna. Balas HANYA teks hasilnya:\n\n${t}`,
+    build: (text) =>
+      `Fix the spelling and grammar of the following text without changing its style or meaning. Reply with ONLY the result:\n\n${text}`,
   },
 ];
 
 const SYSTEM =
-  "Kamu editor teks. Balas HANYA dengan teks hasil yang diminta — tanpa basa-basi, " +
-  "tanpa tanda kutip pembungkus, tanpa penjelasan.";
+  "You are a text editor. Reply with ONLY the requested result text — no preamble, " +
+  "no wrapping quotes, no explanation. Keep the text in its original language.";
 
 // eslint-disable-next-line max-lines-per-function -- large React component with presets, streaming, and portal rendering
 export function InlineAIMenu({ editor, device, model: _model, sel, onClose }: Props) {
+  const { t } = useTranslation();
   const [instruction, setInstruction] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,7 +106,7 @@ export function InlineAIMenu({ editor, device, model: _model, sel, onClose }: Pr
   async function run(prompt: string, append: boolean) {
     if (busy) return;
     if (!agent) {
-      setError("Pilih profil AI dulu di panel asisten.");
+      setError(t("ai.error.pickProfile"));
       return;
     }
     setBusy(true);
@@ -144,7 +143,7 @@ export function InlineAIMenu({ editor, device, model: _model, sel, onClose }: Pr
       style={{ position: "fixed", left: sel.x, top: sel.y + 6 }}
     >
       <div className="nk-inline-ai-hd">
-        <Sparkles size={13} aria-hidden /> AI · {sel.text.length} karakter terpilih
+        <Sparkles size={13} aria-hidden /> {t("inlineAi.header", { count: sel.text.length })}
       </div>
       <form
         onSubmit={(e) => {
@@ -156,7 +155,7 @@ export function InlineAIMenu({ editor, device, model: _model, sel, onClose }: Pr
         <input
           ref={inputRef}
           className="nk-inline-ai-input"
-          placeholder="Perintah bebas… (mis. terjemahkan ke Inggris)"
+          placeholder={t("inlineAi.freeform")}
           value={instruction}
           onChange={(e) => setInstruction(e.target.value)}
           disabled={busy}
@@ -170,13 +169,13 @@ export function InlineAIMenu({ editor, device, model: _model, sel, onClose }: Pr
             disabled={busy}
             onClick={() => void run(p.build(sel.text), !!p.append)}
           >
-            {p.label}
+            {t(`inlineAi.preset.${p.id}`)}
           </button>
         ))}
       </div>
       {busy && (
         <div className="nk-inline-ai-status">
-          <Loader2 size={13} className="nk-ai-spin" aria-hidden /> Menulis…
+          <Loader2 size={13} className="nk-ai-spin" aria-hidden /> {t("inlineAi.writing")}
         </div>
       )}
       {error && <div className="nk-inline-ai-error">{error}</div>}

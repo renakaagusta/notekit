@@ -1,7 +1,7 @@
 import type { FC, ReactNode } from 'react'
 import styles from './styles.module.css'
 
-export type FeatureLookupProps = {
+export interface FeatureLookupProps {
 	id: string
 	title: string
 	description: string

@@ -3,10 +3,6 @@
 // the API; the CLI mirrors it in config.json so other commands can show it in
 // prompts without an extra round-trip.
 
-import { defineCommand } from "citty";
-import kleur from "kleur";
-import { getClient, dieWithError } from "../client.js";
-import { patchConfig } from "../config.js";
 import {
   isValidMnemonic,
   recoveryFromMnemonic,
@@ -17,15 +13,18 @@ import {
   type DeviceIdentity,
 } from "@notekit/core/crypto";
 import { readRecovery, readVaultConfig, initVault, listDevices } from "@notekit/core/secrets";
+import { defineCommand } from "citty";
+import kleur from "kleur";
 import { nanoid } from "nanoid";
-import { getSecretsClient } from "../lib/secrets.js";
-import { loadConfig } from "../config.js";
+import { getClient, dieWithError } from "../client.js";
+import { patchConfig, loadConfig  } from "../config.js";
 import {
   setRecoveryPhrase,
   clearRecoveryPhrase,
   getDeviceIdentity,
   setDeviceIdentity,
 } from "../keychain.js";
+import { getSecretsClient } from "../lib/secrets.js";
 
 const listCmd = defineCommand({
   meta: { name: "list", description: "List vaults the signed-in user can access." },

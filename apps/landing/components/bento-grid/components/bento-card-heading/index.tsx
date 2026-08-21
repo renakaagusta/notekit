@@ -1,7 +1,7 @@
-import { type FC } from 'react'
+import type { FC } from 'react'
 import styles from './styles.module.css'
 
-type Props = {
+interface Props {
 	title: string
 	description: string
 }

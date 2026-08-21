@@ -1,7 +1,7 @@
-import { useMemo } from "react";
 import { ChevronRight, Folder, FolderOpen, Link2 } from "lucide-react";
-import { useLinksStore } from "../stores/linksStore";
+import { useMemo } from "react";
 import { useLayoutStore } from "../stores/layoutStore";
+import { useLinksStore } from "../stores/linksStore";
 import type { SavedLink } from "../types/link";
 
 function hostname(url: string): string {

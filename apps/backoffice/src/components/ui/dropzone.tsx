@@ -1,11 +1,11 @@
 'use client'
 
+import { CloudUploadIcon, FileIcon, PlusIcon, XIcon } from 'lucide-react'
+import * as React from 'react'
 import { useControlledState } from '@/hooks/use-controlled-state'
 
 import { cn } from '@/utils/cn'
 import { formatFileSize } from '@/utils/file'
-import { CloudUploadIcon, FileIcon, PlusIcon, XIcon } from 'lucide-react'
-import * as React from 'react'
 import { Button } from './button'
 
 export interface DropzoneError {

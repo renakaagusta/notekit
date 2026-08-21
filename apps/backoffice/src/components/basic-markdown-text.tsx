@@ -19,108 +19,124 @@ export function BasicMarkdownText({
   return <p className={cn(className)}>{parsedContent}</p>
 }
 
+interface MatchResult { matched: string; content: React.ReactNode }
+type Matcher = (text: string, key: number) => MatchResult | null
+
+function tryBoldItalic(text: string, key: number): MatchResult | null {
+  const match = text.match(/^\*\*\*(.+?)\*\*\*/)
+  if (!match) return null
+  return {
+    matched: match[0],
+    content: (
+      <strong key={key}>
+        <em>{parseMarkdown(match[1])}</em>
+      </strong>
+    ),
+  }
+}
+
+function tryBold(text: string, key: number): MatchResult | null {
+  const match = text.match(/^\*\*(.+?)\*\*/)
+  if (!match) return null
+  return { matched: match[0], content: <strong key={key}>{parseMarkdown(match[1])}</strong> }
+}
+
+function tryStrike(text: string, key: number): MatchResult | null {
+  const match = text.match(/^~~(.+?)~~/)
+  if (!match) return null
+  return { matched: match[0], content: <s key={key}>{parseMarkdown(match[1])}</s> }
+}
+
+function tryUnderline(text: string, key: number): MatchResult | null {
+  const match = text.match(/^(?:\+\+(.+?)\+\+|__(.+?)__)/)
+  if (!match) return null
+  const inner = match[1] || match[2]
+  return { matched: match[0], content: <u key={key}>{parseMarkdown(inner)}</u> }
+}
+
+function tryItalicStar(text: string, key: number): MatchResult | null {
+  const match = text.match(/^\*(.+?)\*/)
+  if (!match) return null
+  return { matched: match[0], content: <em key={key}>{parseMarkdown(match[1])}</em> }
+}
+
+function tryItalicUnder(text: string, key: number): MatchResult | null {
+  const match = text.match(/^_(.+?)_/)
+  if (!match) return null
+  return { matched: match[0], content: <em key={key}>{parseMarkdown(match[1])}</em> }
+}
+
+function tryCode(text: string, key: number): MatchResult | null {
+  const match = text.match(/^`([^`]+)`/)
+  if (!match) return null
+  return {
+    matched: match[0],
+    content: (
+      <code key={key} className="bg-muted rounded px-1 py-0.5 font-mono text-sm">
+        {match[1]}
+      </code>
+    ),
+  }
+}
+
+function tryLink(text: string, key: number): MatchResult | null {
+  const match = text.match(/^\[([^\]]+)\]\(([^)]+)\)/)
+  if (!match) return null
+  return {
+    matched: match[0],
+    content: (
+      <a
+        key={key}
+        href={match[2]}
+        className="text-primary hover:text-primary/80 underline underline-offset-4"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {parseMarkdown(match[1])}
+      </a>
+    ),
+  }
+}
+
+function tryPlain(text: string, _key: number): MatchResult | null {
+  const match = text.match(/^[^*_`[~+]+/)
+  if (!match) return null
+  return { matched: match[0], content: match[0] }
+}
+
+const MATCHERS: Matcher[] = [
+  tryBoldItalic,
+  tryBold,
+  tryStrike,
+  tryUnderline,
+  tryItalicStar,
+  tryItalicUnder,
+  tryCode,
+  tryLink,
+  tryPlain,
+]
+
 function parseMarkdown(text: string): React.ReactNode {
   const parts: React.ReactNode[] = []
   let remaining = text
   let key = 0
 
   while (remaining.length > 0) {
-    // Bold + Italic: ***text*** (must check before bold and italic)
-    const boldItalicMatch = remaining.match(/^\*\*\*(.+?)\*\*\*/)
-    if (boldItalicMatch) {
-      parts.push(
-        <strong key={key++}>
-          <em>{parseMarkdown(boldItalicMatch[1])}</em>
-        </strong>,
-      )
-      remaining = remaining.slice(boldItalicMatch[0].length)
-      continue
+    let advanced = false
+    for (const matcher of MATCHERS) {
+      const result = matcher(remaining, key)
+      if (result) {
+        parts.push(result.content)
+        remaining = remaining.slice(result.matched.length)
+        key++
+        advanced = true
+        break
+      }
     }
-
-    // Bold: **text** (recursively parse inner content)
-    const boldMatch = remaining.match(/^\*\*(.+?)\*\*/)
-    if (boldMatch) {
-      parts.push(<strong key={key++}>{parseMarkdown(boldMatch[1])}</strong>)
-      remaining = remaining.slice(boldMatch[0].length)
-      continue
+    if (!advanced) {
+      parts.push(remaining[0])
+      remaining = remaining.slice(1)
     }
-
-    // Strikethrough: ~~text~~ (recursively parse inner content)
-    const strikeMatch = remaining.match(/^~~(.+?)~~/)
-    if (strikeMatch) {
-      parts.push(<s key={key++}>{parseMarkdown(strikeMatch[1])}</s>)
-      remaining = remaining.slice(strikeMatch[0].length)
-      continue
-    }
-
-    // Underline: ++text++ or __text__ (recursively parse inner content)
-    const underlineMatch = remaining.match(/^(?:\+\+(.+?)\+\+|__(.+?)__)/)
-    if (underlineMatch) {
-      const content = underlineMatch[1] || underlineMatch[2]
-      parts.push(<u key={key++}>{parseMarkdown(content)}</u>)
-      remaining = remaining.slice(underlineMatch[0].length)
-      continue
-    }
-
-    // Italic: *text* or _text_ (recursively parse inner content)
-    const italicStarMatch = remaining.match(/^\*(.+?)\*/)
-    if (italicStarMatch) {
-      parts.push(<em key={key++}>{parseMarkdown(italicStarMatch[1])}</em>)
-      remaining = remaining.slice(italicStarMatch[0].length)
-      continue
-    }
-
-    const italicUnderMatch = remaining.match(/^_(.+?)_/)
-    if (italicUnderMatch) {
-      parts.push(<em key={key++}>{parseMarkdown(italicUnderMatch[1])}</em>)
-      remaining = remaining.slice(italicUnderMatch[0].length)
-      continue
-    }
-
-    // Code: `text` (no recursive parsing - code is literal)
-    const codeMatch = remaining.match(/^`([^`]+)`/)
-    if (codeMatch) {
-      parts.push(
-        <code
-          key={key++}
-          className="bg-muted rounded px-1 py-0.5 font-mono text-sm"
-        >
-          {codeMatch[1]}
-        </code>,
-      )
-      remaining = remaining.slice(codeMatch[0].length)
-      continue
-    }
-
-    // Link: [text](url) (recursively parse link text)
-    const linkMatch = remaining.match(/^\[([^\]]+)\]\(([^)]+)\)/)
-    if (linkMatch) {
-      parts.push(
-        <a
-          key={key++}
-          href={linkMatch[2]}
-          className="text-primary hover:text-primary/80 underline underline-offset-4"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          {parseMarkdown(linkMatch[1])}
-        </a>,
-      )
-      remaining = remaining.slice(linkMatch[0].length)
-      continue
-    }
-
-    // Plain text until next special character
-    const plainMatch = remaining.match(/^[^*_`\[~+]+/)
-    if (plainMatch) {
-      parts.push(plainMatch[0])
-      remaining = remaining.slice(plainMatch[0].length)
-      continue
-    }
-
-    // If no match, consume one character
-    parts.push(remaining[0])
-    remaining = remaining.slice(1)
   }
 
   return parts

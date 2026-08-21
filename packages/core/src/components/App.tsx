@@ -1,74 +1,56 @@
 import "../i18n"; // initialize i18next before any component renders
 import { useEffect, useRef, useState } from "react";
-import {
-  ArrowLeft,
-  Menu,
-  PanelLeft,
-  Search,
-  X,
-} from "lucide-react";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
-import { MobileDrawer } from "./MobileDrawer";
-import { MobileBottomNav } from "./MobileBottomNav";
-import { MobileSettings } from "./MobileSettings";
-import { useNotesStore } from "../stores/notesStore";
-import { useSyncStore } from "../stores/syncStore";
-import { useVaultStore } from "../stores/vaultStore";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { noteTitle } from "../lib/note-display";
-import {
-  getStatus as getVaultStatus,
-  getVaultSettings,
-  listVaults,
-} from "../lib/vault-api";
-import type { VaultRef, VaultStatus } from "../lib/vault-api";
-import {
-  refresh as refreshSync,
-  start as startSync,
-  pull as pullSync,
-} from "../lib/sync";
-import { bindVaultPersistence } from "../lib/vault-persistence";
+import { applyAccent } from "../lib/accent";
+import { isDesktop } from "../lib/api";
+import { applyAppearance } from "../lib/appearance";
+import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import { publishMyKeys } from "../lib/directory";
+import { applyEditorPrefs } from "../lib/editor-prefs";
+import { noteTitle } from "../lib/note-display";
+import type { SearchHit } from "../lib/search";
+import { refresh as refreshSync, start as startSync } from "../lib/sync";
+import { getVaultSettings, listVaults } from "../lib/vault-api";
 import {
   startVaultEventStream,
   stopVaultEventStream,
 } from "../lib/vault-events-client";
-import { bootstrapCrypto } from "../lib/crypto-bootstrap";
+import { bindVaultPersistence } from "../lib/vault-persistence";
+import { useAIChatStore } from "../stores/aiChatStore";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { findLeaf, useLayoutStore } from "../stores/layoutStore";
+import { useNotesStore } from "../stores/notesStore";
+import { useSyncStore } from "../stores/syncStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
 import type { User } from "../types/user";
+import { AIAssistantFab } from "./AIAssistantFab";
+import { AIAssistantPanel } from "./AIAssistantPanel";
+import { noteCounter, syncLabel, syncTone } from "./AppHelpers";
+import { AppModals } from "./AppModals";
+import type { MainView } from "./AppTypes";
 import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { FirstEncryptDialog } from "./FirstEncryptDialog";
-import { ShareDialog } from "./ShareDialog";
+import { GraphView } from "./GraphView";
+import { HomePane } from "./HomePane";
+import { MainAppBar } from "./MainAppBar";
+import { MobileBottomNav } from "./MobileBottomNav";
+import { MobileDrawer } from "./MobileDrawer";
+import { MobileSettings } from "./MobileSettings";
 import { RecoveryBackupNudge } from "./RecoveryBackupNudge";
 import { RecoveryBackupSheet } from "./RecoveryBackupSheet";
+import { SearchPalette } from "./SearchPalette";
+import { ShareDialog } from "./ShareDialog";
 import { Sidebar } from "./Sidebar";
-import { GraphView } from "./GraphView";
+import { SplitPane } from "./SplitPane";
 import { TasksView } from "./TasksView";
-import { HistoryView } from "./HistoryView";
-import { AgentsView } from "./AgentsView";
-import { AIAssistantPanel } from "./AIAssistantPanel";
-import { AIAssistantFab } from "./AIAssistantFab";
-import { useAIChatStore } from "../stores/aiChatStore";
-import { AccessTokensView } from "./AccessTokensView";
-import { DevicesPanel } from "./DevicesPanel";
-import { NotificationsInbox } from "./NotificationsInbox";
-import { NotificationSettings } from "./NotificationSettings";
+import { useAppKeyboardShortcuts } from "./useAppKeyboardShortcuts";
+import { rehydrateEncryptedIfSkipped, useVaultBoot } from "./useVaultBoot";
+import { useWikilinkHandler } from "./useWikilinkHandler";
+import { VaultPairNewDevice } from "./VaultPairing";
 import { VaultPicker } from "./VaultPicker";
 import { VaultSetup } from "./VaultSetup";
-import { VaultPairNewDevice } from "./VaultPairing";
-import { SearchPalette } from "./SearchPalette";
-import { SplitPane } from "./SplitPane";
-import { HomePane } from "./HomePane";
-import { useTicketsStore } from "../stores/ticketsStore";
-import { findLeaf, useLayoutStore } from "../stores/layoutStore";
-import { useLinksStore } from "../stores/linksStore";
-import { parseWikilinkTarget } from "./extensions/Wikilink";
-import { isValidYMD, shiftYMD, todayYMD } from "../lib/journal";
-import { isDesktop } from "../lib/api";
-import { applyEditorPrefs } from "../lib/editor-prefs";
-import { applyAccent } from "../lib/accent";
-import { applyAppearance } from "../lib/appearance";
-import type { SearchHit } from "../lib/search";
 
 // On macOS desktop we hide the native title bar (titleBarStyle: hiddenInset)
 // so the app chrome flows up to the window edge with the traffic lights
@@ -80,32 +62,12 @@ const isDesktopMac =
   typeof navigator !== "undefined" &&
   /Mac/i.test(navigator.userAgent);
 
-type MainView = "home" | "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
-
-/**
- * The initial content pull (startSync) can finish before bootstrapCrypto has
- * loaded this device's age identity — sync.ts reads `device.identity` at pull
- * time, so a race leaves every encrypted note/ticket/link skipped, and pull()
- * does a replaceAll so they're dropped from the local cache too. Once crypto is
- * ready we re-pull so those items decrypt and hydrate, instead of staying
- * invisible until the next focus/visibility refresh (which on a freshly-opened
- * mobile WebView may never fire). No-op when nothing was skipped or the device
- * still has no identity (genuinely unpaired — that path shows the pair dialog).
- */
-async function rehydrateEncryptedIfSkipped(): Promise<void> {
-  const skipped = useSyncStore.getState().encryptedSkipped;
-  const total = skipped.notes + skipped.tickets + skipped.links;
-  if (total === 0) return;
-  if (!useCryptoStore.getState().device?.identity) return;
-  await pullSync();
-}
-
 interface AppProps {
   user?: User | null;
   onSignOut?: () => void;
 }
 
-// eslint-disable-next-line max-lines-per-function, complexity -- App is the root shell component: vault boot, crypto, sync, SSE, theming, keyboard, mobile shell, and all modal/panel routing live here
+// eslint-disable-next-line max-lines-per-function, complexity, sonarjs/cognitive-complexity -- App is the root shell component: vault boot, crypto, sync, SSE, theming, keyboard, mobile shell, and all modal/panel routing live here
 export function App({ user, onSignOut }: AppProps = {}) {
   const activeNoteId = useNotesStore((s) => s.activeNoteId);
   const note = useNotesStore((s) =>
@@ -237,71 +199,14 @@ export function App({ user, onSignOut }: AppProps = {}) {
   const openNoteInLayout = useLayoutStore((s) => s.openNote);
   const noteHeading = note ? noteTitle(note) : null;
 
-  useEffect(() => {
-    // eslint-disable-next-line complexity -- onKey dispatches all global keyboard shortcuts; each modifier+key combo is an unavoidable branch
-    function onKey(e: KeyboardEvent) {
-      const mod = e.metaKey || e.ctrlKey;
-      if (!mod) return;
-      const key = e.key.toLowerCase();
-      // ⌘P alias for ⌘K — Notion and VS Code both use ⌘P for the
-      // quick-open palette; surfacing the same shortcut makes the
-      // muscle memory portable. ⌘⇧P (below) triggers print so the
-      // browser's default Cmd+P=print still has a path.
-      if (key === "p" && !e.shiftKey) {
-        e.preventDefault();
-        setSearchOpen((open) => !open);
-        return;
-      }
-      if (key === "k") {
-        e.preventDefault();
-        setSearchOpen((open) => !open);
-        return;
-      }
-      // ⌘⇧P → print active note. Pairs with iter 35's @media print
-      // rules to produce a clean printable page. Same split VS Code
-      // uses: ⌘P = quick open, ⌘⇧P = command palette / system action.
-      if (key === "p" && e.shiftKey) {
-        e.preventDefault();
-        if (typeof window !== "undefined") window.print();
-        return;
-      }
-      if (key === "n") {
-        e.preventDefault();
-        const folder =
-          useVaultStore.getState().activeSettings?.defaultFolder ?? null;
-        const created = upsert({ title: "Untitled", body: "", folder });
-        openNoteInLayout(created.id);
-        setView("notes");
-        return;
-      }
-      // Cmd+; opens calendar
-      if (key === ";") {
-        e.preventDefault();
-        setView("calendar");
-        return;
-      }
-      // Cmd+' opens today's journal (Cmd+T is reserved by browsers for new-tab)
-      if (key === "'") {
-        e.preventDefault();
-        const ymd = e.shiftKey ? shiftYMD(todayYMD(), 1) : todayYMD();
-        openJournal(ymd);
-        setView("notes");
-      }
-      // ⌘⇧Z → zen / focus mode (distraction-free writing)
-      if (key === "z" && e.shiftKey) {
-        e.preventDefault();
-        setZenMode((z) => !z);
-      }
-      // ⌘⇧O → outline panel (toggles for the active pane)
-      if (key === "o" && e.shiftKey) {
-        e.preventDefault();
-        const pid = useLayoutStore.getState().activePaneId;
-        useLayoutStore.getState().toggleOutline(pid);
-      }
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [upsert, setActive, openJournal, openNoteInLayout]);
+  useAppKeyboardShortcuts({
+    setSearchOpen,
+    setView,
+    setZenMode,
+    upsert,
+    openNoteInLayout,
+    openJournal,
+  });
 
   // Sync sidebar / keyboard note activations to the layout store so the
   // active pane opens the note as a tab. Skips when the layout already
@@ -324,60 +229,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
     if (activeNoteId) setRailSurface("notes");
   }, [activeNoteId]);
 
-  useEffect(() => {
-    function onOpen(e: Event) {
-      const raw = (e as CustomEvent<{ target: string }>).detail?.target;
-      if (!raw) return;
-      const { kind, target } = parseWikilinkTarget(raw);
-
-      if (kind === "link") {
-        const allLinks = useLinksStore.getState().all();
-        const link = allLinks.find(
-          (l: { id: string; title: string }) =>
-            l.title.toLowerCase() === target.toLowerCase() || l.id === target,
-        );
-        if (link) {
-          useLayoutStore.getState().openTab({ type: "link", id: link.id });
-        }
-        return;
-      }
-
-      if (kind === "secret") {
-        const parts = target.split("/");
-        const hasVault = parts.length > 1;
-        const vaultSlug = hasVault ? (parts[0] ?? "") : "";
-        const name = hasVault ? parts.slice(1).join("/") : target;
-        useLayoutStore.getState().openTab({ type: "secret", vault: vaultSlug, name });
-        return;
-      }
-
-      // kind === "note"
-      if (isValidYMD(target)) {
-        openJournal(target);
-        setView("notes");
-        return;
-      }
-      const notes = useNotesStore.getState().all();
-      const wanted = target.toLowerCase();
-      const found = notes.find(
-        (n) => noteTitle(n).trim().toLowerCase() === wanted,
-      );
-      if (found) {
-        setView("notes");
-        openNoteInLayout(found.id);
-        return;
-      }
-      const created = upsert({ title: target, body: `# ${target}\n\n` });
-      setView("notes");
-      openNoteInLayout(created.id);
-    }
-    window.addEventListener("notekit:open-wikilink", onOpen as EventListener);
-    return () =>
-      window.removeEventListener(
-        "notekit:open-wikilink",
-        onOpen as EventListener,
-      );
-  }, [upsert, setActive, openJournal, openNoteInLayout]);
+  useWikilinkHandler({
+    upsert,
+    setActive,
+    openJournal,
+    openNoteInLayout,
+    setView,
+  });
 
   // On phones, opening a note slides the editor over the list (notes view).
   // Other views render their primary content in the `<main>` pane — kanban,
@@ -446,76 +304,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, [isMobile]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        let status: VaultStatus;
-        try {
-          status = await getVaultStatus();
-          // Remember the active vault so a later offline cold start can reopen
-          // it from the local caches without hitting /vault/status.
-          if (status.configured && status.vault) {
-            try {
-              localStorage.setItem("nk:last-vault", JSON.stringify(status.vault));
-            } catch {
-              /* ignore */
-            }
-          }
-        } catch (statusErr) {
-          // Offline / server down: reopen the last-known vault so the app boots
-          // from cache. Bail to the error path only if we've never opened one.
-          const cachedVault = readLastVault();
-          if (!cachedVault) throw statusErr;
-          status = { configured: true, hasGithubToken: true, vault: cachedVault };
-        }
-        if (cancelled) return;
-        // Don't gate on a GitHub token: NoteKit-hosted Git (Forgejo) vaults
-        // need none. If there's a configured active vault of ANY provider,
-        // load it. Only fall through to the empty states when there isn't one.
-        if (status.configured && status.vault) {
-          setVault(status.vault);
-          // Populate the full vault list so the switcher is ready.
-          listVaults()
-            .then((res) => {
-              if (!cancelled) setVaults(res.vaults, res.activeId);
-            })
-            .catch(() => {
-              /* Switcher will retry on next open; not fatal. */
-            });
-          // Bind persistence BEFORE startSync so any saved state for this
-          // vault is rehydrated before the subscribe baselines are taken.
-          await bindVaultPersistence(status.vault);
-          // Wait for crypto BEFORE the first content pull. sync.ts reads
-          // `device.identity` at decrypt time, so pulling before crypto is
-          // ready skips every encrypted item and replaceAll drops them from the
-          // cache — a visible flicker on every open (notes show → vanish →
-          // reappear after the re-pull). bootstrapCrypto only does a handful of
-          // small reads (recovery.json + device records) so this costs little,
-          // and the pairing/setup dialog still appears reactively via
-          // cryptoStore.phase. Tolerate failure so content loads regardless.
-          await bootstrapCrypto().catch(() => { /* intentional noop — tolerate crypto failure so content still loads */ });
-          await startSync();
-          // Open the real-time event stream so edits from other devices
-          // arrive via push instead of waiting for the next focus-pull.
-          startVaultEventStream();
-          // Safety net: if crypto wasn't ready in time after all, re-pull once.
-          await rehydrateEncryptedIfSkipped();
-        } else if (status.hasGithubToken) {
-          // A git provider is connected but no active vault → pick/create one.
-          setVaultPhase("needs-pick");
-        } else {
-          // No vault and no provider yet → empty state to set one up.
-          setVaultPhase("needs-token");
-        }
-      } catch (e) {
-        if (!cancelled) setVaultError((e as Error).message);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [setVault, setVaults, setVaultPhase, setVaultError]);
+  useVaultBoot({ setVault, setVaults, setVaultPhase, setVaultError });
 
   // Load per-vault settings whenever the active vault changes.
   useEffect(() => {
@@ -568,11 +357,6 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, [cryptoPhase]);
 
-  // Pull from the remote on tab visibility / window focus so a device that
-  // was backgrounded catches up on edits made elsewhere. refreshSync() is a
-  // no-op if the engine hasn't started or local writes are still queued, so
-  // it's safe to wire here unconditionally — covers web, Electron, and the
-  // Capacitor WebView (which fires visibilitychange on app resume).
   useEffect(() => {
     function onWake() {
       if (typeof document === "undefined") return;
@@ -595,16 +379,10 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, []);
 
-  // Tear down the SSE event stream when the App unmounts. AuthGate
-  // unmounts App on sign-out, so this catches that path; vault switches
-  // and deletions handle the stream themselves in VaultSwitcher.
   useEffect(() => {
     return () => stopVaultEventStream();
   }, []);
 
-  // Reflect the current note / view in the browser tab title — Notion,
-  // Outline, and basically every multi-doc tool do this so users can
-  // find the right tab in a sea of open tabs.
   useEffect(() => {
     if (typeof document === "undefined") return;
     const base = "Notekit";
@@ -626,16 +404,8 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, [view, noteHeading, draftJournal]);
 
-  // Resolve `auto` (or unset) theme to a concrete value, falling back to
-  // the OS preference. Reactive — flipping the OS appearance updates
-  // the app without a reload, same as the sign-in screen.
   const resolvedTheme = useResolvedTheme(activeSettings?.theme);
 
-  // Mirror the theme onto <html> so the body's safe-area inset (which
-  // lives above the .nk wrapper in the cascade) inherits `--bg` and
-  // paints in the active theme instead of the hardcoded dark fallback.
-  // Cleared on unmount so the SignIn route's locked-dark theme (set in
-  // AuthGate.tsx) takes over cleanly on sign-out.
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.dataset.theme = resolvedTheme;
@@ -651,8 +421,6 @@ export function App({ user, onSignOut }: AppProps = {}) {
     };
   }, [resolvedTheme]);
 
-  // Apply saved display prefs (editor font/size, accent, base color/font/radius/
-  // logo) once on mount.
   useEffect(() => {
     applyEditorPrefs();
     applyAccent();
@@ -661,20 +429,13 @@ export function App({ user, onSignOut }: AppProps = {}) {
 
   async function onVaultPicked() {
     setVaultPhase("ready");
-    // Populate the full vault list so the switcher is ready right away.
     listVaults()
       .then((res) => setVaults(res.vaults, res.activeId))
-      .catch(() => {
-        /* Non-fatal; the switcher will lazy-load. */
-      });
-    // Bind persistence to the just-picked vault before sync starts so its
-    // saved state is rehydrated and future writes route to the right slot.
+      .catch(() => { /* non-fatal */ });
     const pickedVault = useVaultStore.getState().vault;
     if (pickedVault) await bindVaultPersistence(pickedVault);
-    // Wait for crypto before the first pull so encrypted items decrypt on the
-    // first try (avoids the skip → replaceAll → re-pull flicker). See the mount
-    // effect above. Tolerate failure so content still loads.
-    await bootstrapCrypto().catch(() => { /* intentional noop — tolerate crypto failure so content still loads */ });
+    // Wait for crypto before pull so encrypted items decrypt on first try.
+    await bootstrapCrypto().catch(() => { /* intentional noop */ });
     await startSync();
     startVaultEventStream();
     await rehydrateEncryptedIfSkipped();
@@ -828,82 +589,19 @@ export function App({ user, onSignOut }: AppProps = {}) {
         )}
 
         <main className="nk-main">
-          {/* Hide the chrome row entirely on desktop when an editor is
-           * mounted — the editor's H1 already shows the title, and the
-           * "+" action is duplicated in the sidebar's section header.
-           * Mobile keeps the row (it carries the back / menu buttons that
-           * make the slide-over shell navigable). */}
-          {/* Home has no appbar on mobile — the greeting header (with its own
-           * search) is the top of the page, and the bottom nav's Menu button
-           * opens the drawer. Every other surface keeps the row. */}
-          {((isMobile && view !== "home") ||
-            sidebarCollapsed ||
-            (!viewOwnsTitle && view !== "notes" && view !== "secrets" && view !== "links")) && (
-            <header className="nk-main-hd">
-              {!isMobile && sidebarCollapsed && (
-                <button
-                  className="nk-iconbtn nk-main-expand"
-                  onClick={() => setSidebarCollapsed(false)}
-                  aria-label="Show sidebar"
-                  title="Show sidebar"
-                >
-                  <PanelLeft size={16} aria-hidden />
-                </button>
-              )}
-              {isMobile && (view === "notes" || view === "secrets" || view === "links") && mobilePane === "detail" ? (
-                <button
-                  className="nk-iconbtn nk-main-back"
-                  onClick={exitMobileDetail}
-                  aria-label="Back"
-                  title="Back"
-                >
-                  <ArrowLeft size={18} aria-hidden />
-                </button>
-              ) : isMobile ? (
-                <button
-                  className="nk-iconbtn nk-main-menu"
-                  onClick={() => setDrawerOpen(true)}
-                  aria-label="Open menu"
-                  title="Menu"
-                >
-                  <Menu size={18} aria-hidden />
-                </button>
-              ) : null}
-              <div className="nk-crumbs">
-                <span className="last">{crumbLabel}</span>
-              </div>
-              <span className="nk-main-hd-actions">
-                {/* Search in the appbar for content surfaces only. Graph is a
-                 * visualization, not a searchable list — no search there. */}
-                {isMobile &&
-                  view !== "graph" &&
-                  (view === "notes" ? mobilePane === "list" : true) && (
-                  <button
-                    className="nk-iconbtn"
-                    onClick={() => setSearchOpen(true)}
-                    aria-label="Search"
-                    title="Search"
-                  >
-                    <Search size={16} aria-hidden />
-                  </button>
-                )}
-                {view === "notes" && (!isMobile || mobilePane === "list") && (
-                  <button
-                    className="nk-iconbtn"
-                    title="New note (⌘N)"
-                    onClick={() => {
-                      const folder = activeSettings?.defaultFolder ?? null;
-                      const created = upsert({ title: "Untitled", body: "", folder });
-                      openNoteInLayout(created.id);
-                    }}
-                    aria-label="New note"
-                  >
-                    +
-                  </button>
-                )}
-              </span>
-            </header>
-          )}
+          <MainAppBar
+            isMobile={isMobile}
+            view={view}
+            sidebarCollapsed={sidebarCollapsed}
+            viewOwnsTitle={viewOwnsTitle}
+            mobilePane={mobilePane}
+            crumbLabel={crumbLabel}
+            activeSettings={activeSettings}
+            onExpandSidebar={() => setSidebarCollapsed(false)}
+            onExitMobileDetail={exitMobileDetail}
+            onOpenMenu={() => setDrawerOpen(true)}
+            onOpenSearch={() => setSearchOpen(true)}
+          />
           <RecoveryBackupNudge />
           <EncryptedSkippedBanner />
           {view === "home" && (
@@ -1076,153 +774,21 @@ export function App({ user, onSignOut }: AppProps = {}) {
         onClose={() => setSearchOpen(false)}
         onSelect={onSearchSelect}
       />
-      {agentsOpen && (
-        <div
-          className="nk-modal-backdrop"
-          onClick={() => setAgentsOpen(false)}
-        >
-          <div
-            className="nk-modal nk-modal--wide"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="nk-modal-hd">
-              <h2>Agents</h2>
-              <p className="nk-modal-sub">
-                Give an AI assistant its own git identity. Commits it makes
-                on your behalf are attributed to the agent, not to you.
-              </p>
-            </header>
-            <button
-              className="nk-modal-close nk-iconbtn"
-              onClick={() => setAgentsOpen(false)}
-              title="Close"
-              aria-label="Close"
-            >
-              <X size={16} aria-hidden />
-            </button>
-            <AgentsView focusAgent={focusAgent} />
-          </div>
-        </div>
-      )}
-      {tokensOpen && (
-        <div
-          className="nk-modal-backdrop"
-          onClick={() => setTokensOpen(false)}
-        >
-          <div
-            className="nk-modal nk-modal--wide"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="nk-modal-hd">
-              <h2>API tokens</h2>
-              <p className="nk-modal-sub">
-                Long-lived credentials for the NoteKit CLI and the MCP server
-                (Claude Desktop, Cursor). The full token is shown exactly once
-                — copy it the moment you mint it.
-              </p>
-            </header>
-            <button
-              className="nk-modal-close nk-iconbtn"
-              onClick={() => setTokensOpen(false)}
-              title="Close"
-              aria-label="Close"
-            >
-              <X size={16} aria-hidden />
-            </button>
-            <AccessTokensView />
-          </div>
-        </div>
-      )}
-      {devicesOpen && (
-        <div
-          className="nk-modal-backdrop"
-          onClick={() => setDevicesOpen(false)}
-        >
-          <div
-            className="nk-modal nk-modal--wide"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="nk-modal-hd">
-              <h2>Devices</h2>
-              <p className="nk-modal-sub">
-                Devices paired to your encrypted vault. Pair a new one with a
-                6-digit code, or unlock it with your recovery phrase — verify
-                the emoji fingerprint matches on both screens before approving.
-              </p>
-            </header>
-            <button
-              className="nk-modal-close nk-iconbtn"
-              onClick={() => setDevicesOpen(false)}
-              title="Close"
-              aria-label="Close"
-            >
-              <X size={16} aria-hidden />
-            </button>
-            <DevicesPanel />
-          </div>
-        </div>
-      )}
-      {notificationsOpen && (
-        <div
-          className="nk-modal-backdrop"
-          onClick={() => setNotificationsOpen(false)}
-        >
-          <div
-            className="nk-modal nk-modal--wide"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="nk-modal-hd">
-              <h2>Notifications</h2>
-              <p className="nk-modal-sub">
-                What agents have done in your vault — and which channels deliver
-                those updates outside the app.
-              </p>
-            </header>
-            <button
-              className="nk-modal-close nk-iconbtn"
-              onClick={() => setNotificationsOpen(false)}
-              title="Close"
-              aria-label="Close"
-            >
-              <X size={16} aria-hidden />
-            </button>
-            <div style={{ display: "flex", flexDirection: "column", gap: "2rem" }}>
-              <NotificationsInbox />
-              <NotificationSettings />
-            </div>
-          </div>
-        </div>
-      )}
-      {historyOpen && (
-        <div
-          className="nk-modal-backdrop"
-          onClick={() => setHistoryOpen(false)}
-        >
-          <div
-            className="nk-modal nk-modal--wide"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="nk-modal-hd">
-              <h2>Activity</h2>
-              <p className="nk-modal-sub">
-                Recent commits across this vault.
-                {view === "notes" && note && " Filtered to the active note."}
-              </p>
-            </header>
-            <button
-              className="nk-modal-close nk-iconbtn"
-              onClick={() => setHistoryOpen(false)}
-              title="Close"
-              aria-label="Close"
-            >
-              <X size={16} aria-hidden />
-            </button>
-            <HistoryView
-              notePath={view === "notes" && note ? note.path : undefined}
-            />
-          </div>
-        </div>
-      )}
+      <AppModals
+        agentsOpen={agentsOpen}
+        onCloseAgents={() => setAgentsOpen(false)}
+        focusAgent={focusAgent}
+        tokensOpen={tokensOpen}
+        onCloseTokens={() => setTokensOpen(false)}
+        devicesOpen={devicesOpen}
+        onCloseDevices={() => setDevicesOpen(false)}
+        notificationsOpen={notificationsOpen}
+        onCloseNotifications={() => setNotificationsOpen(false)}
+        historyOpen={historyOpen}
+        onCloseHistory={() => setHistoryOpen(false)}
+        notePath={view === "notes" && note ? note.path : undefined}
+        showNoteHistoryHint={view === "notes" && !!note}
+      />
 
       <FirstEncryptDialog />
       <ShareDialog />
@@ -1231,61 +797,3 @@ export function App({ user, onSignOut }: AppProps = {}) {
   );
 }
 
-// Word-then-chars in the status bar: writers care about word count
-// (NaNoWriMo targets, blog post lengths), but char count still helps
-// for tweet/caption-length writing. Both, formatted with thin-space
-// thousand separators so a 50,000-word draft doesn't read as "50000".
-/** The last successfully-opened vault, for offline cold-start. */
-function readLastVault(): VaultRef | null {
-  try {
-    const raw = localStorage.getItem("nk:last-vault");
-    if (!raw) return null;
-    const v = JSON.parse(raw) as VaultRef;
-    return v && v.owner && v.repo ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-function noteCounter(body: string): string {
-  // body can be undefined for a note hydrated from localStorage before its
-  // E2EE content decrypts (partialize strips body/title). Guard so the counter
-  // renders empty rather than crashing the whole view.
-  const chars = body?.length ?? 0;
-  if (chars === 0) return "";
-  const words = body.trim().split(/\s+/).filter(Boolean).length;
-  const fmt = new Intl.NumberFormat();
-  return `${fmt.format(words)} ${words === 1 ? "word" : "words"} · ${fmt.format(chars)} ${chars === 1 ? "char" : "chars"}`;
-}
-
-function syncLabel(
-  phase: string,
-  lastSyncedAt: string | null,
-  vaultPhase: string,
-  vaultLabel: string,
-): string {
-  if (vaultPhase === "needs-token") return "Set up a vault to sync";
-  if (vaultPhase === "needs-pick") return "Pick a vault repo";
-  if (phase === "fetching") return "Pulling…";
-  if (phase === "pushing") return "Syncing…";
-  if (phase === "error") return "Sync error";
-  if (lastSyncedAt) {
-    // The vault label is now redundant — it shows in the sidebar header
-    // (switcher) and again as the section title. The status bar should
-    // just answer "when did we last sync?" in the fewest characters.
-    return `Synced ${new Date(lastSyncedAt).toLocaleTimeString()}`;
-  }
-  return vaultLabel;
-}
-
-function syncTone(
-  phase: string,
-  lastSyncedAt: string | null,
-  vaultPhase: string,
-): "idle" | "sync" | "error" | "ready" {
-  if (vaultPhase === "needs-token" || vaultPhase === "needs-pick") return "idle";
-  if (phase === "error") return "error";
-  if (phase === "fetching" || phase === "pushing") return "sync";
-  if (lastSyncedAt) return "ready";
-  return "idle";
-}

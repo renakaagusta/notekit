@@ -1,8 +1,8 @@
-import { nanoid } from "nanoid";
 import { and, eq } from "drizzle-orm";
+import { nanoid } from "nanoid";
 import { db, schema } from "../db";
-import { encryptToken } from "./tokenCrypto";
 import type { NormalizedProfile, ProviderName } from "./providers";
+import { encryptToken } from "./tokenCrypto";
 
 export async function upsertUserFromOAuth(
   provider: ProviderName,

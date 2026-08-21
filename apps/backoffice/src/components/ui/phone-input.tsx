@@ -94,9 +94,9 @@ const InputComponent = React.forwardRef<
 ))
 InputComponent.displayName = 'InputComponent'
 
-type CountryEntry = { label: string; value: RPNInput.Country | undefined }
+interface CountryEntry { label: string; value: RPNInput.Country | undefined }
 
-type CountrySelectProps = {
+interface CountrySelectProps {
   disabled?: boolean
   value: RPNInput.Country
   options: CountryEntry[]

@@ -17,10 +17,10 @@
  *   - PUT /directory/keys            publish the caller's public keys
  *   - GET /directory/keys?email=…    look up a user's public keys
  */
-import { Hono } from "hono";
 import { eq } from "drizzle-orm";
-import { db, schema } from "../db";
+import { Hono } from "hono";
 import { getCurrentUser } from "../auth/sessions";
+import { db, schema } from "../db";
 import { parseBody, z } from "../validation";
 
 export const directoryRoutes = new Hono();

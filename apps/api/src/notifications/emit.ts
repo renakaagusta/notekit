@@ -11,10 +11,10 @@
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db, schema } from "../db";
+import { logger } from '../lib/logger'
+import { sendMobilePush } from "./channels/mobilepush";
 import { sendTelegram } from "./channels/telegram";
 import { sendWebPush } from "./channels/webpush";
-import { sendMobilePush } from "./channels/mobilepush";
-import { logger } from '../lib/logger'
 
 export type AgentEventType = "file.write" | "file.delete" | "device.paired";
 
@@ -58,7 +58,7 @@ export function emitAgentEvent(input: AgentEventInput): void {
     try {
       await db.insert(schema.notifications).values(row).execute();
     } catch (err) {
-      logger.error("[notifications] persist failed", err)
+      logger.error({ err }, "[notifications] persist failed")
       return;
     }
     await dispatch(input.userId, summary, row.id, payload);

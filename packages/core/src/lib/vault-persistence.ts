@@ -21,9 +21,9 @@
  * localStorage.
  */
 import { createJSONStorage } from "zustand/middleware";
+import { useLinksStore } from "../stores/linksStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
-import { useLinksStore } from "../stores/linksStore";
 import type { VaultRef } from "./vault-api";
 
 let boundKey: string | null = null;

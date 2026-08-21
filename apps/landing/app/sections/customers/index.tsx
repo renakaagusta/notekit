@@ -1,6 +1,6 @@
-import { type FC } from 'react'
-import styles from './styles.module.css'
+import type { FC } from 'react'
 import LayoutWrapper from '@/components/layout-wrapper'
+import styles from './styles.module.css'
 
 const LockIcon = () => (
 	<svg viewBox='0 0 24 24' width='26' height='26' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' strokeLinejoin='round'>

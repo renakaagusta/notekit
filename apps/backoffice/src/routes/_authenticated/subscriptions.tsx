@@ -1,8 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { createFileRoute } from '@tanstack/react-router'
 import { AppleIcon, PlayIcon, CreditCardIcon } from 'lucide-react'
-import { StatsCard } from '@/components/stats-card'
 import { PageHeader } from '@/components/page-header'
+import { StatsCard } from '@/components/stats-card'
+import { Badge } from '@/components/ui/badge'
 import {
   Table,
   TableBody,
@@ -11,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { backend } from '@/lib/backend'
 
 export const Route = createFileRoute('/_authenticated/subscriptions')({
@@ -23,13 +23,13 @@ interface Billing {
   apple: number
   play: number
   stripe: number
-  subscribers: Array<{
+  subscribers: {
     id: string
     email: string
     processor: 'apple' | 'play' | 'stripe'
     term: 'monthly' | 'yearly' | 'lifetime'
     since: string
-  }>
+  }[]
 }
 
 const EMPTY: Billing = { mrr: 0, apple: 0, play: 0, stripe: 0, subscribers: [] }

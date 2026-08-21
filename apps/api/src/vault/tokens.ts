@@ -14,13 +14,13 @@
  */
 
 import { and, eq } from "drizzle-orm";
-import { db, schema } from "../db";
 import { decryptToken } from "../auth/tokenCrypto";
+import { db, schema } from "../db";
+import { logger } from '../lib/logger'
 import { getForgejoToken } from "./forgejoAccounts";
 import * as ghApp from "./github-app";
 import { getActiveVault } from "./store";
 import type { VaultRow } from "./store";
-import { logger } from '../lib/logger'
 
 export type GitProvider = "github" | "gitlab" | "notekit";
 
@@ -51,7 +51,7 @@ export async function getGithubToken(userId: string): Promise<string | null> {
   try {
     return decryptToken(row.accessToken);
   } catch (err) {
-    logger.error("[tokens] failed to decrypt github token for user", userId, err);
+    logger.error({ userId, err }, "[tokens] failed to decrypt github token for user");
     return null;
   }
 }
@@ -67,7 +67,7 @@ export async function getGitlabToken(userId: string): Promise<string | null> {
   try {
     return decryptToken(row.accessToken);
   } catch (err) {
-    logger.error("[tokens] failed to decrypt gitlab token for user", userId, err);
+    logger.error({ userId, err }, "[tokens] failed to decrypt gitlab token for user");
     return null;
   }
 }

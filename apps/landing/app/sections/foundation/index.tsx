@@ -1,8 +1,8 @@
-import { type FC } from 'react'
-import SectionHeading from '@/components/sectionHeading'
-import styles from './styles.module.css'
+import type { FC } from 'react'
 import LayoutWrapper from '@/components/layout-wrapper'
+import SectionHeading from '@/components/sectionHeading'
 import { foundationList } from '@/lib/constant'
+import styles from './styles.module.css'
 
 const Privacy: FC = () => {
 	return (

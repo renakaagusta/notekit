@@ -18,10 +18,10 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "../db";
 import { env } from "../env";
-import { provisionForgejoAccount } from "./forgejoAccounts";
-import * as fj from "./forgejo";
-import { createVault, setActiveVault } from "./store";
 import { logger } from '../lib/logger'
+import * as fj from "./forgejo";
+import { provisionForgejoAccount } from "./forgejoAccounts";
+import { createVault, setActiveVault } from "./store";
 
 const DEFAULT_REPO_NAME = "notekit-vault";
 const DEFAULT_VAULT_LABEL = "My vault";
@@ -66,7 +66,7 @@ export async function ensureDefaultVault(
     await setActiveVault(userId, vault.id);
     return true;
   } catch (err) {
-    logger.error("[bootstrap] vault bootstrap failed", err)
+    logger.error({ err }, "[bootstrap] vault bootstrap failed")
     return false;
   }
 }

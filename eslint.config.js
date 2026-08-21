@@ -1,63 +1,85 @@
-import js from '@eslint/js'
-import tseslint from 'typescript-eslint'
-import reactHooks from 'eslint-plugin-react-hooks'
 import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import { cleancode } from 'cleancode-kit'
 
-export default tseslint.config(
-  {
+// Domain-specific helpers from @notekit/core that must not be reimplemented per-file.
+// Sourced from packages/core/src/lib/{gravatar,link-kind,file-paths,serialize,note-display,directory}.ts
+const CORE_HELPERS = [
+  'gravatarUrlFor',
+  'detectLinkKind',
+  'slugify',
+  'notePathFor',
+  'ticketPathFor',
+  'linkPathFor',
+  'serializeNote',
+  'deserializeNote',
+  'serializeTicket',
+  'deserializeTicket',
+  'noteTitle',
+  'notePreview',
+  'isEncryptedItemPath',
+  'isNotFound',
+]
+
+export default [
+  // Shared clean-code contract — complexity budgets, import/suppression hygiene,
+  // type-safety, sonarjs, and the custom rules (no-emoji-as-icon, bind-fetch-globalthis,
+  // no-reinvent-core). Seeded with NoteKit's core helpers and vendored globs.
+  ...cleancode({
+    coreHelpers: CORE_HELPERS,
+    corePackage: '@notekit/core',
+    ignoreReinventPathContains: ['/packages/core/'],
+    vendored: ['apps/backoffice/src/components/ui/**'],
     ignores: [
-      '**/dist/**',
-      '**/node_modules/**',
-      '**/.next/**',
-      '**/.turbo/**',
-      '**/*.d.ts',
-      '**/build/**',
-      // landing uses next lint separately
-      'apps/landing/**',
-      // backoffice has its own config
-      'apps/backoffice/**',
+      // other agents' git worktrees — not our source
+      '.claude/**',
+      // native build outputs & Capacitor-synced webviews — generated, never hand-edited
+      '**/DerivedData/**',
+      '**/ios/App/App/public/**',
+      '**/android/app/src/main/assets/public/**',
+      '**/*.min.js',
+      // generated router tree — not hand-edited
+      '**/routeTree.gen.ts',
     ],
-  },
+  }),
 
-  // All TypeScript files — strict rules
+  // React apps/packages (core + web + backoffice admin + landing marketing)
   {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      js.configs.recommended,
-      ...tseslint.configs.strict,
-      ...tseslint.configs.stylistic,
+    files: [
+      'packages/core/**/*.{ts,tsx}',
+      'apps/web/**/*.{ts,tsx}',
+      'apps/backoffice/**/*.{ts,tsx}',
+      'apps/landing/**/*.{ts,tsx}',
     ],
-    rules: {
-      // Complexity limits — mirrors paprika gocyclo(15) / nestif(4) / funlen(80)
-      complexity: ['error', { max: 15 }],
-      'max-depth': ['error', 4],
-      'max-lines-per-function': ['error', { max: 80, skipComments: true, skipBlankLines: true }],
-      'max-params': ['error', 5],
-
-      // Type safety
-      '@typescript-eslint/no-explicit-any': 'error',
-      '@typescript-eslint/no-non-null-assertion': 'error',
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' }],
-      '@typescript-eslint/consistent-type-imports': ['error', { prefer: 'type-imports', fixStyle: 'separate-type-imports' }],
-      '@typescript-eslint/no-import-type-side-effects': 'error',
-
-      // Code quality
-      'no-var': 'error',
-      'prefer-const': 'error',
-      eqeqeq: ['error', 'always', { null: 'ignore' }],
-      'no-console': 'error',
-    },
-  },
-
-  // React packages (core + web)
-  {
-    files: ['packages/core/**/*.{ts,tsx}', 'apps/web/**/*.{ts,tsx}'],
     plugins: { 'react-hooks': reactHooks },
     rules: {
       ...reactHooks.configs['recommended-latest'].rules,
     },
     languageOptions: {
       globals: globals.browser,
+    },
+  },
+
+  // Backoffice admin + landing marketing — separately-deployed surfaces where
+  // console output is acceptable; otherwise held to the same shared ruleset.
+  {
+    files: ['apps/backoffice/**/*.{ts,tsx}', 'apps/landing/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'warn',
+    },
+  },
+
+  // Vendored shadcn/ui primitives also use upstream hook idioms our strict config
+  // would reject (the preset's `vendored` option already drops the maintainability
+  // heuristics; this drops the react-compiler hook rules + ref non-null on top).
+  {
+    files: ['apps/backoffice/src/components/ui/**/*.{ts,tsx}'],
+    rules: {
+      'react-hooks/set-state-in-effect': 'off',
+      'react-hooks/immutability': 'off',
+      'react-hooks/purity': 'off',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off',
     },
   },
 
@@ -80,11 +102,11 @@ export default tseslint.config(
     },
   },
 
-  // Dev scripts — console is expected
+  // Dev scripts & docs tooling — console is expected
   {
-    files: ['apps/api/scripts/**/*.ts', 'apps/*/scripts/**/*.ts', 'scripts/**/*.ts'],
+    files: ['apps/api/scripts/**/*.ts', 'apps/*/scripts/**/*.ts', 'scripts/**/*.ts', 'docs/**/*.ts'],
     rules: {
       'no-console': 'off',
     },
   },
-)
+]

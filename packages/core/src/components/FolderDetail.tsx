@@ -1,9 +1,9 @@
-import { useMemo } from "react";
 import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
-import { useNotesStore } from "../stores/notesStore";
-import { useLayoutStore } from "../stores/layoutStore";
-import { noteTitle, notePreview } from "../lib/note-display";
+import { useMemo } from "react";
 import { journalYMDFromPath } from "../lib/journal";
+import { noteTitle, notePreview } from "../lib/note-display";
+import { useLayoutStore } from "../stores/layoutStore";
+import { useNotesStore } from "../stores/notesStore";
 
 /**
  * The contents of a notes folder rendered as a pane tab: immediate subfolders

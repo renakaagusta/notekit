@@ -1,10 +1,10 @@
+import { PluginKey } from "@tiptap/pm/state";
 import { Extension, ReactRenderer } from "@tiptap/react";
 import Suggestion, { type SuggestionProps } from "@tiptap/suggestion";
-import { PluginKey } from "@tiptap/pm/state";
 import tippy, { type Instance } from "tippy.js";
-import { WikilinkMenu, type WikilinkMenuHandle, type WikilinkItem } from "../WikilinkMenu";
-import { useNotesStore } from "../../stores/notesStore";
 import { noteTitle } from "../../lib/note-display";
+import { useNotesStore } from "../../stores/notesStore";
+import { WikilinkMenu, type WikilinkMenuHandle, type WikilinkItem } from "../WikilinkMenu";
 
 function buildRender() {
   let component: ReactRenderer<WikilinkMenuHandle> | null = null;

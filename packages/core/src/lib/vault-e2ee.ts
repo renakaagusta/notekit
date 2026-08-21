@@ -5,6 +5,10 @@
  * `NoteKitApi` client (the secrets backend must already be configured for the
  * recipient/config reads). See #49.
  */
+import type { NoteKitApi } from "@notekit/api-client";
+import type { SavedLink } from "../types/link";
+import type { Note } from "../types/note";
+import type { Ticket } from "../types/ticket";
 import {
   serializeEncryptedNote,
   serializeEncryptedTicket,
@@ -17,10 +21,6 @@ import {
   type DeviceIdentity,
 } from "./crypto";
 import { collectVaultRecipients, readVaultConfig } from "./secrets-vault";
-import type { NoteKitApi } from "@notekit/api-client";
-import type { Note } from "../types/note";
-import type { Ticket } from "../types/ticket";
-import type { SavedLink } from "../types/link";
 
 export { isEncryptedItemPath as isEncrypted, classifyEncryptedPath };
 

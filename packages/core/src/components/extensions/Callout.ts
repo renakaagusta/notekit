@@ -21,14 +21,42 @@ interface MdToken { type: string; tag: string; nesting: number; attrSet(k: strin
 interface MdCore { tokens: MdToken[]; }
 interface Md { core: { ruler: { push(name: string, fn: (state: MdCore) => void): void } } }
 
+function rewriteCalloutOpen(open: MdToken, type: CalloutType, title: string): void {
+  open.type = "callout_open";
+  open.tag = "div";
+  open.attrSet("data-callout", type);
+  if (title) open.attrSet("data-title", title.trim());
+}
+
+function removeInlineAndParagraph(
+  tokens: MdToken[],
+  i: number,
+  inlineIdx: number,
+  inline: MdToken,
+  paraClose: MdToken | undefined,
+): void {
+  const paraOpen = tokens[inlineIdx - 1];
+  if (paraOpen?.type === "paragraph_open") tokens.splice(inlineIdx - 1, 1);
+  const newInlineIdx = tokens.findIndex((t, j) => j > i && t.type === "inline" && t.content === inline.content);
+  if (newInlineIdx !== -1) tokens.splice(newInlineIdx, 1);
+  const newParaClose = tokens.findIndex((t, j) => j > i && t.type === "paragraph_close");
+  if (newParaClose !== -1 && tokens[newParaClose] === paraClose) tokens.splice(newParaClose, 1);
+}
+
+function rewriteCalloutClose(tokens: MdToken[], i: number): void {
+  const closeIdx = tokens.findIndex((t, j) => j > i && t.type === "blockquote_close");
+  if (closeIdx !== -1) {
+    const close = tokens[closeIdx];
+    if (close) { close.type = "callout_close"; close.tag = "div"; }
+  }
+}
+
 function calloutPlugin(md: Md) {
-  // eslint-disable-next-line complexity -- markdown-it token rewriting requires handling many token type branches
   md.core.ruler.push("callout", (state) => {
     const tokens = state.tokens;
     for (let i = 0; i < tokens.length; i++) {
       const open = tokens[i];
       if (!open || open.type !== "blockquote_open") continue;
-      // Find the inline content inside the first paragraph of this blockquote
       const inlineIdx = tokens.findIndex((t, j) => j > i && t.type === "inline");
       if (inlineIdx === -1) continue;
       const inline = tokens[inlineIdx];
@@ -37,26 +65,10 @@ function calloutPlugin(md: Md) {
       if (!match) continue;
       const [, rawType, title] = match;
       const type = (rawType?.toLowerCase() ?? "note") as CalloutType;
-      // Rewrite blockquote_open to callout_open
-      open.type = "callout_open";
-      open.tag = "div";
-      open.attrSet("data-callout", type);
-      if (title) open.attrSet("data-title", title.trim());
-      // Remove the first inline token (the [!TYPE] line) and its wrapping paragraph
-      const paraOpen = tokens[inlineIdx - 1];
+      rewriteCalloutOpen(open, type, title ?? "");
       const paraClose = tokens[inlineIdx + 1];
-      if (paraOpen?.type === "paragraph_open") tokens.splice(inlineIdx - 1, 1);
-      // after splice inlineIdx shifted
-      const newInlineIdx = tokens.findIndex((t, j) => j > i && t.type === "inline" && t.content === inline.content);
-      if (newInlineIdx !== -1) tokens.splice(newInlineIdx, 1);
-      const newParaClose = tokens.findIndex((t, j) => j > i && t.type === "paragraph_close");
-      if (newParaClose !== -1 && tokens[newParaClose] === paraClose) tokens.splice(newParaClose, 1);
-      // Rewrite blockquote_close to callout_close
-      const closeIdx = tokens.findIndex((t, j) => j > i && t.type === "blockquote_close");
-      if (closeIdx !== -1) {
-        const close = tokens[closeIdx];
-        if (close) { close.type = "callout_close"; close.tag = "div"; }
-      }
+      removeInlineAndParagraph(tokens, i, inlineIdx, inline, paraClose);
+      rewriteCalloutClose(tokens, i);
     }
   });
 }

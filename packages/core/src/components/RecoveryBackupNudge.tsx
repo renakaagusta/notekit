@@ -9,8 +9,8 @@
  * the UI — the whole point of the redesign is no walls — but it doesn't go
  * away permanently on dismiss either; it returns next session until handled.
  */
-import { useEffect } from "react";
 import { ShieldAlert, X } from "lucide-react";
+import { useEffect } from "react";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 
 export function RecoveryBackupNudge() {

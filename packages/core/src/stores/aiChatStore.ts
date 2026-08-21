@@ -11,10 +11,10 @@
  * persist to localStorage. The transcript itself is in-memory only — note
  * content must never land in plaintext storage, per NoteKit's E2EE stance.
  */
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
-import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
 
 export type ChatRole = "user" | "assistant";
 

@@ -1,7 +1,7 @@
-import { type FC } from 'react'
-import styles from './styles.module.css'
-import SectionHeading from '@/components/sectionHeading'
+import type { FC } from 'react'
 import LayoutWrapper from '@/components/layout-wrapper'
+import SectionHeading from '@/components/sectionHeading'
+import styles from './styles.module.css'
 
 const agentCards = [
 	{

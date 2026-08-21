@@ -6,8 +6,7 @@
 //   * listing secret names
 //   * deleting a secret file (delete only touches the blob, no decrypt needed)
 
-import { defineCommand } from "citty";
-import kleur from "kleur";
+import { slugify } from "@notekit/core/paths";
 import {
   listSecretVaults,
   createSecretVault,
@@ -20,20 +19,12 @@ import {
   DEFAULT_VAULT_LABEL,
   DEFAULT_VAULT_SLUG,
 } from "@notekit/core/secrets";
-import { getSecretsClient } from "../lib/secrets.js";
-import { vaultDevice } from "../lib/crypto.js";
+import { defineCommand } from "citty";
+import kleur from "kleur";
 import { dieWithError } from "../client.js";
+import { vaultDevice } from "../lib/crypto.js";
+import { getSecretsClient } from "../lib/secrets.js";
 
-function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^\w\s-]/g, "")
-    .trim()
-    .replace(/[\s_]+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 40);
-}
 
 // ── secret vault subcommands ─────────────────────────────────────────────────
 

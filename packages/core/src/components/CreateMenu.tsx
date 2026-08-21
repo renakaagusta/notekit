@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react";
 import { FileText, Folder } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useNotesStore } from "../stores/notesStore";
 
 interface CreateMenuProps {

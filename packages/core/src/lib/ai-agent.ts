@@ -22,9 +22,9 @@ import {
   type ModelMessage,
   type ToolSet,
 } from "ai";
-import { getSecret } from "./secrets-vault";
-import type { DeviceIdentity } from "./crypto/device-key";
 import { DEFAULT_AGENT_MODEL, type AgentProvider } from "./agents-api";
+import type { DeviceIdentity } from "./crypto/device-key";
+import { getSecret } from "./secrets-vault";
 
 
 /** Multimodal message content: plain text, or an ordered list of text/image

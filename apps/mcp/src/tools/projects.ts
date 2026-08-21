@@ -12,9 +12,11 @@
 // one applies to the current cwd, and create a new project + marker on
 // the fly when the agent lands in a fresh repo.
 
-import { z } from "zod";
+import { existsSync, writeFileSync } from "node:fs";
+import path from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { z } from "zod";
 import {
   errorContent,
   jsonContent,
@@ -27,8 +29,6 @@ import {
   resolveProjectContext,
   slugify,
 } from "../lib/project.js";
-import { existsSync, writeFileSync } from "node:fs";
-import path from "node:path";
 
 const PROJECTS_PREFIX = "projects/";
 
@@ -149,28 +149,18 @@ export function registerProjectTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: true },
     },
-    // eslint-disable-next-line complexity -- project_create resolves slug, reads existing file, writes project.json, and conditionally writes .notekit marker
     async ({ slug, name, repos, writeMarker, commitMessage }) => {
       try {
         const ctx = resolveProjectContext();
-        const remoteSlug = deriveSlugFromGit();
         const ownerRepo = ownerRepoFromGit();
-        const cwdSlug = slugify(path.basename(process.cwd()));
-        const resolvedSlug =
-          (slug && slugify(slug)) || remoteSlug || cwdSlug || null;
+        const resolvedSlug = resolveProjectSlug(slug);
         if (!resolvedSlug) {
           return errorContent(
             "project_create: could not derive a slug. Pass `slug` explicitly.",
           );
         }
         const projectJsonPath = `${PROJECTS_PREFIX}${resolvedSlug}/project.json`;
-        let alreadyExisted = false;
-        try {
-          const existing = await nk.vault.readFile(projectJsonPath);
-          if (existing && (existing.content ?? "") !== "") alreadyExisted = true;
-        } catch {
-          // 404 / read error → treat as missing.
-        }
+        const alreadyExisted = await projectJsonExists(nk, projectJsonPath);
         if (!alreadyExisted) {
           const body: ProjectJson = {
             name: name ?? resolvedSlug,
@@ -183,18 +173,7 @@ export function registerProjectTools(server: McpServer, nk: NoteKitApi): void {
             commitMessage ?? `notekit: bootstrap project ${resolvedSlug}`,
           );
         }
-        let markerWritten: string | null = null;
-        const shouldWriteMarker = writeMarker !== false;
-        if (shouldWriteMarker && !ctx?.source) {
-          const root = findGitRoot();
-          if (root) {
-            const markerPath = path.join(root, ".notekit");
-            if (!existsSync(markerPath)) {
-              writeFileSync(markerPath, `project: ${resolvedSlug}\n`, "utf8");
-              markerWritten = markerPath;
-            }
-          }
-        }
+        const markerWritten = maybeWriteMarker(writeMarker, ctx?.source ?? null, resolvedSlug);
         return jsonContent({
           slug: resolvedSlug,
           projectJson: projectJsonPath,
@@ -206,4 +185,39 @@ export function registerProjectTools(server: McpServer, nk: NoteKitApi): void {
       }
     },
   );
+}
+
+/** Derive the project slug from the explicit arg, git remote, or cwd basename. */
+function resolveProjectSlug(slug: string | undefined): string | null {
+  const remoteSlug = deriveSlugFromGit();
+  const cwdSlug = slugify(path.basename(process.cwd()));
+  return (slug && slugify(slug)) || remoteSlug || cwdSlug || null;
+}
+
+/** Return true when a non-empty project.json already exists in the vault. */
+async function projectJsonExists(nk: NoteKitApi, projectJsonPath: string): Promise<boolean> {
+  try {
+    const existing = await nk.vault.readFile(projectJsonPath);
+    return !!(existing && (existing.content ?? "") !== "");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Write a `.notekit` marker at the git root when requested and not yet present.
+ * Returns the marker path if written, or null otherwise.
+ */
+function maybeWriteMarker(
+  writeMarker: boolean | undefined,
+  existingSource: string | null,
+  resolvedSlug: string,
+): string | null {
+  if (writeMarker === false || existingSource) return null;
+  const root = findGitRoot();
+  if (!root) return null;
+  const markerPath = path.join(root, ".notekit");
+  if (existsSync(markerPath)) return null;
+  writeFileSync(markerPath, `project: ${resolvedSlug}\n`, "utf8");
+  return markerPath;
 }

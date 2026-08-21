@@ -7,14 +7,14 @@
  * - Web push: GET /notifications/web-push/key, POST /notifications/web-push/subscribe, DELETE /notifications/web-push/subscribe
  * - Mobile push: POST /notifications/mobile-push/subscribe, DELETE /notifications/mobile-push/subscribe
  */
-import { Hono } from "hono";
 import { and, desc, eq, lt } from "drizzle-orm";
+import { Hono } from "hono";
 import { nanoid } from "nanoid";
+import { getCurrentUser } from "../auth/sessions";
 import { db, schema } from "../db";
 import { env } from "../env";
-import { getCurrentUser } from "../auth/sessions";
-import { parseBody, z } from "../validation";
 import { emitAgentEvent } from "../notifications/emit";
+import { parseBody, z } from "../validation";
 
 export const notificationRoutes = new Hono();
 

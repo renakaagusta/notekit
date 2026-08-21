@@ -17,8 +17,8 @@
  *               propagate cookies.
  */
 import { apiUrl } from "./api";
-import { refresh as refreshSync } from "./sync";
 import { logger } from './logger'
+import { refresh as refreshSync } from "./sync";
 
 export interface StartVaultEventStreamOptions {
   /**

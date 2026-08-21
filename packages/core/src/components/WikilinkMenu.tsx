@@ -1,5 +1,5 @@
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { FileText } from "lucide-react";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 
 export interface WikilinkItem {
   id: string;

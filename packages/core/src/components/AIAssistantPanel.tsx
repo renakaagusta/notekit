@@ -1,20 +1,14 @@
-import { useEffect, useRef, useState } from "react";
 import { nanoid } from "nanoid";
-import { Camera, Check, FileText, History, ImagePlus, ListChecks, Loader2, Lock, Plus, Search, Send, Sparkles, TextSelect, Trash2, Wrench, X } from "lucide-react";
-import { useAIChatStore, messageText } from "../stores/aiChatStore";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useNotesStore } from "../stores/notesStore";
-import { useTicketsStore } from "../stores/ticketsStore";
-import { useVaultStore } from "../stores/vaultStore";
-import { noteTitle } from "../lib/note-display";
+import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listAgents,
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
-  DEFAULT_SYSTEM_PROMPT,
   type AgentProfile,
 } from "../lib/agents-api";
-import { listSecretNames } from "../lib/secrets-vault";
+import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
+import { buildAssistantTools, describeToolCall } from "../lib/ai-tools";
 import {
   listChatSessions,
   readCachedChatSessions,
@@ -25,21 +19,24 @@ import {
   chatTimestamp,
   type ChatSession,
 } from "../lib/chats-vault";
-import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
-import { buildAssistantTools, describeToolCall } from "../lib/ai-tools";
-import { renderAssistantHtml } from "../lib/chat-markdown";
+import { listSecretNames } from "../lib/secrets-vault";
+import { useAIChatStore, messageText } from "../stores/aiChatStore";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useNotesStore } from "../stores/notesStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
+import {
+  buildContextBlock,
+  buildSystemPrompt,
+  PanelBodyView,
+  PanelHeaderView,
+} from "./AIAssistantPanelParts";
 
 interface Props {
   /** Open the Agents manager so the user can create their first profile / add a key. */
   onOpenAgents?: () => void;
   /** Bumped when the Agents modal closes, so we re-check setup state. */
   refreshTick?: number;
-}
-
-
-function wordCount(s: string): number {
-  const t = s.trim();
-  return t ? t.split(/\s+/).length : 0;
 }
 
 /** Downscale an image blob to a JPEG data URL (≤~1280px) to keep payloads small. */
@@ -60,22 +57,9 @@ async function toResizedDataUrl(blob: Blob, max = 1280): Promise<string> {
 }
 
 /** Compact relative time for the history list ("2m", "3h", "5d"). */
-function relTime(iso: string): string {
-  const then = new Date(iso).getTime();
-  if (!Number.isFinite(then)) return "";
-  const diff = Date.now() - then;
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "now";
-  if (m < 60) return `${m}m`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return `${d}d`;
-  return new Date(iso).toLocaleDateString();
-}
-
-// eslint-disable-next-line max-lines-per-function, complexity -- large React component; multiple UI states (loading, setup, history, chat) with shared closure; cannot split without prop-drilling
+// eslint-disable-next-line max-lines-per-function, complexity -- large React component; multiple UI states (loading, setup, history, chat) with shared closure; cannot split without breaking hook order
 export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
+  const { t } = useTranslation();
   const open = useAIChatStore((s) => s.open);
   const setOpen = useAIChatStore((s) => s.setOpen);
   const messages = useAIChatStore((s) => s.messages);
@@ -159,7 +143,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [open, cryptoPhase, refreshTick]);
 
   // Load the encrypted session index when the panel opens & the vault is ready.
@@ -187,7 +171,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [open, cryptoPhase]);
 
   // Track the live document selection so we can offer it as scoped context.
@@ -244,24 +228,14 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
       };
     });
 
-    // Build the scoped context block: selection + active note + pinned items.
-    let contextBlock = "";
-    if (selection) {
-      contextBlock += `[Context — selected text]\n${selection}\n\n`;
-    }
-    if (includeNoteContext && activeNote) {
-      contextBlock += `[Context — active note "${noteTitle(activeNote)}"]\n${activeNote.body}\n\n`;
-    }
-    for (const item of store.contextItems) {
-      if (item.kind === "note") {
-        const n = useNotesStore.getState().notes[item.id];
-        if (n) contextBlock += `[Context — note "${noteTitle(n)}"]\n${n.body}\n\n`;
-      } else {
-        const tk = useTicketsStore.getState().all().find((x) => x.id === item.id);
-        if (tk)
-          contextBlock += `[Context — task "${tk.title}" (status: ${tk.status})]\n${tk.body}\n\n`;
-      }
-    }
+    const contextBlock = buildContextBlock({
+      selection,
+      includeNoteContext,
+      activeNote,
+      contextItems: store.contextItems,
+      getNoteById: (id) => useNotesStore.getState().notes[id],
+      getTicketById: (id) => useTicketsStore.getState().all().find((x) => x.id === id),
+    });
 
     setDraft("");
     setAttachments([]);
@@ -284,18 +258,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
 
     const permissions = selectedAgent.toolPermissions ?? "read-only";
     const tools = buildAssistantTools({ requestApproval, defaultFolder }, permissions);
-
-    let system = selectedAgent.systemPrompt?.trim() || DEFAULT_SYSTEM_PROMPT;
-    system +=
-      "\n\nYou have tools for: notes (list_notes, search_notes, read_note), folders (list_folders), links (list_links), tasks (list_tasks), secret names (list_secrets — NAMES only, never values), git commit history (recent_activity), and opening/closing tabs" +
-      (permissions === "read-write"
-        ? ". You can also create/edit/delete notes, save links, create tasks & change their status — every change requires the user's approval first."
-        : ".") +
-      " When asked about the whole vault, use list_notes (not search_notes). You can NEVER read secret VALUES, only their names. Use tools when relevant." +
-      // MiniMax and other smaller models sometimes NARRATE an action ("✅ done, I
-      // updated the note") without actually emitting the tool call. Forbid that.
-      "\n\nCRITICAL: You may ONLY claim a note/link/task was created, updated, or deleted if you ACTUALLY called the matching tool (create_note / update_note / delete_note / create_link / create_task / set_task_status) in THIS reply and it returned success. Never say \"done\", \"sudah\", \"✅\", or describe a change you did not perform via a tool call. To change a note's content you MUST call update_note with the note's id and the COMPLETE new body — describing the change in text does nothing. If a task needs a tool, call the tool first, then confirm based on its result." +
-      "\n\nAlways reply in the same language the user writes in.";
+    const system = buildSystemPrompt(selectedAgent, permissions);
 
     try {
       await streamAssistant({
@@ -317,7 +280,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
         onToolsUnsupported: () =>
           useAIChatStore
             .getState()
-            .addToolNote(assistantId, "Model ini tak mendukung tools — dijawab sebagai chat biasa"),
+            .addToolNote(assistantId, t("ai.toolsUnsupported")),
       });
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
@@ -328,7 +291,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
       // If tools ran but the model gave no closing text, don't leave it hanging.
       const msg = useAIChatStore.getState().messages.find((m) => m.id === assistantId);
       if (msg && !messageText(msg).trim() && msg.parts.some((p) => p.kind === "tool")) {
-        useAIChatStore.getState().appendDelta(assistantId, "Selesai.");
+        useAIChatStore.getState().appendDelta(assistantId, t("ai.finished"));
       }
       useAIChatStore.getState().finishAssistant(assistantId);
       useAIChatStore.getState().setStreaming(false);
@@ -486,7 +449,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     if (!capture) {
       useAIChatStore
         .getState()
-        .setError("Capture butuh aplikasi desktop NoteKit (belum tersedia di web).");
+        .setError(t("ai.capture.needsDesktop"));
       return;
     }
     setCapturing(true);
@@ -504,9 +467,9 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
           : undefined,
       );
       if (dataUrl) setAttachments((a) => [...a, dataUrl].slice(0, 6));
-      else useAIChatStore.getState().setError("Capture kosong — coba buka catatan dulu.");
+      else useAIChatStore.getState().setError(t("ai.capture.empty"));
     } catch (e) {
-      useAIChatStore.getState().setError(`Gagal capture: ${(e as Error).message}`);
+      useAIChatStore.getState().setError(t("ai.capture.failed", { message: (e as Error).message }));
     } finally {
       setCapturing(false);
     }
@@ -523,417 +486,72 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
 
   return (
     <aside className="nk-ai-panel">
-      <header className="nk-ai-panel-hd">
-        <span className="nk-ai-panel-title">
-          <Sparkles size={15} aria-hidden /> AI
-        </span>
-        {agents && agents.length > 0 && (
-          <select
-            className="nk-ai-agent-picker"
-            value={selectedAgent?.slug ?? ""}
-            onChange={(e) => selectAgent(e.target.value)}
-            aria-label="AI profile"
-            title="Pilih profil AI"
-          >
-            {agents.map((a) => (
-              <option key={a.slug} value={a.slug}>
-                {a.emoji ? `${a.emoji} ` : ""}
-                {a.name}
-              </option>
-            ))}
-          </select>
-        )}
-        {!notReady && loaded && !needsSetup && (
-          <>
-            <button
-              className="nk-iconbtn"
-              onClick={newChat}
-              aria-label="Obrolan baru"
-              title="Obrolan baru"
-            >
-              <Plus size={15} aria-hidden />
-            </button>
-            <button
-              className={`nk-iconbtn${showHistory ? " is-on" : ""}`}
-              onClick={() => setShowHistory((v) => !v)}
-              aria-label="Riwayat obrolan"
-              title="Riwayat"
-            >
-              <History size={15} aria-hidden />
-            </button>
-          </>
-        )}
-        <button
-          className="nk-iconbtn"
-          onClick={() => setOpen(false)}
-          aria-label="Tutup asisten"
-          title="Tutup"
-        >
-          <X size={15} aria-hidden />
-        </button>
-      </header>
+      <PanelHeaderView
+        agents={agents}
+        selectedAgentSlug={selectedAgent?.slug}
+        notReady={notReady}
+        loaded={loaded}
+        needsSetup={needsSetup}
+        showHistory={showHistory}
+        onSelectAgent={selectAgent}
+        onNewChat={newChat}
+        onToggleHistory={() => setShowHistory((v) => !v)}
+        onClose={() => setOpen(false)}
+      />
 
-      {notReady ? (
-        <div className="nk-ai-gate">
-          <Sparkles size={30} aria-hidden />
-          <p>Vault belum siap.</p>
-          <p className="nk-ai-gate-hint">
-            Buka & buka-kunci vault terenkripsi dulu untuk memakai asisten AI.
-          </p>
-        </div>
-      ) : needsSetup ? (
-        <div className="nk-ai-gate">
-          <Sparkles size={30} aria-hidden />
-          <p>Siapkan AI dulu</p>
-          <p className="nk-ai-gate-hint">
-            {noAgents
-              ? "Buat satu profil AI (provider, key, model) untuk mulai."
-              : "Profil ini belum punya API key. Buka profil di pengaturan AI untuk mengisinya."}
-          </p>
-          {onOpenAgents && (
-            <button className="nk-btn nk-btn--primary" onClick={onOpenAgents}>
-              <Sparkles size={14} aria-hidden />{" "}
-              {noKey ? "Buka pengaturan AI" : "Buat profil AI"}
-            </button>
-          )}
-        </div>
-      ) : !loaded ? (
-        <div className="nk-ai-gate">
-          <Loader2 size={22} className="nk-ai-spin" aria-hidden />
-        </div>
-      ) : showHistory ? (
-        <div className="nk-ai-history-page">
-          <div className="nk-ai-history-search">
-            <Search size={14} aria-hidden />
-            <input
-              className="nk-ai-history-search-input"
-              placeholder="Cari riwayat obrolan…"
-              value={historyQuery}
-              onChange={(e) => setHistoryQuery(e.target.value)}
-              autoFocus
-            />
-            {historyQuery && (
-              <button
-                className="nk-ai-history-search-clear"
-                onClick={() => setHistoryQuery("")}
-                aria-label="Bersihkan pencarian"
-              >
-                <X size={13} aria-hidden />
-              </button>
-            )}
-          </div>
-          <div className="nk-ai-history-list">
-            {(() => {
-              const q = historyQuery.trim().toLowerCase();
-              const hits = q
-                ? sessions.filter((s) => (s.title || "").toLowerCase().includes(q))
-                : sessions;
-              if (sessions.length === 0)
-                return (
-                  <div className="nk-ai-history-empty">
-                    <History size={26} aria-hidden />
-                    <p>Belum ada riwayat obrolan.</p>
-                  </div>
-                );
-              if (hits.length === 0)
-                return <div className="nk-ai-history-empty"><p>Tak ada yang cocok.</p></div>;
-              return hits.map((s) => (
-                <div
-                  key={s.id}
-                  className={`nk-ai-history-row${s.id === currentSessionId ? " is-active" : ""}`}
-                >
-                  <button
-                    className="nk-ai-history-open"
-                    onClick={() => void openSession(s.id)}
-                    title={s.title}
-                  >
-                    <History size={13} aria-hidden />
-                    <span className="nk-ai-history-title">{s.title}</span>
-                    <span className="nk-ai-history-time">{relTime(s.updatedAt)}</span>
-                  </button>
-                  <button
-                    className="nk-ai-history-del"
-                    onClick={() => void removeSession(s.id)}
-                    aria-label="Hapus obrolan"
-                    title="Hapus"
-                  >
-                    <Trash2 size={13} aria-hidden />
-                  </button>
-                </div>
-              ));
-            })()}
-          </div>
-        </div>
-      ) : (
-        <>
-          {/* Context chips — selection + active note + pinned notes/tasks + add. */}
-          <div className="nk-ai-chips">
-            {selection && (
-              <span className="nk-ai-chip is-selection">
-                <TextSelect size={12} aria-hidden />
-                {wordCount(selection)} words
-              </span>
-            )}
-            {activeNote && !contextItems.some((c) => c.id === activeNoteId) && (
-              <button
-                className={`nk-ai-chip${includeNoteContext ? " is-on" : ""}`}
-                onClick={() => setIncludeNoteContext(!includeNoteContext)}
-                title="Toggle the active note as context"
-              >
-                <FileText size={12} aria-hidden />
-                {noteTitle(activeNote)}
-                {includeNoteContext && <X size={11} aria-hidden />}
-              </button>
-            )}
-            {contextItems.map((c) => (
-              <span key={c.id} className="nk-ai-chip is-on">
-                {c.kind === "task" ? (
-                  <ListChecks size={12} aria-hidden />
-                ) : (
-                  <FileText size={12} aria-hidden />
-                )}
-                {c.title}
-                <button
-                  className="nk-ai-chip-x"
-                  onClick={() => removeContext(c.id)}
-                  aria-label="Remove context"
-                >
-                  <X size={11} aria-hidden />
-                </button>
-              </span>
-            ))}
-            <div className="nk-ai-ctx-add">
-              <button
-                className="nk-ai-chip nk-ai-chip--add"
-                onClick={() => setPickerOpen((v) => !v)}
-                title="Add a note or task as context"
-                aria-label="Add context"
-              >
-                <Plus size={13} aria-hidden />
-              </button>
-              {pickerOpen && (
-                <div className="nk-ai-ctx-picker">
-                  <input
-                    className="nk-ai-ctx-search"
-                    placeholder="Search notes & tasks…"
-                    value={pickerQuery}
-                    onChange={(e) => setPickerQuery(e.target.value)}
-                    autoFocus
-                  />
-                  <div className="nk-ai-ctx-list">
-                    {(() => {
-                      const q = pickerQuery.toLowerCase();
-                      const pinned = new Set(contextItems.map((c) => c.id));
-                      const noteHits = allNotes
-                        .filter((n) => !pinned.has(n.id) && noteTitle(n).toLowerCase().includes(q))
-                        .slice(0, 8);
-                      const taskHits = tickets
-                        .filter((t) => !pinned.has(t.id) && t.title.toLowerCase().includes(q))
-                        .slice(0, 6);
-                      if (!noteHits.length && !taskHits.length)
-                        return <div className="nk-ai-ctx-empty">No matches</div>;
-                      return (
-                        <>
-                          {noteHits.map((n) => (
-                            <button
-                              key={n.id}
-                              className="nk-ai-ctx-item"
-                              onClick={() => {
-                                addContext({ kind: "note", id: n.id, title: noteTitle(n) });
-                                setPickerQuery("");
-                              }}
-                            >
-                              <FileText size={12} aria-hidden /> {noteTitle(n)}
-                            </button>
-                          ))}
-                          {taskHits.map((t) => (
-                            <button
-                              key={t.id}
-                              className="nk-ai-ctx-item"
-                              onClick={() => {
-                                addContext({ kind: "task", id: t.id, title: t.title });
-                                setPickerQuery("");
-                              }}
-                            >
-                              <ListChecks size={12} aria-hidden /> {t.title}
-                            </button>
-                          ))}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="nk-ai-body" ref={scrollRef}>
-            {messages.length === 0 ? (
-              <div className="nk-ai-empty">
-                <Sparkles size={22} aria-hidden />
-                <p>Tanya apa saja tentang catatanmu.</p>
-              </div>
-            ) : (
-              messages.map((m) => {
-                const last = m.parts[m.parts.length - 1];
-                const showCaret = m.pending && (!last || last.kind === "tool");
-                return (
-                  <div key={m.id} className="nk-ai-turn">
-                    {m.parts.map((p, i) => {
-                      if (p.kind === "tool")
-                        return (
-                          <div key={i} className="nk-ai-toolnote">
-                            <Wrench size={11} aria-hidden /> {p.label}
-                          </div>
-                        );
-                      if (p.kind === "image")
-                        return (
-                          <img
-                            key={i}
-                            className="nk-ai-msg-img"
-                            src={p.url}
-                            alt="Lampiran gambar"
-                            loading="lazy"
-                          />
-                        );
-                      if (m.role === "assistant") {
-                        // A text part that was pure <think> reasoning renders to
-                        // empty HTML — skip it so we don't draw a blank bubble.
-                        const html = renderAssistantHtml(p.text);
-                        if (!html) return null;
-                        return (
-                          <div
-                            key={i}
-                            className="nk-ai-msg nk-ai-msg--assistant nk-ai-prose"
-                            dangerouslySetInnerHTML={{ __html: html }}
-                          />
-                        );
-                      }
-                      return (
-                        <div key={i} className="nk-ai-msg nk-ai-msg--user">
-                          {p.text}
-                        </div>
-                      );
-                    })}
-                    {showCaret && (
-                      <div className="nk-ai-msg nk-ai-msg--assistant">
-                        <span className="nk-ai-caret">▍</span>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-            {pendingApproval && (
-              <div className="nk-ai-approval">
-                <div className="nk-ai-approval-hd">
-                  <Wrench size={13} aria-hidden /> Perlu persetujuan
-                </div>
-                <div className="nk-ai-approval-summary">{pendingApproval.summary}</div>
-                <div className="nk-ai-approval-actions">
-                  <button
-                    className="nk-btn nk-btn--primary"
-                    onClick={() => resolveApproval(true)}
-                  >
-                    <Check size={14} aria-hidden /> Setujui
-                  </button>
-                  <button className="nk-btn" onClick={() => resolveApproval(false)}>
-                    <X size={14} aria-hidden /> Tolak
-                  </button>
-                </div>
-              </div>
-            )}
-            {error && <div className="nk-ai-error">{error}</div>}
-          </div>
-
-          {attachments.length > 0 && (
-            <div className="nk-ai-attachments">
-              {attachments.map((url, i) => (
-                <div key={i} className="nk-ai-attachment">
-                  <img src={url} alt="Lampiran" />
-                  <button
-                    className="nk-ai-attachment-x"
-                    onClick={() => setAttachments((a) => a.filter((_, j) => j !== i))}
-                    aria-label="Hapus lampiran"
-                  >
-                    <X size={11} aria-hidden />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="nk-ai-composer">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              hidden
-              onChange={(e) => {
-                void addImageBlobs(Array.from(e.target.files ?? []));
-                e.target.value = "";
-              }}
-            />
-            <button
-              className="nk-ai-attachbtn"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={streaming}
-              title="Lampirkan gambar"
-              aria-label="Lampirkan gambar"
-            >
-              <ImagePlus size={16} aria-hidden />
-            </button>
-            <button
-              className="nk-ai-attachbtn"
-              onClick={() => void captureNote()}
-              disabled={streaming || capturing}
-              title="Capture catatan aktif"
-              aria-label="Capture catatan"
-            >
-              {capturing ? (
-                <Loader2 size={16} className="nk-ai-spin" aria-hidden />
-              ) : (
-                <Camera size={16} aria-hidden />
-              )}
-            </button>
-            <textarea
-              ref={inputRef}
-              className="nk-ai-input"
-              placeholder="Tanya asisten…"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onPaste={onPasteComposer}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void onSend();
-                }
-              }}
-              rows={1}
-              disabled={streaming}
-            />
-            {streaming ? (
-              <button className="nk-ai-send" onClick={onStop} title="Hentikan" aria-label="Hentikan">
-                <Loader2 size={16} className="nk-ai-spin" aria-hidden />
-              </button>
-            ) : (
-              <button
-                className="nk-ai-send"
-                onClick={() => void onSend()}
-                disabled={!draft.trim() && attachments.length === 0}
-                title="Kirim (Enter)"
-                aria-label="Kirim"
-              >
-                <Send size={16} aria-hidden />
-              </button>
-            )}
-          </div>
-          <div className="nk-ai-privacy">
-            <Lock size={11} aria-hidden /> Key kamu, langsung ke provider — tanpa
-            relay server NoteKit.
-          </div>
-        </>
-      )}
+      <PanelBodyView
+        notReady={notReady}
+        needsSetup={needsSetup}
+        loaded={loaded}
+        showHistory={showHistory}
+        noAgents={noAgents}
+        noKey={noKey}
+        onOpenAgents={onOpenAgents}
+        historyProps={{
+          sessions,
+          currentSessionId,
+          historyQuery,
+          onHistoryQueryChange: setHistoryQuery,
+          onOpenSession: (id) => void openSession(id),
+          onRemoveSession: (id) => void removeSession(id),
+        }}
+        chatProps={{
+          selection,
+          activeNote,
+          activeNoteId,
+          contextItems,
+          includeNoteContext,
+          pickerOpen,
+          pickerQuery,
+          allNotes,
+          tickets,
+          onToggleNoteContext: () => setIncludeNoteContext(!includeNoteContext),
+          onRemoveContext: removeContext,
+          onTogglePicker: () => setPickerOpen((v) => !v),
+          onPickerQueryChange: setPickerQuery,
+          onAddContext: addContext,
+          messages,
+          pendingApproval,
+          error,
+          scrollRef,
+          onResolveApproval: resolveApproval,
+          composerProps: {
+            attachments,
+            streaming,
+            capturing,
+            draft,
+            fileInputRef,
+            inputRef,
+            onAddImageFiles: (files) => void addImageBlobs(files),
+            onCaptureNote: () => void captureNote(),
+            onPaste: onPasteComposer,
+            onSend: () => void onSend(),
+            onStop,
+            onDraftChange: setDraft,
+            onRemoveAttachment: (i) => setAttachments((a) => a.filter((_, j) => j !== i)),
+          },
+        }}
+      />
     </aside>
   );
 }

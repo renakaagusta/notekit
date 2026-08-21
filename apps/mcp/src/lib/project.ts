@@ -15,9 +15,12 @@
 // Everything here is sync filesystem + spawn — we run once per MCP boot
 // and the data is tiny, so async would just add ceremony.
 
-import { existsSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { slugify } from "@notekit/core/paths";
+
+export { slugify };
 
 export type ProjectScope = "project" | "global" | "all";
 
@@ -201,16 +204,6 @@ export function ownerRepoFromGit(cwd: string = process.cwd()): string | null {
   const url = result.stdout.trim();
   if (!url) return null;
   return ownerRepoFromRemoteUrl(url);
-}
-
-/** Slugify in the same shape `notes_create` / `tickets_create` already use. */
-export function slugify(input: string): string {
-  return input
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-    .slice(0, 80);
 }
 
 /**

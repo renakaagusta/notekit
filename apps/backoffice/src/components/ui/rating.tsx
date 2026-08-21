@@ -1,8 +1,7 @@
 'use client'
-import { cn } from '@/utils/cn'
 import { useControllableState } from '@radix-ui/react-use-controllable-state'
 import { type LucideProps, StarIcon } from 'lucide-react'
-import type { KeyboardEvent, MouseEvent, ReactElement, ReactNode } from 'react'
+import type { HTMLAttributes, KeyboardEvent, MouseEvent, ReactElement, ReactNode } from 'react'
 import {
   Children,
   cloneElement,
@@ -13,7 +12,8 @@ import {
   useRef,
   useState,
 } from 'react'
-type RatingContextValue = {
+import { cn } from '@/utils/cn'
+interface RatingContextValue {
   value: number
   readOnly: boolean
   disabled: boolean
@@ -110,7 +110,7 @@ export const RatingButton = ({
     </button>
   )
 }
-export type RatingProps = {
+export interface RatingProps extends Omit<HTMLAttributes<HTMLDivElement>, 'onChange' | 'onBlur' | 'defaultValue'> {
   defaultValue?: number
   value?: number
   onChange?: (
@@ -220,7 +220,7 @@ export const Rating = ({
         }}
         ref={containerRef}
         role="radiogroup"
-        {...(props as any)}
+        {...props}
       >
         {Children.map(children, (child, index) => {
           if (!child) {

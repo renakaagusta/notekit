@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { Check, Copy, Eye, EyeOff, History, MoveRight, Pencil, Shield, Trash2, X } from "lucide-react";
-import { useCryptoStore } from "../stores/cryptoStore";
+import { useEffect, useState } from "react";
 import {
   getSecret,
   setSecret,
@@ -13,6 +12,7 @@ import {
   DEFAULT_VAULT_LABEL,
   type SecretVaultRecord,
 } from "../lib/secrets-vault";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { HistoryView } from "./HistoryView";
 
 /** Broadcast so the Secrets sidebar tree refetches after a mutation here. */

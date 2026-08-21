@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
 import { ExternalLink, Image as ImageIcon, Link2, Lock, MoveRight, Share2, Trash2, Unlock, X } from "lucide-react";
-import { useLinksStore } from "../stores/linksStore";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useShareStore } from "../stores/shareStore";
-import { useVaultStore } from "../stores/vaultStore";
+import { useEffect, useState } from "react";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { platformLabel } from "../lib/link-platform";
-import { MediaViewer, MediaThumb } from "./MediaViewer";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useLinksStore } from "../stores/linksStore";
+import { useShareStore } from "../stores/shareStore";
+import { useVaultStore } from "../stores/vaultStore";
 import type { SavedLink } from "../types/link";
+import { MediaViewer, MediaThumb } from "./MediaViewer";
 
 function isMedia(link: SavedLink): boolean {
   return link.kind === "image" || link.kind === "pdf";

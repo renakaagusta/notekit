@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useCryptoStore } from "../stores/cryptoStore";
-import {
-  announcePair,
-  fetchPair,
-  clearPair,
-} from "../lib/vault-api";
-import { addDevice, listDevices, readRecovery } from "../lib/secrets-vault";
+import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
 import {
   recoveryFromMnemonic,
   recoverySigningFromMnemonic,
@@ -13,8 +7,14 @@ import {
 import { importRecovery, loadStoredRecovery } from "../lib/crypto/recovery-store";
 import { deriveWalletVaultIdentity } from "../lib/crypto/wallet-key";
 import { connectWallet, hasInjectedWallet } from "../lib/crypto/wallet-provider";
-import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
 import { notifyDevicePaired } from "../lib/notifications-api";
+import { addDevice, listDevices, readRecovery } from "../lib/secrets-vault";
+import {
+  announcePair,
+  fetchPair,
+  clearPair,
+} from "../lib/vault-api";
+import { useCryptoStore } from "../stores/cryptoStore";
 import { AddVaultDialog } from "./AddVaultDialog";
 
 /**

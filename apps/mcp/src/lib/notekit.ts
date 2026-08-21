@@ -79,14 +79,9 @@ export function errorContent(message: string) {
   };
 }
 
-/**
- * True if `path` points at an end-to-end encrypted item file. The MCP
- * server cannot decrypt these — only the user's devices can — so search
- * and read tools skip them and surface a count instead.
- */
-export function isEncryptedItemPath(path: string): boolean {
-  return path.endsWith(".md.age");
-}
+// The MCP server cannot decrypt E2EE item files (`.md.age`) — only the user's
+// devices can — so search/read tools skip them and surface a count instead.
+export { isEncryptedItemPath } from "@notekit/core/paths";
 
 /**
  * Standard envelope the LLM sees when a tool skipped encrypted items.

@@ -3,12 +3,14 @@
  * auth secrets (token hashes) live in our SQLite DB. Plaintext tokens are
  * returned exactly once at creation.
  */
-import { Hono, type Context } from "hono";
 import { and, eq, isNull } from "drizzle-orm";
-import { db, schema } from "../db";
+import { Hono, type Context } from "hono";
+import {
+  generateAgentToken,
+  newAgentTokenId,
+} from "../auth/agentAuth";
 import { getCurrentUser } from "../auth/sessions";
-import { getActiveVaultToken } from "../vault/tokens";
-import { GhError } from "../vault/github";
+import { db, schema } from "../db";
 import {
   readAgent,
   listAgents,
@@ -18,10 +20,8 @@ import {
   slugifyAgentName,
   type AgentProfile,
 } from "../vault/agents";
-import {
-  generateAgentToken,
-  newAgentTokenId,
-} from "../auth/agentAuth";
+import { GhError } from "../vault/github";
+import { getActiveVaultToken } from "../vault/tokens";
 
 export const agentRoutes = new Hono();
 
@@ -35,7 +35,28 @@ type ChatFields = Pick<
   "emoji" | "model" | "systemPrompt" | "toolPermissions" | "provider" | "baseUrl"
 >;
 
-// eslint-disable-next-line complexity -- normalizes six optional chat fields with prev-value fallback; each branch handles one field
+/** Pick a free-text field: use trimmed body value if present, else keep prev. */
+function pickStringField(
+  bodyVal: string | undefined,
+  prevVal: string | undefined,
+): string | undefined {
+  if (bodyVal !== undefined) {
+    const v = bodyVal.trim();
+    return v || undefined;
+  }
+  return prevVal;
+}
+
+/** Pick an enum field: accept only known values, else keep prev. */
+function pickEnumField<T extends string>(
+  bodyVal: string | undefined,
+  allowed: readonly T[],
+  prevVal: T | undefined,
+): T | undefined {
+  if (allowed.includes(bodyVal as T)) return bodyVal as T;
+  return prevVal;
+}
+
 function normalizeChatFields(
   body: {
     emoji?: string;
@@ -48,34 +69,26 @@ function normalizeChatFields(
   prev?: AgentProfile,
 ): ChatFields {
   const out: ChatFields = {};
+  const s = pickStringField;
+  const e = pickEnumField;
 
-  if (body.emoji !== undefined) {
-    const v = body.emoji.trim();
-    if (v) out.emoji = v;
-  } else if (prev?.emoji) out.emoji = prev.emoji;
+  const emoji = s(body.emoji, prev?.emoji);
+  if (emoji) out.emoji = emoji;
 
-  if (body.model !== undefined) {
-    const v = body.model.trim();
-    if (v) out.model = v;
-  } else if (prev?.model) out.model = prev.model;
+  const model = s(body.model, prev?.model);
+  if (model) out.model = model;
 
-  if (body.systemPrompt !== undefined) {
-    const v = body.systemPrompt.trim();
-    if (v) out.systemPrompt = v;
-  } else if (prev?.systemPrompt) out.systemPrompt = prev.systemPrompt;
+  const systemPrompt = s(body.systemPrompt, prev?.systemPrompt);
+  if (systemPrompt) out.systemPrompt = systemPrompt;
 
-  if (body.toolPermissions === "read-only" || body.toolPermissions === "read-write") {
-    out.toolPermissions = body.toolPermissions;
-  } else if (prev?.toolPermissions) out.toolPermissions = prev.toolPermissions;
+  const toolPermissions = e(body.toolPermissions, ["read-only", "read-write"] as const, prev?.toolPermissions);
+  if (toolPermissions) out.toolPermissions = toolPermissions;
 
-  if (body.provider === "anthropic" || body.provider === "openai-compatible") {
-    out.provider = body.provider;
-  } else if (prev?.provider) out.provider = prev.provider;
+  const provider = e(body.provider, ["anthropic", "openai-compatible"] as const, prev?.provider);
+  if (provider) out.provider = provider;
 
-  if (body.baseUrl !== undefined) {
-    const v = body.baseUrl.trim();
-    if (v) out.baseUrl = v;
-  } else if (prev?.baseUrl) out.baseUrl = prev.baseUrl;
+  const baseUrl = s(body.baseUrl, prev?.baseUrl);
+  if (baseUrl) out.baseUrl = baseUrl;
 
   return out;
 }
@@ -136,14 +149,14 @@ agentRoutes.get("/:slug", async (c) => {
   }
   const slug = c.req.param("slug");
   try {
-    const found = await readAgent(
-      vault.provider,
+    const found = await readAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       slug,
-    );
+    });
     if (!found) return c.json({ error: "not_found" }, 404);
     return c.json({ agent: found.profile });
   } catch (err) {
@@ -185,14 +198,14 @@ agentRoutes.post("/", async (c) => {
   if (!slug) return c.json({ error: "invalid_name" }, 400);
 
   try {
-    const existing = await readAgent(
-      vault.provider,
+    const existing = await readAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       slug,
-    );
+    });
     if (existing) return c.json({ error: "slug_taken", slug }, 409);
 
     const resolvedEmail = body.email?.trim() || defaultEmailFor(slug);
@@ -205,14 +218,14 @@ agentRoutes.post("/", async (c) => {
       ...normalizeChatFields(body),
     };
 
-    await writeAgent(
-      vault.provider,
+    await writeAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       profile,
-    );
+    });
 
     const { plain, hash } = generateAgentToken();
     await db.insert(schema.agentTokens).values({
@@ -255,14 +268,14 @@ agentRoutes.patch("/:slug", async (c) => {
   if (!body) return c.json({ error: "invalid_body" }, 400);
 
   try {
-    const found = await readAgent(
-      vault.provider,
+    const found = await readAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       slug,
-    );
+    });
     if (!found) return c.json({ error: "not_found" }, 404);
 
     const next: AgentProfile = {
@@ -276,15 +289,15 @@ agentRoutes.patch("/:slug", async (c) => {
       ...normalizeChatFields(body, found.profile),
     };
 
-    await writeAgent(
-      vault.provider,
+    await writeAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
-      next,
-      found.sha,
-    );
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
+      profile: next,
+      prevSha: found.sha,
+    });
 
     return c.json({ agent: next });
   } catch (err) {
@@ -304,24 +317,24 @@ agentRoutes.delete("/:slug", async (c) => {
   }
   const slug = c.req.param("slug");
   try {
-    const found = await readAgent(
-      vault.provider,
+    const found = await readAgent({
+      provider: vault.provider,
       token,
-      vault.owner,
-      vault.repo,
-      vault.branch,
+      owner: vault.owner,
+      repo: vault.repo,
+      branch: vault.branch,
       slug,
-    );
+    });
     if (found) {
-      await deleteAgentFile(
-        vault.provider,
+      await deleteAgentFile({
+        provider: vault.provider,
         token,
-        vault.owner,
-        vault.repo,
-        vault.branch,
+        owner: vault.owner,
+        repo: vault.repo,
+        branch: vault.branch,
         slug,
-        found.sha,
-      );
+        prevSha: found.sha,
+      });
     }
     await db
       .update(schema.agentTokens)

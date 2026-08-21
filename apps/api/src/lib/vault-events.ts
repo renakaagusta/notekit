@@ -17,6 +17,8 @@
  * channel. A leaked vault id alone can't subscribe.
  */
 
+import { logger } from "./logger";
+
 export type VaultEvent =
   | { type: "write"; path: string; sha: string }
   | { type: "delete"; path: string };
@@ -57,7 +59,7 @@ export function publishVaultEvent(vaultId: string, event: VaultEvent): void {
     try {
       listener(event);
     } catch (err) {
-      logger.error("[vault-events] SSE listener error", err)
+      logger.error({ err }, "[vault-events] SSE listener error")
     }
   }
 }

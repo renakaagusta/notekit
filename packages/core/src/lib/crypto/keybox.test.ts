@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { generateIdentity, identityToRecipient } from "age-encryption";
+import { describe, expect, it } from "vitest";
 import {
   generateVaultKey,
   sealKeybox,

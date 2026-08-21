@@ -4,15 +4,15 @@
 // Without a phrase the server still works on plaintext vaults; encrypted vaults
 // require it. See #49.
 
+import type { NoteKitApi } from "@notekit/api-client";
 import {
   recoveryFromMnemonic,
   isValidMnemonic,
   serializeEncryptedLink,
   type RecoveryIdentity,
 } from "@notekit/core/crypto";
-import * as e2ee from "@notekit/core/vault-e2ee";
-import type { NoteKitApi } from "@notekit/api-client";
 import type { SavedLink } from "@notekit/core/types";
+import * as e2ee from "@notekit/core/vault-e2ee";
 
 export class VaultLockedError extends Error {
   constructor() {

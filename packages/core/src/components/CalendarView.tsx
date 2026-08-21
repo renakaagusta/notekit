@@ -1,11 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
-import { useNotesStore } from "../stores/notesStore";
-import { useTicketsStore } from "../stores/ticketsStore";
-import type { Ticket, TicketPriority } from "../types/ticket";
-import type { Note } from "../types/note";
-import { TicketDetail } from "./TicketDetail";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   buildMonthGrid,
   buildWeekGrid,
@@ -19,9 +14,14 @@ import {
   todayYMD,
   weekdayLabels,
 } from "../lib/journal";
+import { listCommits, type VaultCommit } from "../lib/vault-api";
+import { useNotesStore } from "../stores/notesStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import type { Note } from "../types/note";
+import type { Ticket, TicketPriority } from "../types/ticket";
 import { Heatmap } from "./Heatmap";
 import { SkeletonCommitList } from "./Skeleton";
-import { listCommits, type VaultCommit } from "../lib/vault-api";
+import { TicketDetail } from "./TicketDetail";
 
 type Mode = "month" | "week" | "day";
 

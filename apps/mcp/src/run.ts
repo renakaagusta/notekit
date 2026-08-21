@@ -4,8 +4,8 @@
 // process.exit calls that only make sense for the standalone bundle.
 
 import { createMcpServer } from "./server.js";
-import { runStdio } from "./transports/stdio.js";
 import { runSse } from "./transports/sse.js";
+import { runStdio } from "./transports/stdio.js";
 
 export interface RunMcpServerOptions {
   /** NoteKit API base URL — defaults to http://localhost:3001. */

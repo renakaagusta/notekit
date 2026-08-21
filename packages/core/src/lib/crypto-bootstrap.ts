@@ -3,12 +3,23 @@
  * to figure out whether the user needs first-run setup, device pairing, or is
  * already good to go.
  */
+import { useAuthStore } from "../stores/authStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useVaultStore } from "../stores/vaultStore";
 import {
   loadDeviceIdentity,
   createDeviceIdentity,
 } from "./crypto/device-key";
+import type { DeviceIdentity } from "./crypto/device-key";
+import type { VaultKey } from "./crypto/keybox";
+import {
+  recoverySigningFromMnemonic,
+  recoveryFromMnemonic,
+} from "./crypto/recovery";
+import { loadStoredRecovery } from "./crypto/recovery-store";
+import { toB64 } from "./crypto/signing";
+import { verifySigningKeyTrust } from "./crypto/trust-store";
+import { logger } from './logger'
 import {
   ensureSelfRegistered,
   isVaultInitialized,
@@ -26,17 +37,6 @@ import {
   prefetchBootstrapFiles,
   vaultReadServedFromCache,
 } from "./secrets-vault";
-import { useAuthStore } from "../stores/authStore";
-import { loadStoredRecovery } from "./crypto/recovery-store";
-import {
-  recoverySigningFromMnemonic,
-  recoveryFromMnemonic,
-} from "./crypto/recovery";
-import { toB64 } from "./crypto/signing";
-import { verifySigningKeyTrust } from "./crypto/trust-store";
-import type { DeviceIdentity } from "./crypto/device-key";
-import type { VaultKey } from "./crypto/keybox";
-import { logger } from './logger'
 
 /**
  * Member device auto-register (issue #14): if this is a member's device that
@@ -152,11 +152,27 @@ async function installVaultKey(device: DeviceIdentity): Promise<void> {
 }
 
 /**
+ * Attempt to join a vault via member self-registration (issue #14). Installs
+ * the vault key and marks the session ready when successful. Returns `true` if
+ * the device is now ready, `false` if it still needs the pairing flow.
+ * Background flag controls whether to schedule the member reconcile.
+ */
+async function tryMemberJoin(
+  device: DeviceIdentity,
+  background: boolean,
+): Promise<boolean> {
+  if (!(await tryMemberSelfRegister(device))) return false;
+  await installVaultKey(device);
+  useCryptoStore.getState().setPhase("ready");
+  if (!background) scheduleReconcile(device);
+  return true;
+}
+
+/**
  * One bootstrap pass. `background` = SWR pass 2 (network revalidation): don't
  * flash "checking", don't re-schedule the member reconcile, and swallow errors
  * (a failed revalidation just leaves the last-known state until next launch).
  */
-// eslint-disable-next-line complexity, max-lines-per-function -- bootstrap decision tree (setup/pair/self-register/ready), unchanged from the single-pass version bar the two-pass params
 async function runBootstrap(background: boolean): Promise<void> {
   const store = useCryptoStore.getState();
   if (!background) store.setPhase("checking");
@@ -192,12 +208,7 @@ async function runBootstrap(background: boolean): Promise<void> {
       // self-register (issue #14) and skip pairing entirely.
       const fresh = await createDeviceIdentity();
       store.setDevice(fresh);
-      if (await tryMemberSelfRegister(fresh)) {
-        await installVaultKey(fresh);
-        store.setPhase("ready");
-        if (!background) scheduleReconcile(fresh);
-        return;
-      }
+      if (await tryMemberJoin(fresh, background)) return;
       store.setPhase("needs-pair");
       return;
     }
@@ -207,12 +218,7 @@ async function runBootstrap(background: boolean): Promise<void> {
     if (!known) {
       store.setDevice(existing);
       // A member's existing device that isn't in *this* vault yet self-joins.
-      if (await tryMemberSelfRegister(existing)) {
-        await installVaultKey(existing);
-        store.setPhase("ready");
-        if (!background) scheduleReconcile(existing);
-        return;
-      }
+      if (await tryMemberJoin(existing, background)) return;
       store.setPhase("needs-pair");
       return;
     }

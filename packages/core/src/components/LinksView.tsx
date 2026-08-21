@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
   ChevronsDownUp,
@@ -11,10 +10,11 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useLinksStore } from "../stores/linksStore";
+import { useEffect, useMemo, useState } from "react";
+import { detectPlatform, platformLabel } from "../lib/link-platform";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useLayoutStore, tabKey, findLeaf } from "../stores/layoutStore";
-import { detectPlatform, platformLabel } from "../lib/link-platform";
+import { useLinksStore } from "../stores/linksStore";
 import type { SavedLink } from "../types/link";
 
 function parseTags(raw: string): string[] {

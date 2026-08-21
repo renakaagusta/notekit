@@ -10,14 +10,14 @@
  *      markdown so the sync layer can dispatch by content shape
  */
 
-import { describe, expect, it, beforeAll } from "vitest";
 import {
   generateIdentity,
   identityToRecipient,
 } from "age-encryption";
+import { describe, expect, it, beforeAll } from "vitest";
+import type { SavedLink } from "../../types/link";
 import type { Note } from "../../types/note";
 import type { Ticket } from "../../types/ticket";
-import type { SavedLink } from "../../types/link";
 import {
   classifyEncryptedPath,
   deserializeEncryptedLink,

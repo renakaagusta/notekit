@@ -1,7 +1,7 @@
-import { cn } from '@/utils/cn'
 import * as React from 'react'
 
 import { Input } from '@/components/ui/input'
+import { cn } from '@/utils/cn'
 
 export interface TimeInputProps extends Omit<
   React.ComponentProps<'input'>,

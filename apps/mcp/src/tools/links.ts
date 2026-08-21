@@ -20,9 +20,13 @@
 // E2EE vaults: links are stored as `links/<id>.md.age` (sealed with age).
 // The server reads NOTEKIT_RECOVERY_PHRASE to decrypt/re-encrypt on the fly.
 
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { slugify } from "@notekit/core/paths";
+import type { SavedLink } from "@notekit/core/types";
+import { z } from "zod";
+import { vaultIsEncrypted, encryptLink, decryptLink } from "../lib/crypto.js";
+import { parseMarkdown } from "../lib/markdown.js";
 import {
   encryptedSkippedNote,
   errorContent,
@@ -31,11 +35,8 @@ import {
   listVaultFiles,
   textContent,
 } from "../lib/notekit.js";
-import { parseMarkdown } from "../lib/markdown.js";
 import { resolveProjectContext } from "../lib/project.js";
 import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
-import { vaultIsEncrypted, encryptLink, decryptLink } from "../lib/crypto.js";
-import type { SavedLink } from "@notekit/core/types";
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 
@@ -201,7 +202,6 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false },
     },
-    // eslint-disable-next-line complexity -- update handler branches on E2EE path, encrypted link fields, and plaintext merge; unavoidable without losing context
     async ({ path, url, title, description, tags, folder, commitMessage }) => {
       try {
         const existing = await nk.vault.readFile(path);
@@ -213,21 +213,7 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
           }
           const link = await decryptLink(path, existing.content);
           if (!link) return errorContent(`links_update: couldn't decrypt ${path}`);
-          if (url !== undefined) {
-            link.url = url;
-            link.platform = detectPlatform(url);
-          }
-          if (title !== undefined) link.title = title;
-          if (description !== undefined) link.description = description;
-          if (tags !== undefined) link.tags = tags;
-          if (folder !== undefined) {
-            if (folder === null) {
-              link.folder = null;
-            } else {
-              const cleaned = sanitizeFolder(folder);
-              link.folder = cleaned;
-            }
-          }
+          applyEncryptedLinkPatch(link, { url, title, description, tags, folder });
           link.updatedAt = new Date().toISOString();
           const sealed = await encryptLink(link);
           await nk.vault.writeFile(
@@ -241,38 +227,12 @@ export function registerLinkTools(server: McpServer, nk: NoteKitApi): void {
 
         const parsed = parseMarkdown(existing.content ?? "");
         const fm: Record<string, unknown> = { ...parsed.frontmatter };
-
-        if (url !== undefined) {
-          fm["url"] = url;
-          fm["platform"] = detectPlatform(url);
-        }
-        if (tags !== undefined) fm["tags"] = tags;
-        if (folder !== undefined) {
-          if (folder === null) {
-            delete fm["folder"];
-          } else {
-            const cleaned = sanitizeFolder(folder);
-            if (cleaned) fm["folder"] = cleaned;
-          }
-        }
+        applyPlaintextLinkFm(fm, { url, tags, folder });
         fm["updatedAt"] = new Date().toISOString();
 
-        // Rebuild body: derive display title from arg or existing heading, then
-        // reattach description.
         const existingTitle = extractTitle(parsed.body);
         const displayTitle = (title ?? existingTitle).trim() || existingTitle;
-        let body: string;
-        if (description === null) {
-          body = `# ${displayTitle}`;
-        } else if (description !== undefined) {
-          body = `# ${displayTitle}\n\n${description}`;
-        } else {
-          // Keep existing description but update heading if title changed.
-          const existingDesc = extractDescription(parsed.body);
-          body = existingDesc
-            ? `# ${displayTitle}\n\n${existingDesc}`
-            : `# ${displayTitle}`;
-        }
+        const body = buildUpdatedLinkBody(parsed.body, { title: displayTitle, description });
 
         const content = serializeLinkMarkdown(fm, body);
         await nk.vault.writeFile(
@@ -347,20 +307,33 @@ async function collectLinksFromPrefix(
     if (!isUnderAnyPrefix(entry.path, [prefix])) continue;
     if (seen.has(entry.path)) continue;
     seen.add(entry.path);
-    if (isEncryptedItemPath(entry.path)) {
-      const result = await readEncryptedLinkEntry(nk, entry.path, tag, folder);
-      if (!result) { encryptedSkipped++; continue; }
-      links.push(result);
-      if (links.length >= max) break;
-      continue;
-    }
-    if (!entry.path.endsWith(".md")) continue;
-    const record = await readPlaintextLinkEntry(nk, entry.path, prefix, tag, folder);
-    if (!record) continue;
-    links.push(record);
+    const result = await processLinkEntry(nk, entry.path, prefix, { tag, folder });
+    if (result === "encrypted-failed") { encryptedSkipped++; continue; }
+    if (!result) continue;
+    links.push(result);
     if (links.length >= max) break;
   }
   return { links, encryptedSkipped };
+}
+
+/**
+ * Process a single vault entry for the links list handler. Dispatches to the
+ * encrypted or plaintext path and returns the link record, null if filtered
+ * out, or 'encrypted-failed' if the vault is locked.
+ */
+async function processLinkEntry(
+  nk: NoteKitApi,
+  path: string,
+  prefix: string,
+  filters: { tag: string | undefined; folder: string | undefined },
+): Promise<Record<string, unknown> | null | "encrypted-failed"> {
+  if (isEncryptedItemPath(path)) {
+    const result = await readEncryptedLinkEntry(nk, path, filters.tag, filters.folder);
+    if (!result) return "encrypted-failed";
+    return result;
+  }
+  if (!path.endsWith(".md")) return null;
+  return readPlaintextLinkEntry(nk, path, prefix, filters.tag, filters.folder);
 }
 
 /**
@@ -433,6 +406,72 @@ async function readPlaintextLinkEntry(
   };
 }
 
+interface LinkPatch {
+  url?: string;
+  title?: string;
+  description?: string | null;
+  tags?: string[];
+  folder?: string | null;
+}
+
+/**
+ * Mutate an encrypted SavedLink in-place with the fields from a links_update call.
+ * Does NOT set updatedAt — the caller sets that after.
+ */
+function applyEncryptedLinkPatch(link: SavedLink, patch: LinkPatch): void {
+  if (patch.url !== undefined) {
+    link.url = patch.url;
+    link.platform = detectPlatform(patch.url);
+  }
+  if (patch.title !== undefined) link.title = patch.title;
+  if (patch.description !== undefined) link.description = patch.description;
+  if (patch.tags !== undefined) link.tags = patch.tags;
+  if (patch.folder !== undefined) {
+    link.folder = patch.folder === null ? null : sanitizeFolder(patch.folder);
+  }
+}
+
+/**
+ * Mutate a plaintext frontmatter object in-place for a links_update call.
+ */
+function applyPlaintextLinkFm(
+  fm: Record<string, unknown>,
+  patch: { url?: string; tags?: string[]; folder?: string | null },
+): void {
+  if (patch.url !== undefined) {
+    fm["url"] = patch.url;
+    fm["platform"] = detectPlatform(patch.url);
+  }
+  if (patch.tags !== undefined) fm["tags"] = patch.tags;
+  if (patch.folder !== undefined) {
+    if (patch.folder === null) {
+      delete fm["folder"];
+    } else {
+      const cleaned = sanitizeFolder(patch.folder);
+      if (cleaned) fm["folder"] = cleaned;
+    }
+  }
+}
+
+/**
+ * Build the updated Markdown body for a plaintext links_update call.
+ * Handles three cases: remove description (null), set new description, or
+ * keep existing description while updating the heading.
+ */
+function buildUpdatedLinkBody(
+  existingBody: string,
+  { title, description }: { title: string; description?: string | null },
+): string {
+  if (description === null) {
+    return `# ${title}`;
+  }
+  if (description !== undefined) {
+    return `# ${title}\n\n${description}`;
+  }
+  const existingDesc = extractDescription(existingBody);
+  return existingDesc ? `# ${title}\n\n${existingDesc}` : `# ${title}`;
+}
+
 function extractTitle(body: string): string {
   const first = body.split("\n", 1)[0]?.trim() ?? "";
   if (first.startsWith("# ")) return first.slice(2).trim() || "Untitled";
@@ -472,14 +511,6 @@ function detectPlatform(url: string): string | null {
   return null;
 }
 
-function slugify(text: string): string {
-  const ascii = text.normalize("NFKD").replace(/[̀-ͯ]/g, "");
-  return ascii
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 60) || "link";
-}
 
 function generateLinkId(): string {
   // Mirror nanoid-style: 8 url-safe chars. We use crypto.randomUUID() and
@@ -501,7 +532,7 @@ const FOLDER_MAX_LEN = 120;
  * and we want the on-disk path to be url/git-friendly. Returns null for
  * the vault root (undefined input, empty string, or anything unsafe).
  */
-function sanitizeFolder(raw: string | undefined): string | null {
+function sanitizeFolder(raw: string | undefined | null): string | null {
   if (raw === undefined || raw === null) return null;
   if (raw.length > FOLDER_MAX_LEN) return null;
   // eslint-disable-next-line no-control-regex -- intentional control-char matching to reject folder paths with control characters

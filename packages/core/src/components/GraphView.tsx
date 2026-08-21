@@ -1,5 +1,3 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import {
   forceCenter,
   forceCollide,
@@ -8,10 +6,8 @@ import {
   forceSimulation,
   type Simulation,
 } from "d3-force";
-import { useNotesStore } from "../stores/notesStore";
-import { useTicketsStore } from "../stores/ticketsStore";
-import { useMembersStore } from "../stores/membersStore";
-import { useCryptoStore } from "../stores/cryptoStore";
+import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   buildGraph,
   DEFAULT_FILTER,
@@ -22,6 +18,10 @@ import {
   type GraphNode,
   type NodeKind,
 } from "../lib/graph-data";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useMembersStore } from "../stores/membersStore";
+import { useNotesStore } from "../stores/notesStore";
+import { useTicketsStore } from "../stores/ticketsStore";
 
 // Obsidian-style knowledge graph: d3-force for the layout, PixiJS (WebGL) for
 // rendering. This replaces the earlier hand-rolled SVG simulation — WebGL keeps

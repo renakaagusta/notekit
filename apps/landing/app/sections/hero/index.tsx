@@ -1,11 +1,11 @@
-import { type FC } from 'react'
-import styles from './styles.module.css'
-import LayoutWrapper from '@/components/layout-wrapper'
-import BlurPopUpByWord from '@/components/blur-pop-up-by-words'
-import { cn } from '@/lib/utils'
-import BlurPopUp from '@/components/blur-pop-up'
-import Link from 'next/link'
 import { ChevronRight } from 'lucide-react'
+import Link from 'next/link'
+import type { FC } from 'react'
+import BlurPopUp from '@/components/blur-pop-up'
+import BlurPopUpByWord from '@/components/blur-pop-up-by-words'
+import LayoutWrapper from '@/components/layout-wrapper'
+import { cn } from '@/lib/utils'
+import styles from './styles.module.css'
 
 const ShieldIcon = () => (
 	<svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2' strokeLinecap='round' strokeLinejoin='round'>

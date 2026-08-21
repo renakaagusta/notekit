@@ -1,23 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { useTicketsStore } from "../stores/ticketsStore";
-import { useVaultStore } from "../stores/vaultStore";
-import { useMembersStore } from "../stores/membersStore";
-import { resolveAssignee } from "../lib/members";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   appendComment,
   bodyWithoutComments,
   parseComments,
   type TicketComment,
 } from "../lib/comments";
+import { resolveAssignee } from "../lib/members";
 import { subtaskProgress } from "../lib/subtasks";
-import { AssigneePicker } from "./AssigneePicker";
-import { SubtaskList } from "./SubtaskList";
+import { useMembersStore } from "../stores/membersStore";
+import { useTicketsStore } from "../stores/ticketsStore";
+import { useVaultStore } from "../stores/vaultStore";
 import type {
   Ticket,
   TicketPriority,
   TicketStatus,
 } from "../types/ticket";
+import { AssigneePicker } from "./AssigneePicker";
+import { SubtaskList } from "./SubtaskList";
 
 interface TicketDetailProps {
   ticketId: string;

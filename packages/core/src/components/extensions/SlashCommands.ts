@@ -1,7 +1,7 @@
-import { Extension, ReactRenderer } from "@tiptap/react";
-import Suggestion, { type SuggestionProps } from "@tiptap/suggestion";
 import { PluginKey } from "@tiptap/pm/state";
+import { Extension, ReactRenderer } from "@tiptap/react";
 import type { Editor } from "@tiptap/react";
+import Suggestion, { type SuggestionProps } from "@tiptap/suggestion";
 import tippy, { type Instance } from "tippy.js";
 import { SlashCommandMenu, type SlashCommandMenuHandle } from "../SlashCommandMenu";
 

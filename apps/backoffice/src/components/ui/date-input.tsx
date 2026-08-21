@@ -1,5 +1,9 @@
 'use client'
 
+import { format, parse } from 'date-fns'
+import { ChevronDownIcon } from 'lucide-react'
+import * as React from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import {
@@ -9,10 +13,6 @@ import {
 } from '@/components/ui/popover'
 import { useControlledState } from '@/hooks/use-controlled-state'
 import { cn } from '@/utils/cn'
-import { format, parse } from 'date-fns'
-import { ChevronDownIcon } from 'lucide-react'
-import * as React from 'react'
-import { useState } from 'react'
 
 export interface DateInputProps extends Omit<
   React.ComponentProps<typeof Button>,

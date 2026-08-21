@@ -1,5 +1,3 @@
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import {
   Bell,
   Bookmark,
@@ -21,21 +19,32 @@ import {
   Shield,
   Sun,
 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { LOCALES, setLocale } from "../i18n";
+import type { VaultSettings } from "../lib/vault-api";
+import * as vaultApi from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useVaultStore } from "../stores/vaultStore";
-import * as vaultApi from "../lib/vault-api";
 import type { User } from "../types/user";
+import { NotekitIcon } from "./BrandIcons";
 import { CreateMenu } from "./CreateMenu";
+import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
+import { LinksView } from "./LinksView";
 import { NoteList } from "./NoteList";
 import { SecretsView } from "./SecretsView";
-import { LinksView } from "./LinksView";
-import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 import { VaultSwitcher } from "./VaultSwitcher";
-import { NotekitIcon } from "./BrandIcons";
 
 export type SidebarView = "home" | "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";
+
+function computeHeading(view: SidebarView): string {
+  if (view === "notes") return "Notes";
+  if (view === "graph") return "Graph";
+  if (view === "secrets") return "Secrets";
+  if (view === "links") return "Links";
+  return "Tasks";
+}
 
 const NAV: {
   view: SidebarView;
@@ -68,6 +77,97 @@ interface SidebarProps {
   onCollapse?: () => void;
   onOpenSecret?: () => void;
   onOpenLink?: () => void;
+}
+
+interface UserMenuProps {
+  menuRef: React.Ref<HTMLDivElement>;
+  pos: { x: number; y: number };
+  activeSettings: VaultSettings | null;
+  i18nLanguage: string;
+  onClose(): void;
+  onOpenHistory?: () => void;
+  onOpenAgents?: () => void;
+  onOpenNotifications?: () => void;
+  onOpenTokens?: () => void;
+  onOpenDevices?: () => void;
+  onSignOut?: () => void;
+  onSetTheme(theme: "light" | "dark" | "auto"): void;
+}
+
+function UserMenu({
+  menuRef,
+  pos,
+  activeSettings,
+  i18nLanguage,
+  onClose,
+  onOpenHistory,
+  onOpenAgents,
+  onOpenNotifications,
+  onOpenTokens,
+  onOpenDevices,
+  onSignOut,
+  onSetTheme,
+}: UserMenuProps) {
+  return createPortal(
+    <div
+      ref={menuRef}
+      className="nk-popover"
+      role="menu"
+      style={{ position: "fixed", left: pos.x, top: pos.y, right: "auto", minWidth: 180, zIndex: 9999, transform: "translateY(-100%)" }}
+    >
+      {onOpenHistory && (
+        <button className="nk-popover-item" role="menuitem" onClick={() => { onClose(); onOpenHistory(); }}>
+          <Clock size={14} aria-hidden /><span>Activity</span>
+        </button>
+      )}
+      {onOpenAgents && (
+        <button className="nk-popover-item" role="menuitem" onClick={() => { onClose(); onOpenAgents(); }}>
+          <Bot size={14} aria-hidden /><span>Manage agents</span>
+        </button>
+      )}
+      {onOpenNotifications && (
+        <button className="nk-popover-item" role="menuitem" onClick={() => { onClose(); onOpenNotifications(); }}>
+          <Bell size={14} aria-hidden /><span>Notifications</span>
+        </button>
+      )}
+      {onOpenTokens && (
+        <button className="nk-popover-item" role="menuitem" onClick={() => { onClose(); onOpenTokens(); }}>
+          <KeyRound size={14} aria-hidden /><span>API tokens</span>
+        </button>
+      )}
+      {onOpenDevices && (
+        <button className="nk-popover-item" role="menuitem" onClick={() => { onClose(); onOpenDevices(); }}>
+          <MonitorSmartphone size={14} aria-hidden /><span>Devices</span>
+        </button>
+      )}
+      {activeSettings && (
+        <div className="nk-popover-theme-row" role="group" aria-label="Theme">
+          <button className={`nk-popover-theme-btn${activeSettings.theme === "light" ? " is-active" : ""}`} onClick={() => onSetTheme("light")} title="Light" aria-label="Light mode">
+            <Sun size={13} aria-hidden /><span>Light</span>
+          </button>
+          <button className={`nk-popover-theme-btn${activeSettings.theme === "dark" ? " is-active" : ""}`} onClick={() => onSetTheme("dark")} title="Dark" aria-label="Dark mode">
+            <Moon size={13} aria-hidden /><span>Dark</span>
+          </button>
+          <button className={`nk-popover-theme-btn${activeSettings.theme === "auto" ? " is-active" : ""}`} onClick={() => onSetTheme("auto")} title="System" aria-label="Follow system">
+            <Monitor size={13} aria-hidden /><span>System</span>
+          </button>
+        </div>
+      )}
+      <div className="nk-popover-theme-row" role="group" aria-label="Language">
+        {LOCALES.map((l) => (
+          <button key={l.code} className={`nk-popover-theme-btn${i18nLanguage === l.code ? " is-active" : ""}`} onClick={() => setLocale(l.code)} title={l.label} aria-label={l.label}>
+            <span>{l.code.toUpperCase()}</span>
+          </button>
+        ))}
+      </div>
+      {onSignOut && (
+        <button className="nk-popover-item" role="menuitem" onClick={() => { onClose(); onSignOut(); }}>
+          <LogOut size={14} aria-hidden /><span>Sign out</span>
+        </button>
+      )}
+    </div>,
+    document.body,
+  );
 }
 
 // eslint-disable-next-line complexity, max-lines-per-function -- sidebar dispatches across multiple views, mobile/desktop shell, and user menu state
@@ -139,16 +239,7 @@ export function Sidebar({
     if (view === "notes") setCreateMenuOpen((v) => !v);
   }
 
-  const heading =
-    view === "notes"
-      ? "Notes"
-      : view === "graph"
-          ? "Graph"
-          : view === "secrets"
-            ? "Secrets"
-            : view === "links"
-              ? "Links"
-              : "Tasks";
+  const heading = computeHeading(view);
 
   return (
     <aside className="nk-sidebar">
@@ -200,119 +291,21 @@ export function Sidebar({
                   </div>
                 )}
               </button>
-              {userMenuOpen && menuPos && createPortal(
-                <div
-                  ref={userMenuRef}
-                  className="nk-popover"
-                  role="menu"
-                  style={{ position: "fixed", left: menuPos.x, top: menuPos.y, right: "auto", minWidth: 180, zIndex: 9999, transform: "translateY(-100%)" }}
-                >
-                  {onOpenHistory && (
-                    <button
-                      className="nk-popover-item"
-                      role="menuitem"
-                      onClick={() => { setUserMenuOpen(false); onOpenHistory(); }}
-                    >
-                      <Clock size={14} aria-hidden />
-                      <span>Activity</span>
-                    </button>
-                  )}
-                  {onOpenAgents && (
-                    <button
-                      className="nk-popover-item"
-                      role="menuitem"
-                      onClick={() => { setUserMenuOpen(false); onOpenAgents(); }}
-                    >
-                      <Bot size={14} aria-hidden />
-                      <span>Manage agents</span>
-                    </button>
-                  )}
-                  {onOpenNotifications && (
-                    <button
-                      className="nk-popover-item"
-                      role="menuitem"
-                      onClick={() => { setUserMenuOpen(false); onOpenNotifications(); }}
-                    >
-                      <Bell size={14} aria-hidden />
-                      <span>Notifications</span>
-                    </button>
-                  )}
-                  {onOpenTokens && (
-                    <button
-                      className="nk-popover-item"
-                      role="menuitem"
-                      onClick={() => { setUserMenuOpen(false); onOpenTokens(); }}
-                    >
-                      <KeyRound size={14} aria-hidden />
-                      <span>API tokens</span>
-                    </button>
-                  )}
-                  {onOpenDevices && (
-                    <button
-                      className="nk-popover-item"
-                      role="menuitem"
-                      onClick={() => { setUserMenuOpen(false); onOpenDevices(); }}
-                    >
-                      <MonitorSmartphone size={14} aria-hidden />
-                      <span>Devices</span>
-                    </button>
-                  )}
-                  {activeSettings && (
-                    <div className="nk-popover-theme-row" role="group" aria-label="Theme">
-                      <button
-                        className={`nk-popover-theme-btn${activeSettings.theme === "light" ? " is-active" : ""}`}
-                        onClick={() => setTheme("light")}
-                        title="Light"
-                        aria-label="Light mode"
-                      >
-                        <Sun size={13} aria-hidden />
-                        <span>Light</span>
-                      </button>
-                      <button
-                        className={`nk-popover-theme-btn${activeSettings.theme === "dark" ? " is-active" : ""}`}
-                        onClick={() => setTheme("dark")}
-                        title="Dark"
-                        aria-label="Dark mode"
-                      >
-                        <Moon size={13} aria-hidden />
-                        <span>Dark</span>
-                      </button>
-                      <button
-                        className={`nk-popover-theme-btn${activeSettings.theme === "auto" ? " is-active" : ""}`}
-                        onClick={() => setTheme("auto")}
-                        title="System"
-                        aria-label="Follow system"
-                      >
-                        <Monitor size={13} aria-hidden />
-                        <span>System</span>
-                      </button>
-                    </div>
-                  )}
-                  <div className="nk-popover-theme-row" role="group" aria-label="Language">
-                    {LOCALES.map((l) => (
-                      <button
-                        key={l.code}
-                        className={`nk-popover-theme-btn${i18n.language === l.code ? " is-active" : ""}`}
-                        onClick={() => setLocale(l.code)}
-                        title={l.label}
-                        aria-label={l.label}
-                      >
-                        <span>{l.code.toUpperCase()}</span>
-                      </button>
-                    ))}
-                  </div>
-                  {onSignOut && (
-                    <button
-                      className="nk-popover-item"
-                      role="menuitem"
-                      onClick={() => { setUserMenuOpen(false); onSignOut(); }}
-                    >
-                      <LogOut size={14} aria-hidden />
-                      <span>Sign out</span>
-                    </button>
-                  )}
-                </div>,
-                document.body
+              {userMenuOpen && menuPos && (
+                <UserMenu
+                  menuRef={userMenuRef}
+                  pos={menuPos}
+                  activeSettings={activeSettings}
+                  i18nLanguage={i18n.language}
+                  onClose={() => setUserMenuOpen(false)}
+                  onOpenHistory={onOpenHistory}
+                  onOpenAgents={onOpenAgents}
+                  onOpenNotifications={onOpenNotifications}
+                  onOpenTokens={onOpenTokens}
+                  onOpenDevices={onOpenDevices}
+                  onSignOut={onSignOut}
+                  onSetTheme={setTheme}
+                />
               )}
             </>
           )}

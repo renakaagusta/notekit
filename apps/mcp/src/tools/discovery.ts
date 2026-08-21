@@ -7,9 +7,9 @@
 // take an optional path/pattern + scope, fan out over `nk.vault.listFiles`
 // or `nk.vault.listCommits`, return a paginated summary.
 
-import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { z } from "zod";
 import {
   encryptedSkippedNote,
   errorContent,
@@ -22,6 +22,28 @@ import { isUnderAnyPrefix, projectOfPath, resolveScope } from "../lib/scope.js";
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 const KIND_VALUES = ["notes", "tickets", "links", "inbox", "all"] as const;
+
+/** Build a line-matcher for vault_grep from the raw pattern options. */
+function buildMatcher(
+  pattern: string,
+  regex: boolean | undefined,
+  caseSensitive: boolean | undefined,
+): { matcher: (line: string) => boolean } | { error: string } {
+  if (regex) {
+    try {
+      const flags = caseSensitive ? "" : "i";
+      const re = new RegExp(pattern, flags);
+      return { matcher: (line) => re.test(line) };
+    } catch (err) {
+      return { error: `vault_grep: invalid regex — ${(err as Error).message}` };
+    }
+  }
+  const needle = caseSensitive ? pattern : pattern.toLowerCase();
+  return {
+    matcher: (line) =>
+      caseSensitive ? line.includes(needle) : line.toLowerCase().includes(needle),
+  };
+}
 
 // eslint-disable-next-line max-lines-per-function -- registerDiscoveryTools registers three distinct MCP tools; splitting would require passing server+nk to each helper
 export function registerDiscoveryTools(server: McpServer, nk: NoteKitApi): void {
@@ -101,20 +123,12 @@ export function registerDiscoveryTools(server: McpServer, nk: NoteKitApi): void 
         const ctx = resolveProjectContext();
         const max = limit ?? 25;
         const surfaces = kind && kind !== "all" ? [kind] : (["notes", "tickets", "links", "inbox"] as const);
-        let matcher: (line: string) => boolean;
-        if (regex) {
-          try {
-            const flags = caseSensitive ? "" : "i";
-            const re = new RegExp(pattern, flags);
-            matcher = (line) => re.test(line);
-          } catch (err) {
-            return errorContent(`vault_grep: invalid regex — ${(err as Error).message}`);
-          }
-        } else {
-          const needle = caseSensitive ? pattern : pattern.toLowerCase();
-          matcher = (line) =>
-            caseSensitive ? line.includes(needle) : line.toLowerCase().includes(needle);
+
+        const matcherResult = buildMatcher(pattern, regex, caseSensitive);
+        if ("error" in matcherResult) {
+          return errorContent(matcherResult.error);
         }
+        const matcher = matcherResult.matcher;
 
         interface Hit { path: string; line: number; text: string; kind: string }
         const hits: Hit[] = [];

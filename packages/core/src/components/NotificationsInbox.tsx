@@ -38,7 +38,7 @@ export function NotificationsInbox() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- loadMore() is async; setState calls happen after await, not synchronously
     void loadMore();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, []);
 
   async function handleMarkRead(id: string) {

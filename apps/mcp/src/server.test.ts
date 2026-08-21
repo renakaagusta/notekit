@@ -4,9 +4,9 @@
 // the NoteKit API is stubbed via a global `fetch` mock so no network is
 // involved.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMcpServer } from "./server.js";
 
 interface MockFetchOptions {

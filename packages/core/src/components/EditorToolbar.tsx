@@ -1,4 +1,3 @@
-import { useEffect, useRef, useState } from "react";
 import type { Editor as TipTapEditor } from "@tiptap/react";
 import {
   ChevronDown as LucideChevronDown,
@@ -16,6 +15,8 @@ import {
   Undo2,
   Unlock as LucideUnlock,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import {
   type Heading,
   setHeading,
@@ -27,12 +28,11 @@ import {
   undo,
   redo,
 } from "../lib/editor-commands";
-import { useNotesStore } from "../stores/notesStore";
-import { useVaultStore } from "../stores/vaultStore";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useShareStore } from "../stores/shareStore";
-import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { noteTitle } from "../lib/note-display";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useNotesStore } from "../stores/notesStore";
+import { useShareStore } from "../stores/shareStore";
+import { useVaultStore } from "../stores/vaultStore";
 
 interface EditorToolbarProps {
   getEditor(): TipTapEditor | null;
@@ -358,7 +358,7 @@ export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle,
   );
 }
 
-/* eslint-enable max-lines-per-function, complexity */
+/* eslint-enable max-lines-per-function, complexity -- re-enables rules after the main toolbar component function */
 const ChecklistIcon = () => <ListChecks size={16} aria-hidden />;
 const TableIcon = () => <LucideTable size={16} aria-hidden />;
 const ImageIcon = () => <LucideImage size={16} aria-hidden />;

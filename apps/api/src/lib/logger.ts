@@ -1,6 +1,6 @@
-import pino from "pino";
 import { trace } from "@opentelemetry/api";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+import pino from "pino";
 
 const otelLogger = logs.getLogger("notekit-api");
 

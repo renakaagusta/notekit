@@ -1,11 +1,11 @@
-import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
-import { persist, createJSONStorage } from "zustand/middleware";
 import { nanoid } from "nanoid";
-import type { SavedLink } from "../types/link";
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+import { immer } from "zustand/middleware/immer";
 import { linkPathFor, sanitizeFolderPath } from "../lib/file-paths";
-import { detectPlatform } from "../lib/link-platform";
 import { detectLinkKind } from "../lib/link-kind";
+import { detectPlatform } from "../lib/link-platform";
+import type { SavedLink } from "../types/link";
 import { useCryptoStore } from "./cryptoStore";
 
 interface LinksState {

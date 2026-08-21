@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { subscribeMobilePush } from "../lib/mobilePush";
+import { isNativePlatform } from "../lib/native";
 import {
   createTelegramLinkCode,
   getNotificationStatus,
@@ -11,8 +13,6 @@ import {
   subscribeWebPush,
   unsubscribeWebPush,
 } from "../lib/webPush";
-import { isNativePlatform } from "../lib/native";
-import { subscribeMobilePush } from "../lib/mobilePush";
 import { SkeletonLines } from "./Skeleton";
 
 /**

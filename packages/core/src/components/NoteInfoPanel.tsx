@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
 import type { Editor as TipTapEditor } from "@tiptap/react";
 import { ExternalLink, Link, List, Tag } from "lucide-react";
-import { useNotesStore } from "../stores/notesStore";
-import { useLayoutStore } from "../stores/layoutStore";
+import { useMemo, useState } from "react";
 import { noteTitle } from "../lib/note-display";
+import { useLayoutStore } from "../stores/layoutStore";
+import { useNotesStore } from "../stores/notesStore";
 import type { Note } from "../types/note";
 
 type InfoTab = "backlinks" | "outlinks" | "tags" | "outline";
@@ -91,7 +91,7 @@ export function NoteInfoPanel({ noteId, getEditor }: Props) {
 
   const backlinks = useMemo(
     () => (note ? getBacklinks(notes, note) : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
     [noteId, notes],
   );
 

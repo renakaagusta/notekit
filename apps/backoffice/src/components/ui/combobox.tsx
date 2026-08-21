@@ -1,3 +1,12 @@
+import { CheckIcon, ChevronDownIcon } from 'lucide-react'
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Command,
@@ -15,15 +24,6 @@ import {
 } from '@/components/ui/popover'
 import { useControlledState } from '@/hooks/use-controlled-state'
 import { cn } from '@/utils/cn'
-import { CheckIcon, ChevronDownIcon } from 'lucide-react'
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from 'react'
 
 interface ComboboxContextValue {
   value: string

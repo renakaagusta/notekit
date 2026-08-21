@@ -4,8 +4,8 @@
  * (a) the bot token is missing or (b) NODE_ENV=production.
  */
 import { env } from "../env";
-import { consumeStartCode } from "./channels/telegram";
 import { logger } from '../lib/logger'
+import { consumeStartCode } from "./channels/telegram";
 
 interface TgUpdate {
   update_id: number;
@@ -47,7 +47,7 @@ async function pollLoop(): Promise<void> {
         await handleUpdate(u);
       }
     } catch (err) {
-      logger.error("[telegram-poll] poll error", err)
+      logger.error({ err }, "[telegram-poll] poll error")
       await sleep(5000);
     }
   }

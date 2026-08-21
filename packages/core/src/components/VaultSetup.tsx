@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 import { createDeviceIdentity, loadDeviceIdentity } from "../lib/crypto/device-key";
+import {
+  recoveryFromMnemonic,
+  recoverySigningFromMnemonic,
+} from "../lib/crypto/recovery";
 import {
   createAndStoreRecovery,
   loadStoredRecovery,
   importRecovery,
 } from "../lib/crypto/recovery-store";
-import {
-  recoveryFromMnemonic,
-  recoverySigningFromMnemonic,
-} from "../lib/crypto/recovery";
-import { RecoveryPhraseDialog } from "./VaultPairing";
 import { deriveWalletVaultIdentity } from "../lib/crypto/wallet-key";
 import {
   connectWallet,
@@ -21,6 +18,8 @@ import {
 } from "../lib/crypto/wallet-provider";
 import { initVault, getActiveVaultKey } from "../lib/secrets-vault";
 import { useAuthStore } from "../stores/authStore";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 import {
   MetaMaskIcon,
   RabbyIcon,
@@ -28,6 +27,7 @@ import {
   WalletConnectIcon,
   WalletIcon,
 } from "./BrandIcons";
+import { RecoveryPhraseDialog } from "./VaultPairing";
 
 /** Render the brand logo for a detected wallet id. */
 function WalletLogo({ id, size = 20 }: { id: WalletId; size?: number }) {
@@ -77,7 +77,7 @@ export function VaultSetup() {
     if (ranRef.current) return;
     ranRef.current = true;
     void run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps intentionally omitted; effect triggers only on the listed values
   }, [choosing]);
 
   /**

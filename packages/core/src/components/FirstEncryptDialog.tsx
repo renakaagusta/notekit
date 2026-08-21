@@ -8,8 +8,8 @@
  * disabled until it's ticked forces a beat of reading before clicking.
  */
 
-import { useEffect, useState } from "react";
 import { Lock, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 

@@ -11,16 +11,16 @@
  * Uses @notekit/api-client directly (nk.auth.*) so new code in core sets the
  * migration pattern away from the apiFetch-based *-api.ts wrappers.
  */
-import { useCallback, useEffect, useState } from "react";
-import { Copy, Trash2 } from "lucide-react";
-import { nk } from "../lib/api";
-import "./AccessTokensView.css";
 import type {
   NewPersonalAccessToken,
   PersonalAccessTokenScope,
   PersonalAccessTokenSummary,
 } from "@notekit/api-client";
+import { Copy, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { nk } from "../lib/api";
 import { SkeletonLines } from "./Skeleton";
+import "./AccessTokensView.css";
 
 // eslint-disable-next-line max-lines-per-function -- component encompasses token list, create form, and reveal section
 export function AccessTokensView() {

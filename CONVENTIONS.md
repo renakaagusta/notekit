@@ -74,6 +74,12 @@ Cross-cutting helpers live in `@notekit/core` (`logger`, `gravatar`, `link-kind`
 via `@notekit/eslint-plugin/no-reinvent-core`. **Why:** hand-rolled copies drift.
 **How:** import the helper; if it's missing a case, extend the helper.
 
+**Layer note (hexagonal, see #6):** reuse is layer-aware. Domain helpers (crypto, serialize,
+value-objects, link-kind, file-paths, directory) belong in `domain/`; external-service wrappers
+(logger, gravatar, HTTP, git) are outbound **ports** + driven adapters. Driving adapters
+(UI / CLI / MCP) never share code with each other — they converge on the same inbound port, not a
+shared surface helper.
+
 ## #4 — Structured logging, never raw console
 
 `console.*` is an error outside `**/lib/logger.ts` and dev scripts (`scripts/**`,
@@ -87,15 +93,34 @@ via `@notekit/eslint-plugin/no-reinvent-core`. **Why:** hand-rolled copies drift
 - Never strip the `encrypted` flag when reconciling notes after a pull.
 _(review-only where a lint rule can't see it.)_
 
-## #6 — Architecture boundaries (mirrors paprika decl-placement / module-size)
+## #6 — Architecture boundaries: hexagonal, inward-only
 
-Enforced by `dependency-cruiser`:
-- `@notekit/core` must NOT import from any `apps/*`.
-- `@notekit/api-client` must NOT import React or DOM.
-- No import cycles (`import-x/no-cycle`).
-- An app must not reach into another app's internals.
-File size is capped by ESLint `max-lines` (800, currently `warn` — see #0); there is no
-separate size ratchet. Splitting an oversized file is always the fix.
+The dependency rule — imports point **inward only** (`domain/ ← application/ ← adapters/`, with the
+composition root on top) — is the architecture contract. Full model + folder skeleton + hard
+prohibitions live in CLAUDE.md → "Architecture — hexagonal". `pnpm depcruise` is the arch check.
+
+**Enforced now by `dependency-cruiser`** (`.dependency-cruiser.cjs`, all `error`):
+- `@notekit/core` must NOT import from any `apps/*` (an inner layer never imports the composition
+  root — `core-no-apps-import`).
+- `@notekit/api-client` (a driven adapter) must NOT import React or DOM (`api-client-no-react`).
+- No import cycles (`no-circular` + `import-x/no-cycle`).
+- No app reaches into another app's internals (`no-cross-app-*`); `apps/cli` may embed `apps/mcp`
+  only via its public exports (`./run`, `./server`).
+
+**Planned / review-only** (no gate yet — enforce as the `domain|application|adapters` folder layout
+lands; until then, hold the line in review):
+- `domain/` imports no external library (allowed only: UUID, arbitrary-precision decimal, stdlib
+  time).
+- `application/` imports only `domain/` + its own `ports/` — nothing from `adapters/`; a use case
+  receives a port, never a concrete implementation.
+- `adapters/driven/` and `adapters/driving/` never import each other.
+- Cross-module access only via exported inbound ports; port→adapter binding only in the composition
+  root; controllers/handlers/widgets/CLI commands carry no business logic; domain entities are
+  mapped to a DTO at the edge, never serialized across an adapter boundary unchanged.
+
+Changing the arch config to silence a violation needs **explicit human approval** — fix the code
+instead. File size is capped by ESLint `max-lines` (800, `error` — see #0); splitting an oversized
+file is always the fix.
 
 ## #7 — Suppressions are explicit and explained (mirrors paprika nolintlint)
 

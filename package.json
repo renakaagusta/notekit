@@ -13,6 +13,7 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "knip": "knip",
     "depcruise": "depcruise packages apps --config .dependency-cruiser.cjs",
+    "arch:check": "pnpm depcruise",
     "hooks:install": "git config core.hooksPath scripts/hooks"
   },
   "devDependencies": {

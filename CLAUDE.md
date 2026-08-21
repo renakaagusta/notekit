@@ -36,33 +36,107 @@ Every specific rule below is a consequence of this principle.
 
 **Anything a user can do through the UI, an agent MUST be able to do through the CLI + MCP/AI.**
 NoteKit is an MCP-first product: every capability (create/edit/delete/move a note, task,
-secret, folder, share) must have parity across **three surfaces** — in-app UI, `apps/cli`, and
-`apps/mcp` (plus in-app AI). Adding an action on one surface without the other two is a
+secret, folder, share) must have parity across **three driving adapters** — in-app UI, `apps/cli`,
+and `apps/mcp` (plus in-app AI). Adding an action on one surface without the other two is a
 **violation** (see the reference commit "move-to-folder across CLI, in-app AI, and MCP (agent
 parity)").
 
-Consequences:
-- Business logic lives in `@notekit/core` so all three surfaces go through the SAME path —
-  never reimplemented per surface. UI/CLI/MCP are thin adapters over core.
-- When adding an action-oriented feature, state explicitly how the UI, CLI, and MCP each call
-  it. If one isn't wired yet, that's debt to record, not to hide.
+In hexagonal terms this is a direct consequence of the dependency rule (see Architecture below):
+- Every action is a **use case** — an inbound port in `application/`. The three surfaces are
+  **driving adapters** that each call the SAME inbound port; the logic is never reimplemented per
+  surface. A driving adapter's only job: parse input → call one inbound port → format output.
+- Driving adapters NEVER import each other and NEVER share code. Parity comes from calling the
+  same port, not from a shared UI/CLI/MCP helper. A business decision inside a surface belongs in
+  `application/` or `domain/`, not the adapter.
+- When adding an action, state which inbound port it is and how UI, CLI, and MCP each call it.
+  If one isn't wired yet, that's debt to record, not to hide.
 
-## Architecture & how to trace a flow
+## Architecture — hexagonal (ports & adapters), inward-only
 
-NoteKit is **one pnpm monorepo**. A flow crosses surface → core → api-client → API/VPS → git
-vault (often E2EE). When tracing/opening a flow, open EVERY connecting layer — don't skip:
+> **The one rule: source-code dependencies point inward only. An inner layer must never know
+> anything about an outer layer.** Every architecture rule here is a consequence of it — when in
+> doubt, return to it.
 
-| Layer | Location |
-|---|---|
-| **Surfaces** | `apps/web` (Vite React), `apps/desktop` (Electron), `apps/mobile` (Capacitor iOS+Android), `apps/cli`, `apps/mcp` |
-| **Core (shared logic)** | `packages/core` (`@notekit/core`) — stores, lib, crypto, components, hooks |
-| **Transport client** | `packages/api-client` (`@notekit/api-client`) — must NOT import React/DOM |
-| **Backend** | `apps/api` (+ `apps/backoffice` admin, `apps/landing` Next) |
-| **Vault** | git-backed (GitHub/GitLab BYO or managed Forgejo), often E2EE |
+NoteKit is **one pnpm monorepo** built on hexagonal (ports-and-adapters) architecture. Four layers,
+the SAME names in every language/package (folder names, not just concepts). Each module gets a
+level; an import `a → b` is legal only when `level(b) ≤ level(a)`:
 
-Open in full lifecycle order with NO gaps:
-`UI component/handler → store (zustand) → core lib → api-client → apps/api endpoint →
-vault (git commit) → sync`. For actions, also verify parity in `apps/cli` + `apps/mcp`.
+| Layer | Level | May import from | In NoteKit |
+|---|---|---|---|
+| `domain/` | 0 | `domain/` only — **zero external libs** | entities, value-objects, invariants, E2EE crypto primitives |
+| `application/` | 1 | `domain/` + `application/ports/` | use cases (one file each, implements an inbound port), DTOs, port interfaces |
+| `adapters/driven/` | 2 | `domain/`, `ports/out`, external libs | HTTP client, git vault, IndexedDB cache, SSE, native bridges, logger, gravatar |
+| `adapters/driving/` | 2 | `domain/`, `ports/in`, external libs | UI (React components/stores/hooks), `apps/cli`, `apps/mcp`, `apps/api` handlers |
+| composition root | 3 | everything | the **ONLY** place ports bind to adapters (`apps/*` entry / module wiring) |
+
+`adapters/driven/` and `adapters/driving/` must **never** import each other.
+
+**Mandatory folder skeleton** (per module). Do NOT invent alternative layer names —
+`core/`, `services/`, `repositories/`, `data/`, `models/`, `utils/`, `infrastructure/`,
+`interface/` are **forbidden as layer names**:
+
+```
+<module>/
+├── domain/               # entities/ value-objects/ errors/ — zero external deps
+├── application/
+│   ├── ports/in/         # inbound: what the outside may ask this module to do
+│   ├── ports/out/        # outbound: what this module needs from the outside
+│   ├── usecases/         # one file per use case; implements an inbound port
+│   └── dto/              # commands & queries crossing the boundary
+└── adapters/
+    ├── driven/           # implements outbound ports (DB, git, cache, HTTP, clock)
+    └── driving/          # calls inbound ports (UI widget, CLI cmd, MCP tool, HTTP handler)
+```
+
+*driving* adapters call into the application (they drive it); *driven* adapters are called by it
+(it drives them).
+
+**Hard prohibitions** (errors, not style):
+- `domain/` imports no external library (allowed: UUID, arbitrary-precision decimal, stdlib
+  time). No ORM, framework, HTTP client, logger, DI decorator.
+- `application/` imports only `domain/` + its own `ports/` — nothing from `adapters/`. A use case
+  receives a **port**, never a concrete implementation.
+- **Every external dependency becomes an outbound port** — no exceptions, even small ones.
+  Calling `Date.now()`, `crypto.randomUUID()`, `fetch`, a hasher, a logger, or a git command
+  directly from `domain/`/`application/` is a violation. Ports: `ClockPort`, `IdGeneratorPort`,
+  `RandomPort`, `VaultPort`, `SyncPort`, `CryptoPort`, `StoragePort`, `NotifierPort`, …
+- Port→adapter binding lives in exactly one file per module: the composition root.
+- **Domain entities never cross an adapter boundary unchanged** — map to a DTO/presenter at the
+  edge (`@notekit/api-client` owns the transport DTO shape; never serialize a domain `Note`
+  straight to HTTP).
+- Controllers/handlers/widgets/CLI commands carry no business logic — any conditional encoding a
+  business rule belongs in `application/`/`domain/`.
+
+**Trace a flow** in inward order, opening every layer with NO gaps:
+`driving adapter (UI handler / CLI cmd / MCP tool) → inbound port (use case) → domain logic +
+outbound port calls → driven adapter (api-client → apps/api endpoint → git vault) → sync`. For
+actions, verify the same inbound port is reachable from `apps/cli` + `apps/mcp` (agent parity).
+
+**The deletion test** (run before calling any change done): *if I deleted the entire `adapters/`
+folder, would `domain/` + `application/` still compile?* If no, the dependency rule is broken —
+find the leak and fix it. Every use case has a test running on in-memory adapters (no DB / network
+/ broker); if it needs infrastructure to run, it has a dependency it should not have.
+
+**When a rule blocks you**, don't work around it silently: use case needs the time → add
+`ClockPort` (not `Date.now()`); two modules need the same entity → duplicate a minimal type or move
+it to `shared/kernel/` (never import across a module boundary); controller needs data from two use
+cases → call both inbound ports or add a use case; circular dep → invert one edge with an event or
+extract a shared module. If none fit, **stop and ask** rather than violating a rule.
+
+**Package → layer map** (target): `packages/core` holds `domain/` + `application/` + shared
+adapters; `packages/api-client` is a driven adapter (transport — must NOT import React/DOM);
+`apps/{web,desktop,mobile}` are composition roots mounting the UI driving adapter;
+`apps/{cli,mcp}` are driving adapters with their own roots; `apps/api` is the backend composition
+root binding driven adapters (Drizzle/Postgres, git). `apps/backoffice` + `apps/landing` are
+separate surfaces on their own pipeline.
+
+**Migration status (honest — do not hide this).** The current tree predates this rule:
+`packages/core/src/{lib,stores,components,hooks}` still blends layers (e.g. stores call concrete
+transport directly, `App.tsx` orchestrates crypto/sync in render, `lib/` mixes crypto-domain with
+transport-driven). Treat hexagonal as the **target every new or changed module must follow** —
+when you touch a blended area, carve out the layer you are in (extract the use case / port), do NOT
+add to the blend. Structural moves (splitting `lib/` into `domain|application|adapters`) get a
+design doc in `docs/` first and land in reversible stages.
 
 ## Repo boundaries
 - Edit freely in `packages/*` + `apps/*`. `apps/landing` (Next) & `apps/backoffice` (Vite admin)
@@ -101,13 +175,17 @@ Enforcement per rule → see `CONVENTIONS.md`. In short:
    unused exports/files (enforced by `knip`). **UI status copy must match what is actually
    wired** — don't promise features that aren't live yet (pitch phrasing like "offline-first" /
    "MCP-native" stays in the README, not as misleading UI status).
-4. **Prefer consolidation.** Don't duplicate logic; unify it into a single helper in
-   `@notekit/core`. A recurring pattern → record it in `docs/` + tidy it up.
-5. **Put things in the right place + make them reusable.** Cross-cutting helpers (logger,
-   gravatar, link-kind, file-paths, serialize, crypto, directory) → `@notekit/core`, never
-   reimplemented per file/per surface (enforced by `@notekit/eslint-plugin/no-reinvent-core`).
-   Architecture boundaries (enforced by `dependency-cruiser`): `@notekit/core` must **not**
-   import `apps/*`; `@notekit/api-client` must **not** import React/DOM; no import cycles.
+4. **Consolidate inner logic; keep adapters independent.** Don't duplicate a rule — unify it in
+   the right inner layer (`domain/` or `application/`). But driving adapters (UI/CLI/MCP) must NOT
+   share code with each other — they converge by calling the same inbound port, never a shared
+   surface helper. A recurring pattern → record it in `docs/` + tidy it up.
+5. **Put things in the right layer + make them reusable.** Domain helpers (crypto, serialize,
+   value-objects, link-kind, file-paths, directory) → `domain/`; external-service wrappers (logger,
+   gravatar, HTTP, git) → an outbound **port** + a driven adapter — never re-derived per file/per
+   surface (enforced by `@notekit/eslint-plugin/no-reinvent-core`). Architecture boundaries
+   (enforced by `dependency-cruiser`, see Architecture): imports point **inward only**; `@notekit/
+   core` must **not** import `apps/*`; `@notekit/api-client` (driven) must **not** import React/DOM;
+   `adapters/driven` and `adapters/driving` must not import each other; no import cycles.
 6. **No god-files.** Healthy target ≲ ~500 lines, hard ceiling 800 (ESLint `max-lines`, error).
    Complexity budgets (all error): cyclomatic & cognitive ≤ 15, function ≤ 80 lines, nesting ≤ 4,
    params ≤ 5. Over the limit = **extract a helper** (split the file into wired siblings), never
@@ -162,7 +240,9 @@ Enforcement per rule → see `CONVENTIONS.md`. In short:
 pnpm lint        # eslint, whole tree
 pnpm typecheck   # tsc strict, all packages
 pnpm knip        # dead code / unused deps
-pnpm depcruise   # architecture boundaries
+pnpm depcruise   # architecture / dependency rule (the arch check)
 ```
-Local hooks: `pnpm hooks:install` (sets `core.hooksPath=scripts/hooks`). CI runs the same gates
-on every PR + push to `main`.
+`pnpm depcruise` is the architecture gate — it enforces the inward-only dependency rule. If a
+change makes it fail, **fix the code, not the config**: relaxing an architecture rule to silence a
+violation needs explicit human approval. Local hooks: `pnpm hooks:install` (sets
+`core.hooksPath=scripts/hooks`). CI runs the same gates on every PR + push to `main`.

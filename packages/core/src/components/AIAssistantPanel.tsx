@@ -1,5 +1,6 @@
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listAgents,
   agentKeySecretName,
@@ -58,6 +59,7 @@ async function toResizedDataUrl(blob: Blob, max = 1280): Promise<string> {
 /** Compact relative time for the history list ("2m", "3h", "5d"). */
 // eslint-disable-next-line max-lines-per-function, complexity -- large React component; multiple UI states (loading, setup, history, chat) with shared closure; cannot split without breaking hook order
 export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
+  const { t } = useTranslation();
   const open = useAIChatStore((s) => s.open);
   const setOpen = useAIChatStore((s) => s.setOpen);
   const messages = useAIChatStore((s) => s.messages);
@@ -278,7 +280,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
         onToolsUnsupported: () =>
           useAIChatStore
             .getState()
-            .addToolNote(assistantId, "Model ini tak mendukung tools — dijawab sebagai chat biasa"),
+            .addToolNote(assistantId, t("ai.toolsUnsupported")),
       });
     } catch (e) {
       if ((e as Error).name !== "AbortError") {
@@ -289,7 +291,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
       // If tools ran but the model gave no closing text, don't leave it hanging.
       const msg = useAIChatStore.getState().messages.find((m) => m.id === assistantId);
       if (msg && !messageText(msg).trim() && msg.parts.some((p) => p.kind === "tool")) {
-        useAIChatStore.getState().appendDelta(assistantId, "Selesai.");
+        useAIChatStore.getState().appendDelta(assistantId, t("ai.finished"));
       }
       useAIChatStore.getState().finishAssistant(assistantId);
       useAIChatStore.getState().setStreaming(false);
@@ -447,7 +449,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     if (!capture) {
       useAIChatStore
         .getState()
-        .setError("Capture butuh aplikasi desktop NoteKit (belum tersedia di web).");
+        .setError(t("ai.capture.needsDesktop"));
       return;
     }
     setCapturing(true);
@@ -465,9 +467,9 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
           : undefined,
       );
       if (dataUrl) setAttachments((a) => [...a, dataUrl].slice(0, 6));
-      else useAIChatStore.getState().setError("Capture kosong — coba buka catatan dulu.");
+      else useAIChatStore.getState().setError(t("ai.capture.empty"));
     } catch (e) {
-      useAIChatStore.getState().setError(`Gagal capture: ${(e as Error).message}`);
+      useAIChatStore.getState().setError(t("ai.capture.failed", { message: (e as Error).message }));
     } finally {
       setCapturing(false);
     }

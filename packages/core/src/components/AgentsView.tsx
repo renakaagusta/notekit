@@ -1,5 +1,6 @@
 import { Check, Lightbulb, Lock, Pencil, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   listAgents,
   createAgent,
@@ -31,11 +32,12 @@ const CSS_INPUT = "nk-input" as const;
 const MONO_FONT = "var(--mono-font)" as const;
 const GAP_2 = "var(--gap-2)" as const;
 
-/** Anthropic models offered in the profile picker. Keep labels human-friendly. */
-export const AGENT_MODELS: { value: string; label: string; hint: string }[] = [
-  { value: "claude-3-5-haiku-latest", label: "Haiku 3.5", hint: "Cepat & murah" },
-  { value: "claude-sonnet-4-5", label: "Sonnet 4.5", hint: "Seimbang" },
-  { value: "claude-opus-4-1", label: "Opus 4.1", hint: "Paling pintar" },
+/** Anthropic models offered in the profile picker. `hintKey` resolves to a
+ *  localized label under `agents.modelHint.*`. */
+export const AGENT_MODELS: { value: string; label: string; hintKey: "fast" | "balanced" | "smartest" }[] = [
+  { value: "claude-3-5-haiku-latest", label: "Haiku 3.5", hintKey: "fast" },
+  { value: "claude-sonnet-4-5", label: "Sonnet 4.5", hintKey: "balanced" },
+  { value: "claude-opus-4-1", label: "Opus 4.1", hintKey: "smartest" },
 ];
 
 
@@ -507,6 +509,7 @@ function ModelPicker({
   onModelChange,
   onLoadModels,
 }: ModelPickerProps) {
+  const { t } = useTranslation();
   if (provider === "anthropic") {
     return (
       <select
@@ -518,7 +521,7 @@ function ModelPicker({
       >
         {AGENT_MODELS.map((m) => (
           <option key={m.value} value={m.value}>
-            {m.label} — {m.hint}
+            {m.label} — {t(`agents.modelHint.${m.hintKey}`)}
           </option>
         ))}
       </select>
@@ -546,9 +549,7 @@ function ModelPicker({
           <input
             className={CSS_INPUT}
             placeholder={
-              loadingModels
-                ? "Memuat daftar model…"
-                : "Model id — isi Base URL & key untuk memuat daftar"
+              loadingModels ? t("agents.loadingModelList") : t("agents.modelIdManual")
             }
             value={model}
             onChange={(e) => onModelChange(e.target.value)}
@@ -561,9 +562,13 @@ function ModelPicker({
           className="nk-btn"
           onClick={onLoadModels}
           disabled={disabled || loadingModels}
-          title="Ambil daftar model dari endpoint"
+          title={t("agents.fetchModels")}
         >
-          {loadingModels ? "Memuat…" : models.length ? "Muat ulang" : "Muat model"}
+          {loadingModels
+            ? t("agents.loadingModels")
+            : models.length
+              ? t("agents.reloadModels")
+              : t("agents.loadModels")}
         </button>
       </div>
       {modelError && <p className="nk-inline-ai-error">{modelError}</p>}
@@ -583,6 +588,7 @@ function AgentForm({
   autoFocus,
   keyStored,
 }: AgentFormProps) {
+  const { t } = useTranslation();
   // For OpenAI-compatible endpoints we can list models from the standard
   // `/models` route, so the user picks from a dropdown instead of typing an id.
   const [models, setModels] = useState<string[]>([]);
@@ -592,8 +598,8 @@ function AgentForm({
   async function loadModels() {
     const base = draft.baseUrl.trim().replace(/\/+$/, "");
     const key = draft.apiKey.trim();
-    if (!base) return setModelError("Isi Base URL dulu.");
-    if (!key) return setModelError("Isi API key dulu (untuk memuat daftar model).");
+    if (!base) return setModelError(t("agents.modelNeedsUrl"));
+    if (!key) return setModelError(t("agents.modelNeedsKey"));
     setLoadingModels(true);
     setModelError(null);
     try {
@@ -605,7 +611,7 @@ function AgentForm({
       const ids = (data.data ?? [])
         .map((m) => m.id)
         .filter((id): id is string => !!id);
-      if (!ids.length) throw new Error("Endpoint tak mengembalikan model.");
+      if (!ids.length) throw new Error(t("agents.noModelsReturned"));
       setModels(ids);
       if (!draft.model || !ids.includes(draft.model)) {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- ids is non-empty: the `!ids.length` guard above throws if empty
@@ -673,10 +679,10 @@ function AgentForm({
        * These fields drive the in-app AI assistant when this agent is
        * the selected profile: which model runs, how it behaves, and
        * whether it may modify the vault. */}
-      <div className="nk-agent-section-label">AI assistant</div>
+      <div className="nk-agent-section-label">{t("agents.section")}</div>
       <select
         className={CSS_INPUT}
-        aria-label="Provider"
+        aria-label={t("agents.provider")}
         value={draft.provider}
         onChange={(e) => {
           const provider = e.target.value as AgentProvider;
@@ -693,7 +699,7 @@ function AgentForm({
       {draft.provider === "openai-compatible" && (
         <input
           className={CSS_INPUT}
-          placeholder="Base URL — mis. https://9router.stackbase.id/v1"
+          placeholder={t("agents.baseUrl")}
           value={draft.baseUrl}
           onChange={(e) => onChange({ ...draft, baseUrl: e.target.value })}
           disabled={disabled}
@@ -708,18 +714,17 @@ function AgentForm({
         autoComplete="off"
         placeholder={
           keyStored
-            ? "API key tersimpan — isi untuk mengganti"
+            ? t("agents.apiKeyStored")
             : draft.provider === "anthropic"
-              ? "API key — sk-ant-…"
-              : "API key — sk-…"
+              ? t("agents.apiKeyHintAnthropic")
+              : t("agents.apiKeyHintGeneric")
         }
         value={draft.apiKey}
         onChange={(e) => onChange({ ...draft, apiKey: e.target.value })}
         disabled={disabled}
       />
       <p className="nk-agent-keybox-hint">
-        <Lock size={12} aria-hidden /> Key disimpan terenkripsi di vault (tak ikut
-        di file profil), dipanggil langsung ke provider — tanpa relay NoteKit.
+        <Lock size={12} aria-hidden /> {t("agents.keyEncryptedHint")}
       </p>
 
       <ModelPicker
@@ -735,7 +740,7 @@ function AgentForm({
 
       <textarea
         className={CSS_INPUT}
-        placeholder={'System prompt — persona & rules (e.g. “Kamu asisten penulisan bahasa Indonesia yang ringkas dan tidak bertele-tele.”)'}
+        placeholder={t("agents.systemPrompt")}
         value={draft.systemPrompt}
         onChange={(e) => onChange({ ...draft, systemPrompt: e.target.value })}
         disabled={disabled}
@@ -744,21 +749,21 @@ function AgentForm({
       />
       <div className="nk-agent-perm">
         <span className="nk-agent-perm-label">
-          Permissions
+          {t("agents.permissions")}
           <span className="nk-agent-perm-hint">
             {draft.toolPermissions === "read-write"
-              ? "Can create, edit & delete notes (with your approval)"
-              : "Can only read & search — cannot change your vault"}
+              ? t("agents.permReadWrite")
+              : t("agents.permReadOnly")}
           </span>
         </span>
-        <div className="nk-seg" role="group" aria-label="Tool permissions">
+        <div className="nk-seg" role="group" aria-label={t("agents.permissions")}>
           <button
             type="button"
             className={`nk-seg-btn${draft.toolPermissions === "read-only" ? " is-active" : ""}`}
             onClick={() => onChange({ ...draft, toolPermissions: "read-only" })}
             disabled={disabled}
           >
-            Read-only
+            {t("agents.readOnly")}
           </button>
           <button
             type="button"
@@ -766,7 +771,7 @@ function AgentForm({
             onClick={() => onChange({ ...draft, toolPermissions: "read-write" })}
             disabled={disabled}
           >
-            Read &amp; write
+            {t("agents.readWrite")}
           </button>
         </div>
       </div>

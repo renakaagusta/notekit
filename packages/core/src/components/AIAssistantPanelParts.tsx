@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import type React from "react";
+import { useTranslation } from "react-i18next";
 import { DEFAULT_SYSTEM_PROMPT } from "../lib/agents-api";
 import type { AgentProfile } from "../lib/agents-api";
 import { renderAssistantHtml } from "../lib/chat-markdown";
@@ -61,6 +62,7 @@ export function HistoryPageView({
   onOpenSession,
   onRemoveSession,
 }: HistoryPageViewProps) {
+  const { t } = useTranslation();
   const q = historyQuery.trim().toLowerCase();
   const hits = q ? sessions.filter((s) => (s.title || "").toLowerCase().includes(q)) : sessions;
 
@@ -70,7 +72,7 @@ export function HistoryPageView({
         <Search size={14} aria-hidden />
         <input
           className="nk-ai-history-search-input"
-          placeholder="Cari riwayat obrolan…"
+          placeholder={t("ai.history.searchPlaceholder")}
           value={historyQuery}
           onChange={(e) => onHistoryQueryChange(e.target.value)}
           autoFocus
@@ -79,7 +81,7 @@ export function HistoryPageView({
           <button
             className="nk-ai-history-search-clear"
             onClick={() => onHistoryQueryChange("")}
-            aria-label="Bersihkan pencarian"
+            aria-label={t("ai.history.clearSearch")}
           >
             <X size={13} aria-hidden />
           </button>
@@ -89,10 +91,10 @@ export function HistoryPageView({
         {sessions.length === 0 ? (
           <div className="nk-ai-history-empty">
             <History size={26} aria-hidden />
-            <p>Belum ada riwayat obrolan.</p>
+            <p>{t("ai.history.empty")}</p>
           </div>
         ) : hits.length === 0 ? (
-          <div className="nk-ai-history-empty"><p>Tak ada yang cocok.</p></div>
+          <div className="nk-ai-history-empty"><p>{t("ai.history.noMatch")}</p></div>
         ) : hits.map((s) => (
           <div
             key={s.id}
@@ -110,8 +112,8 @@ export function HistoryPageView({
             <button
               className="nk-ai-history-del"
               onClick={() => onRemoveSession(s.id)}
-              aria-label="Hapus obrolan"
-              title="Hapus"
+              aria-label={t("ai.history.delete")}
+              title={t("common.delete")}
             >
               <Trash2 size={13} aria-hidden />
             </button>
@@ -139,6 +141,7 @@ export function ContextPickerDropdown({
   onPickerQueryChange,
   onAddContext,
 }: ContextPickerDropdownProps) {
+  const { t } = useTranslation();
   const q = pickerQuery.toLowerCase();
   const pinned = new Set(contextItems.map((c) => c.id));
   const noteHits = allNotes
@@ -152,14 +155,14 @@ export function ContextPickerDropdown({
     <div className="nk-ai-ctx-picker">
       <input
         className="nk-ai-ctx-search"
-        placeholder="Search notes & tasks…"
+        placeholder={t("ai.context.searchPlaceholder")}
         value={pickerQuery}
         onChange={(e) => onPickerQueryChange(e.target.value)}
         autoFocus
       />
       <div className="nk-ai-ctx-list">
         {!noteHits.length && !taskHits.length ? (
-          <div className="nk-ai-ctx-empty">No matches</div>
+          <div className="nk-ai-ctx-empty">{t("ai.context.noMatches")}</div>
         ) : (
           <>
             {noteHits.map((n) => (
@@ -226,19 +229,20 @@ export function ContextChipsBar({
   onPickerQueryChange,
   onAddContext,
 }: ContextChipsBarProps) {
+  const { t } = useTranslation();
   return (
     <div className="nk-ai-chips">
       {selection && (
         <span className="nk-ai-chip is-selection">
           <FileText size={12} aria-hidden />
-          {wordCount(selection)} words
+          {t("ai.context.words", { count: wordCount(selection) })}
         </span>
       )}
       {activeNote && !contextItems.some((c) => c.id === activeNoteId) && (
         <button
           className={`nk-ai-chip${includeNoteContext ? " is-on" : ""}`}
           onClick={onToggleNoteContext}
-          title="Toggle the active note as context"
+          title={t("ai.context.toggleActiveNote")}
         >
           <FileText size={12} aria-hidden />
           {noteTitle(activeNote)}
@@ -256,7 +260,7 @@ export function ContextChipsBar({
           <button
             className="nk-ai-chip-x"
             onClick={() => onRemoveContext(c.id)}
-            aria-label="Remove context"
+            aria-label={t("ai.context.remove")}
           >
             <X size={11} aria-hidden />
           </button>
@@ -266,8 +270,8 @@ export function ContextChipsBar({
         <button
           className="nk-ai-chip nk-ai-chip--add"
           onClick={onTogglePicker}
-          title="Add a note or task as context"
-          aria-label="Add context"
+          title={t("ai.context.add")}
+          aria-label={t("ai.context.addShort")}
         >
           <Plus size={13} aria-hidden />
         </button>
@@ -291,6 +295,7 @@ interface ChatTurnProps {
 }
 
 function ChatTurn({ m }: ChatTurnProps) {
+  const { t } = useTranslation();
   const last = m.parts[m.parts.length - 1];
   const showCaret = m.pending && (!last || last.kind === "tool");
   return (
@@ -309,7 +314,7 @@ function ChatTurn({ m }: ChatTurnProps) {
               key={i}
               className="nk-ai-msg-img"
               src={p.url}
-              alt="Lampiran gambar"
+              alt={t("ai.ui.imageAlt")}
               loading="lazy"
             />
           );
@@ -355,12 +360,13 @@ export function ChatBodyView({
   scrollRef,
   onResolveApproval,
 }: ChatBodyViewProps) {
+  const { t } = useTranslation();
   return (
     <div className="nk-ai-body" ref={scrollRef}>
       {messages.length === 0 ? (
         <div className="nk-ai-empty">
           <Sparkles size={22} aria-hidden />
-          <p>Tanya apa saja tentang catatanmu.</p>
+          <p>{t("ai.emptyHint")}</p>
         </div>
       ) : (
         messages.map((m) => <ChatTurn key={m.id} m={m} />)
@@ -368,15 +374,15 @@ export function ChatBodyView({
       {pendingApproval && (
         <div className="nk-ai-approval">
           <div className="nk-ai-approval-hd">
-            <Wrench size={13} aria-hidden /> Perlu persetujuan
+            <Wrench size={13} aria-hidden /> {t("ai.approval.title")}
           </div>
           <div className="nk-ai-approval-summary">{pendingApproval.summary}</div>
           <div className="nk-ai-approval-actions">
             <button className="nk-btn nk-btn--primary" onClick={() => onResolveApproval(true)}>
-              <Check size={14} aria-hidden /> Setujui
+              <Check size={14} aria-hidden /> {t("common.approve")}
             </button>
             <button className="nk-btn" onClick={() => onResolveApproval(false)}>
-              <X size={14} aria-hidden /> Tolak
+              <X size={14} aria-hidden /> {t("common.reject")}
             </button>
           </div>
         </div>
@@ -508,14 +514,13 @@ export function PanelBodyView({
   notReady, needsSetup, loaded, showHistory,
   noAgents, noKey, onOpenAgents, historyProps, chatProps,
 }: PanelBodyViewProps) {
+  const { t } = useTranslation();
   if (notReady) {
     return (
       <div className="nk-ai-gate">
         <Sparkles size={30} aria-hidden />
-        <p>Vault belum siap.</p>
-        <p className="nk-ai-gate-hint">
-          Buka & buka-kunci vault terenkripsi dulu untuk memakai asisten AI.
-        </p>
+        <p>{t("ai.gate.vaultTitle")}</p>
+        <p className="nk-ai-gate-hint">{t("ai.gate.vaultHint")}</p>
       </div>
     );
   }
@@ -523,16 +528,14 @@ export function PanelBodyView({
     return (
       <div className="nk-ai-gate">
         <Sparkles size={30} aria-hidden />
-        <p>Siapkan AI dulu</p>
+        <p>{t("ai.gate.setupTitle")}</p>
         <p className="nk-ai-gate-hint">
-          {noAgents
-            ? "Buat satu profil AI (provider, key, model) untuk mulai."
-            : "Profil ini belum punya API key. Buka profil di pengaturan AI untuk mengisinya."}
+          {noAgents ? t("ai.gate.needProfile") : t("ai.gate.needKey")}
         </p>
         {onOpenAgents && (
           <button className="nk-btn nk-btn--primary" onClick={onOpenAgents}>
             <Sparkles size={14} aria-hidden />{" "}
-            {noKey ? "Buka pengaturan AI" : "Buat profil AI"}
+            {noKey ? t("ai.gate.openSettings") : t("ai.gate.createProfile")}
           </button>
         )}
       </div>
@@ -576,6 +579,7 @@ export function PanelHeaderView({
   onToggleHistory,
   onClose,
 }: PanelHeaderViewProps) {
+  const { t } = useTranslation();
   return (
     <header className="nk-ai-panel-hd">
       <span className="nk-ai-panel-title">
@@ -586,8 +590,8 @@ export function PanelHeaderView({
           className="nk-ai-agent-picker"
           value={selectedAgentSlug ?? ""}
           onChange={(e) => onSelectAgent(e.target.value)}
-          aria-label="AI profile"
-          title="Pilih profil AI"
+          aria-label={t("ai.ui.profileAria")}
+          title={t("ai.ui.selectProfile")}
         >
           {agents.map((a) => (
             <option key={a.slug} value={a.slug}>
@@ -602,16 +606,16 @@ export function PanelHeaderView({
           <button
             className="nk-iconbtn"
             onClick={onNewChat}
-            aria-label="Obrolan baru"
-            title="Obrolan baru"
+            aria-label={t("ai.ui.newChat")}
+            title={t("ai.ui.newChat")}
           >
             <Plus size={15} aria-hidden />
           </button>
           <button
             className={`nk-iconbtn${showHistory ? " is-on" : ""}`}
             onClick={onToggleHistory}
-            aria-label="Riwayat obrolan"
-            title="Riwayat"
+            aria-label={t("ai.history.toggle")}
+            title={t("ai.history.title")}
           >
             <History size={15} aria-hidden />
           </button>
@@ -620,8 +624,8 @@ export function PanelHeaderView({
       <button
         className="nk-iconbtn"
         onClick={onClose}
-        aria-label="Tutup asisten"
-        title="Tutup"
+        aria-label={t("ai.ui.close")}
+        title={t("common.close")}
       >
         <X size={15} aria-hidden />
       </button>
@@ -638,9 +642,15 @@ interface SendButtonProps {
 }
 
 function SendButton({ streaming, draft, attachments, onSend, onStop }: SendButtonProps) {
+  const { t } = useTranslation();
   if (streaming) {
     return (
-      <button className="nk-ai-send" onClick={onStop} title="Hentikan" aria-label="Hentikan">
+      <button
+        className="nk-ai-send"
+        onClick={onStop}
+        title={t("ai.ui.stop")}
+        aria-label={t("ai.ui.stop")}
+      >
         <Loader2 size={16} className="nk-ai-spin" aria-hidden />
       </button>
     );
@@ -650,8 +660,8 @@ function SendButton({ streaming, draft, attachments, onSend, onStop }: SendButto
       className="nk-ai-send"
       onClick={onSend}
       disabled={!draft.trim() && attachments.length === 0}
-      title="Kirim (Enter)"
-      aria-label="Kirim"
+      title={t("ai.ui.send")}
+      aria-label={t("ai.ui.sendShort")}
     >
       <Send size={16} aria-hidden />
     </button>
@@ -665,13 +675,14 @@ interface CaptureButtonProps {
 }
 
 function CaptureButton({ capturing, streaming, onCapture }: CaptureButtonProps) {
+  const { t } = useTranslation();
   return (
     <button
       className="nk-ai-attachbtn"
       onClick={onCapture}
       disabled={streaming || capturing}
-      title="Capture catatan aktif"
-      aria-label="Capture catatan"
+      title={t("ai.ui.captureActiveNote")}
+      aria-label={t("ai.ui.captureNoteShort")}
     >
       {capturing ? (
         <Loader2 size={16} className="nk-ai-spin" aria-hidden />
@@ -688,16 +699,17 @@ interface AttachmentGridProps {
 }
 
 function AttachmentGrid({ attachments, onRemoveAttachment }: AttachmentGridProps) {
+  const { t } = useTranslation();
   if (attachments.length === 0) return null;
   return (
     <div className="nk-ai-attachments">
       {attachments.map((url, i) => (
         <div key={i} className="nk-ai-attachment">
-          <img src={url} alt="Lampiran" />
+          <img src={url} alt={t("ai.ui.attachmentAlt")} />
           <button
             className="nk-ai-attachment-x"
             onClick={() => onRemoveAttachment(i)}
-            aria-label="Hapus lampiran"
+            aria-label={t("ai.ui.removeAttachment")}
           >
             <X size={11} aria-hidden />
           </button>
@@ -738,6 +750,7 @@ export function PanelComposerView({
   onDraftChange,
   onRemoveAttachment,
 }: PanelComposerViewProps) {
+  const { t } = useTranslation();
   return (
     <>
       <AttachmentGrid attachments={attachments} onRemoveAttachment={onRemoveAttachment} />
@@ -757,8 +770,8 @@ export function PanelComposerView({
           className="nk-ai-attachbtn"
           onClick={() => fileInputRef.current?.click()}
           disabled={streaming}
-          title="Lampirkan gambar"
-          aria-label="Lampirkan gambar"
+          title={t("ai.ui.attachImage")}
+          aria-label={t("ai.ui.attachImage")}
         >
           <ImagePlus size={16} aria-hidden />
         </button>
@@ -766,7 +779,7 @@ export function PanelComposerView({
         <textarea
           ref={inputRef}
           className="nk-ai-input"
-          placeholder="Tanya asisten…"
+          placeholder={t("ai.ask")}
           value={draft}
           onChange={(e) => onDraftChange(e.target.value)}
           onPaste={onPaste}
@@ -788,8 +801,7 @@ export function PanelComposerView({
         />
       </div>
       <div className="nk-ai-privacy">
-        <Lock size={11} aria-hidden /> Key kamu, langsung ke provider — tanpa
-        relay server NoteKit.
+        <Lock size={11} aria-hidden /> {t("ai.privacy")}
       </div>
     </>
   );

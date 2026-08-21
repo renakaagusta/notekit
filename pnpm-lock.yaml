@@ -24,6 +24,9 @@ importers:
       '@types/node':
         specifier: ^20.12.0
         version: 20.19.41
+      cleancode-kit:
+        specifier: github:renakaagusta/cleancode-kit#v0.1.0
+        version: https://codeload.github.com/renakaagusta/cleancode-kit/tar.gz/005ad29d4ee183b28fef38b6488008d6c234da99(@typescript-eslint/utils@8.65.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(dependency-cruiser@16.10.4)(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
       dependency-cruiser:
         specifier: ^16.10.4
         version: 16.10.4
@@ -5501,6 +5504,17 @@ packages:
     resolution: {integrity: sha512-4diC9HaTE+KRAMWhDhrGOECgWZxoevMc5TlkObMqNSsVU62PYzXZ/SMTjzyGAFF1YusgxGcSWTEXBhp0CPwQ1A==}
     engines: {node: '>=6'}
 
+  cleancode-kit@https://codeload.github.com/renakaagusta/cleancode-kit/tar.gz/005ad29d4ee183b28fef38b6488008d6c234da99:
+    resolution: {tarball: https://codeload.github.com/renakaagusta/cleancode-kit/tar.gz/005ad29d4ee183b28fef38b6488008d6c234da99}
+    version: 0.1.0
+    engines: {node: '>=20'}
+    peerDependencies:
+      dependency-cruiser: '>=16'
+      eslint: '>=9'
+    peerDependenciesMeta:
+      dependency-cruiser:
+        optional: true
+
   cli-cursor@3.1.0:
     resolution: {integrity: sha512-I/zHAwsKf9FqGoXM4WWRACob9+SNukZTd94DWF57E4toouRulbCxcUh6RKUEOQlYTHJnzkPMySvPNaaSLNfLZw==}
     engines: {node: '>=8'}
@@ -6341,6 +6355,7 @@ packages:
   eslint@9.39.5:
     resolution: {integrity: sha512-DgZS62aPLXKlnxILS/AYCoRvHaZeXceIzlXPkkGGzJWSow1aEk0lbTlxUSlyjC8jcaKxAdOnTDz+o1JFSBsyjw==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -14462,6 +14477,26 @@ snapshots:
   classnames@2.5.1: {}
 
   clean-stack@2.2.0: {}
+
+  cleancode-kit@https://codeload.github.com/renakaagusta/cleancode-kit/tar.gz/005ad29d4ee183b28fef38b6488008d6c234da99(@typescript-eslint/utils@8.65.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(dependency-cruiser@16.10.4)(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3):
+    dependencies:
+      '@eslint-community/eslint-plugin-eslint-comments': 4.7.2(eslint@9.39.5(jiti@2.7.0))
+      '@eslint/js': 9.39.5
+      eslint: 9.39.5(jiti@2.7.0)
+      eslint-import-resolver-typescript: 4.4.5(eslint-plugin-import-x@4.17.1(@typescript-eslint/utils@8.65.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-import-x: 4.17.1(@typescript-eslint/utils@8.65.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3))(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-react-hooks: 7.1.1(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-sonarjs: 4.2.0(eslint@9.39.5(jiti@2.7.0))
+      globals: 17.9.0
+      typescript-eslint: 8.65.0(eslint@9.39.5(jiti@2.7.0))(typescript@5.9.3)
+    optionalDependencies:
+      dependency-cruiser: 16.10.4
+    transitivePeerDependencies:
+      - '@typescript-eslint/utils'
+      - eslint-import-resolver-node
+      - eslint-plugin-import
+      - supports-color
+      - typescript
 
   cli-cursor@3.1.0:
     dependencies:

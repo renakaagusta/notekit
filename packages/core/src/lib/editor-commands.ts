@@ -61,7 +61,3 @@ export function insertLink(editor: TipTapEditor, url: string) {
   editor.chain().focus().setLink({ href: url }).setTextSelection(to).run();
   void from;
 }
-
-export function openSearch(_editor: TipTapEditor) {
-  void _editor;
-}

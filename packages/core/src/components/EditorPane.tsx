@@ -1,5 +1,5 @@
 import { FileText, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { parseInk, serializeInk } from "../lib/ink";
 import { journalYMDFromPath } from "../lib/journal";
 import { useCryptoStore } from "../stores/cryptoStore";
@@ -19,6 +19,7 @@ import { InlineAIMenu, type InlineSelection } from "./InlineAIMenu";
 import { LinkDetail } from "./LinkDetail";
 import { LinkFolderDetail } from "./LinkFolderDetail";
 import { NoteInfoPanel } from "./NoteInfoPanel";
+import { NoteSearchBar, noteSearchSeed } from "./NoteSearchBar";
 import { OutlinePanel } from "./OutlinePanel";
 import { SecretDetail } from "./SecretDetail";
 import { TabBar } from "./TabBar";
@@ -52,6 +53,10 @@ interface PaneContentProps {
   zenMode: boolean;
   onZenToggle: () => void;
   onVimToggle: () => void;
+  searchOpen: boolean;
+  searchSeed: string;
+  onSearchOpen: (seed: string) => void;
+  onSearchClose: () => void;
   activeSettings: ReturnType<typeof useVaultStore.getState>["activeSettings"];
   upsert: ReturnType<typeof useNotesStore.getState>["upsert"];
   openNote: ReturnType<typeof useLayoutStore.getState>["openNote"];
@@ -72,6 +77,10 @@ function PaneContent({
   zenMode,
   onZenToggle,
   onVimToggle,
+  searchOpen,
+  searchSeed,
+  onSearchOpen,
+  onSearchClose,
   activeSettings,
   upsert,
   openNote,
@@ -80,6 +89,7 @@ function PaneContent({
   updateBody,
 }: PaneContentProps) {
   const activeTab = pane.activeTab;
+  const getEditor = useCallback(() => editorRef.current?.editor ?? null, [editorRef]);
 
   function handleNewNote() {
     const folder = activeSettings?.defaultFolder ?? null;
@@ -87,17 +97,31 @@ function PaneContent({
     openNote(created.id, paneId);
   }
 
+  function toggleSearch() {
+    if (searchOpen) {
+      onSearchClose();
+      return;
+    }
+    const editor = getEditor();
+    onSearchOpen(editor ? noteSearchSeed(editor) : "");
+  }
+
   return (
     <div className="nk-editor-col">
       {editorBinding && !isInkNote && (
         <EditorToolbar
-          getEditor={() => editorRef.current?.editor ?? null}
+          getEditor={getEditor}
           onHistoryClick={onHistoryClick}
           zenMode={zenMode}
           onZenToggle={onZenToggle}
           vimMode={vimMode}
           onVimToggle={onVimToggle}
+          searchActive={searchOpen}
+          onSearchToggle={toggleSearch}
         />
+      )}
+      {searchOpen && editorBinding && !isInkNote && (
+        <NoteSearchBar getEditor={getEditor} initialTerm={searchSeed} onClose={onSearchClose} />
       )}
       <div className="nk-editor-wrap">
         <div className="nk-editor-main">
@@ -266,6 +290,17 @@ export function EditorPane({
 }: EditorPaneProps) {
   const editorRef = useRef<EditorHandle>(null);
   const [infoPanelOpen, setInfoPanelOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchSeed, setSearchSeed] = useState("");
+  const searchOpenRef = useRef(false);
+  useEffect(() => {
+    searchOpenRef.current = searchOpen;
+  }, [searchOpen]);
+  const openSearch = useCallback((seed: string) => {
+    setSearchSeed(seed);
+    setSearchOpen(true);
+  }, []);
+  const closeSearch = useCallback(() => setSearchOpen(false), []);
   const [inlineAI, setInlineAI] = useState<InlineSelection | null>(null);
   const aiDevice = useCryptoStore((s) => s.device);
   const [rightPanelWidth, setRightPanelWidth] = useState(
@@ -333,6 +368,23 @@ export function EditorPane({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
+
+  // ⌘F / Ctrl+F → in-note find. Only the pane whose editor is focused (or that
+  // already has the bar open) responds, so split panes don't all pop a bar.
+  // Intercepts the browser's native find, which can't search the ProseMirror doc.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "f") {
+        const editor = editorRef.current?.editor;
+        if (!editor) return;
+        if (!editor.isFocused && !searchOpenRef.current) return;
+        e.preventDefault();
+        openSearch(noteSearchSeed(editor));
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openSearch]);
 
   if (!pane) return null;
 
@@ -407,6 +459,10 @@ export function EditorPane({
           zenMode={zenMode}
           onZenToggle={onZenToggle}
           onVimToggle={onVimToggle}
+          searchOpen={searchOpen}
+          searchSeed={searchSeed}
+          onSearchOpen={openSearch}
+          onSearchClose={closeSearch}
           activeSettings={activeSettings}
           upsert={upsert}
           openNote={openNote}

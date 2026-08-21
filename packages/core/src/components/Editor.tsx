@@ -19,6 +19,7 @@ import { InteractiveEmbed } from "./extensions/InteractiveEmbed";
 import { BlockMath, InlineMath } from "./extensions/Math";
 import { Media } from "./extensions/Media";
 import { Mermaid } from "./extensions/Mermaid";
+import { SearchHighlight } from "./extensions/SearchHighlight";
 import { SlashCommands } from "./extensions/SlashCommands";
 import { VimMode } from "./extensions/VimMode";
 import { Wikilink } from "./extensions/Wikilink";
@@ -82,6 +83,7 @@ export const Editor = forwardRef<EditorHandle, EditorProps>(function Editor(
       Mermaid,
       InteractiveEmbed,
       Media,
+      SearchHighlight,
       SlashCommands,
       VimMode.configure({ enabled: vimMode }),
       Wikilink,

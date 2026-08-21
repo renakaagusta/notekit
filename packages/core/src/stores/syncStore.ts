@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import type { EncryptedSkipped, SyncState } from "../types/sync";
+import type { EncryptedSkipped, SyncState } from "../domain/entities/sync";
 
 interface SyncStoreState extends SyncState {
   setPhase(phase: SyncState["phase"]): void;

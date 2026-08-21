@@ -21,6 +21,8 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { Note } from "../domain/entities/note";
+import type { User } from "../domain/entities/user";
 import { LOCALES, currentLocale, setLocale } from "../i18n";
 import {
   ACCENTS,
@@ -73,8 +75,6 @@ import * as vaultApi from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 import { useVaultStore } from "../stores/vaultStore";
-import type { Note } from "../types/note";
-import type { User } from "../types/user";
 
 /**
  * Mobile Settings — a dedicated full-screen page with four tabs (General ·

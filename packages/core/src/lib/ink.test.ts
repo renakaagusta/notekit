@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emptyInkDocument, type InkDocument } from "../types/ink";
+import { emptyInkDocument, type InkDocument } from "../domain/entities/ink";
 import { serializeInk, parseInk, simplifyStroke, simplifyInk } from "./ink";
 
 const doc: InkDocument = {

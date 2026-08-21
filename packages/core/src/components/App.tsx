@@ -1,5 +1,6 @@
 import "../i18n"; // initialize i18next before any component renders
 import { useEffect, useRef, useState } from "react";
+import type { User } from "../domain/entities/user";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { applyAccent } from "../lib/accent";
@@ -24,7 +25,6 @@ import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
-import type { User } from "../types/user";
 import { AIAssistantFab } from "./AIAssistantFab";
 import { AIAssistantPanel } from "./AIAssistantPanel";
 import { noteCounter, syncLabel, syncTone } from "./AppHelpers";

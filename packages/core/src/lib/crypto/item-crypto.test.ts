@@ -15,9 +15,9 @@ import {
   identityToRecipient,
 } from "age-encryption";
 import { describe, expect, it, beforeAll } from "vitest";
-import type { SavedLink } from "../../types/link";
-import type { Note } from "../../types/note";
-import type { Ticket } from "../../types/ticket";
+import type { SavedLink } from "../../domain/entities/link";
+import type { Note } from "../../domain/entities/note";
+import type { Ticket } from "../../domain/entities/ticket";
 import {
   classifyEncryptedPath,
   deserializeEncryptedLink,

@@ -10,8 +10,8 @@
  *   matches, contiguous substring beats scattered subsequence, recency is
  *   a tiebreaker. No external fuzzy-search lib.
  */
-import type { Note } from "../types/note";
-import type { Ticket } from "../types/ticket";
+import type { Note } from "../domain/entities/note";
+import type { Ticket } from "../domain/entities/ticket";
 import type { AgentProfile } from "./agents-api";
 import { journalYMDFromPath } from "./journal";
 import { noteTitle } from "./note-display";

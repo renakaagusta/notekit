@@ -6,9 +6,9 @@
  * recipient/config reads). See #49.
  */
 import type { NoteKitApi } from "@notekit/api-client";
-import type { SavedLink } from "../types/link";
-import type { Note } from "../types/note";
-import type { Ticket } from "../types/ticket";
+import type { SavedLink } from "../domain/entities/link";
+import type { Note } from "../domain/entities/note";
+import type { Ticket } from "../domain/entities/ticket";
 import {
   serializeEncryptedNote,
   serializeEncryptedTicket,

@@ -11,11 +11,11 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { SavedLink } from "../domain/entities/link";
 import { detectPlatform, platformLabel } from "../lib/link-platform";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useLayoutStore, tabKey, findLeaf } from "../stores/layoutStore";
 import { useLinksStore } from "../stores/linksStore";
-import type { SavedLink } from "../types/link";
 
 function parseTags(raw: string): string[] {
   return raw

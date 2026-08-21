@@ -17,13 +17,13 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useTranslation } from "react-i18next";
+import type { Note } from "../domain/entities/note";
+import type { Ticket } from "../domain/entities/ticket";
 import { DEFAULT_SYSTEM_PROMPT } from "../lib/agents-api";
 import type { AgentProfile } from "../lib/agents-api";
 import { renderAssistantHtml } from "../lib/chat-markdown";
 import { noteTitle } from "../lib/note-display";
 import type { ChatMessage, ChatSessionMeta, ContextItem, PendingApproval } from "../stores/aiChatStore";
-import type { Note } from "../types/note";
-import type { Ticket } from "../types/ticket";
 
 /** Compact relative time for the history list ("2m", "3h", "5d"). */
 export function relTime(iso: string): string {

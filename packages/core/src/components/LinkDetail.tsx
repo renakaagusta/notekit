@@ -1,12 +1,12 @@
 import { ExternalLink, Image as ImageIcon, Link2, Lock, MoveRight, Share2, Trash2, Unlock, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { SavedLink } from "../domain/entities/link";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import { platformLabel } from "../lib/link-platform";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useLinksStore } from "../stores/linksStore";
 import { useShareStore } from "../stores/shareStore";
 import { useVaultStore } from "../stores/vaultStore";
-import type { SavedLink } from "../types/link";
 import { MediaViewer, MediaThumb } from "./MediaViewer";
 
 function isMedia(link: SavedLink): boolean {

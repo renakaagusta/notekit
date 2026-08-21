@@ -2,8 +2,8 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import type { Ticket, TicketStatus } from "../domain/entities/ticket";
 import { ticketPathFor } from "../lib/file-paths";
-import type { Ticket, TicketStatus } from "../types/ticket";
 import { useCryptoStore } from "./cryptoStore";
 import { useVaultStore } from "./vaultStore";
 

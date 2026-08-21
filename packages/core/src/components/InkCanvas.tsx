@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import type { InkDocument, InkStroke, InkPoint, InkTool } from "../types/ink";
+import type { InkDocument, InkStroke, InkPoint, InkTool } from "../domain/entities/ink";
 
 /**
  * Pen/stylus ink capture + render surface (#30).

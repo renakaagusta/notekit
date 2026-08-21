@@ -1,5 +1,6 @@
 import { CalendarDays, CheckSquare, Lock } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { Ticket, TicketStatus, TicketPriority } from "../domain/entities/ticket";
 import {
   BUILTIN_VIEWS,
   EMPTY_FILTERS,
@@ -20,7 +21,6 @@ import { subtaskProgress } from "../lib/subtasks";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
-import type { Ticket, TicketStatus, TicketPriority } from "../types/ticket";
 import { BoardToolbar } from "./BoardToolbar";
 import { CardQuickActions } from "./CardQuickActions";
 import { ShortcutCheatsheet } from "./ShortcutCheatsheet";

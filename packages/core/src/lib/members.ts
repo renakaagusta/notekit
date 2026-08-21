@@ -1,4 +1,4 @@
-import type { AssigneeRef, Member, MembersFile } from "../types/member";
+import type { AssigneeRef, Member, MembersFile } from "../domain/entities/member";
 
 export const MEMBERS_PATH = ".notekit/members.json";
 

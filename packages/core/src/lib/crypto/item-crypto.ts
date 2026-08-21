@@ -32,14 +32,14 @@
  * no recipient identity.
  */
 
-import type { InkDocument } from "../../types/ink";
-import type { SavedLink, LinkKind } from "../../types/link";
-import type { Note, NoteFormat } from "../../types/note";
+import type { InkDocument } from "../../domain/entities/ink";
+import type { SavedLink, LinkKind } from "../../domain/entities/link";
+import type { Note, NoteFormat } from "../../domain/entities/note";
 import type {
   Ticket,
   TicketStatus,
   TicketPriority,
-} from "../../types/ticket";
+} from "../../domain/entities/ticket";
 import { encryptSecrets, decryptSecrets } from "./vault-crypto";
 
 export type EncryptedItemKind = "note" | "ticket" | "link";

@@ -1,4 +1,4 @@
-import type { Ticket, TicketPriority, TicketStatus } from "../types/ticket";
+import type { Ticket, TicketPriority, TicketStatus } from "../domain/entities/ticket";
 import { buildWeekGrid, localeFirstWeekday, todayYMD } from "./journal";
 
 /**

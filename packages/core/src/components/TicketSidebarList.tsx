@@ -1,5 +1,5 @@
+import type { TicketPriority, TicketStatus } from "../domain/entities/ticket";
 import { useTicketsStore } from "../stores/ticketsStore";
-import type { TicketPriority, TicketStatus } from "../types/ticket";
 
 const STATUS_DOT: Record<TicketStatus, string> = {
   todo: "status-todo",

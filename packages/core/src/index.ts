@@ -1,4 +1,4 @@
-export * from "./types";
+export * from "./domain/entities";
 export * from "./stores";
 export * from "./components";
 export { useAuth } from "./hooks/useAuth";

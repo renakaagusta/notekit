@@ -1,5 +1,10 @@
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import type {
+  Ticket,
+  TicketPriority,
+  TicketStatus,
+} from "../domain/entities/ticket";
 import {
   appendComment,
   bodyWithoutComments,
@@ -11,11 +16,6 @@ import { subtaskProgress } from "../lib/subtasks";
 import { useMembersStore } from "../stores/membersStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
-import type {
-  Ticket,
-  TicketPriority,
-  TicketStatus,
-} from "../types/ticket";
 import { AssigneePicker } from "./AssigneePicker";
 import { SubtaskList } from "./SubtaskList";
 

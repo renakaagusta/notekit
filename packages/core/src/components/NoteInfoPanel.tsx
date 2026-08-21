@@ -1,10 +1,10 @@
 import type { Editor as TipTapEditor } from "@tiptap/react";
 import { ExternalLink, Link, List, Tag } from "lucide-react";
 import { useMemo, useState } from "react";
+import type { Note } from "../domain/entities/note";
 import { noteTitle } from "../lib/note-display";
 import { useLayoutStore } from "../stores/layoutStore";
 import { useNotesStore } from "../stores/notesStore";
-import type { Note } from "../types/note";
 
 type InfoTab = "backlinks" | "outlinks" | "tags" | "outline";
 

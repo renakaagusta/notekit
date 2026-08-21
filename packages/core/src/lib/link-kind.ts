@@ -1,4 +1,4 @@
-import type { LinkKind } from "../types/link";
+import type { LinkKind } from "../domain/entities/link";
 
 const IMAGE_EXT = new Set([
   "png",

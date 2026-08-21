@@ -3,8 +3,8 @@ import type {
   InkStroke,
   InkPoint,
   InkTool,
-} from "../types/ink";
-import { emptyInkDocument } from "../types/ink";
+} from "../domain/entities/ink";
+import { emptyInkDocument } from "../domain/entities/ink";
 
 /**
  * Serialize / parse the {@link InkDocument} stored in an `ink`-format

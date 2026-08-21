@@ -1,10 +1,10 @@
 import { Check, ChevronLeft, ChevronRight, Circle, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Ticket, TicketPriority, TicketStatus } from "../domain/entities/ticket";
 import { todayYMD } from "../lib/journal";
 import { resolveAssignee } from "../lib/members";
 import { useMembersStore } from "../stores/membersStore";
 import { useTicketsStore } from "../stores/ticketsStore";
-import type { Ticket, TicketPriority, TicketStatus } from "../types/ticket";
 import { TicketDetail } from "./TicketDetail";
 
 interface MobileTasksViewProps {

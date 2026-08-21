@@ -1,5 +1,5 @@
-import type { Note } from "../types/note";
-import type { Ticket } from "../types/ticket";
+import type { Note } from "../domain/entities/note";
+import type { Ticket } from "../domain/entities/ticket";
 import { resolveAssignee } from "./members";
 import { noteTitle } from "./note-display";
 

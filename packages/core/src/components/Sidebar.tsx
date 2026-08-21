@@ -22,12 +22,12 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import type { User } from "../domain/entities/user";
 import { LOCALES, setLocale } from "../i18n";
 import type { VaultSettings } from "../lib/vault-api";
 import * as vaultApi from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useVaultStore } from "../stores/vaultStore";
-import type { User } from "../types/user";
 import { NotekitIcon } from "./BrandIcons";
 import { CreateMenu } from "./CreateMenu";
 import { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";

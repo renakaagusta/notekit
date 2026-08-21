@@ -1,5 +1,6 @@
 import { FileText, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { emptyInkDocument } from "../domain/entities/ink";
 import { parseInk, serializeInk } from "../lib/ink";
 import { journalYMDFromPath } from "../lib/journal";
 import { useCryptoStore } from "../stores/cryptoStore";
@@ -8,7 +9,6 @@ import type { PaneLeaf } from "../stores/layoutStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
-import { emptyInkDocument } from "../types/ink";
 import { Editor, type EditorHandle } from "./Editor";
 import { EditorToolbar } from "./EditorToolbar";
 import { FolderDetail } from "./FolderDetail";

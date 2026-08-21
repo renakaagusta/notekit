@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import type { User, GitRemote } from "../types/user";
+import type { User, GitRemote } from "../domain/entities/user";
 
 interface AuthState {
   user: User | null;

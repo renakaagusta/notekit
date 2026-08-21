@@ -16,7 +16,7 @@ import {
   Share2,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { User } from "../types/user";
+import type { User } from "../domain/entities/user";
 import { NotekitIcon } from "./BrandIcons";
 import type { SidebarView } from "./Sidebar";
 import { VaultSwitcher } from "./VaultSwitcher";

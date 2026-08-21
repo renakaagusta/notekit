@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { User } from "../domain/entities/user";
 import {
   apiUrl,
   apiFetch,
@@ -11,7 +12,6 @@ import { startNativeAppleSignIn } from "../lib/apple-signin";
 import { getNativePlatform, isNativePlatform } from "../lib/native";
 import { startNativeOAuth, initNativeAuthDeepLink } from "../lib/native-oauth";
 import { useAuthStore } from "../stores/authStore";
-import type { User } from "../types/user";
 
 interface MeResponse {
   user: (Omit<User, "createdAt"> & { createdAt?: string }) | null;

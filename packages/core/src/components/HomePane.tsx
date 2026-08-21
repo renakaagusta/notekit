@@ -11,13 +11,13 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { Note } from "../domain/entities/note";
 import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
 import { noteTitle } from "../lib/note-display";
 import { useLinksStore } from "../stores/linksStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";
 import { useTicketsStore } from "../stores/ticketsStore";
-import type { Note } from "../types/note";
 
 /** Mirror of App's MainView — the surfaces the home tiles can navigate to. */
 type MainView = "notes" | "tickets" | "graph" | "calendar" | "secrets" | "links";

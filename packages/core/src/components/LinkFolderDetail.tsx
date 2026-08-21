@@ -1,8 +1,8 @@
 import { ChevronRight, Folder, FolderOpen, Link2 } from "lucide-react";
 import { useMemo } from "react";
+import type { SavedLink } from "../domain/entities/link";
 import { useLayoutStore } from "../stores/layoutStore";
 import { useLinksStore } from "../stores/linksStore";
-import type { SavedLink } from "../types/link";
 
 function hostname(url: string): string {
   try {

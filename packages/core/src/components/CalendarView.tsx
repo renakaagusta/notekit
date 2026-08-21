@@ -1,6 +1,8 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import React, { useEffect, useMemo, useState } from "react";
+import type { Note } from "../domain/entities/note";
+import type { Ticket, TicketPriority } from "../domain/entities/ticket";
 import {
   buildMonthGrid,
   buildWeekGrid,
@@ -17,8 +19,6 @@ import {
 import { listCommits, type VaultCommit } from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
-import type { Note } from "../types/note";
-import type { Ticket, TicketPriority } from "../types/ticket";
 import { Heatmap } from "./Heatmap";
 import { SkeletonCommitList } from "./Skeleton";
 import { TicketDetail } from "./TicketDetail";

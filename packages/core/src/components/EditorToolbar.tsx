@@ -9,6 +9,7 @@ import {
   Maximize2 as LucideMaximize,
   Minimize2 as LucideMinimize,
   Redo2,
+  Search as LucideSearch,
   Share2 as LucideShare,
   Table as LucideTable,
   Type as LucideType,
@@ -41,10 +42,12 @@ interface EditorToolbarProps {
   onZenToggle?(): void;
   vimMode?: boolean;
   onVimToggle?(): void;
+  searchActive?: boolean;
+  onSearchToggle?(): void;
 }
 
 /* eslint-disable max-lines-per-function, complexity -- toolbar handles formatting, encryption, share, history, zen, and vim controls as independent feature toggles */
-export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle, vimMode, onVimToggle }: EditorToolbarProps) {
+export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle, vimMode, onVimToggle, searchActive, onSearchToggle }: EditorToolbarProps) {
   const [aaOpen, setAaOpen] = useState(false);
   const [imageOpen, setImageOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
@@ -328,6 +331,18 @@ export function EditorToolbar({ getEditor, onHistoryClick, zenMode, onZenToggle,
         </button>
       )}
 
+      {onSearchToggle && (
+        <button
+          className={`nk-tb-btn${searchActive ? " is-active" : ""}`}
+          title="Find in note (⌘F)"
+          aria-label="Find in note"
+          aria-pressed={!!searchActive}
+          onClick={onSearchToggle}
+        >
+          <SearchIcon />
+        </button>
+      )}
+
       <button
         className="nk-tb-btn"
         title="Note history"
@@ -366,6 +381,7 @@ const ChevronDown = () => <LucideChevronDown size={10} aria-hidden />;
 const UndoIcon = () => <Undo2 size={16} aria-hidden />;
 const RedoIcon = () => <Redo2 size={16} aria-hidden />;
 const HistoryIcon = () => <LucideHistory size={16} aria-hidden />;
+const SearchIcon = () => <LucideSearch size={16} aria-hidden />;
 const LockIcon = () => <LucideLock size={16} aria-hidden />;
 const UnlockIcon = () => <LucideUnlock size={16} aria-hidden />;
 const ExternalLinkIcon = () => <LucideExternalLink size={16} aria-hidden />;

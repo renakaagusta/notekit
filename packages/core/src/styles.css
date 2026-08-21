@@ -2158,6 +2158,75 @@ a.nk-commit-sha:hover {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  position: relative;
+}
+
+/* ── In-note find ─────────────────────────────────────────────────────────── */
+.nk-note-search {
+  position: absolute;
+  top: 8px;
+  right: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md, 8px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+}
+.nk-note-search-input {
+  width: 180px;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  padding: 4px 6px;
+}
+.nk-note-search-input::placeholder { color: var(--muted); }
+.nk-note-search-count {
+  min-width: 42px;
+  text-align: center;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  user-select: none;
+}
+.nk-note-search-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: var(--r-sm, 6px);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.nk-note-search-btn:hover:not(:disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+.nk-note-search-btn.is-active {
+  background: var(--hover);
+  color: var(--text);
+}
+.nk-note-search-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* Match highlights — semantic amber, distinct from the monochrome accent. */
+.nk-search-match {
+  background: rgba(250, 204, 21, 0.35);
+  border-radius: 2px;
+}
+.nk-search-match--current {
+  background: rgba(249, 115, 22, 0.55);
+  box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.9);
 }
 .nk-editor-wrap {
   position: relative;

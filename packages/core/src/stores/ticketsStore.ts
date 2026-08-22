@@ -4,7 +4,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { resolveUpsertedTicket } from "../application/usecases/upsertTicket";
 import type { Ticket, TicketStatus } from "../domain/entities/ticket";
-import { ticketPathFor } from "../lib/file-paths";
+import { ticketPathFor } from "../domain/file-paths";
 import { useCryptoStore } from "./cryptoStore";
 import { useVaultStore } from "./vaultStore";
 

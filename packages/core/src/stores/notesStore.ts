@@ -4,7 +4,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { resolveUpsertedNote } from "../application/usecases/upsertNote";
 import type { Note } from "../domain/entities/note";
-import { notePathFor, sanitizeFolderPath } from "../lib/file-paths";
+import { notePathFor, sanitizeFolderPath } from "../domain/file-paths";
 import {
   journalDefaultBody,
   journalPathFor,

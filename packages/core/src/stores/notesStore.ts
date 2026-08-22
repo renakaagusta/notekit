@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { resolveUpsertedNote } from "../application/usecases/upsertNote";
 import type { Note } from "../domain/entities/note";
 import { notePathFor, sanitizeFolderPath } from "../lib/file-paths";
 import {
@@ -76,37 +77,14 @@ export const useNotesStore = create<NotesState>()(
       });
     },
 
-    // eslint-disable-next-line complexity -- note upsert merges existing+incoming fields requiring multiple conditional branches
     upsert(input) {
       const id = input.id ?? nanoid(12);
       const existing = get().notes[id];
-      const timestamp = now();
-      const folder = input.folder ?? existing?.folder ?? null;
-      const path =
-        input.path ??
-        existing?.path ??
-        notePathFor({ id, body: input.body, folder, title: input.title });
-      // `encrypted` is sticky once set — a sync-down hydration shouldn't
-      // accidentally flip a locally-encrypted note back to plaintext. New
-      // items in a born-E2EE vault default to encrypted (hydration uses
-      // replaceAll, not upsert, so this only affects locally-created notes).
-      const encrypted =
-        input.encrypted ??
-        existing?.encrypted ??
-        useCryptoStore.getState().encryptionRequired;
-      const note: Note = {
-        id,
-        path,
-        title: input.title,
-        body: input.body,
-        frontmatter: input.frontmatter ?? existing?.frontmatter ?? {},
-        createdAt: existing?.createdAt ?? timestamp,
-        updatedAt: timestamp,
-        folder,
-        tags: input.tags ?? existing?.tags ?? [],
-        encrypted,
-        format: input.format ?? existing?.format,
-      };
+      const note = resolveUpsertedNote(id, input, existing, {
+        clock: { now: () => Date.now(), nowIso: now },
+        resolvePath: notePathFor,
+        encryptionRequired: useCryptoStore.getState().encryptionRequired,
+      });
       set((state) => {
         state.notes[id] = note;
         if (!state.activeNoteId) state.activeNoteId = id;

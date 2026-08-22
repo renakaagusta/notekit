@@ -3,7 +3,7 @@
  * to figure out whether the user needs first-run setup, device pairing, or is
  * already good to go.
  */
-import { logger } from '../adapters/driven/logger'
+import type { LoggerPort } from "../application/ports/out/LoggerPort";
 import {
   loadDeviceIdentity,
   createDeviceIdentity,
@@ -37,6 +37,16 @@ import {
   prefetchBootstrapFiles,
   vaultReadServedFromCache,
 } from "./secrets-vault";
+
+let logger!: LoggerPort;
+
+/**
+ * Bind the logger this bootstrap uses. Called once by the composition root
+ * before boot runs, keeping the orchestrator free of a driven-adapter import.
+ */
+export function configureCryptoBootstrap(ports: { logger: LoggerPort }): void {
+  logger = ports.logger;
+}
 
 /**
  * Member device auto-register (issue #14): if this is a member's device that

@@ -6,6 +6,7 @@ import {
   startVaultEventStream,
   stopVaultEventStream,
 } from "../adapters/driven/vault-events-client";
+import { bootstrapCrypto } from "../composition/crypto-bootstrap";
 import { publishMyKeys } from "../composition/directory";
 import { refresh as refreshSync, start as startSync } from "../composition/vault-sync";
 import type { User } from "../domain/entities/user";
@@ -14,7 +15,6 @@ import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { applyAccent } from "../lib/accent";
 import { applyAppearance } from "../lib/appearance";
-import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import { applyEditorPrefs } from "../lib/editor-prefs";
 import type { SearchHit } from "../lib/search";
 import { bindVaultPersistence } from "../lib/vault-persistence";

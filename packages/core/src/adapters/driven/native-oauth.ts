@@ -18,8 +18,8 @@
  * `import("@capacitor/...")` — that dynamic import hangs forever under the
  * `capacitor://localhost` scheme on iOS 16 (same trap as apple-signin.ts).
  */
-import { apiUrl } from "../../lib/api";
 import { logger } from '../../lib/logger'
+import { apiUrl } from "./api";
 import { isNativePlatform } from "./native";
 
 const PAT_KEY = "notekit:e2e-pat";

@@ -10,8 +10,8 @@
  *   reach an encryption set. The signing key itself is verified out-of-band by
  *   the caller via its safety number (`fingerprint.ts`).
  */
+import { apiFetch } from "../adapters/driven/api";
 import { useCryptoStore } from "../stores/cryptoStore";
-import { apiFetch } from "./api";
 import { deriveFingerprint, formatFingerprint } from "./crypto/fingerprint";
 import type { EncryptedItemKind } from "./crypto/item-crypto";
 import type { RecoverySigningKey } from "./crypto/recovery";

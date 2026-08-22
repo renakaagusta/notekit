@@ -2,17 +2,17 @@ import { useEffect, useState } from "react";
 import { subscribeMobilePush } from "../adapters/driven/mobilePush";
 import { isNativePlatform } from "../adapters/driven/native";
 import {
-  isWebPushSubscribed,
-  subscribeWebPush,
-  unsubscribeWebPush,
-} from "../adapters/driven/webPush";
-import {
   createTelegramLinkCode,
   getNotificationStatus,
   unlinkTelegram,
   updatePrefs,
   type NotificationStatus,
-} from "../lib/notifications-api";
+} from "../adapters/driven/notifications-api";
+import {
+  isWebPushSubscribed,
+  subscribeWebPush,
+  unsubscribeWebPush,
+} from "../adapters/driven/webPush";
 import { SkeletonLines } from "./Skeleton";
 
 /**

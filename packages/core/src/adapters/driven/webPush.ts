@@ -5,7 +5,7 @@
  * Idempotent: calling subscribe() while already subscribed re-POSTs the same
  * subscription, which the API upserts on `endpoint`.
  */
-import { apiUrl } from "../../lib/api";
+import { apiUrl } from "./api";
 
 export type WebPushSupport =
   | { supported: true }

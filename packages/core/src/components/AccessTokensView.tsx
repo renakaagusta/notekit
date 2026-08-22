@@ -18,7 +18,7 @@ import type {
 } from "@notekit/api-client";
 import { Copy, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { nk } from "../lib/api";
+import { nk } from "../adapters/driven/api";
 import { SkeletonLines } from "./Skeleton";
 import "./AccessTokensView.css";
 

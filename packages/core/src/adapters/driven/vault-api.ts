@@ -1,3 +1,4 @@
+import type { VaultPort } from "../../application/ports/out/VaultPort";
 import { apiFetch, apiUrl } from "./api";
 
 export interface VaultRepo {
@@ -418,3 +419,19 @@ export function clearPair(code: string): Promise<{ ok: true }> {
     method: "DELETE",
   });
 }
+
+/**
+ * Conformance: this transport module IS the concrete {@link VaultPort} — the
+ * git file-storage capability the application depends on. Compile-time
+ * `satisfies` guarantees the adapter never drifts from the port contract.
+ * Composition roots will inject this where a `VaultPort` is required.
+ */
+export const vaultStoragePort = {
+  readFile,
+  readFileAtRef,
+  writeFile,
+  commitFiles,
+  deleteFile,
+  listFiles,
+  listCommits,
+} satisfies VaultPort;

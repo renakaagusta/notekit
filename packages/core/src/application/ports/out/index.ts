@@ -9,3 +9,9 @@
 export type { ClockPort } from "./ClockPort";
 export type { IdGeneratorPort } from "./IdGeneratorPort";
 export type { RandomPort } from "./RandomPort";
+export type {
+  VaultPort,
+  VaultFile,
+  VaultFileEntry,
+  VaultCommit,
+} from "./VaultPort";

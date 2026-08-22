@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { resolveUpsertedLink } from "../application/usecases/upsertLink";
 import type { SavedLink } from "../domain/entities/link";
 import { linkPathFor, sanitizeFolderPath } from "../lib/file-paths";
 import { detectLinkKind } from "../lib/link-kind";
@@ -51,46 +52,22 @@ function cleanFolder(folder: string | null | undefined): string | null {
 
 export const useLinksStore = create<LinksState>()(
   persist(
-    // eslint-disable-next-line max-lines-per-function -- store initializer defines many methods; splitting would require exporting each handler separately
     immer<LinksState>((set, get) => ({
       links: {},
       folders: [],
 
-      // eslint-disable-next-line complexity -- merges optional input, existing, and defaults for each SavedLink field
       upsert(input) {
         const id = input.id ?? nanoid(12);
         const existing = get().links[id];
-        const timestamp = now();
-        const title = input.title?.trim() || existing?.title || titleFromUrl(input.url);
-        const platform = input.platform ?? existing?.platform ?? detectPlatform(input.url);
-        // Auto-classify image/pdf from the URL unless the caller is explicit
-        // or we already classified this item before.
-        const kind = input.kind ?? existing?.kind ?? detectLinkKind(input.url);
-        const folder =
-          input.folder !== undefined
-            ? cleanFolder(input.folder)
-            : existing?.folder ?? null;
-        const path =
-          input.path ?? existing?.path ?? linkPathFor({ id, title, folder });
-
-        const link: SavedLink = {
-          id,
-          path,
-          url: input.url,
-          title,
-          description: input.description ?? existing?.description ?? null,
-          platform,
-          kind,
-          annotation: input.annotation ?? existing?.annotation ?? null,
-          tags: input.tags ?? existing?.tags ?? [],
-          folder,
-          createdAt: existing?.createdAt ?? timestamp,
-          updatedAt: timestamp,
-          encrypted:
-            input.encrypted ??
-            existing?.encrypted ??
-            useCryptoStore.getState().encryptionRequired,
-        };
+        const link = resolveUpsertedLink(id, input, existing, {
+          clock: { now: () => Date.now(), nowIso: now },
+          resolvePath: linkPathFor,
+          deriveTitle: titleFromUrl,
+          detectPlatform,
+          detectLinkKind,
+          cleanFolder,
+          encryptionRequired: useCryptoStore.getState().encryptionRequired,
+        });
         set((state) => {
           state.links[id] = link;
         });

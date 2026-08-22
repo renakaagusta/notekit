@@ -8,7 +8,7 @@ import {
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
   type AgentProfile,
-} from "../lib/agents-api";
+} from "../adapters/driven/agents-api";
 import { streamAssistant } from "../lib/ai-agent";
 import type { DeviceIdentity } from "../lib/crypto/device-key";
 import { useAIChatStore } from "../stores/aiChatStore";

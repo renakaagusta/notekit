@@ -12,6 +12,7 @@
  */
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
+import type { AgentToolPermissions } from "../adapters/driven/agents-api";
 import { listCommits } from "../adapters/driven/vault-api";
 import { noteTitle } from "../domain/note-display";
 import i18n from "../i18n";
@@ -19,7 +20,6 @@ import { findLeaf, useLayoutStore } from "../stores/layoutStore";
 import { useLinksStore } from "../stores/linksStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
-import type { AgentToolPermissions } from "./agents-api";
 import { listSecretNames, listSecretVaults } from "./secrets-vault";
 
 /** Vault-internal secrets that power the assistant itself — never shown as "user secrets". */

@@ -1,7 +1,6 @@
 import { Check, Lightbulb, Lock, Pencil, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { gravatarUrlFor } from "../domain/gravatar";
 import {
   listAgents,
   createAgent,
@@ -13,7 +12,8 @@ import {
   type AgentProfile,
   type AgentToolPermissions,
   type AgentProvider,
-} from "../lib/agents-api";
+} from "../adapters/driven/agents-api";
+import { gravatarUrlFor } from "../domain/gravatar";
 import { listSecretNames, setSecret, removeSecret } from "../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { SkeletonCommitList } from "./Skeleton";

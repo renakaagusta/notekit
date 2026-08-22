@@ -6,7 +6,7 @@ import {
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
   type AgentProfile,
-} from "../lib/agents-api";
+} from "../adapters/driven/agents-api";
 import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
 import { buildAssistantTools, describeToolCall } from "../lib/ai-tools";
 import {

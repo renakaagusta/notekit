@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { getNativePlatform, isNativePlatform } from "../adapters/driven/native";
+import { startNativeOAuth, initNativeAuthDeepLink } from "../adapters/driven/native-oauth";
 import type { User } from "../domain/entities/user";
 import {
   apiUrl,
@@ -9,8 +11,6 @@ import {
   startDesktopSignIn,
 } from "../lib/api";
 import { startNativeAppleSignIn } from "../lib/apple-signin";
-import { getNativePlatform, isNativePlatform } from "../lib/native";
-import { startNativeOAuth, initNativeAuthDeepLink } from "../lib/native-oauth";
 import { useAuthStore } from "../stores/authStore";
 
 interface MeResponse {

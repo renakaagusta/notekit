@@ -7,7 +7,7 @@
  */
 import { generateIdentity, identityToRecipient } from "age-encryption";
 import { nanoid } from "nanoid";
-import { getNativePlatform, type NativePlatform } from "../native";
+import { getNativePlatform, type NativePlatform } from "../../adapters/driven/native";
 
 const DB_NAME = "notekit-crypto";
 // v2 added the "recovery" store (see recovery-store.ts). Both files open the

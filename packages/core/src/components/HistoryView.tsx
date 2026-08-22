@@ -1,6 +1,6 @@
 import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { listCommits, type VaultCommit } from "../lib/vault-api";
+import { listCommits, type VaultCommit } from "../adapters/driven/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { SkeletonCommitList } from "./Skeleton";
 

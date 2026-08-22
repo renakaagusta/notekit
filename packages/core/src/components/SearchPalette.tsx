@@ -1,5 +1,6 @@
 import { Bot, CalendarDays, FileText, GitCommit, Ticket, X, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { listCommits, type VaultCommit } from "../adapters/driven/vault-api";
 import { listAgents, type AgentProfile } from "../lib/agents-api";
 import {
   searchAgents,
@@ -9,7 +10,6 @@ import {
   type SearchHit,
   type SearchKind,
 } from "../lib/search";
-import { listCommits, type VaultCommit } from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";

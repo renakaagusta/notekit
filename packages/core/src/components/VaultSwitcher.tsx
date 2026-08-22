@@ -1,12 +1,12 @@
 import { ChevronDown, FolderGit2, Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { reset as resetSync, start as startSync } from "../lib/sync";
-import * as vaultApi from "../lib/vault-api";
-import type { VaultRef } from "../lib/vault-api";
+import * as vaultApi from "../adapters/driven/vault-api";
+import type { VaultRef } from "../adapters/driven/vault-api";
 import {
   startVaultEventStream,
   stopVaultEventStream,
-} from "../lib/vault-events-client";
+} from "../adapters/driven/vault-events-client";
+import { reset as resetSync, start as startSync } from "../lib/sync";
 import {
   bindVaultPersistence,
   unbindVaultPersistence,

@@ -21,10 +21,10 @@
  * localStorage.
  */
 import { createJSONStorage } from "zustand/middleware";
+import type { VaultRef } from "../adapters/driven/vault-api";
 import { useLinksStore } from "../stores/linksStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
-import type { VaultRef } from "./vault-api";
 
 let boundKey: string | null = null;
 

@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import React, { useEffect, useMemo, useState } from "react";
+import { listCommits, type VaultCommit } from "../adapters/driven/vault-api";
 import type { Note } from "../domain/entities/note";
 import type { Ticket, TicketPriority } from "../domain/entities/ticket";
 import {
@@ -16,7 +17,6 @@ import {
   todayYMD,
   weekdayLabels,
 } from "../lib/journal";
-import { listCommits, type VaultCommit } from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { Heatmap } from "./Heatmap";

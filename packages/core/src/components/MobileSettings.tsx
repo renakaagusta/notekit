@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import * as vaultApi from "../adapters/driven/vault-api";
 import type { Note } from "../domain/entities/note";
 import type { User } from "../domain/entities/user";
 import { noteTitle } from "../domain/note-display";
@@ -71,7 +72,6 @@ import {
   setEditorSize,
   type EditorFont,
 } from "../lib/editor-prefs";
-import * as vaultApi from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 import { useVaultStore } from "../stores/vaultStore";

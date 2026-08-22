@@ -1,15 +1,15 @@
 import { useEffect } from "react";
+import {
+  getStatus as getVaultStatus,
+  listVaults,
+} from "../adapters/driven/vault-api";
+import type { VaultRef, VaultStatus } from "../adapters/driven/vault-api";
+import { startVaultEventStream } from "../adapters/driven/vault-events-client";
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import {
   start as startSync,
   pull as pullSync,
 } from "../lib/sync";
-import {
-  getStatus as getVaultStatus,
-  listVaults,
-} from "../lib/vault-api";
-import type { VaultRef, VaultStatus } from "../lib/vault-api";
-import { startVaultEventStream } from "../lib/vault-events-client";
 import { bindVaultPersistence } from "../lib/vault-persistence";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useSyncStore } from "../stores/syncStore";

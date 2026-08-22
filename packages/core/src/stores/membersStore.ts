@@ -1,12 +1,12 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
+import * as vault from "../adapters/driven/vault-api";
 import type { Member, MembersFile } from "../domain/entities/member";
 import {
   MEMBERS_PATH,
   flattenMembers,
   parseMembersFile,
 } from "../lib/members";
-import * as vault from "../lib/vault-api";
 
 type LoadStatus = "idle" | "loading" | "ready" | "missing" | "error";
 

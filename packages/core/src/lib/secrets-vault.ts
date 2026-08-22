@@ -96,6 +96,7 @@ export {
 } from "./secrets-vault-membership";
 
 // ─── Remaining imports for this module ───────────────────────────────────────
+import * as fileCache from "../adapters/driven/vault-cache";
 import type { DeviceIdentity } from "./crypto/device-key";
 import type { RecoverySigningKey } from "./crypto/recovery";
 import {
@@ -140,7 +141,6 @@ import {
   reencryptSecretsTo,
   reencryptItemsTo,
 } from "./secrets-vault-reencrypt";
-import * as fileCache from "./vault-cache";
 import { currentVaultScope } from "./vault-persistence";
 
 // ─── Vault index ─────────────────────────────────────────────────────────────

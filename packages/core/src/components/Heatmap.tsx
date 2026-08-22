@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { listCommits, type VaultCommit } from "../lib/vault-api";
+import { listCommits, type VaultCommit } from "../adapters/driven/vault-api";
 import { Skeleton } from "./Skeleton";
 
 const COMMITS_LIMIT = 500;

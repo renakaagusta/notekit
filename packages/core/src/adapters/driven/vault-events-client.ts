@@ -16,9 +16,9 @@
  *               CLI / MCP / desktop-PAT shells whose transport doesn't
  *               propagate cookies.
  */
-import { logger } from '../../lib/logger'
 import { refresh as refreshSync } from "../../lib/sync";
 import { apiUrl } from "./api";
+import { logger } from './logger'
 
 export interface StartVaultEventStreamOptions {
   /**

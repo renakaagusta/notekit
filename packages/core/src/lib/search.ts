@@ -12,9 +12,9 @@
  */
 import type { Note } from "../domain/entities/note";
 import type { Ticket } from "../domain/entities/ticket";
+import { noteTitle } from "../domain/note-display";
 import type { AgentProfile } from "./agents-api";
 import { journalYMDFromPath } from "./journal";
-import { noteTitle } from "./note-display";
 import type { VaultCommit } from "./vault-api";
 
 export type SearchKind =

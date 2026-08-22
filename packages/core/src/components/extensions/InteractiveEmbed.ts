@@ -1,5 +1,5 @@
 import { Node, mergeAttributes } from "@tiptap/react";
-import { noteTitle } from "../../lib/note-display";
+import { noteTitle } from "../../domain/note-display";
 import { useLayoutStore } from "../../stores/layoutStore";
 import { useNotesStore } from "../../stores/notesStore";
 

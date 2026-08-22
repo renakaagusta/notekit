@@ -2,7 +2,7 @@ import { PluginKey } from "@tiptap/pm/state";
 import { Extension, ReactRenderer } from "@tiptap/react";
 import Suggestion, { type SuggestionProps } from "@tiptap/suggestion";
 import tippy, { type Instance } from "tippy.js";
-import { noteTitle } from "../../lib/note-display";
+import { noteTitle } from "../../domain/note-display";
 import { useNotesStore } from "../../stores/notesStore";
 import { WikilinkMenu, type WikilinkMenuHandle, type WikilinkItem } from "../WikilinkMenu";
 

@@ -17,6 +17,7 @@ import {
   Unlock as LucideUnlock,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { noteTitle } from "../domain/note-display";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
 import {
   type Heading,
@@ -29,7 +30,6 @@ import {
   undo,
   redo,
 } from "../lib/editor-commands";
-import { noteTitle } from "../lib/note-display";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useShareStore } from "../stores/shareStore";

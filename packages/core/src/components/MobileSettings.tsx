@@ -23,6 +23,7 @@ import {
 import { useEffect, useState } from "react";
 import type { Note } from "../domain/entities/note";
 import type { User } from "../domain/entities/user";
+import { noteTitle } from "../domain/note-display";
 import { LOCALES, currentLocale, setLocale } from "../i18n";
 import {
   ACCENTS,
@@ -70,7 +71,6 @@ import {
   setEditorSize,
   type EditorFont,
 } from "../lib/editor-prefs";
-import { noteTitle } from "../lib/note-display";
 import * as vaultApi from "../lib/vault-api";
 import { useNotesStore } from "../stores/notesStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";

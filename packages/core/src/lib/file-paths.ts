@@ -1,7 +1,7 @@
 import type { SavedLink } from "../domain/entities/link";
 import type { Note } from "../domain/entities/note";
 import type { Ticket } from "../domain/entities/ticket";
-import { noteTitle } from "./note-display";
+import { noteTitle } from "../domain/note-display";
 
 export function slugify(text: string): string {
   const ascii = text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");

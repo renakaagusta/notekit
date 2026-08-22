@@ -1,6 +1,6 @@
 import { useEffect } from "react";
+import { noteTitle } from "../domain/note-display";
 import { isValidYMD } from "../lib/journal";
-import { noteTitle } from "../lib/note-display";
 import { useLayoutStore } from "../stores/layoutStore";
 import { useLinksStore } from "../stores/linksStore";
 import { useNotesStore } from "../stores/notesStore";

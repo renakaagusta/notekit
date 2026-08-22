@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Note } from "../domain/entities/note";
+import { noteTitle } from "../domain/note-display";
 import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
-import { noteTitle } from "../lib/note-display";
 import { useLinksStore } from "../stores/linksStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";

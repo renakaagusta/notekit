@@ -10,7 +10,7 @@
  *   matches, contiguous substring beats scattered subsequence, recency is
  *   a tiebreaker. No external fuzzy-search lib.
  */
-import type { VaultCommit } from "../adapters/driven/vault-api";
+import type { VaultCommit } from "../application/ports/out";
 import type { AgentProfile } from "../domain/entities/agent";
 import type { Note } from "../domain/entities/note";
 import type { Ticket } from "../domain/entities/ticket";

@@ -21,3 +21,6 @@ export type { NotifierPort, StartVaultEventStreamOptions } from "./NotifierPort"
 export type { MediaCachePort } from "./MediaCachePort";
 export type { ApiFetchPort } from "./ApiFetchPort";
 export type { PlatformPort } from "./PlatformPort";
+export type { AuthApiPort } from "./AuthApiPort";
+export type { AppleSignInPort } from "./AppleSignInPort";
+export type { NativeOAuthPort } from "./NativeOAuthPort";

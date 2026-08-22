@@ -17,6 +17,7 @@
  *      mints a session cookie.
  *   4. The caller reloads the page so AuthGate sees the new session.
  */
+import type { AppleSignInPort } from "../../application/ports/out/AppleSignInPort";
 import { apiUrl } from "./api";
 import { logger } from './logger'
 
@@ -141,3 +142,8 @@ function randomBase64Url(byteLength: number): string {
   for (const b of bytes) b64 += String.fromCharCode(b);
   return btoa(b64).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
+
+/**
+ * {@link AppleSignInPort} conformance for this driven adapter.
+ */
+export const appleSignInPort: AppleSignInPort = { startNativeAppleSignIn };

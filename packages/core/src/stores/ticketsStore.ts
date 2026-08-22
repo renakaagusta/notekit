@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
+import { resolveUpsertedTicket } from "../application/usecases/upsertTicket";
 import type { Ticket, TicketStatus } from "../domain/entities/ticket";
 import { ticketPathFor } from "../lib/file-paths";
 import { useCryptoStore } from "./cryptoStore";
@@ -31,40 +32,19 @@ const now = () => new Date().toISOString();
 
 export const useTicketsStore = create<TicketsState>()(
   persist(
-    // eslint-disable-next-line max-lines-per-function -- store factory defines all state methods together
     immer<TicketsState>((set, get) => ({
     tickets: {},
 
-    // eslint-disable-next-line complexity -- ticket upsert merges existing+incoming fields requiring multiple conditional branches
     upsert(input) {
       const id = input.id ?? nanoid(12);
       const existing = get().tickets[id];
-      const timestamp = now();
-      const path =
-        input.path ??
-        existing?.path ??
-        ticketPathFor({ id, title: input.title });
       const owner = useVaultStore.getState().vault?.owner;
-      const defaultCreator = owner ? `user:${owner}` : null;
-      const ticket: Ticket = {
-        id,
-        path,
-        title: input.title,
-        body: input.body ?? existing?.body ?? "",
-        status: input.status ?? existing?.status ?? "todo",
-        priority: input.priority ?? existing?.priority ?? "medium",
-        assignee: input.assignee ?? existing?.assignee ?? null,
-        labels: input.labels ?? existing?.labels ?? [],
-        linkedNotes: input.linkedNotes ?? existing?.linkedNotes ?? [],
-        createdAt: existing?.createdAt ?? timestamp,
-        updatedAt: timestamp,
-        dueDate: input.dueDate ?? existing?.dueDate ?? null,
-        createdBy: input.createdBy ?? existing?.createdBy ?? defaultCreator,
-        encrypted:
-          input.encrypted ??
-          existing?.encrypted ??
-          useCryptoStore.getState().encryptionRequired,
-      };
+      const ticket = resolveUpsertedTicket(id, input, existing, {
+        clock: { now: () => Date.now(), nowIso: now },
+        resolvePath: ticketPathFor,
+        encryptionRequired: useCryptoStore.getState().encryptionRequired,
+        defaultCreator: owner ? `user:${owner}` : null,
+      });
       set((state) => {
         state.tickets[id] = ticket;
       });

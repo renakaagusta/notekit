@@ -12,7 +12,7 @@
  */
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import { listCommits } from "../adapters/driven/vault-api";
+import type { VaultCommit } from "../application/ports/out";
 import type { AgentToolPermissions } from "../domain/entities/agent";
 import { noteTitle } from "../domain/note-display";
 import i18n from "../i18n";
@@ -37,6 +37,8 @@ export interface ToolContext {
   requestApproval(toolName: string, summary: string, input: unknown): Promise<boolean>;
   /** Default folder for newly-created notes. */
   defaultFolder?: string | null;
+  /** Read the vault's git commit history (injected VaultPort capability). */
+  listRecentCommits(path?: string, limit?: number): Promise<{ commits: VaultCommit[] }>;
 }
 
 const REJECTED_BY_USER = "ditolak pengguna";
@@ -217,7 +219,7 @@ export function buildAssistantTools(
       }),
       execute: async ({ path, limit }) => {
         try {
-          const res = await listCommits(path, Math.min(Math.max(limit ?? 30, 1), 100));
+          const res = await ctx.listRecentCommits(path, Math.min(Math.max(limit ?? 30, 1), 100));
           return {
             count: res.commits.length,
             commits: res.commits.map((c) => ({

@@ -17,8 +17,8 @@
  *      mints a session cookie.
  *   4. The caller reloads the page so AuthGate sees the new session.
  */
-import { logger } from '../../lib/logger'
 import { apiUrl } from "./api";
+import { logger } from './logger'
 
 interface AppleSignInResponseWrapper {
   response?: {

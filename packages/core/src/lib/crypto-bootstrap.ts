@@ -3,6 +3,7 @@
  * to figure out whether the user needs first-run setup, device pairing, or is
  * already good to go.
  */
+import { logger } from '../adapters/driven/logger'
 import { useAuthStore } from "../stores/authStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useVaultStore } from "../stores/vaultStore";
@@ -19,7 +20,6 @@ import {
 import { loadStoredRecovery } from "./crypto/recovery-store";
 import { toB64 } from "./crypto/signing";
 import { verifySigningKeyTrust } from "./crypto/trust-store";
-import { logger } from './logger'
 import {
   ensureSelfRegistered,
   isVaultInitialized,

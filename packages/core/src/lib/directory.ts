@@ -11,11 +11,11 @@
  *   the caller via its safety number (`fingerprint.ts`).
  */
 import { apiFetch } from "../adapters/driven/api";
+import { logger } from '../adapters/driven/logger'
 import { useCryptoStore } from "../stores/cryptoStore";
 import { deriveFingerprint, formatFingerprint } from "./crypto/fingerprint";
 import type { EncryptedItemKind } from "./crypto/item-crypto";
 import type { RecoverySigningKey } from "./crypto/recovery";
-import { logger } from './logger'
 import {
   addMember,
   createPassphraseShare,

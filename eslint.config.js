@@ -94,8 +94,8 @@ export default [
   // Logger files — console/stderr use is intentional inside the logger itself
   {
     files: [
-      '**/lib/logger.ts',
-      'packages/core/src/lib/logger.ts',
+      '**/adapters/driven/logger.ts',
+      'packages/core/src/adapters/driven/logger.ts',
     ],
     rules: {
       'no-console': 'off',

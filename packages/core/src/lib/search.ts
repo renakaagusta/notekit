@@ -13,9 +13,9 @@
 import type { VaultCommit } from "../adapters/driven/vault-api";
 import type { Note } from "../domain/entities/note";
 import type { Ticket } from "../domain/entities/ticket";
+import { journalYMDFromPath } from "../domain/journal";
 import { noteTitle } from "../domain/note-display";
 import type { AgentProfile } from "./agents-api";
-import { journalYMDFromPath } from "./journal";
 
 export type SearchKind =
   | "journal"

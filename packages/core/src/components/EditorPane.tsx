@@ -2,7 +2,7 @@ import { FileText, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { emptyInkDocument } from "../domain/entities/ink";
 import { parseInk, serializeInk } from "../domain/ink";
-import { journalYMDFromPath } from "../lib/journal";
+import { journalYMDFromPath } from "../domain/journal";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";
 import type { PaneLeaf } from "../stores/layoutStore";

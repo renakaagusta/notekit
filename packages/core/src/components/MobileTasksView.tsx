@@ -1,8 +1,8 @@
 import { Check, ChevronLeft, ChevronRight, Circle, Plus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Ticket, TicketPriority, TicketStatus } from "../domain/entities/ticket";
-import { todayYMD } from "../lib/journal";
-import { resolveAssignee } from "../lib/members";
+import { todayYMD } from "../domain/journal";
+import { resolveAssignee } from "../domain/members";
 import { useMembersStore } from "../stores/membersStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { TicketDetail } from "./TicketDetail";

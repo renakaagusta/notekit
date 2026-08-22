@@ -1,7 +1,7 @@
 import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
 import { useMemo } from "react";
+import { journalYMDFromPath } from "../domain/journal";
 import { noteTitle, notePreview } from "../domain/note-display";
-import { journalYMDFromPath } from "../lib/journal";
 import { useLayoutStore } from "../stores/layoutStore";
 import { useNotesStore } from "../stores/notesStore";
 

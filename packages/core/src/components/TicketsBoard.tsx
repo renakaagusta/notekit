@@ -1,6 +1,7 @@
 import { CalendarDays, CheckSquare, Lock } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Ticket, TicketStatus, TicketPriority } from "../domain/entities/ticket";
+import { subtaskProgress } from "../domain/subtasks";
 import {
   BUILTIN_VIEWS,
   EMPTY_FILTERS,
@@ -17,7 +18,6 @@ import {
   viewDueRange,
 } from "../lib/board-filters";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
-import { subtaskProgress } from "../lib/subtasks";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";

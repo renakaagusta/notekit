@@ -1,18 +1,18 @@
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type {
-  Ticket,
-  TicketPriority,
-  TicketStatus,
-} from "../domain/entities/ticket";
 import {
   appendComment,
   bodyWithoutComments,
   parseComments,
   type TicketComment,
-} from "../lib/comments";
-import { resolveAssignee } from "../lib/members";
-import { subtaskProgress } from "../lib/subtasks";
+} from "../domain/comments";
+import type {
+  Ticket,
+  TicketPriority,
+  TicketStatus,
+} from "../domain/entities/ticket";
+import { resolveAssignee } from "../domain/members";
+import { subtaskProgress } from "../domain/subtasks";
 import { useMembersStore } from "../stores/membersStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";

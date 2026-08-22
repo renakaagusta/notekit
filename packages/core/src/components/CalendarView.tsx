@@ -16,7 +16,7 @@ import {
   shiftYMD,
   todayYMD,
   weekdayLabels,
-} from "../lib/journal";
+} from "../domain/journal";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { Heatmap } from "./Heatmap";

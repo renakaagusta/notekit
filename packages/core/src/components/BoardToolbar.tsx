@@ -1,13 +1,13 @@
 import { ChevronDown, Plus, X } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Ticket, TicketPriority, TicketStatus } from "../domain/entities/ticket";
+import { resolveAssignee } from "../domain/members";
 import {
   type BoardFilters,
   type SavedView,
   activeFacetCount,
   isFiltersEmpty,
 } from "../lib/board-filters";
-import { resolveAssignee } from "../lib/members";
 import { useMembersStore } from "../stores/membersStore";
 
 const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [

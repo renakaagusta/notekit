@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import type { SavedLink } from "../domain/entities/link";
-import type { Note } from "../domain/entities/note";
+import type { SavedLink } from "./entities/link";
+import type { Note } from "./entities/note";
 import {
   serializeNote,
   deserializeNote,

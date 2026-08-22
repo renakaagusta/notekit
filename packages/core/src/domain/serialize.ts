@@ -1,6 +1,6 @@
-import type { SavedLink, LinkKind } from "../domain/entities/link";
-import type { Note } from "../domain/entities/note";
-import type { Ticket } from "../domain/entities/ticket";
+import type { SavedLink, LinkKind } from "./entities/link";
+import type { Note } from "./entities/note";
+import type { Ticket } from "./entities/ticket";
 import { parseInk } from "./ink";
 
 /**

@@ -1,7 +1,7 @@
 import { FileText, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { emptyInkDocument } from "../domain/entities/ink";
-import { parseInk, serializeInk } from "../lib/ink";
+import { parseInk, serializeInk } from "../domain/ink";
 import { journalYMDFromPath } from "../lib/journal";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";

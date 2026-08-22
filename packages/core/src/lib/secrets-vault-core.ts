@@ -7,8 +7,7 @@
  * import from "@notekit/core/secrets" as usual.
  */
 import type { NoteKitApi } from "@notekit/api-client";
-import * as defaultVaultApi from "../adapters/driven/vault-api";
-import * as fileCache from "../adapters/driven/vault-cache";
+import type { StoragePort } from "../application/ports/out/StoragePort";
 import type { DeviceIdentity } from "./crypto/device-key";
 import {
   type VaultKey,
@@ -53,18 +52,58 @@ export interface SecretsBackend {
   ): Promise<{ commitSha: string }>;
 }
 
-export let backend: SecretsBackend = {
-  listFiles: defaultVaultApi.listFiles,
-  readFile: defaultVaultApi.readFile,
-  readFileAtRef: defaultVaultApi.readFileAtRef,
-  writeFile: defaultVaultApi.writeFile,
-  deleteFile: defaultVaultApi.deleteFile,
-  commitFiles: defaultVaultApi.commitFiles,
-};
+let backendRef: SecretsBackend | null = null;
+
+/**
+ * The vault I/O backend, injected by the composition root. Every app surface
+ * (browser via composition/secrets-browser, CLI/MCP at their entry) must call
+ * {@link configureSecretsBackend} before any secret operation runs — there is
+ * no default, so a missing wiring fails fast instead of silently using the
+ * wrong transport.
+ */
+export const backend: SecretsBackend = new Proxy({} as SecretsBackend, {
+  get(_t, prop) {
+    if (!backendRef) throw new Error("secrets backend used before configureSecretsBackend");
+    return backendRef[prop as keyof SecretsBackend];
+  },
+});
 
 export function configureSecretsBackend(custom: SecretsBackend): void {
-  backend = custom;
+  backendRef = custom;
 }
+
+let fileCacheRef: StoragePort | null = null;
+
+/** The injected ciphertext cache. Throws if used before configuration. */
+function fileCache(): StoragePort {
+  if (!fileCacheRef) throw new Error("secrets cache used before configureSecretsCache");
+  return fileCacheRef;
+}
+
+/** Sibling secrets modules share the one injected cache through this accessor. */
+export function getSecretsCache(): StoragePort {
+  return fileCache();
+}
+
+/**
+ * Bind the local ciphertext cache. Browser surfaces inject the IndexedDB cache;
+ * CLI/MCP inject {@link noopSecretsCache}. No default — every surface wires one.
+ */
+export function configureSecretsCache(cache: StoragePort): void {
+  fileCacheRef = cache;
+}
+
+/**
+ * A cache that stores nothing — for surfaces (CLI, MCP) that run one command
+ * per process and always read fresh, so there is nothing to persist.
+ */
+export const noopSecretsCache: StoragePort = {
+  getScopeFiles: async () => new Map(),
+  getFile: async () => null,
+  putFile: async () => undefined,
+  removeFile: async () => undefined,
+  pruneScope: async () => undefined,
+};
 
 // ─── In-bootstrap read coalescing ────────────────────────────────────────────
 interface VaultFileResult { path: string; content: string | null; sha: string | null }
@@ -88,7 +127,7 @@ export function vaultReadServedFromCache(): boolean {
 async function readVaultFileFresh(path: string): Promise<VaultFileResult> {
   const scope = currentVaultScope();
   if (vaultPreferCache && scope) {
-    const hit = await fileCache.getFile(scope, path);
+    const hit = await fileCache().getFile(scope, path);
     if (hit) {
       vaultWindowServedCache = true;
       return { path, sha: hit.sha || null, content: hit.content };
@@ -97,12 +136,12 @@ async function readVaultFileFresh(path: string): Promise<VaultFileResult> {
   try {
     const f = await backend.readFile(path);
     if (scope && f.sha && typeof f.content === "string") {
-      void fileCache.putFile(scope, { path, sha: f.sha, content: f.content });
+      void fileCache().putFile(scope, { path, sha: f.sha, content: f.content });
     }
     return f;
   } catch (err) {
     if (scope) {
-      const hit = await fileCache.getFile(scope, path);
+      const hit = await fileCache().getFile(scope, path);
       if (hit) {
         vaultWindowServedCache = true;
         return { path, sha: hit.sha || null, content: hit.content };
@@ -128,7 +167,7 @@ export async function readVaultListing(
   const cacheKey = `@list:${prefix}`;
   const fromCache = async (): Promise<{ entries: { path: string; sha: string }[] } | null> => {
     if (!scope) return null;
-    const hit = await fileCache.getFile(scope, cacheKey);
+    const hit = await fileCache().getFile(scope, cacheKey);
     if (hit?.content) {
       try {
         return { entries: JSON.parse(hit.content) as { path: string; sha: string }[] };
@@ -148,7 +187,7 @@ export async function readVaultListing(
   try {
     const res = await backend.listFiles(prefix);
     if (scope) {
-      void fileCache.putFile(scope, { path: cacheKey, sha: "", content: JSON.stringify(res.entries) });
+      void fileCache().putFile(scope, { path: cacheKey, sha: "", content: JSON.stringify(res.entries) });
     }
     return res;
   } catch (err) {

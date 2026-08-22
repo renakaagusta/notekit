@@ -8,6 +8,8 @@ import type { NoteKitApi } from "@notekit/api-client";
 import { slugify } from "@notekit/core/paths";
 import {
   configureSecretsBackend,
+  configureSecretsCache,
+  noopSecretsCache,
   secretsBackendFromApi,
   listSecretVaults,
   createSecretVault,
@@ -25,6 +27,7 @@ import { errorContent, jsonContent, textContent } from "../lib/notekit.js";
 export function registerSecretTools(server: McpServer, nk: NoteKitApi): void {
   // Wire the secrets module to use this MCP session's bearer-auth client.
   configureSecretsBackend(secretsBackendFromApi(nk));
+  configureSecretsCache(noopSecretsCache);
 
   server.registerTool(
     "secret_vault_list",

@@ -5,7 +5,12 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { configureSecretsBackend, secretsBackendFromApi } from "@notekit/core/secrets";
+import {
+  configureSecretsBackend,
+  configureSecretsCache,
+  noopSecretsCache,
+  secretsBackendFromApi,
+} from "@notekit/core/secrets";
 import { makeClient, type NoteKitMcpConfig } from "./lib/notekit.js";
 import { resolveProjectContext } from "./lib/project.js";
 import { registerNoteKitPrompts } from "./prompts/notekit.js";
@@ -31,6 +36,7 @@ export function createMcpServer(opts: CreateServerOptions): McpServer {
   // Configure the shared @notekit/core backend once, so the E2EE helpers
   // (vaultIsEncrypted / collectVaultRecipients) work for every tool (#49).
   configureSecretsBackend(secretsBackendFromApi(nk));
+  configureSecretsCache(noopSecretsCache);
   // Resolve once at boot so we can mention the active project in the
   // system instructions. Tools re-resolve per-call, so a marker that
   // appears later (e.g. after `project_create`) still takes effect.

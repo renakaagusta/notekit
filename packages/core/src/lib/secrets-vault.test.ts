@@ -19,6 +19,8 @@ import {
   addMember,
   collectVaultRecipients,
   configureSecretsBackend,
+  configureSecretsCache,
+  noopSecretsCache,
   getSecret,
   setSecret,
   setActiveVaultKey,
@@ -88,6 +90,10 @@ const device: DeviceIdentity = {
   recipient: "age1testdevicerecipient",
   createdAt: "2026-06-01T00:00:00.000Z",
 };
+
+// The secrets module has no built-in cache; tests inject the no-op so any
+// scope-dependent read/write path is exercised without throwing.
+beforeEach(() => configureSecretsCache(noopSecretsCache));
 
 describe("vault encryption policy (born-E2EE)", () => {
   beforeEach(() => {

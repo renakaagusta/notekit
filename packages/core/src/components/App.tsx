@@ -1,4 +1,5 @@
 import "../i18n"; // initialize i18next before any component renders
+import "../composition/secrets-browser"; // wire the secrets vault to browser adapters before any secret op
 import { useEffect, useRef, useState } from "react";
 import { isDesktop } from "../adapters/driven/api";
 import { getVaultSettings, listVaults } from "../adapters/driven/vault-api";

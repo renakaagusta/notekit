@@ -21,6 +21,8 @@
 export {
   type SecretsBackend,
   configureSecretsBackend,
+  configureSecretsCache,
+  noopSecretsCache,
   beginVaultReadWindow,
   endVaultReadWindow,
   vaultReadServedFromCache,
@@ -96,13 +98,13 @@ export {
 } from "./secrets-vault-membership";
 
 // ─── Remaining imports for this module ───────────────────────────────────────
-import * as fileCache from "../adapters/driven/vault-cache";
 import type { DeviceIdentity } from "./crypto/device-key";
 import type { RecoverySigningKey } from "./crypto/recovery";
 import {
   encryptSecrets,
   decryptSecrets,
 } from "./crypto/vault-crypto";
+import { getSecretsCache } from "./secrets-vault-core";
 import {
   backend,
   shaCache,
@@ -374,7 +376,7 @@ export interface SecretsViewPayload {
 export async function cacheSecretsView(payload: SecretsViewPayload): Promise<void> {
   const scope = currentVaultScope();
   if (!scope) return;
-  await fileCache.putFile(scope, {
+  await getSecretsCache().putFile(scope, {
     path: SECRETS_VIEW_KEY,
     sha: "",
     content: JSON.stringify(payload),
@@ -384,7 +386,7 @@ export async function cacheSecretsView(payload: SecretsViewPayload): Promise<voi
 export async function readCachedSecretsView(): Promise<SecretsViewPayload | null> {
   const scope = currentVaultScope();
   if (!scope) return null;
-  const hit = await fileCache.getFile(scope, SECRETS_VIEW_KEY);
+  const hit = await getSecretsCache().getFile(scope, SECRETS_VIEW_KEY);
   if (!hit || !hit.content) return null;
   try {
     return JSON.parse(hit.content) as SecretsViewPayload;

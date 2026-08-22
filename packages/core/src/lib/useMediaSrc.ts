@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getMediaCache } from "./media-cache-idb";
+import { getMediaCache } from "../adapters/driven/media-cache-idb";
 
 /**
  * Resolve a remote media URL to a displayable `src` through the local

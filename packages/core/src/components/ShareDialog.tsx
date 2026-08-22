@@ -12,7 +12,7 @@ import {
   shareItem,
   unshareItem,
   type SharePreview,
-} from "../lib/directory";
+} from "../composition/directory";
 import { listItemShares, type ShareGrant } from "../lib/secrets-vault";
 import { useShareStore } from "../stores/shareStore";
 

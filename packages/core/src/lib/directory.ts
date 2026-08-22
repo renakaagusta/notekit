@@ -10,8 +10,8 @@
  *   reach an encryption set. The signing key itself is verified out-of-band by
  *   the caller via its safety number (`fingerprint.ts`).
  */
-import { apiFetch } from "../adapters/driven/api";
-import { logger } from '../adapters/driven/logger'
+import type { ApiFetchPort } from "../application/ports/out/ApiFetchPort";
+import type { LoggerPort } from "../application/ports/out/LoggerPort";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { deriveFingerprint, formatFingerprint } from "./crypto/fingerprint";
 import type { EncryptedItemKind } from "./crypto/item-crypto";
@@ -29,6 +29,22 @@ import {
   type PassphraseShare,
   type SignedDeviceFields,
 } from "./secrets-vault";
+
+let apiFetch!: ApiFetchPort;
+let logger!: LoggerPort;
+
+/**
+ * Bind the REST client + logger this module talks through. Called once by the
+ * composition root before any directory function runs, so behavior matches the
+ * old direct imports while keeping the module free of driven adapters.
+ */
+export function configureDirectory(ports: {
+  apiFetch: ApiFetchPort;
+  logger: LoggerPort;
+}): void {
+  apiFetch = ports.apiFetch;
+  logger = ports.logger;
+}
 
 interface DirectoryDevice {
   deviceId: string;

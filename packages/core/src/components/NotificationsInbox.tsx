@@ -4,7 +4,7 @@ import {
   markAllRead,
   markRead,
   type NotificationItem,
-} from "../lib/notifications-api";
+} from "../adapters/driven/notifications-api";
 import { SkeletonCommitList } from "./Skeleton";
 
 /**

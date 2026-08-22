@@ -1,5 +1,6 @@
 import "../i18n"; // initialize i18next before any component renders
 import { useEffect, useRef, useState } from "react";
+import { isDesktop } from "../adapters/driven/api";
 import { getVaultSettings, listVaults } from "../adapters/driven/vault-api";
 import {
   startVaultEventStream,
@@ -10,7 +11,6 @@ import { noteTitle } from "../domain/note-display";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { applyAccent } from "../lib/accent";
-import { isDesktop } from "../lib/api";
 import { applyAppearance } from "../lib/appearance";
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import { publishMyKeys } from "../lib/directory";

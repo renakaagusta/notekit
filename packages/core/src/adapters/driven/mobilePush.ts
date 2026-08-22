@@ -5,7 +5,7 @@
  * doesn't require it. The native shell installs the module; the web build
  * fails soft when not present.
  */
-import { apiUrl } from "../../lib/api";
+import { apiUrl } from "./api";
 import { getNativePlatform, isNativePlatform } from "./native";
 
 interface PushPluginToken {

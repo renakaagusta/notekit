@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { askAI, type AIProvider } from "../lib/ai-client";
+import { askAI, type AIProvider } from "../adapters/driven/ai-client";
 import {
   listSecretNames,
   setSecret,

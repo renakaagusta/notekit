@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { notifyDevicePaired } from "../adapters/driven/notifications-api";
 import {
   announcePair,
   fetchPair,
@@ -12,7 +13,6 @@ import {
 import { importRecovery, loadStoredRecovery } from "../lib/crypto/recovery-store";
 import { deriveWalletVaultIdentity } from "../lib/crypto/wallet-key";
 import { connectWallet, hasInjectedWallet } from "../lib/crypto/wallet-provider";
-import { notifyDevicePaired } from "../lib/notifications-api";
 import { addDevice, listDevices, readRecovery } from "../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { AddVaultDialog } from "./AddVaultDialog";

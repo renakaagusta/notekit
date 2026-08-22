@@ -163,7 +163,7 @@ const hasMobilePat = readMobilePat().length > 0;
 /**
  * The typed API client. New components should use this directly:
  *
- *     import { nk } from "../lib/api";
+ *     import { nk } from "../adapters/driven/api";
  *     const { tokens } = await nk.auth.listTokens();
  *
  * Falls back to `apiFetch` (defined below) only for legacy callers in this

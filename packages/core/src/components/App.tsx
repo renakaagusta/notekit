@@ -1,6 +1,7 @@
 import "../i18n"; // initialize i18next before any component renders
 import { useEffect, useRef, useState } from "react";
 import type { User } from "../domain/entities/user";
+import { noteTitle } from "../domain/note-display";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
 import { useResolvedTheme } from "../hooks/useResolvedTheme";
 import { applyAccent } from "../lib/accent";
@@ -9,7 +10,6 @@ import { applyAppearance } from "../lib/appearance";
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import { publishMyKeys } from "../lib/directory";
 import { applyEditorPrefs } from "../lib/editor-prefs";
-import { noteTitle } from "../lib/note-display";
 import type { SearchHit } from "../lib/search";
 import { refresh as refreshSync, start as startSync } from "../lib/sync";
 import { getVaultSettings, listVaults } from "../lib/vault-api";

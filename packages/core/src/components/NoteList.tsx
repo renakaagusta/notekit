@@ -14,9 +14,9 @@ import {
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Note } from "../domain/entities/note";
+import { noteTitle, notePreview } from "../domain/note-display";
 import { useMediaQuery, MOBILE_BREAKPOINT } from "../hooks/useMediaQuery";
 import { journalYMDFromPath } from "../lib/journal";
-import { noteTitle, notePreview } from "../lib/note-display";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useLayoutStore } from "../stores/layoutStore";
 import { useNotesStore } from "../stores/notesStore";

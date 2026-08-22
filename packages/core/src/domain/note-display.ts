@@ -1,4 +1,4 @@
-import type { Note } from "../domain/entities/note";
+import type { Note } from "./entities/note";
 
 /** First non-empty line of the body, with leading "# " stripped. Falls back to "Untitled". */
 // eslint-disable-next-line complexity -- handles empty body, code-fenced opening, and plain heading; three distinct cases

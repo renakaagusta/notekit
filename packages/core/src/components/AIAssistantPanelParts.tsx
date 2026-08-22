@@ -19,10 +19,10 @@ import type React from "react";
 import { useTranslation } from "react-i18next";
 import type { Note } from "../domain/entities/note";
 import type { Ticket } from "../domain/entities/ticket";
+import { noteTitle } from "../domain/note-display";
 import { DEFAULT_SYSTEM_PROMPT } from "../lib/agents-api";
 import type { AgentProfile } from "../lib/agents-api";
 import { renderAssistantHtml } from "../lib/chat-markdown";
-import { noteTitle } from "../lib/note-display";
 import type { ChatMessage, ChatSessionMeta, ContextItem, PendingApproval } from "../stores/aiChatStore";
 
 /** Compact relative time for the history list ("2m", "3h", "5d"). */

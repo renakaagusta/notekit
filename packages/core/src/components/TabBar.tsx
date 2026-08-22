@@ -1,5 +1,5 @@
 import { Columns2, Folder, Link2, Network, CalendarDays, PanelRight, Plus, Rows2, Shield, X } from "lucide-react";
-import { noteTitle } from "../lib/note-display";
+import { noteTitle } from "../domain/note-display";
 import { tabKey } from "../stores/layoutStore";
 import type { PaneLeaf, TabEntry } from "../stores/layoutStore";
 import { useLinksStore } from "../stores/linksStore";

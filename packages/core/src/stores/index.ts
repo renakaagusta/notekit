@@ -6,4 +6,4 @@ export { useAIStore } from "./aiStore";
 export { useAIChatStore } from "./aiChatStore";
 export { useSyncStore } from "./syncStore";
 export { useVaultStore } from "./vaultStore";
-export { useMembersStore } from "./membersStore";
+export { useMembersStore } from "../composition/members-store";

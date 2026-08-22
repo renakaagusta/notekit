@@ -1,12 +1,23 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import * as vault from "../adapters/driven/vault-api";
+import type { VaultPort } from "../application/ports/out/VaultPort";
 import type { Member, MembersFile } from "../domain/entities/member";
 import {
   MEMBERS_PATH,
   flattenMembers,
   parseMembersFile,
 } from "../domain/members";
+
+let vault!: VaultPort;
+
+/**
+ * Bind the vault adapter this store reads through. Called once by the
+ * composition root before the store loads, keeping the store free of a direct
+ * driven-adapter import.
+ */
+export function configureMembersStore(ports: { vault: VaultPort }): void {
+  vault = ports.vault;
+}
 
 type LoadStatus = "idle" | "loading" | "ready" | "missing" | "error";
 

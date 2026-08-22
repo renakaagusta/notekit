@@ -8,6 +8,7 @@ import {
 } from "d3-force";
 import { Application, Container, Graphics, Text, type FederatedPointerEvent } from "pixi.js";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useMembersStore } from "../composition/members-store";
 import {
   buildGraph,
   DEFAULT_FILTER,
@@ -19,7 +20,6 @@ import {
   type NodeKind,
 } from "../domain/graph-data";
 import { useCryptoStore } from "../stores/cryptoStore";
-import { useMembersStore } from "../stores/membersStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";
 

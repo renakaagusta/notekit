@@ -1,12 +1,12 @@
 import { Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useMembersStore } from "../composition/members-store";
 import type { Member, MemberKind } from "../domain/entities/member";
 import {
   MEMBERS_PATH,
   assigneeStringOf,
   resolveAssignee,
 } from "../domain/members";
-import { useMembersStore } from "../stores/membersStore";
 import { SkeletonCommitList } from "./Skeleton";
 
 interface AssigneePickerProps {

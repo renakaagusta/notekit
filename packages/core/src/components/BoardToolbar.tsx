@@ -1,5 +1,6 @@
 import { ChevronDown, Plus, X } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useMembersStore } from "../composition/members-store";
 import type { Ticket, TicketPriority, TicketStatus } from "../domain/entities/ticket";
 import { resolveAssignee } from "../domain/members";
 import {
@@ -8,7 +9,6 @@ import {
   activeFacetCount,
   isFiltersEmpty,
 } from "../lib/board-filters";
-import { useMembersStore } from "../stores/membersStore";
 
 const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
   { value: "todo", label: "Todo" },

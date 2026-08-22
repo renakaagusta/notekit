@@ -19,6 +19,7 @@
  * during the migration.
  */
 import { createNoteKitClient, type NoteKitApi, type NoteKitClient } from "@notekit/api-client";
+import type { ApiFetchPort } from "../../application/ports/out/ApiFetchPort";
 
 function resolveApiUrl(): string {
   // Direct static access — Vite's define-plugin only substitutes the literal
@@ -220,3 +221,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
   return client.request<T>(path, { method, body });
 }
+
+/**
+ * {@link ApiFetchPort} conformance for this driven adapter. `apiFetch` already
+ * matches the port's callable shape; this const is the binding the composition
+ * root injects, and the `satisfies` check keeps the two from drifting.
+ */
+export const apiFetchPort: ApiFetchPort = apiFetch;

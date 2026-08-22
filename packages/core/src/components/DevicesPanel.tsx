@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import type { DeviceIdentity } from "../lib/crypto/device-key";
-import { recoverySigningFromMnemonic } from "../lib/crypto/recovery";
-import type { RecoverySigningKey } from "../lib/crypto/recovery";
-import { loadStoredRecovery } from "../lib/crypto/recovery-store";
 import {
   admitMember,
   mySafetyNumber,
   previewShare,
   revokeMember,
   type SharePreview,
-} from "../lib/directory";
+} from "../composition/directory";
+import type { DeviceIdentity } from "../lib/crypto/device-key";
+import { recoverySigningFromMnemonic } from "../lib/crypto/recovery";
+import type { RecoverySigningKey } from "../lib/crypto/recovery";
+import { loadStoredRecovery } from "../lib/crypto/recovery-store";
 import {
   deviceRecordTrusted,
   listDevices,

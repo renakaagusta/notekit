@@ -1,15 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { apiFetch } from "../adapters/driven/api";
 import {
   generateRecoveryMnemonic,
   recoverySigningFromMnemonic,
 } from "./crypto/recovery";
 import { deviceSigningPayload, sign, toB64 } from "./crypto/signing";
-import { fetchVerifiedKeys, isNotFound } from "./directory";
+import { configureDirectory, fetchVerifiedKeys, isNotFound } from "./directory";
 
-// Mock the transport so we control exactly what the "server" returns — the
+// Inject a fake transport so we control exactly what the "server" returns — the
 // whole point is that a malicious/buggy server can't smuggle in a recipient.
-vi.mock("../adapters/driven/api", () => ({ apiFetch: vi.fn() }));
+const apiFetch = vi.fn();
+configureDirectory({
+  apiFetch: apiFetch as never,
+  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+});
 
 const PHRASE =
   "legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth useful legal winner thank year wave sausage worth title";
@@ -22,7 +25,7 @@ function signedDevice(
 }
 
 describe("fetchVerifiedKeys", () => {
-  beforeEach(() => vi.mocked(apiFetch).mockReset());
+  beforeEach(() => apiFetch.mockReset());
 
   it("keeps validly-signed recipients and drops forged ones", async () => {
     const { privateKey, publicKey } = await recoverySigningFromMnemonic(PHRASE);
@@ -41,7 +44,7 @@ describe("fetchVerifiedKeys", () => {
       sig: "AAAA",
     };
 
-    vi.mocked(apiFetch).mockResolvedValue({
+    apiFetch.mockResolvedValue({
       email: "b@example.com",
       signingKey,
       devices: [good, forged],
@@ -65,7 +68,7 @@ describe("fetchVerifiedKeys", () => {
     const signingKey = toB64(attacker.publicKey);
     void honest;
 
-    vi.mocked(apiFetch).mockResolvedValue({
+    apiFetch.mockResolvedValue({
       email: "b@example.com",
       signingKey,
       devices: [good],

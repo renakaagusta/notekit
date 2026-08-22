@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import {
   listAgents,
 } from "../adapters/driven/agents-api";
+import { vaultStoragePort } from "../adapters/driven/vault-api";
 import {
   listChatSessions,
   readCachedChatSessions,
@@ -261,7 +262,10 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
     abortRef.current = controller;
 
     const permissions = selectedAgent.toolPermissions ?? "read-only";
-    const tools = buildAssistantTools({ requestApproval, defaultFolder }, permissions);
+    const tools = buildAssistantTools(
+      { requestApproval, defaultFolder, listRecentCommits: vaultStoragePort.listCommits },
+      permissions,
+    );
     const system = buildSystemPrompt(selectedAgent, permissions);
 
     try {

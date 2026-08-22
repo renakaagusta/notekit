@@ -6,7 +6,10 @@
  * inside try/catch so missing modules fail soft.
  */
 
-export type NativePlatform = "web" | "ios" | "android";
+import type { PlatformPort } from "../../application/ports/out/PlatformPort";
+import type { NativePlatform } from "../../domain/platform";
+
+export type { NativePlatform };
 
 interface CapacitorGlobal {
   isNativePlatform?: () => boolean;
@@ -28,3 +31,9 @@ export function getNativePlatform(): NativePlatform {
   if (!cap || cap.isNativePlatform?.() !== true) return "web";
   return cap.getPlatform?.() ?? "web";
 }
+
+/**
+ * {@link PlatformPort} conformance for this driven adapter. The composition
+ * root injects this const wherever platform detection is needed.
+ */
+export const platformPort: PlatformPort = { getNativePlatform };

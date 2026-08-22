@@ -4,13 +4,13 @@
  * already good to go.
  */
 import { logger } from '../adapters/driven/logger'
-import { useAuthStore } from "../stores/authStore";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useVaultStore } from "../stores/vaultStore";
 import {
   loadDeviceIdentity,
   createDeviceIdentity,
-} from "./crypto/device-key";
+} from "../composition/device-key";
+import { useAuthStore } from "../stores/authStore";
+import { useCryptoStore } from "../stores/cryptoStore";
+import { useVaultStore } from "../stores/vaultStore";
 import type { DeviceIdentity } from "./crypto/device-key";
 import type { VaultKey } from "./crypto/keybox";
 import {

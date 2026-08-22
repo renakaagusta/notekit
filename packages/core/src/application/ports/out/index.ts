@@ -20,3 +20,4 @@ export type { StoragePort, CachedFile } from "./StoragePort";
 export type { NotifierPort, StartVaultEventStreamOptions } from "./NotifierPort";
 export type { MediaCachePort } from "./MediaCachePort";
 export type { ApiFetchPort } from "./ApiFetchPort";
+export type { PlatformPort } from "./PlatformPort";

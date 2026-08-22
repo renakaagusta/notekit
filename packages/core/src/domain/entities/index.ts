@@ -4,3 +4,4 @@ export * from "./link";
 export * from "./user";
 export * from "./sync";
 export * from "./member";
+export * from "./agent";

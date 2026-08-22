@@ -3,10 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   listAgents,
+} from "../adapters/driven/agents-api";
+import {
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
   type AgentProfile,
-} from "../adapters/driven/agents-api";
+} from "../domain/entities/agent";
 import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
 import { buildAssistantTools, describeToolCall } from "../lib/ai-tools";
 import {

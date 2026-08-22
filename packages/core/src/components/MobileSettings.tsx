@@ -21,8 +21,9 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { listAgents, type AgentProfile } from "../adapters/driven/agents-api";
+import { listAgents } from "../adapters/driven/agents-api";
 import * as vaultApi from "../adapters/driven/vault-api";
+import type { AgentProfile } from "../domain/entities/agent";
 import type { Note } from "../domain/entities/note";
 import type { User } from "../domain/entities/user";
 import { noteTitle } from "../domain/note-display";

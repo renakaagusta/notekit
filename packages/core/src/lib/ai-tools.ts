@@ -12,8 +12,8 @@
  */
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
-import type { AgentToolPermissions } from "../adapters/driven/agents-api";
 import { listCommits } from "../adapters/driven/vault-api";
+import type { AgentToolPermissions } from "../domain/entities/agent";
 import { noteTitle } from "../domain/note-display";
 import i18n from "../i18n";
 import { findLeaf, useLayoutStore } from "../stores/layoutStore";

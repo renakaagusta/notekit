@@ -5,11 +5,11 @@ import {
 } from "../adapters/driven/vault-api";
 import type { VaultRef, VaultStatus } from "../adapters/driven/vault-api";
 import { startVaultEventStream } from "../adapters/driven/vault-events-client";
-import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import {
   start as startSync,
   pull as pullSync,
-} from "../lib/sync";
+} from "../composition/vault-sync";
+import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import { bindVaultPersistence } from "../lib/vault-persistence";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useSyncStore } from "../stores/syncStore";

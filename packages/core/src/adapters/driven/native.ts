@@ -36,4 +36,4 @@ export function getNativePlatform(): NativePlatform {
  * {@link PlatformPort} conformance for this driven adapter. The composition
  * root injects this const wherever platform detection is needed.
  */
-export const platformPort: PlatformPort = { getNativePlatform };
+export const platformPort: PlatformPort = { getNativePlatform, isNativePlatform };

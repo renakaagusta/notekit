@@ -20,6 +20,7 @@
  */
 import { createNoteKitClient, type NoteKitApi, type NoteKitClient } from "@notekit/api-client";
 import type { ApiFetchPort } from "../../application/ports/out/ApiFetchPort";
+import type { AuthApiPort } from "../../application/ports/out/AuthApiPort";
 
 function resolveApiUrl(): string {
   // Direct static access — Vite's define-plugin only substitutes the literal
@@ -228,3 +229,16 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
  * root injects, and the `satisfies` check keeps the two from drifting.
  */
 export const apiFetchPort: ApiFetchPort = apiFetch;
+
+/**
+ * {@link AuthApiPort} conformance for this driven adapter — the auth transport
+ * surface (REST client + desktop keychain sign-in) the composition root injects.
+ */
+export const authApiPort: AuthApiPort = {
+  apiUrl,
+  isDesktop,
+  apiFetch,
+  ensureDesktopAuthLoaded,
+  clearDesktopToken,
+  startDesktopSignIn,
+};

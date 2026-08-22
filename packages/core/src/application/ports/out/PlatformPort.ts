@@ -7,4 +7,6 @@ import type { NativePlatform } from "../../../domain/platform";
  */
 export interface PlatformPort {
   getNativePlatform(): NativePlatform;
+  /** True when running inside a Capacitor native shell (iOS / Android). */
+  isNativePlatform(): boolean;
 }

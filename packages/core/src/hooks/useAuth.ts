@@ -1,17 +1,32 @@
 import { useEffect, useState } from "react";
-import {
-  apiUrl,
-  apiFetch,
-  clearDesktopToken,
-  ensureDesktopAuthLoaded,
-  isDesktop,
-  startDesktopSignIn,
-} from "../adapters/driven/api";
-import { startNativeAppleSignIn } from "../adapters/driven/apple-signin";
-import { getNativePlatform, isNativePlatform } from "../adapters/driven/native";
-import { startNativeOAuth, initNativeAuthDeepLink } from "../adapters/driven/native-oauth";
+import type { AppleSignInPort } from "../application/ports/out/AppleSignInPort";
+import type { AuthApiPort } from "../application/ports/out/AuthApiPort";
+import type { NativeOAuthPort } from "../application/ports/out/NativeOAuthPort";
+import type { PlatformPort } from "../application/ports/out/PlatformPort";
 import type { User } from "../domain/entities/user";
 import { useAuthStore } from "../stores/authStore";
+
+let authApi!: AuthApiPort;
+let appleSignIn!: AppleSignInPort;
+let nativeOAuth!: NativeOAuthPort;
+let platform!: PlatformPort;
+
+/**
+ * Bind the auth driven adapters this hook drives. Called once by the composition
+ * root before the hook is used, so behavior matches the old direct imports while
+ * keeping the driving-layer hook free of any adapters/driven dependency.
+ */
+export function configureUseAuth(ports: {
+  authApi: AuthApiPort;
+  appleSignIn: AppleSignInPort;
+  nativeOAuth: NativeOAuthPort;
+  platform: PlatformPort;
+}): void {
+  authApi = ports.authApi;
+  appleSignIn = ports.appleSignIn;
+  nativeOAuth = ports.nativeOAuth;
+  platform = ports.platform;
+}
 
 interface MeResponse {
   user: (Omit<User, "createdAt"> & { createdAt?: string }) | null;
@@ -39,7 +54,7 @@ export function useAuth() {
   // reopens the app (notekit://auth-callback?token=…) gets captured. No-op
   // off native.
   useEffect(() => {
-    initNativeAuthDeepLink();
+    nativeOAuth.initNativeAuthDeepLink();
   }, []);
 
   useEffect(() => {
@@ -50,10 +65,10 @@ export function useAuth() {
         // before the first authenticated request fires. On web this is a
         // no-op (ensureDesktopAuthLoaded short-circuits when isDesktop is
         // false) so there's no extra latency.
-        await ensureDesktopAuthLoaded();
+        await authApi.ensureDesktopAuthLoaded();
         const [{ user: me }, providerInfo] = await Promise.all([
-          apiFetch<MeResponse>("/auth/me"),
-          apiFetch<ProvidersResponse>("/auth/providers"),
+          authApi.apiFetch<MeResponse>("/auth/me"),
+          authApi.apiFetch<ProvidersResponse>("/auth/providers"),
         ]);
         if (cancelled) return;
         if (me) {
@@ -96,9 +111,9 @@ export function useAuth() {
     // user gets the native Face ID / Touch ID sheet. The plugin hands us
     // back an identity token which the server verifies the same way it
     // verifies one from the form_post web callback.
-    if (provider === "apple" && getNativePlatform() === "ios") {
+    if (provider === "apple" && platform.getNativePlatform() === "ios") {
       try {
-        await startNativeAppleSignIn();
+        await appleSignIn.startNativeAppleSignIn();
         window.location.reload();
       } catch (_err) {
         /* intentional noop — native sign-in failure is silent; user stays on sign-in screen */
@@ -112,22 +127,22 @@ export function useAuth() {
     // (initNativeAuthDeepLink) captures the returned token and reloads.
     if (
       (provider === "github" || provider === "google") &&
-      isNativePlatform()
+      platform.isNativePlatform()
     ) {
       try {
-        await startNativeOAuth(provider);
+        await nativeOAuth.startNativeOAuth(provider);
       } catch (_err) {
         /* intentional noop — native OAuth failure is silent; user stays on sign-in screen */
       }
       return;
     }
 
-    if (isDesktop) {
+    if (authApi.isDesktop) {
       if (provider === "apple") {
         // Desktop has no Apple-loopback flow yet — fall through to the
         // web redirect so the user at least gets *some* path. Returning
         // here so the desktop bearer-token flow above doesn't try.
-        window.location.href = `${apiUrl}/auth/apple`;
+        window.location.href = `${authApi.apiUrl}/auth/apple`;
         return;
       }
       // Loopback PAT flow: opens the user's external browser, waits for
@@ -135,24 +150,24 @@ export function useAuth() {
       // process reloads this window so the next mount of useAuth picks up
       // the bearer token via ensureDesktopAuthLoaded().
       try {
-        await startDesktopSignIn(provider);
+        await authApi.startDesktopSignIn(provider);
       } catch (_err) {
         /* intentional noop — desktop sign-in failure is silent; user stays on sign-in screen */
       }
       return;
     }
-    window.location.href = `${apiUrl}/auth/${provider}`;
+    window.location.href = `${authApi.apiUrl}/auth/${provider}`;
   }
 
   async function doSignOut() {
     try {
-      await apiFetch("/auth/signout", { method: "POST" });
+      await authApi.apiFetch("/auth/signout", { method: "POST" });
     } catch (_err) {
       // Don't block the local sign-out on a remote failure — if the network
       // is gone we still want the UI to drop the session.
     } finally {
-      if (isDesktop) {
-        await clearDesktopToken();
+      if (authApi.isDesktop) {
+        await authApi.clearDesktopToken();
       }
       signOut();
       setStatus("anonymous");

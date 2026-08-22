@@ -18,6 +18,7 @@
  * `import("@capacitor/...")` — that dynamic import hangs forever under the
  * `capacitor://localhost` scheme on iOS 16 (same trap as apple-signin.ts).
  */
+import type { NativeOAuthPort } from "../../application/ports/out/NativeOAuthPort";
 import { apiUrl } from "./api";
 import { logger } from './logger'
 import { isNativePlatform } from "./native";
@@ -105,3 +106,11 @@ export function initNativeAuthDeepLink(): void {
     }
   });
 }
+
+/**
+ * {@link NativeOAuthPort} conformance for this driven adapter.
+ */
+export const nativeOAuthPort: NativeOAuthPort = {
+  startNativeOAuth,
+  initNativeAuthDeepLink,
+};

@@ -1,4 +1,4 @@
-import { apiFetch, apiUrl } from "./api";
+import { apiFetch, apiUrl } from "../../lib/api";
 
 export interface VaultRepo {
   id: number;

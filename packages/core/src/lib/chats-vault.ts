@@ -9,6 +9,7 @@
  * Reuses the shared vault seam from secrets-vault: `getVaultBackend()` for file
  * I/O and `encryptVaultContent`/`decryptVaultContent` for envelope-aware E2EE.
  */
+import * as cache from "../adapters/driven/vault-cache";
 import type { ChatMessage } from "../stores/aiChatStore";
 import type { DeviceIdentity } from "./crypto/device-key";
 import {
@@ -17,7 +18,6 @@ import {
   encryptVaultContentMany,
   decryptVaultContent,
 } from "./secrets-vault";
-import * as cache from "./vault-cache";
 import { currentVaultScope } from "./vault-persistence";
 
 export interface ChatSession {

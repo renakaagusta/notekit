@@ -1,5 +1,10 @@
 import "../i18n"; // initialize i18next before any component renders
 import { useEffect, useRef, useState } from "react";
+import { getVaultSettings, listVaults } from "../adapters/driven/vault-api";
+import {
+  startVaultEventStream,
+  stopVaultEventStream,
+} from "../adapters/driven/vault-events-client";
 import type { User } from "../domain/entities/user";
 import { noteTitle } from "../domain/note-display";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
@@ -12,11 +17,6 @@ import { publishMyKeys } from "../lib/directory";
 import { applyEditorPrefs } from "../lib/editor-prefs";
 import type { SearchHit } from "../lib/search";
 import { refresh as refreshSync, start as startSync } from "../lib/sync";
-import { getVaultSettings, listVaults } from "../lib/vault-api";
-import {
-  startVaultEventStream,
-  stopVaultEventStream,
-} from "../lib/vault-events-client";
 import { bindVaultPersistence } from "../lib/vault-persistence";
 import { useAIChatStore } from "../stores/aiChatStore";
 import { useCryptoStore } from "../stores/cryptoStore";

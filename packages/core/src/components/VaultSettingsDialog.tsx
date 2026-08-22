@@ -1,13 +1,13 @@
 import { ChevronRight, X } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import * as vaultApi from "../lib/vault-api";
+import * as vaultApi from "../adapters/driven/vault-api";
 import type {
   VaultRef,
   VaultSettings,
   VaultMember,
   VaultInvitation,
   CollaboratorPermission,
-} from "../lib/vault-api";
+} from "../adapters/driven/vault-api";
 import { SkeletonLines, SkeletonCommitList } from "./Skeleton";
 
 interface VaultSettingsDialogProps {

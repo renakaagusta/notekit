@@ -1,5 +1,5 @@
 import { ArrowLeft, Menu, PanelLeft, Search } from "lucide-react";
-import type { VaultSettings } from "../lib/vault-api";
+import type { VaultSettings } from "../adapters/driven/vault-api";
 import { useLayoutStore } from "../stores/layoutStore";
 import { useNotesStore } from "../stores/notesStore";
 import type { MainView } from "./AppTypes";

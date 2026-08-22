@@ -7,6 +7,8 @@
  * import from "@notekit/core/secrets" as usual.
  */
 import type { NoteKitApi } from "@notekit/api-client";
+import * as defaultVaultApi from "../adapters/driven/vault-api";
+import * as fileCache from "../adapters/driven/vault-cache";
 import type { DeviceIdentity } from "./crypto/device-key";
 import {
   type VaultKey,
@@ -29,8 +31,6 @@ import {
   encryptSecrets,
   decryptSecrets,
 } from "./crypto/vault-crypto";
-import * as defaultVaultApi from "./vault-api";
-import * as fileCache from "./vault-cache";
 import { currentVaultScope } from "./vault-persistence";
 
 export interface SecretsBackend {

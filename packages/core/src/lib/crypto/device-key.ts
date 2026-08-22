@@ -7,7 +7,19 @@
  */
 import { generateIdentity, identityToRecipient } from "age-encryption";
 import { nanoid } from "nanoid";
-import { getNativePlatform, type NativePlatform } from "../../adapters/driven/native";
+import type { PlatformPort } from "../../application/ports/out/PlatformPort";
+import type { NativePlatform } from "../../domain/platform";
+
+let platform: PlatformPort | null = null;
+
+/**
+ * Bind the platform detector used to name a newly-created device. Called once by
+ * the composition root before any identity is created; keeps this crypto module
+ * free of a direct driven-adapter dependency.
+ */
+export function configureDeviceKey(port: PlatformPort): void {
+  platform = port;
+}
 
 const DB_NAME = "notekit-crypto";
 // v2 added the "recovery" store (see recovery-store.ts). Both files open the
@@ -109,8 +121,9 @@ export async function clearDeviceIdentity(): Promise<void> {
  */
 function defaultDeviceName(): string {
   if (typeof navigator === "undefined") return "Device";
+  if (!platform) throw new Error("device-key used before configureDeviceKey");
   return deviceLabel(navigator.userAgent, {
-    native: getNativePlatform(),
+    native: platform.getNativePlatform(),
     electron: isElectronWrapper(),
   });
 }

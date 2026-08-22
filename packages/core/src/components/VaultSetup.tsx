@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { createDeviceIdentity, loadDeviceIdentity } from "../lib/crypto/device-key";
+import { createDeviceIdentity, loadDeviceIdentity } from "../composition/device-key";
 import {
   recoveryFromMnemonic,
   recoverySigningFromMnemonic,

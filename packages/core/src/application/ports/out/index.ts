@@ -15,3 +15,6 @@ export type {
   VaultFileEntry,
   VaultCommit,
 } from "./VaultPort";
+export type { LoggerPort } from "./LoggerPort";
+export type { StoragePort, CachedFile } from "./StoragePort";
+export type { NotifierPort, StartVaultEventStreamOptions } from "./NotifierPort";

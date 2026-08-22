@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { shiftYMD, todayYMD } from "../lib/journal";
+import { shiftYMD, todayYMD } from "../domain/journal";
 import { useLayoutStore } from "../stores/layoutStore";
 import { useVaultStore } from "../stores/vaultStore";
 import type { MainView } from "./AppTypes";

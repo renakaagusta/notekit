@@ -17,7 +17,7 @@ import {
   type GraphEdge,
   type GraphNode,
   type NodeKind,
-} from "../lib/graph-data";
+} from "../domain/graph-data";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useMembersStore } from "../stores/membersStore";
 import { useNotesStore } from "../stores/notesStore";

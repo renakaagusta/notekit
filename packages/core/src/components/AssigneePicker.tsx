@@ -5,7 +5,7 @@ import {
   MEMBERS_PATH,
   assigneeStringOf,
   resolveAssignee,
-} from "../lib/members";
+} from "../domain/members";
 import { useMembersStore } from "../stores/membersStore";
 import { SkeletonCommitList } from "./Skeleton";
 

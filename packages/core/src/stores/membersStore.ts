@@ -6,7 +6,7 @@ import {
   MEMBERS_PATH,
   flattenMembers,
   parseMembersFile,
-} from "../lib/members";
+} from "../domain/members";
 
 type LoadStatus = "idle" | "loading" | "ready" | "missing" | "error";
 

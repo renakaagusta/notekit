@@ -4,7 +4,7 @@ import {
   appendSubtask,
   parseSubtasks,
   toggleSubtaskAt,
-} from "../lib/subtasks";
+} from "../domain/subtasks";
 
 interface SubtaskListProps {
   body: string;

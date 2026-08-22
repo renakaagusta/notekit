@@ -9,7 +9,7 @@ import {
   journalDefaultBody,
   journalPathFor,
   journalYMDFromPath,
-} from "../lib/journal";
+} from "../domain/journal";
 import { useCryptoStore } from "./cryptoStore";
 
 interface JournalDraft {

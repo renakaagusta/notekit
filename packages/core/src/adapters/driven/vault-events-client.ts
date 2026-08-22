@@ -17,7 +17,7 @@
  *               propagate cookies.
  */
 import type { NotifierPort } from "../../application/ports/out/NotifierPort";
-import { refresh as refreshSync } from "../../lib/sync";
+import { refresh as refreshSync } from "../../composition/vault-sync";
 import { apiUrl } from "./api";
 import { logger } from './logger'
 

@@ -6,6 +6,7 @@ import {
   startVaultEventStream,
   stopVaultEventStream,
 } from "../adapters/driven/vault-events-client";
+import { refresh as refreshSync, start as startSync } from "../composition/vault-sync";
 import type { User } from "../domain/entities/user";
 import { noteTitle } from "../domain/note-display";
 import { MOBILE_BREAKPOINT, useMediaQuery } from "../hooks/useMediaQuery";
@@ -16,7 +17,6 @@ import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import { publishMyKeys } from "../lib/directory";
 import { applyEditorPrefs } from "../lib/editor-prefs";
 import type { SearchHit } from "../lib/search";
-import { refresh as refreshSync, start as startSync } from "../lib/sync";
 import { bindVaultPersistence } from "../lib/vault-persistence";
 import { useAIChatStore } from "../stores/aiChatStore";
 import { useCryptoStore } from "../stores/cryptoStore";

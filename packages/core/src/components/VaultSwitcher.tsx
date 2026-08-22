@@ -6,7 +6,7 @@ import {
   startVaultEventStream,
   stopVaultEventStream,
 } from "../adapters/driven/vault-events-client";
-import { reset as resetSync, start as startSync } from "../lib/sync";
+import { reset as resetSync, start as startSync } from "../composition/vault-sync";
 import {
   bindVaultPersistence,
   unbindVaultPersistence,

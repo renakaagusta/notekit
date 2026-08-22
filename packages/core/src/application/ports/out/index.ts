@@ -1,0 +1,11 @@
+/**
+ * Outbound ports: the capabilities the application layer needs from the outside
+ * world. Each is a pure interface; concrete driven adapters implement them and
+ * are bound in the composition root.
+ *
+ * More ports (Vault, Sync, Crypto, Storage, Notifier, Logger, Gravatar) land as
+ * their consuming use cases are extracted — see docs hexagonal migration plan.
+ */
+export type { ClockPort } from "./ClockPort";
+export type { IdGeneratorPort } from "./IdGeneratorPort";
+export type { RandomPort } from "./RandomPort";

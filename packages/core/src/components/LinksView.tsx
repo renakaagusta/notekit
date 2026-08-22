@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { SavedLink } from "../domain/entities/link";
-import { detectPlatform, platformLabel } from "../lib/link-platform";
+import { detectPlatform, platformLabel } from "../domain/link-platform";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useLayoutStore, tabKey, findLeaf } from "../stores/layoutStore";
 import { useLinksStore } from "../stores/linksStore";

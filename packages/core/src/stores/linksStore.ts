@@ -4,9 +4,9 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 import { resolveUpsertedLink } from "../application/usecases/upsertLink";
 import type { SavedLink } from "../domain/entities/link";
+import { detectLinkKind } from "../domain/link-kind";
+import { detectPlatform } from "../domain/link-platform";
 import { linkPathFor, sanitizeFolderPath } from "../lib/file-paths";
-import { detectLinkKind } from "../lib/link-kind";
-import { detectPlatform } from "../lib/link-platform";
 import { useCryptoStore } from "./cryptoStore";
 
 interface LinksState {

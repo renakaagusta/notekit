@@ -1,8 +1,8 @@
 import { ExternalLink, Image as ImageIcon, Link2, Lock, MoveRight, Share2, Trash2, Unlock, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { SavedLink } from "../domain/entities/link";
+import { platformLabel } from "../domain/link-platform";
 import { useE2eeOnboardingStore } from "../lib/e2ee-onboarding";
-import { platformLabel } from "../lib/link-platform";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useLinksStore } from "../stores/linksStore";
 import { useShareStore } from "../stores/shareStore";

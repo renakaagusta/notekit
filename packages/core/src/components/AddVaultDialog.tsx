@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import * as vaultApi from "../adapters/driven/vault-api";
-import type { VaultRef, VaultRepo } from "../adapters/driven/vault-api";
+import type { VaultRef, VaultRepo } from "../domain/entities/vault";
 import { GithubIcon, GitlabIcon, NotekitIcon } from "./BrandIcons";
 import { SkeletonRepoList } from "./Skeleton";
 

@@ -3,12 +3,12 @@ import {
   getStatus as getVaultStatus,
   listVaults,
 } from "../adapters/driven/vault-api";
-import type { VaultRef, VaultStatus } from "../adapters/driven/vault-api";
 import { startVaultEventStream } from "../adapters/driven/vault-events-client";
 import {
   start as startSync,
   pull as pullSync,
 } from "../composition/vault-sync";
+import type { VaultRef, VaultStatus } from "../domain/entities/vault";
 import { bootstrapCrypto } from "../lib/crypto-bootstrap";
 import { bindVaultPersistence } from "../lib/vault-persistence";
 import { useCryptoStore } from "../stores/cryptoStore";

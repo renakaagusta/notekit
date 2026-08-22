@@ -1,4 +1,4 @@
-import type { VaultRef } from "../adapters/driven/vault-api";
+import type { VaultRef } from "../domain/entities/vault";
 
 export function readLastVault(): VaultRef | null {
   try {

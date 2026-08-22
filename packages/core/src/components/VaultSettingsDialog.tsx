@@ -7,7 +7,7 @@ import type {
   VaultMember,
   VaultInvitation,
   CollaboratorPermission,
-} from "../adapters/driven/vault-api";
+} from "../domain/entities/vault";
 import { SkeletonLines, SkeletonCommitList } from "./Skeleton";
 
 interface VaultSettingsDialogProps {

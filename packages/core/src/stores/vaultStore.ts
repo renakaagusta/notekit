@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import type { VaultRef, VaultSettings } from "../adapters/driven/vault-api";
+import type { VaultRef, VaultSettings } from "../domain/entities/vault";
 
 export type VaultPhase =
   | "unknown"

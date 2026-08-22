@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import * as vaultApi from "../adapters/driven/vault-api";
-import type { VaultRepo } from "../adapters/driven/vault-api";
+import type { VaultRepo } from "../domain/entities/vault";
 import { useVaultStore } from "../stores/vaultStore";
 import { SkeletonRepoList } from "./Skeleton";
 

@@ -1,3 +1,4 @@
+import type { MediaCachePort } from "../../application/ports/out/MediaCachePort";
 import {
   MediaCache,
   MemoryMediaStore,
@@ -105,3 +106,12 @@ export function getMediaCache(): MediaCache {
   singleton = new MediaCache({ store });
   return singleton;
 }
+
+/**
+ * {@link MediaCachePort} conformance for this driven adapter. Resolves the
+ * lazy singleton per call so the cache is still created on first use (never at
+ * import), matching the previous direct-call behavior exactly.
+ */
+export const mediaCachePort: MediaCachePort = {
+  getBlob: (url) => getMediaCache().getBlob(url),
+};

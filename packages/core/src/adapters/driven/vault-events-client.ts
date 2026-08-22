@@ -16,6 +16,7 @@
  *               CLI / MCP / desktop-PAT shells whose transport doesn't
  *               propagate cookies.
  */
+import type { NotifierPort } from "../../application/ports/out/NotifierPort";
 import { refresh as refreshSync } from "../../lib/sync";
 import { apiUrl } from "./api";
 import { logger } from './logger'
@@ -136,3 +137,14 @@ function scheduleReconnect(): void {
     void open();
   }, delay);
 }
+
+/**
+ * Conformance: this events module IS the concrete {@link NotifierPort} — the
+ * vault event stream capability the application depends on. Compile-time
+ * `satisfies` guarantees the adapter never drifts from the port contract.
+ * Composition roots will inject this where a `NotifierPort` is required.
+ */
+export const vaultEventsNotifierPort = {
+  start: startVaultEventStream,
+  stop: stopVaultEventStream,
+} satisfies NotifierPort;

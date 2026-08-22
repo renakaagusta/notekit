@@ -22,6 +22,8 @@
  * two vaults/accounts on the same device never see each other's blobs.
  */
 
+import type { StoragePort } from "../../application/ports/out/StoragePort";
+
 const DB_NAME = "notekit-vault-cache";
 const STORE = "files";
 const VERSION = 1;
@@ -155,3 +157,17 @@ export async function pruneScope(scope: string, keep: Set<string>): Promise<void
     /* ignore */
   }
 }
+
+/**
+ * Conformance: this storage module IS the concrete {@link StoragePort} — the
+ * ciphertext caching capability the application depends on. Compile-time
+ * `satisfies` guarantees the adapter never drifts from the port contract.
+ * Composition roots will inject this where a `StoragePort` is required.
+ */
+export const vaultCacheStoragePort = {
+  getScopeFiles,
+  getFile,
+  putFile,
+  removeFile,
+  pruneScope,
+} satisfies StoragePort;

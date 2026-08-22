@@ -1,3 +1,5 @@
+import type { LoggerPort } from "../../application/ports/out/LoggerPort";
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'silent'
 
 const LEVELS: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3, silent: 4 }
@@ -34,3 +36,15 @@ export const logger = {
     if (LEVELS[_level] <= LEVELS.error) console.error('[error]', ...args)
   },
 }
+
+/**
+ * Conformance: this logger object IS the concrete {@link LoggerPort} — the
+ * logging capability the application depends on. Compile-time `satisfies`
+ * guarantees the adapter never drifts from the port contract.
+ */
+export const loggerPort = {
+  debug: logger.debug.bind(logger),
+  info: logger.info.bind(logger),
+  warn: logger.warn.bind(logger),
+  error: logger.error.bind(logger),
+} satisfies LoggerPort;

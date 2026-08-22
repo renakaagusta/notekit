@@ -21,7 +21,7 @@
  * localStorage.
  */
 import { createJSONStorage } from "zustand/middleware";
-import type { VaultRef } from "../adapters/driven/vault-api";
+import type { VaultRef } from "../domain/entities/vault";
 import { useLinksStore } from "../stores/linksStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useTicketsStore } from "../stores/ticketsStore";

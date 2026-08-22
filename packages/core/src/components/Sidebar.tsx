@@ -22,9 +22,9 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import type { VaultSettings } from "../adapters/driven/vault-api";
 import * as vaultApi from "../adapters/driven/vault-api";
 import type { User } from "../domain/entities/user";
+import type { VaultSettings } from "../domain/entities/vault";
 import { LOCALES, setLocale } from "../i18n";
 import { useNotesStore } from "../stores/notesStore";
 import { useVaultStore } from "../stores/vaultStore";

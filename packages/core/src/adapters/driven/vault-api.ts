@@ -1,41 +1,33 @@
 import type { VaultPort } from "../../application/ports/out/VaultPort";
+import type {
+  VaultRef,
+  VaultStatus,
+  VaultListResponse,
+  VaultRepo,
+  VaultProvider,
+  VaultSettings,
+  VaultImportResult,
+  VaultMember,
+  VaultInvitation,
+  CollaboratorPermission,
+  PairAnnouncement,
+} from "../../domain/entities/vault";
 import { apiFetch, apiUrl } from "./api";
 
-export interface VaultRepo {
-  id: number;
-  name: string;
-  fullName: string;
-  owner: string;
-  private: boolean;
-  defaultBranch: string;
-  description: string | null;
-  updatedAt: string;
-}
-
-export type VaultProvider = "github" | "gitlab" | "notekit";
-
-export interface VaultRef {
-  /** Server-side id. Undefined on responses from older API revisions. */
-  id?: string;
-  provider?: VaultProvider;
-  owner: string;
-  repo: string;
-  branch: string;
-  /** Friendly name for the switcher. */
-  label?: string | null;
-}
-
-export interface VaultStatus {
-  configured: boolean;
-  hasGithubToken: boolean;
-  hasGitlabToken?: boolean;
-  vault: VaultRef | null;
-}
-
-export interface VaultListResponse {
-  activeId: string | null;
-  vaults: VaultRef[];
-}
+// Re-export domain types for backward compatibility
+export type {
+  VaultRef,
+  VaultStatus,
+  VaultListResponse,
+  VaultRepo,
+  VaultProvider,
+  VaultSettings,
+  VaultImportResult,
+  VaultMember,
+  VaultInvitation,
+  CollaboratorPermission,
+  PairAnnouncement,
+};
 
 export function getStatus(): Promise<VaultStatus> {
   return apiFetch<VaultStatus>("/vault/status");
@@ -225,12 +217,6 @@ export function deleteVault(vaultId: string): Promise<{
 
 // --- Per-vault settings ---
 
-export interface VaultSettings {
-  theme: "auto" | "light" | "dark";
-  defaultFolder: string | null;
-  defaultAgentSlug: string | null;
-}
-
 export function getVaultSettings(vaultId: string): Promise<{ settings: VaultSettings }> {
   return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}/settings`);
 }
@@ -246,12 +232,6 @@ export function patchVaultSettings(
 }
 
 // --- Cross-vault import ---
-
-export interface VaultImportResult {
-  imported: number;
-  skipped: number;
-  errors: { path: string; reason: string }[];
-}
 
 export function importFromVault(
   destVaultId: string,
@@ -337,24 +317,6 @@ export function listCommits(
 
 // --- Vault member management ---
 
-export type CollaboratorPermission = "pull" | "push" | "admin" | "maintain" | "triage";
-
-export interface VaultMember {
-  login: string;
-  avatarUrl: string | null;
-  htmlUrl: string;
-  permission: CollaboratorPermission;
-}
-
-export interface VaultInvitation {
-  id: number;
-  inviteeLogin: string;
-  inviteeAvatar: string | null;
-  permission: string;
-  createdAt: string;
-  htmlUrl: string;
-}
-
 export function listVaultMembers(vaultId: string): Promise<{
   members: VaultMember[];
   invitations: VaultInvitation[];
@@ -383,14 +345,6 @@ export function cancelVaultInvitation(vaultId: string, invitationId: number): Pr
   return apiFetch(`/vault/vaults/${encodeURIComponent(vaultId)}/invitations/${invitationId}`, {
     method: "DELETE",
   });
-}
-
-export interface PairAnnouncement {
-  code: string;
-  pubkey: string;
-  deviceName: string;
-  deviceId: string;
-  expiresAt: string;
 }
 
 export function announcePair(payload: {

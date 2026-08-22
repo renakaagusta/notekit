@@ -6,13 +6,15 @@ import {
   createAgent,
   updateAgent,
   deleteAgent,
+} from "../adapters/driven/agents-api";
+import {
   DEFAULT_AGENT_MODEL,
   DEFAULT_SYSTEM_PROMPT,
   agentKeySecretName,
   type AgentProfile,
   type AgentToolPermissions,
   type AgentProvider,
-} from "../adapters/driven/agents-api";
+} from "../domain/entities/agent";
 import { gravatarUrlFor } from "../domain/gravatar";
 import { listSecretNames, setSecret, removeSecret } from "../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";

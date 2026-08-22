@@ -17,8 +17,10 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useTranslation } from "react-i18next";
-import { DEFAULT_SYSTEM_PROMPT } from "../adapters/driven/agents-api";
-import type { AgentProfile } from "../adapters/driven/agents-api";
+import {
+  DEFAULT_SYSTEM_PROMPT,
+  type AgentProfile,
+} from "../domain/entities/agent";
 import type { Note } from "../domain/entities/note";
 import type { Ticket } from "../domain/entities/ticket";
 import { noteTitle } from "../domain/note-display";

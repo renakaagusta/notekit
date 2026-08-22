@@ -22,7 +22,7 @@ import {
   type ModelMessage,
   type ToolSet,
 } from "ai";
-import { DEFAULT_AGENT_MODEL, type AgentProvider } from "../adapters/driven/agents-api";
+import { DEFAULT_AGENT_MODEL, type AgentProvider } from "../domain/entities/agent";
 import type { DeviceIdentity } from "./crypto/device-key";
 import { getSecret } from "./secrets-vault";
 

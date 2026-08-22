@@ -5,10 +5,12 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import {
   listAgents,
+} from "../adapters/driven/agents-api";
+import {
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
   type AgentProfile,
-} from "../adapters/driven/agents-api";
+} from "../domain/entities/agent";
 import { streamAssistant } from "../lib/ai-agent";
 import type { DeviceIdentity } from "../lib/crypto/device-key";
 import { useAIChatStore } from "../stores/aiChatStore";

@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
-import { getMediaCache } from "../adapters/driven/media-cache-idb";
+import type { MediaCachePort } from "../application/ports/out/MediaCachePort";
+
+let mediaCache: MediaCachePort | null = null;
+
+/**
+ * Bind the media cache adapter this hook reads through. Called once by the
+ * composition root before the hook is used; keeps the driving-layer hook free
+ * of any direct dependency on a driven adapter.
+ */
+export function configureMediaSrc(port: MediaCachePort): void {
+  mediaCache = port;
+}
 
 /**
  * Resolve a remote media URL to a displayable `src` through the local
@@ -22,7 +33,8 @@ export function useMediaSrc(url: string | null | undefined): string | null {
     let objectUrl: string | null = null;
     let cancelled = false;
 
-    getMediaCache()
+    if (!mediaCache) throw new Error("useMediaSrc used before configureMediaSrc");
+    mediaCache
       .getBlob(url)
       .then((blob) => {
         if (cancelled || !blob) return;

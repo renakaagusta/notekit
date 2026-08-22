@@ -21,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { listAgents, type AgentProfile } from "../adapters/driven/agents-api";
 import * as vaultApi from "../adapters/driven/vault-api";
 import type { Note } from "../domain/entities/note";
 import type { User } from "../domain/entities/user";
@@ -36,7 +37,6 @@ import {
   setCustomAccent,
   type Accent,
 } from "../lib/accent";
-import { listAgents, type AgentProfile } from "../lib/agents-api";
 import {
   BASE_COLORS,
   BASE_LABELS,

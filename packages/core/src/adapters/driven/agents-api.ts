@@ -1,4 +1,4 @@
-import { apiFetch } from "../adapters/driven/api";
+import { apiFetch } from "./api";
 
 /** Read-only agents cannot run create/edit/delete tools from the assistant. */
 export type AgentToolPermissions = "read-only" | "read-write";

@@ -1,7 +1,7 @@
 import { Bot, CalendarDays, FileText, GitCommit, Ticket, X, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { listAgents, type AgentProfile } from "../adapters/driven/agents-api";
 import { listCommits, type VaultCommit } from "../adapters/driven/vault-api";
-import { listAgents, type AgentProfile } from "../lib/agents-api";
 import {
   searchAgents,
   searchCommits,

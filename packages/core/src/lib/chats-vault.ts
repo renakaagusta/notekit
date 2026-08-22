@@ -8,8 +8,13 @@
  *
  * Reuses the shared vault seam from secrets-vault: `getVaultBackend()` for file
  * I/O and `encryptVaultContent`/`decryptVaultContent` for envelope-aware E2EE.
+ *
+ * Outbound adapters (injected by a composition root via createChatsVault before
+ * use). The `!` asserts they are wired at boot — the module holds no reference
+ * to any driven adapter, so it stays in the application/orchestration layer,
+ * free of adapters/driven.
  */
-import * as cache from "../adapters/driven/vault-cache";
+import type { StoragePort } from "../application/ports/out";
 import type { ChatMessage } from "../stores/aiChatStore";
 import type { DeviceIdentity } from "./crypto/device-key";
 import {
@@ -19,6 +24,9 @@ import {
   decryptVaultContent,
 } from "./secrets-vault";
 import { currentVaultScope } from "./vault-persistence";
+
+// Outbound adapters, injected by a composition root.
+let cache!: StoragePort;
 
 export interface ChatSession {
   id: string;
@@ -203,6 +211,22 @@ export async function deleteChatSession(
     await backend.deleteFile(path, sha, message).catch(() => { /* intentional noop — missing file is harmless */ });
     shaCache.delete(path);
   }
+}
+
+/**
+ * Bind the chats vault's outbound adapters and return its public API.
+ * The direct exports remain a thin default facade for composition roots; tests
+ * and different environments can pass in-memory or platform-specific ports.
+ */
+export function createChatsVault(ports: { cache: StoragePort }) {
+  cache = ports.cache;
+  return {
+    listChatSessions,
+    readCachedChatSessions,
+    readChatSession,
+    writeChatSession,
+    deleteChatSession,
+  };
 }
 
 /** Derive a session title from its first user message. */

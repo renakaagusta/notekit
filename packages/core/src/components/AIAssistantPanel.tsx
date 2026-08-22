@@ -5,6 +5,13 @@ import {
   listAgents,
 } from "../adapters/driven/agents-api";
 import {
+  listChatSessions,
+  readCachedChatSessions,
+  readChatSession,
+  writeChatSession,
+  deleteChatSession,
+} from "../composition/chats-vault";
+import {
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
   type AgentProfile,
@@ -12,11 +19,6 @@ import {
 import { streamAssistant, type AssistantMessage } from "../lib/ai-agent";
 import { buildAssistantTools, describeToolCall } from "../lib/ai-tools";
 import {
-  listChatSessions,
-  readCachedChatSessions,
-  readChatSession,
-  writeChatSession,
-  deleteChatSession,
   deriveTitle,
   chatTimestamp,
   type ChatSession,

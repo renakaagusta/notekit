@@ -2,17 +2,12 @@ import { useEffect, useState } from "react";
 import { subscribeMobilePush } from "../adapters/driven/mobilePush";
 import { isNativePlatform } from "../adapters/driven/native";
 import {
-  createTelegramLinkCode,
-  getNotificationStatus,
-  unlinkTelegram,
-  updatePrefs,
-  type NotificationStatus,
-} from "../adapters/driven/notifications-api";
-import {
   isWebPushSubscribed,
   subscribeWebPush,
   unsubscribeWebPush,
 } from "../adapters/driven/webPush";
+import { notificationsService } from "../composition/notifications";
+import type { NotificationStatus } from "../domain/entities/notification";
 import { SkeletonLines } from "./Skeleton";
 
 /**
@@ -31,7 +26,7 @@ export function NotificationSettings() {
   async function refresh() {
     try {
       const [s, sub] = await Promise.all([
-        getNotificationStatus(),
+        notificationsService.getNotificationStatus(),
         isWebPushSubscribed(),
       ]);
       setStatus(s);
@@ -50,7 +45,7 @@ export function NotificationSettings() {
     setBusy("telegram");
     setError(null);
     try {
-      const { url } = await createTelegramLinkCode();
+      const { url } = await notificationsService.createTelegramLinkCode();
       setLinkLink(url);
       // Mobile webview can't open t.me reliably with window.open; show the
       // link and let the user copy it. Desktop opens directly.
@@ -65,7 +60,7 @@ export function NotificationSettings() {
   async function handleUnlinkTelegram() {
     setBusy("telegram");
     try {
-      await unlinkTelegram();
+      await notificationsService.unlinkTelegram();
       setLinkLink(null);
       await refresh();
     } catch (err) {
@@ -78,7 +73,7 @@ export function NotificationSettings() {
   async function handleToggleTelegramSend(next: boolean) {
     setBusy("telegram");
     try {
-      await updatePrefs({ telegramEnabled: next });
+      await notificationsService.updatePrefs({ telegramEnabled: next });
       await refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -104,7 +99,7 @@ export function NotificationSettings() {
     setBusy("web");
     try {
       await unsubscribeWebPush();
-      await updatePrefs({ webPushEnabled: false });
+      await notificationsService.updatePrefs({ webPushEnabled: false });
       await refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -129,7 +124,7 @@ export function NotificationSettings() {
   async function handleDisableMobilePush() {
     setBusy("mobile");
     try {
-      await updatePrefs({ mobilePushEnabled: false });
+      await notificationsService.updatePrefs({ mobilePushEnabled: false });
       await refresh();
     } catch (err) {
       setError((err as Error).message);

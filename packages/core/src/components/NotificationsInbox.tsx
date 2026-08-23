@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
-import {
-  listNotifications,
-  markAllRead,
-  markRead,
-  type NotificationItem,
-} from "../adapters/driven/notifications-api";
+import { notificationsService } from "../composition/notifications";
+import type { NotificationItem } from "../domain/entities/notification";
 import { SkeletonCommitList } from "./Skeleton";
 
 /**
@@ -24,7 +20,10 @@ export function NotificationsInbox() {
     setLoading(true);
     setError(null);
     try {
-      const res = await listNotifications(50, cursor ?? undefined);
+      const res = await notificationsService.listNotifications(
+        50,
+        cursor ?? undefined,
+      );
       setItems((prev) => [...prev, ...res.notifications]);
       setCursor(res.nextCursor);
       if (!res.nextCursor) setDone(true);
@@ -43,7 +42,7 @@ export function NotificationsInbox() {
 
   async function handleMarkRead(id: string) {
     try {
-      await markRead(id);
+      await notificationsService.markRead(id);
       setItems((prev) =>
         prev.map((it) =>
           it.id === id ? { ...it, readAt: new Date().toISOString() } : it,
@@ -56,7 +55,7 @@ export function NotificationsInbox() {
 
   async function handleMarkAllRead() {
     try {
-      await markAllRead();
+      await notificationsService.markAllRead();
       const now = new Date().toISOString();
       setItems((prev) => prev.map((it) => ({ ...it, readAt: it.readAt ?? now })));
     } catch (err) {

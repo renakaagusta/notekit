@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { listCommits, type VaultCommit } from "../adapters/driven/vault-api";
+import type { VaultCommit } from "../application/ports/out";
+import { getVaultCommits } from "../composition/vault-commits";
 import { Skeleton } from "./Skeleton";
 
 const COMMITS_LIMIT = 500;
@@ -32,7 +33,7 @@ export function Heatmap({ onSelectDay, selectedYmd }: HeatmapProps) {
     let cancelled = false;
     (async () => {
       try {
-        const res = await listCommits(undefined, COMMITS_LIMIT);
+        const res = await getVaultCommits(undefined, COMMITS_LIMIT);
         if (!cancelled) setCommits(res.commits);
       } catch (e) {
         if (!cancelled) setError((e as Error).message);

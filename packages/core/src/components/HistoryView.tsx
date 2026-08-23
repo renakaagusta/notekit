@@ -1,6 +1,7 @@
 import { RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { listCommits, type VaultCommit } from "../adapters/driven/vault-api";
+import type { VaultCommit } from "../application/ports/out";
+import { getVaultCommits } from "../composition/vault-commits";
 import { useNotesStore } from "../stores/notesStore";
 import { SkeletonCommitList } from "./Skeleton";
 
@@ -59,7 +60,7 @@ export function HistoryView({ notePath, compact = false, onRestore }: HistoryVie
     setRestoreError(null);
     (async () => {
       try {
-        const res = await listCommits(scopePath, 50);
+        const res = await getVaultCommits(scopePath, 50);
         if (!cancelled) setCommits(res.commits);
       } catch (e) {
         if (!cancelled) setError((e as Error).message);

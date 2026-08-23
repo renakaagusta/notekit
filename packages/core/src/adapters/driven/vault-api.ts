@@ -1,3 +1,4 @@
+import type { VaultManagementPort } from "../../application/ports/out/VaultManagementPort";
 import type { VaultPort } from "../../application/ports/out/VaultPort";
 import type {
   VaultRef,
@@ -389,3 +390,33 @@ export const vaultStoragePort = {
   listFiles,
   listCommits,
 } satisfies VaultPort;
+
+/**
+ * Conformance: the vault-management REST functions bound as the concrete
+ * {@link VaultManagementPort}. The `: VaultManagementPort` annotation catches any
+ * drift between this transport and the outbound port contract. Composition roots
+ * inject this where a `VaultManagementPort` is required.
+ */
+export const vaultManagementPort: VaultManagementPort = {
+  listVaults,
+  addVault,
+  selectVault,
+  selectVaultById,
+  patchVault,
+  deleteVault,
+  getVaultSettings,
+  patchVaultSettings,
+  listVaultMembers,
+  addVaultMember,
+  removeVaultMember,
+  cancelVaultInvitation,
+  createRepo,
+  listGitlabRepos,
+  connectGitlab,
+  createGitlabRepo,
+  listNotekitRepos,
+  createNotekitRepo,
+  githubAppRepos,
+  githubAppCreate,
+  githubAppInstallUrl,
+};

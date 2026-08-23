@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as vaultApi from "../adapters/driven/vault-api";
+import { vaultManagement } from "../composition/vault-management";
 import type { VaultRepo } from "../domain/entities/vault";
 import { useVaultStore } from "../stores/vaultStore";
 import { SkeletonRepoList } from "./Skeleton";
@@ -40,7 +41,7 @@ export function VaultPicker({ onPicked }: VaultPickerProps) {
   async function pick(repo: VaultRepo) {
     setBusy(true);
     try {
-      const res = await vaultApi.selectVault(
+      const res = await vaultManagement.selectVault(
         repo.owner,
         repo.name,
         repo.defaultBranch,
@@ -58,8 +59,8 @@ export function VaultPicker({ onPicked }: VaultPickerProps) {
     setBusy(true);
     setLoadErr(null);
     try {
-      const created = await vaultApi.createRepo(newName, newPrivate);
-      const res = await vaultApi.selectVault(
+      const created = await vaultManagement.createRepo(newName, newPrivate);
+      const res = await vaultManagement.selectVault(
         created.repo.owner,
         created.repo.name,
         created.repo.defaultBranch,

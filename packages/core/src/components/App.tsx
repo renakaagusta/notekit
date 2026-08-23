@@ -2,13 +2,13 @@ import "../i18n"; // initialize i18next before any component renders
 import "../composition/secrets-browser"; // wire the secrets vault to browser adapters before any secret op
 import { useEffect, useRef, useState } from "react";
 import { isDesktop } from "../adapters/driven/api";
-import { getVaultSettings, listVaults } from "../adapters/driven/vault-api";
 import {
   startVaultEventStream,
   stopVaultEventStream,
 } from "../adapters/driven/vault-events-client";
 import { bootstrapCrypto } from "../composition/crypto-bootstrap";
 import { publishMyKeys } from "../composition/directory";
+import { vaultManagement } from "../composition/vault-management";
 import { refresh as refreshSync, start as startSync } from "../composition/vault-sync";
 import type { User } from "../domain/entities/user";
 import { noteTitle } from "../domain/note-display";
@@ -314,7 +314,8 @@ export function App({ user, onSignOut }: AppProps = {}) {
       return;
     }
     let cancelled = false;
-    getVaultSettings(activeVaultId)
+    vaultManagement
+      .getVaultSettings(activeVaultId)
       .then((res) => {
         if (!cancelled) setActiveSettings(res.settings);
       })
@@ -430,7 +431,8 @@ export function App({ user, onSignOut }: AppProps = {}) {
 
   async function onVaultPicked() {
     setVaultPhase("ready");
-    listVaults()
+    vaultManagement
+      .listVaults()
       .then((res) => setVaults(res.vaults, res.activeId))
       .catch(() => { /* non-fatal */ });
     const pickedVault = useVaultStore.getState().vault;

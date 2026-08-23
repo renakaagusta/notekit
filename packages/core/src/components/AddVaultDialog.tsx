@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import * as vaultApi from "../adapters/driven/vault-api";
+import { vaultManagement } from "../composition/vault-management";
 import type { VaultRef, VaultRepo } from "../domain/entities/vault";
 import { GithubIcon, GitlabIcon, NotekitIcon } from "./BrandIcons";
 import { SkeletonRepoList } from "./Skeleton";
@@ -75,7 +76,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
         }
         setGithubAccount(s.accountLogin ?? null);
         setGithubStep("ready");
-        return vaultApi.githubAppRepos();
+        return vaultManagement.githubAppRepos();
       })
       .then((r) => {
         if (!cancelled && r) setRepos(r.repos);
@@ -107,7 +108,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
         if (cancelled) return;
         setNotekitUsername(res.username);
         setNotekitStep("ready");
-        return vaultApi.listNotekitRepos();
+        return vaultManagement.listNotekitRepos();
       })
       .then((r) => {
         if (!cancelled && r) setNotekitRepos(r.repos);
@@ -128,7 +129,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     setBusy(true);
     setLoadErr(null);
     try {
-      const res = await vaultApi.addVault({
+      const res = await vaultManagement.addVault({
         provider: "github",
         owner: repo.owner,
         repo: repo.name,
@@ -147,8 +148,8 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     setBusy(true);
     setLoadErr(null);
     try {
-      const created = await vaultApi.githubAppCreate(newName.trim(), newPrivate);
-      const res = await vaultApi.addVault({
+      const created = await vaultManagement.githubAppCreate(newName.trim(), newPrivate);
+      const res = await vaultManagement.addVault({
         provider: "github",
         owner: created.owner,
         repo: created.name,
@@ -182,7 +183,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
         }
         setGitlabLogin(res.login);
         setGitlabStep("ready");
-        return vaultApi.listGitlabRepos();
+        return vaultManagement.listGitlabRepos();
       })
       .then((r) => {
         if (!cancelled && r) setGitlabRepos(r.repos);
@@ -204,11 +205,11 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     setBusy(true);
     setLoadErr(null);
     try {
-      const res = await vaultApi.connectGitlab(gitlabPat.trim());
+      const res = await vaultManagement.connectGitlab(gitlabPat.trim());
       setGitlabLogin(res.login);
       setGitlabPat("");
       setGitlabStep("ready");
-      const list = await vaultApi.listGitlabRepos();
+      const list = await vaultManagement.listGitlabRepos();
       setGitlabRepos(list.repos);
     } catch (e) {
       setLoadErr((e as Error).message);
@@ -221,7 +222,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     setBusy(true);
     setLoadErr(null);
     try {
-      const res = await vaultApi.addVault({
+      const res = await vaultManagement.addVault({
         provider: "gitlab",
         owner: repo.owner,
         repo: repo.name,
@@ -239,8 +240,8 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     setBusy(true);
     setLoadErr(null);
     try {
-      const created = await vaultApi.createGitlabRepo(gitlabName, gitlabPrivate);
-      const res = await vaultApi.addVault({
+      const created = await vaultManagement.createGitlabRepo(gitlabName, gitlabPrivate);
+      const res = await vaultManagement.addVault({
         provider: "gitlab",
         owner: created.repo.owner,
         repo: created.repo.name,
@@ -258,7 +259,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     setBusy(true);
     setLoadErr(null);
     try {
-      const res = await vaultApi.addVault({
+      const res = await vaultManagement.addVault({
         provider: "notekit",
         owner: repo.owner,
         repo: repo.name,
@@ -276,8 +277,8 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     setBusy(true);
     setLoadErr(null);
     try {
-      const created = await vaultApi.createNotekitRepo(notekitName, notekitPrivate);
-      const res = await vaultApi.addVault({
+      const created = await vaultManagement.createNotekitRepo(notekitName, notekitPrivate);
+      const res = await vaultManagement.addVault({
         provider: "notekit",
         owner: created.repo.owner,
         repo: created.repo.name,
@@ -356,7 +357,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
                 <button
                   className="nk-signin-btn"
                   onClick={() => {
-                    window.location.href = vaultApi.githubAppInstallUrl();
+                    window.location.href = vaultManagement.githubAppInstallUrl();
                   }}
                 >
                   Install NoteKit on GitHub

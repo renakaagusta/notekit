@@ -1,10 +1,8 @@
 import { useEffect } from "react";
-import {
-  getStatus as getVaultStatus,
-  listVaults,
-} from "../adapters/driven/vault-api";
+import { getStatus as getVaultStatus } from "../adapters/driven/vault-api";
 import { startVaultEventStream } from "../adapters/driven/vault-events-client";
 import { bootstrapCrypto } from "../composition/crypto-bootstrap";
+import { vaultManagement } from "../composition/vault-management";
 import {
   start as startSync,
   pull as pullSync,
@@ -69,7 +67,8 @@ export function useVaultBoot({
         if (cancelled) return;
         if (status.configured && status.vault) {
           setVault(status.vault);
-          listVaults()
+          vaultManagement
+            .listVaults()
             .then((res) => {
               if (!cancelled) setVaults(res.vaults, res.activeId);
             })

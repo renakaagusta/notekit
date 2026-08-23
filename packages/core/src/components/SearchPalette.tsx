@@ -1,7 +1,7 @@
 import { Bot, CalendarDays, FileText, GitCommit, Ticket, X, type LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { listAgents } from "../adapters/driven/agents-api";
 import type { VaultCommit } from "../application/ports/out";
+import { agentsService } from "../composition/agents";
 import { getVaultCommits } from "../composition/vault-commits";
 import type { AgentProfile } from "../domain/entities/agent";
 import {
@@ -81,7 +81,7 @@ export function SearchPalette({ open, onClose, onSelect }: SearchPaletteProps) {
     (async () => {
       try {
         const [a, c] = await Promise.all([
-          listAgents().catch(() => ({ agents: [] as AgentProfile[] })),
+         agentsService.listAgents().catch(() => ({ agents: [] as AgentProfile[] })),
          getVaultCommits(undefined, 300).catch(() => ({ commits: [] as VaultCommit[] })),
         ]);
         if (cancelled) return;

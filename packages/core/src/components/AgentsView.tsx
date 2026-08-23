@@ -1,12 +1,7 @@
 import { Check, Lightbulb, Lock, Pencil, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  listAgents,
-  createAgent,
-  updateAgent,
-  deleteAgent,
-} from "../adapters/driven/agents-api";
+import { agentsService } from "../composition/agents";
 import {
   DEFAULT_AGENT_MODEL,
   DEFAULT_SYSTEM_PROMPT,
@@ -134,7 +129,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   async function refresh() {
     try {
       setError(null);
-      const res = await listAgents();
+      const res = await agentsService.listAgents();
       setAgents(res.agents);
     } catch (e) {
       setError((e as Error).message);
@@ -156,7 +151,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
     setBusy(true);
     try {
       setError(null);
-      const res = await createAgent({
+      const res = await agentsService.createAgent({
         name,
         email: newDraft.email.trim() || undefined,
         description: newDraft.description.trim() || undefined,
@@ -204,7 +199,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
     setBusy(true);
     try {
       setError(null);
-      await updateAgent(editingSlug, {
+      await agentsService.updateAgent(editingSlug, {
         name: editDraft.name.trim() || undefined,
         email: editDraft.email.trim() || undefined,
         description: editDraft.description,
@@ -234,7 +229,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
       return;
     try {
       setError(null);
-      await deleteAgent(slug);
+      await agentsService.deleteAgent(slug);
       if (device && keyStoredSlugs.has(slug)) {
         await removeSecret(agentKeySecretName(slug), device).catch(() => { /* intentional noop — vault key removal is best-effort */ });
       }

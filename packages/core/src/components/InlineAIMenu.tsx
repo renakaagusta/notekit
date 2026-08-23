@@ -3,9 +3,7 @@ import { Loader2, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import {
-  listAgents,
-} from "../adapters/driven/agents-api";
+import { agentsService } from "../composition/agents";
 import {
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
@@ -78,7 +76,7 @@ export function InlineAIMenu({ editor, device, model: _model, sel, onClose }: Pr
   // run through the same provider/model/key as the chat.
   useEffect(() => {
     let cancelled = false;
-    listAgents()
+    agentsService.listAgents()
       .then((r) => {
         if (cancelled) return;
         setAgent(r.agents.find((a) => a.slug === selectedAgentSlug) ?? r.agents[0] ?? null);

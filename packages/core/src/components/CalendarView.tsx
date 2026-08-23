@@ -1,7 +1,8 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import React, { useEffect, useMemo, useState } from "react";
-import { listCommits, type VaultCommit } from "../adapters/driven/vault-api";
+import type { VaultCommit } from "../application/ports/out";
+import { getVaultCommits } from "../composition/vault-commits";
 import type { Note } from "../domain/entities/note";
 import type { Ticket, TicketPriority } from "../domain/entities/ticket";
 import {
@@ -518,7 +519,7 @@ function HeatmapDayPanel({ ymd, hasJournal, tickets, onClose, onOpenJournal }: H
     setError(null);
     (async () => {
       try {
-        const res = await listCommits(undefined, 500);
+        const res = await getVaultCommits(undefined, 500);
         if (cancelled) return;
         const filtered = res.commits.filter((c) => {
           const d = new Date(c.authoredAt);

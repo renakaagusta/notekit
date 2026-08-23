@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
-import { subscribeMobilePush } from "../adapters/driven/mobilePush";
-import { isNativePlatform } from "../adapters/driven/native";
-import {
-  isWebPushSubscribed,
-  subscribeWebPush,
-  unsubscribeWebPush,
-} from "../adapters/driven/webPush";
 import { notificationsService } from "../composition/notifications";
+import { platform } from "../composition/platform";
+import { pushService } from "../composition/push";
 import type { NotificationStatus } from "../domain/entities/notification";
 import { SkeletonLines } from "./Skeleton";
 
@@ -21,13 +16,13 @@ export function NotificationSettings() {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [linkLink, setLinkLink] = useState<string | null>(null);
-  const isMobile = isNativePlatform();
+  const isMobile = platform.isNativePlatform();
 
   async function refresh() {
     try {
       const [s, sub] = await Promise.all([
         notificationsService.getNotificationStatus(),
-        isWebPushSubscribed(),
+        pushService.isWebPushSubscribed(),
       ]);
       setStatus(s);
       setWebSubbed(sub);
@@ -86,7 +81,7 @@ export function NotificationSettings() {
     setBusy("web");
     setError(null);
     try {
-      await subscribeWebPush();
+      await pushService.subscribeWebPush();
       await refresh();
     } catch (err) {
       setError((err as Error).message);
@@ -98,7 +93,7 @@ export function NotificationSettings() {
   async function handleDisableWebPush() {
     setBusy("web");
     try {
-      await unsubscribeWebPush();
+      await pushService.unsubscribeWebPush();
       await notificationsService.updatePrefs({ webPushEnabled: false });
       await refresh();
     } catch (err) {
@@ -112,7 +107,7 @@ export function NotificationSettings() {
     setBusy("mobile");
     setError(null);
     try {
-      await subscribeMobilePush();
+      await pushService.subscribeMobilePush();
       await refresh();
     } catch (err) {
       setError((err as Error).message);

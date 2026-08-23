@@ -3,14 +3,14 @@
  * to figure out whether the user needs first-run setup, device pairing, or is
  * already good to go.
  */
+import { useAuthStore } from "../adapters/driving/stores/authStore";
+import { useCryptoStore } from "../adapters/driving/stores/cryptoStore";
+import { useVaultStore } from "../adapters/driving/stores/vaultStore";
 import type { LoggerPort } from "../application/ports/out/LoggerPort";
 import {
   loadDeviceIdentity,
   createDeviceIdentity,
 } from "../composition/device-key";
-import { useAuthStore } from "../stores/authStore";
-import { useCryptoStore } from "../stores/cryptoStore";
-import { useVaultStore } from "../stores/vaultStore";
 import type { DeviceIdentity } from "./crypto/device-key";
 import type { VaultKey } from "./crypto/keybox";
 import {

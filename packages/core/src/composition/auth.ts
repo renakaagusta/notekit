@@ -10,7 +10,7 @@ import { authApiPort } from "../adapters/driven/api";
 import { appleSignInPort } from "../adapters/driven/apple-signin";
 import { platformPort } from "../adapters/driven/native";
 import { nativeOAuthPort } from "../adapters/driven/native-oauth";
-import { configureUseAuth, useAuth } from "../hooks/useAuth";
+import { configureUseAuth, useAuth } from "../adapters/driving/hooks/useAuth";
 
 configureUseAuth({
   authApi: authApiPort,
@@ -20,4 +20,4 @@ configureUseAuth({
 });
 
 export { useAuth };
-export type { SignInProvider, AuthStatus } from "../hooks/useAuth";
+export type { SignInProvider, AuthStatus } from "../adapters/driving/hooks/useAuth";

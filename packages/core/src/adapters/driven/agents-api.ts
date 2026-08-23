@@ -1,3 +1,4 @@
+import type { AgentsPort } from "../../application/ports/out/AgentsPort";
 import {
   type AgentProfile,
   type AgentChatConfig,
@@ -47,3 +48,13 @@ export function deleteAgent(slug: string): Promise<{ ok: true }> {
     method: "DELETE",
   });
 }
+
+/**
+ * {@link AgentsPort} conformance for this driven adapter.
+ */
+export const agentsPort: AgentsPort = {
+  listAgents,
+  createAgent,
+  updateAgent,
+  deleteAgent,
+};

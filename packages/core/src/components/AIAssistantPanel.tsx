@@ -1,10 +1,8 @@
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  listAgents,
-} from "../adapters/driven/agents-api";
 import { vaultStoragePort } from "../adapters/driven/vault-api";
+import { agentsService } from "../composition/agents";
 import {
   listChatSessions,
   readCachedChatSessions,
@@ -137,7 +135,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
         if (!cancelled) setKeyStoredSlugs(new Set());
       }
       try {
-        const res = await listAgents();
+        const res = await agentsService.listAgents();
         if (cancelled) return;
         setAgents(res.agents);
         if (!selectedAgentSlug && res.agents[0]) selectAgent(res.agents[0].slug);

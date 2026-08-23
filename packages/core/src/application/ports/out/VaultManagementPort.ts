@@ -1,5 +1,6 @@
 import type {
   VaultRef,
+  VaultStatus,
   VaultListResponse,
   VaultRepo,
   VaultProvider,
@@ -17,6 +18,24 @@ import type {
  * exactly so the conformance annotation catches any drift.
  */
 export interface VaultManagementPort {
+  getStatus(): Promise<VaultStatus>;
+  listRepos(): Promise<{ repos: VaultRepo[] }>;
+  githubAppStatus(): Promise<{
+    configured: boolean;
+    installed: boolean;
+    slug?: string | null;
+    accountLogin?: string | null;
+  }>;
+  provisionNotekit(): Promise<{
+    ok: true;
+    username: string;
+    gitUrl: string | null;
+  }>;
+  getGitlabStatus(): Promise<{
+    connected: boolean;
+    login: string | null;
+    reason?: "token_invalid";
+  }>;
   listVaults(): Promise<VaultListResponse>;
   addVault(input: {
     provider?: VaultProvider;

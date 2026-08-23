@@ -1,9 +1,9 @@
 import "../i18n"; // initialize i18next before any component renders
 import "../composition/secrets-browser"; // wire the secrets vault to browser adapters before any secret op
 import { useEffect, useRef, useState } from "react";
-import { isDesktop } from "../adapters/driven/api";
 import { bootstrapCrypto } from "../composition/crypto-bootstrap";
 import { publishMyKeys } from "../composition/directory";
+import { isDesktop } from "../composition/platform";
 import { vaultEventStream } from "../composition/vault-events";
 import { vaultManagement } from "../composition/vault-management";
 import { refresh as refreshSync, start as startSync } from "../composition/vault-sync";

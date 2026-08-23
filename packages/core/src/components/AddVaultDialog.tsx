@@ -1,6 +1,5 @@
 import { X } from "lucide-react";
 import { useEffect, useState } from "react";
-import * as vaultApi from "../adapters/driven/vault-api";
 import { vaultManagement } from "../composition/vault-management";
 import type { VaultRef, VaultRepo } from "../domain/entities/vault";
 import { GithubIcon, GitlabIcon, NotekitIcon } from "./BrandIcons";
@@ -62,7 +61,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     setGithubLoaded(true);
     setLoadErr(null);
     setGithubStep("checking");
-    vaultApi
+    vaultManagement
       .githubAppStatus()
       .then((s) => {
         if (cancelled) return undefined;
@@ -102,7 +101,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot guard; including notekitStep in deps would self-cancel the in-flight provision (see comment above)
     setNotekitStep("provisioning");
     setLoadErr(null);
-    vaultApi
+    vaultManagement
       .provisionNotekit()
       .then((res) => {
         if (cancelled) return;
@@ -173,7 +172,7 @@ export function AddVaultDialog({ onAdded, onCancel, initialProvider }: AddVaultD
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot guard; including gitlabStep in deps would self-cancel the in-flight status check (see comment above)
     setGitlabStep("checking");
     setLoadErr(null);
-    vaultApi
+    vaultManagement
       .getGitlabStatus()
       .then((res) => {
         if (cancelled) return;

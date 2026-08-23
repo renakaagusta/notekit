@@ -11,6 +11,11 @@ export function createVaultManagementService(
   vault: VaultManagementPort,
 ): VaultManagementService {
   return {
+    getStatus: () => vault.getStatus(),
+    listRepos: () => vault.listRepos(),
+    githubAppStatus: () => vault.githubAppStatus(),
+    provisionNotekit: () => vault.provisionNotekit(),
+    getGitlabStatus: () => vault.getGitlabStatus(),
     listVaults: () => vault.listVaults(),
     addVault: (input) => vault.addVault(input),
     selectVault: (owner, repo, branch) => vault.selectVault(owner, repo, branch),

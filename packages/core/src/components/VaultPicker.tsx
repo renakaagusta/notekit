@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import * as vaultApi from "../adapters/driven/vault-api";
 import { vaultManagement } from "../composition/vault-management";
 import type { VaultRepo } from "../domain/entities/vault";
 import { useVaultStore } from "../stores/vaultStore";
@@ -25,7 +24,7 @@ export function VaultPicker({ onPicked }: VaultPickerProps) {
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional reset: synchronously clearing the error before starting a new fetch is the desired loading UX
     setLoadErr(null);
-    vaultApi
+    vaultManagement
       .listRepos()
       .then((r) => {
         if (!cancelled) setRepos(r.repos);

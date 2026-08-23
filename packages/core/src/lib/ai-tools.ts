@@ -12,14 +12,14 @@
  */
 import { tool, type ToolSet } from "ai";
 import { z } from "zod";
+import { findLeaf, useLayoutStore } from "../adapters/driving/stores/layoutStore";
+import { useLinksStore } from "../adapters/driving/stores/linksStore";
+import { useNotesStore } from "../adapters/driving/stores/notesStore";
+import { useTicketsStore } from "../adapters/driving/stores/ticketsStore";
 import type { VaultCommit } from "../application/ports/out";
 import type { AgentToolPermissions } from "../domain/entities/agent";
 import { noteTitle } from "../domain/note-display";
 import i18n from "../i18n";
-import { findLeaf, useLayoutStore } from "../stores/layoutStore";
-import { useLinksStore } from "../stores/linksStore";
-import { useNotesStore } from "../stores/notesStore";
-import { useTicketsStore } from "../stores/ticketsStore";
 import { listSecretNames, listSecretVaults } from "./secrets-vault";
 
 /** Vault-internal secrets that power the assistant itself — never shown as "user secrets". */

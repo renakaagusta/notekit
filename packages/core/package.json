@@ -9,8 +9,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/domain/entities/index.ts",
-    "./stores": "./src/stores/index.ts",
-    "./components": "./src/components/index.ts",
+    "./stores": "./src/adapters/driving/stores/index.ts",
+    "./components": "./src/adapters/driving/components/index.ts",
     "./secrets": "./src/lib/secrets-vault.ts",
     "./crypto": "./src/lib/crypto/index.ts",
     "./paths": "./src/domain/file-paths.ts",

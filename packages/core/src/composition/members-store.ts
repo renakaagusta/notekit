@@ -6,7 +6,7 @@
  * vault-api import. Import the store from here.
  */
 import { vaultStoragePort } from "../adapters/driven/vault-api";
-import { configureMembersStore, useMembersStore } from "../stores/membersStore";
+import { configureMembersStore, useMembersStore } from "../adapters/driving/stores/membersStore";
 
 configureMembersStore({ vault: vaultStoragePort });
 

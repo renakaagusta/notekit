@@ -14,8 +14,8 @@
  * to any driven adapter, so it stays in the application/orchestration layer,
  * free of adapters/driven.
  */
+import type { ChatMessage } from "../adapters/driving/stores/aiChatStore";
 import type { StoragePort } from "../application/ports/out";
-import type { ChatMessage } from "../stores/aiChatStore";
 import type { DeviceIdentity } from "./crypto/device-key";
 import {
   getVaultBackend,

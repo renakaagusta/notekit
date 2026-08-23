@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { getStatus as getVaultStatus } from "../adapters/driven/vault-api";
 import { bootstrapCrypto } from "../composition/crypto-bootstrap";
 import { vaultEventStream } from "../composition/vault-events";
 import { vaultManagement } from "../composition/vault-management";
@@ -51,7 +50,7 @@ export function useVaultBoot({
       try {
         let status: VaultStatus;
         try {
-          status = await getVaultStatus();
+          status = await vaultManagement.getStatus();
           if (status.configured && status.vault) {
             try {
               localStorage.setItem("nk:last-vault", JSON.stringify(status.vault));

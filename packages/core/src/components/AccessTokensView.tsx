@@ -8,8 +8,9 @@
  *   3. A one-time secret reveal — the plaintext is shown EXACTLY ONCE; we
  *      cannot retrieve it again because the server only stores its hash.
  *
- * Uses @notekit/api-client directly (nk.auth.*) so new code in core sets the
- * migration pattern away from the apiFetch-based *-api.ts wrappers.
+ * Drives the tokens inbound port (list/mint/revoke) through the composition
+ * root, so this component depends on the capability rather than the concrete
+ * `nk.auth` transport.
  */
 import type {
   NewPersonalAccessToken,
@@ -18,7 +19,7 @@ import type {
 } from "@notekit/api-client";
 import { Copy, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { nk } from "../adapters/driven/api";
+import { tokensService } from "../composition/tokens";
 import { SkeletonLines } from "./Skeleton";
 import "./AccessTokensView.css";
 
@@ -34,7 +35,7 @@ export function AccessTokensView() {
 
   const refresh = useCallback(async () => {
     try {
-      const res = await nk.auth.listTokens();
+      const res = await tokensService.listTokens();
       setTokens(res.tokens);
     } catch (err) {
       setError((err as Error).message);
@@ -53,7 +54,7 @@ export function AccessTokensView() {
     setBusy("create");
     setError(null);
     try {
-      const minted = await nk.auth.createToken({ name, scope: draftScope });
+      const minted = await tokensService.createToken({ name, scope: draftScope });
       setReveal(minted);
       setDraftName("");
       await refresh();
@@ -71,7 +72,7 @@ export function AccessTokensView() {
     setBusy(`revoke:${id}`);
     setError(null);
     try {
-      await nk.auth.revokeToken(id);
+      await tokensService.revokeToken(id);
       await refresh();
     } catch (err) {
       setError((err as Error).message);

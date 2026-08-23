@@ -1,7 +1,6 @@
 import { nanoid } from "nanoid";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { vaultStoragePort } from "../adapters/driven/vault-api";
 import { agentsService } from "../composition/agents";
 import {
   listChatSessions,
@@ -10,6 +9,7 @@ import {
   writeChatSession,
   deleteChatSession,
 } from "../composition/chats-vault";
+import { getVaultCommits } from "../composition/vault-commits";
 import {
   agentKeySecretName,
   DEFAULT_AGENT_MODEL,
@@ -261,7 +261,7 @@ export function AIAssistantPanel({ onOpenAgents, refreshTick }: Props) {
 
     const permissions = selectedAgent.toolPermissions ?? "read-only";
     const tools = buildAssistantTools(
-      { requestApproval, defaultFolder, listRecentCommits: vaultStoragePort.listCommits },
+      { requestApproval, defaultFolder, listRecentCommits: getVaultCommits },
       permissions,
     );
     const system = buildSystemPrompt(selectedAgent, permissions);

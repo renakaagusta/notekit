@@ -1,10 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  announcePair,
-  fetchPair,
-  clearPair,
-} from "../adapters/driven/vault-api";
 import { notificationsService } from "../composition/notifications";
+import { pairingService } from "../composition/pairing";
 import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
 import {
   recoveryFromMnemonic,
@@ -152,7 +148,7 @@ export function VaultPairNewDevice() {
     (async () => {
       const code = randomCode();
       try {
-        await announcePair({
+        await pairingService.announcePair({
           code,
           pubkey: device.recipient,
           deviceName: device.name,
@@ -175,7 +171,7 @@ export function VaultPairNewDevice() {
         const devices = await listDevices();
         if (devices.some((d) => d.deviceId === device.deviceId)) {
           if (pollRef.current) clearInterval(pollRef.current);
-          await clearPair(pairCode).catch((_err) => { /* intentional noop — pairing already confirmed */ });
+          await pairingService.clearPair(pairCode).catch((_err) => { /* intentional noop — pairing already confirmed */ });
           setPhase("ready");
         }
       } catch {
@@ -406,7 +402,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetchPair(code.trim());
+      const res = await pairingService.fetchPair(code.trim());
       if (!res) throw new Error("Code not found or expired.");
       setInfo({
         pubkey: res.pubkey,
@@ -457,7 +453,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
         signer,
         recoverySigning,
       );
-      await clearPair(code.trim()).catch((_err) => { /* intentional noop — pairing already completed */ });
+      await pairingService.clearPair(code.trim()).catch((_err) => { /* intentional noop — pairing already completed */ });
       // Security alert across the user's channels. Best-effort — the device is
       // already paired, so a notify failure must not block closing the dialog.
       await notificationsService.notifyDevicePaired(info.deviceId, info.deviceName).catch((_err) => { /* intentional noop — notify is best-effort */ });

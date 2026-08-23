@@ -21,6 +21,7 @@
 import { createNoteKitClient, type NoteKitApi, type NoteKitClient } from "@notekit/api-client";
 import type { ApiFetchPort } from "../../application/ports/out/ApiFetchPort";
 import type { AuthApiPort } from "../../application/ports/out/AuthApiPort";
+import type { TokensPort } from "../../application/ports/out/TokensPort";
 
 function resolveApiUrl(): string {
   // Direct static access — Vite's define-plugin only substitutes the literal
@@ -241,4 +242,15 @@ export const authApiPort: AuthApiPort = {
   ensureDesktopAuthLoaded,
   clearDesktopToken,
   startDesktopSignIn,
+};
+
+/**
+ * {@link TokensPort} conformance — the personal-access-token transport surface
+ * (list/mint/revoke) the composition root injects. Arrow wrappers preserve the
+ * `nk.auth` receiver so the delegated methods keep their transport closure.
+ */
+export const tokensPort: TokensPort = {
+  listTokens: () => nk.auth.listTokens(),
+  createToken: (input) => nk.auth.createToken(input),
+  revokeToken: (id) => nk.auth.revokeToken(id),
 };

@@ -1,3 +1,4 @@
+import type { PairingPort } from "../../application/ports/out/PairingPort";
 import type { VaultManagementPort } from "../../application/ports/out/VaultManagementPort";
 import type { VaultPort } from "../../application/ports/out/VaultPort";
 import type {
@@ -398,6 +399,11 @@ export const vaultStoragePort = {
  * inject this where a `VaultManagementPort` is required.
  */
 export const vaultManagementPort: VaultManagementPort = {
+  getStatus,
+  listRepos,
+  githubAppStatus,
+  provisionNotekit,
+  getGitlabStatus,
   listVaults,
   addVault,
   selectVault,
@@ -419,4 +425,16 @@ export const vaultManagementPort: VaultManagementPort = {
   githubAppRepos,
   githubAppCreate,
   githubAppInstallUrl,
+};
+
+/**
+ * Conformance: the device-pairing relay functions bound as the concrete
+ * {@link PairingPort}. The `: PairingPort` annotation catches any drift between
+ * this transport and the outbound port contract. Composition roots inject this
+ * where a `PairingPort` is required.
+ */
+export const pairingPort: PairingPort = {
+  announcePair,
+  fetchPair,
+  clearPair,
 };

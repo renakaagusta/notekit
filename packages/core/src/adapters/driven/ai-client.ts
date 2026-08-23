@@ -4,10 +4,12 @@
  * key never leaves the user's device in plaintext over our infra — it's
  * decrypted in memory and posted straight to the provider.
  */
+import type { AiPort } from "../../application/ports/out/AiPort";
+import type { AIProvider } from "../../domain/entities/ai";
 import type { DeviceIdentity } from "../../lib/crypto/device-key";
 import { getSecret } from "../../lib/secrets-vault";
 
-export type AIProvider = "openai" | "anthropic";
+export type { AIProvider };
 
 export async function askAI(
   provider: AIProvider,
@@ -79,3 +81,8 @@ async function askAnthropic(key: string, prompt: string): Promise<string> {
   }
   return reply;
 }
+
+/**
+ * {@link AiPort} conformance for this driven adapter.
+ */
+export const aiPort: AiPort = { askAI };

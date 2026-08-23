@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { askAI, type AIProvider } from "../adapters/driven/ai-client";
+import { aiService } from "../composition/ai";
+import type { AIProvider } from "../domain/entities/ai";
 import {
   listSecretNames,
   setSecret,
@@ -117,7 +118,7 @@ export function AIVaultPanel() {
     setAnswer("");
     setError(null);
     try {
-      const reply = await askAI(provider, prompt.trim(), device);
+      const reply = await aiService.askAI(provider, prompt.trim(), device);
       setAnswer(reply);
     } catch (e) {
       setError((e as Error).message);

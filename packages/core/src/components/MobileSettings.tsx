@@ -21,11 +21,12 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import * as vaultApi from "../adapters/driven/vault-api";
 import { agentsService } from "../composition/agents";
+import { vaultManagement } from "../composition/vault-management";
 import type { AgentProfile } from "../domain/entities/agent";
 import type { Note } from "../domain/entities/note";
 import type { User } from "../domain/entities/user";
+import type { VaultSettings } from "../domain/entities/vault";
 import { noteTitle } from "../domain/note-display";
 import { LOCALES, currentLocale, setLocale } from "../i18n";
 import {
@@ -184,11 +185,11 @@ export function MobileSettings({
     };
   }, []);
 
-  async function patch(patch: Partial<vaultApi.VaultSettings>) {
+  async function patch(patch: Partial<VaultSettings>) {
     if (!activeVaultId || !activeSettings) return;
     const next = { ...activeSettings, ...patch };
     setActiveSettings(next);
-    await vaultApi.patchVaultSettings(activeVaultId, next).catch(() => { /* intentional noop — best-effort sync; local state already updated */ });
+    await vaultManagement.patchVaultSettings(activeVaultId, next).catch(() => { /* intentional noop — best-effort sync; local state already updated */ });
   }
 
   function pickLocale(code: string) {

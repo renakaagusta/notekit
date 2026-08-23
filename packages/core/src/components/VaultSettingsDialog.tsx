@@ -1,6 +1,6 @@
 import { ChevronRight, X } from "lucide-react";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
-import * as vaultApi from "../adapters/driven/vault-api";
+import { vaultManagement } from "../composition/vault-management";
 import type {
   VaultRef,
   VaultSettings,
@@ -70,7 +70,7 @@ export function VaultSettingsDialog({
     let cancelled = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- clear stale error before loading new vault settings
     setError(null);
-    vaultApi
+    vaultManagement
       .getVaultSettings(vault.id)
       .then((r) => {
         if (!cancelled) setSettings(r.settings);
@@ -88,7 +88,7 @@ export function VaultSettingsDialog({
     setBusy(true);
     setError(null);
     try {
-      const res = await vaultApi.patchVaultSettings(vault.id, settings);
+      const res = await vaultManagement.patchVaultSettings(vault.id, settings);
       setSettings(res.settings);
       onSaved?.(res.settings);
       onClose();
@@ -396,7 +396,7 @@ function MembersSection({ vault }: { vault: VaultRef }) {
     if (!vault.id) return;
     setError(null);
     try {
-      const res = await vaultApi.listVaultMembers(vault.id);
+      const res = await vaultManagement.listVaultMembers(vault.id);
       setMembers(res.members);
       setInvitations(res.invitations);
     } catch (e) {
@@ -417,7 +417,7 @@ function MembersSection({ vault }: { vault: VaultRef }) {
     setError(null);
     setNotice(null);
     try {
-      const res = await vaultApi.addVaultMember(vault.id, name, permission);
+      const res = await vaultManagement.addVaultMember(vault.id, name, permission);
       setUsername("");
       if (res.status === "invited") {
         setNotice(
@@ -446,7 +446,7 @@ function MembersSection({ vault }: { vault: VaultRef }) {
     setError(null);
     setNotice(null);
     try {
-      await vaultApi.removeVaultMember(vault.id, login);
+      await vaultManagement.removeVaultMember(vault.id, login);
       setNotice(`@${login} removed.`);
       await refresh();
     } catch (e) {
@@ -462,7 +462,7 @@ function MembersSection({ vault }: { vault: VaultRef }) {
     setError(null);
     setNotice(null);
     try {
-      await vaultApi.cancelVaultInvitation(vault.id, invitationId);
+      await vaultManagement.cancelVaultInvitation(vault.id, invitationId);
       setNotice(`Invitation to @${login} cancelled.`);
       await refresh();
     } catch (e) {

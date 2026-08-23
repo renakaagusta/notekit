@@ -22,7 +22,7 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import * as vaultApi from "../adapters/driven/vault-api";
+import { vaultManagement } from "../composition/vault-management";
 import type { User } from "../domain/entities/user";
 import type { VaultSettings } from "../domain/entities/vault";
 import { LOCALES, setLocale } from "../i18n";
@@ -199,7 +199,7 @@ export function Sidebar({
     if (!activeVaultId || !activeSettings) return;
     const updated = { ...activeSettings, theme };
     setActiveSettings(updated);
-    await vaultApi.patchVaultSettings(activeVaultId, updated).catch(() => { /* intentional noop — best-effort persist */ });
+    await vaultManagement.patchVaultSettings(activeVaultId, updated).catch(() => { /* intentional noop — best-effort persist */ });
   }
   const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);

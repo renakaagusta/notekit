@@ -1,10 +1,10 @@
 import { ChevronDown, FolderGit2, Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import * as vaultApi from "../adapters/driven/vault-api";
 import {
   startVaultEventStream,
   stopVaultEventStream,
 } from "../adapters/driven/vault-events-client";
+import { vaultManagement } from "../composition/vault-management";
 import { reset as resetSync, start as startSync } from "../composition/vault-sync";
 import type { VaultRef } from "../domain/entities/vault";
 import {
@@ -108,7 +108,7 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
       useTicketsStore.getState().replaceAll([]);
       useNotesStore.setState({ activeNoteId: null, draftJournal: null });
 
-      const res = await vaultApi.selectVaultById(vault.id);
+      const res = await vaultManagement.selectVaultById(vault.id);
       setActiveId(res.activeId);
       setVault(res.vault);
       // Rebind localStorage persistence to the new vault before sync starts
@@ -128,7 +128,7 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
   async function commitRename(id: string, label: string | null) {
     setBusyId(id);
     try {
-      const res = await vaultApi.patchVault(id, { label });
+      const res = await vaultManagement.patchVault(id, { label });
       upsertVault(res.vault);
       if (id === activeId) setVault(res.vault);
       // Keep the open settings dialog in sync with the new label.
@@ -144,7 +144,7 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
   async function commitDelete(id: string) {
     setBusyId(id);
     try {
-      const res = await vaultApi.deleteVault(id);
+      const res = await vaultManagement.deleteVault(id);
       removeVault(id);
       // If the server picked a different active vault for us, switch the
       // client over to it (full reset + pull).
@@ -174,7 +174,7 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
 
   async function refreshList() {
     try {
-      const res = await vaultApi.listVaults();
+      const res = await vaultManagement.listVaults();
       setVaults(res.vaults, res.activeId);
     } catch (e) {
       setError((e as Error).message);

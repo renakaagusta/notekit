@@ -5,6 +5,7 @@
  * doesn't require it. The native shell installs the module; the web build
  * fails soft when not present.
  */
+import type { MobilePushPort } from "../../application/ports/out/MobilePushPort";
 import { apiUrl } from "./api";
 import { getNativePlatform, isNativePlatform } from "./native";
 
@@ -96,3 +97,11 @@ export async function unsubscribeMobilePush(token: string): Promise<void> {
     body: JSON.stringify({ token }),
   });
 }
+
+/**
+ * {@link MobilePushPort} conformance for this driven adapter.
+ */
+export const mobilePushPort: MobilePushPort = {
+  subscribeMobilePush,
+  unsubscribeMobilePush,
+};

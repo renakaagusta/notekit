@@ -5,6 +5,7 @@
  * Idempotent: calling subscribe() while already subscribed re-POSTs the same
  * subscription, which the API upserts on `endpoint`.
  */
+import type { WebPushPort } from "../../application/ports/out/WebPushPort";
 import { apiUrl } from "./api";
 
 export type WebPushSupport =
@@ -114,3 +115,12 @@ export async function isWebPushSubscribed(): Promise<boolean> {
   const sub = await reg.pushManager.getSubscription();
   return Boolean(sub);
 }
+
+/**
+ * {@link WebPushPort} conformance for this driven adapter.
+ */
+export const webPushPort: WebPushPort = {
+  subscribeWebPush,
+  unsubscribeWebPush,
+  isWebPushSubscribed,
+};

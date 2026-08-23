@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { getStatus as getVaultStatus } from "../adapters/driven/vault-api";
-import { startVaultEventStream } from "../adapters/driven/vault-events-client";
 import { bootstrapCrypto } from "../composition/crypto-bootstrap";
+import { vaultEventStream } from "../composition/vault-events";
 import { vaultManagement } from "../composition/vault-management";
 import {
   start as startSync,
@@ -80,7 +80,7 @@ export function useVaultBoot({
           // Tolerate failure so content loads regardless.
           await bootstrapCrypto().catch(() => { /* intentional noop */ });
           await startSync();
-          startVaultEventStream();
+          vaultEventStream.start();
           await rehydrateEncryptedIfSkipped();
         } else if (status.hasGithubToken) {
           setVaultPhase("needs-pick");

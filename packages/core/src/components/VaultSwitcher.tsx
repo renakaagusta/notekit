@@ -1,9 +1,6 @@
 import { ChevronDown, FolderGit2, Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import {
-  startVaultEventStream,
-  stopVaultEventStream,
-} from "../adapters/driven/vault-events-client";
+import { vaultEventStream } from "../composition/vault-events";
 import { vaultManagement } from "../composition/vault-management";
 import { reset as resetSync, start as startSync } from "../composition/vault-sync";
 import type { VaultRef } from "../domain/entities/vault";
@@ -102,7 +99,7 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
       // Also close the SSE stream — the server resolves the channel by
       // active-vault at connect time, so we need a fresh connection for the
       // new vault to receive its events.
-      stopVaultEventStream();
+      vaultEventStream.stop();
       resetSync();
       useNotesStore.getState().replaceAll([]);
       useTicketsStore.getState().replaceAll([]);
@@ -115,7 +112,7 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
       // so the previous vault's saved state isn't pushed into this one.
       await bindVaultPersistence(res.vault);
       await startSync();
-      startVaultEventStream();
+      vaultEventStream.start();
       onSwitched?.(res.vault);
       setOpen(false);
     } catch (e) {
@@ -156,7 +153,7 @@ export function VaultSwitcher({ onSwitched, className }: VaultSwitcherProps) {
         }
       } else if (!res.activeId) {
         // No vaults left.
-        stopVaultEventStream();
+        vaultEventStream.stop();
         resetSync();
         useNotesStore.getState().replaceAll([]);
         useTicketsStore.getState().replaceAll([]);

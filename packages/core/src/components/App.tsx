@@ -2,12 +2,9 @@ import "../i18n"; // initialize i18next before any component renders
 import "../composition/secrets-browser"; // wire the secrets vault to browser adapters before any secret op
 import { useEffect, useRef, useState } from "react";
 import { isDesktop } from "../adapters/driven/api";
-import {
-  startVaultEventStream,
-  stopVaultEventStream,
-} from "../adapters/driven/vault-events-client";
 import { bootstrapCrypto } from "../composition/crypto-bootstrap";
 import { publishMyKeys } from "../composition/directory";
+import { vaultEventStream } from "../composition/vault-events";
 import { vaultManagement } from "../composition/vault-management";
 import { refresh as refreshSync, start as startSync } from "../composition/vault-sync";
 import type { User } from "../domain/entities/user";
@@ -382,7 +379,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
   }, []);
 
   useEffect(() => {
-    return () => stopVaultEventStream();
+    return () => vaultEventStream.stop();
   }, []);
 
   useEffect(() => {
@@ -440,7 +437,7 @@ export function App({ user, onSignOut }: AppProps = {}) {
     // Wait for crypto before pull so encrypted items decrypt on first try.
     await bootstrapCrypto().catch(() => { /* intentional noop */ });
     await startSync();
-    startVaultEventStream();
+    vaultEventStream.start();
     await rehydrateEncryptedIfSkipped();
   }
 

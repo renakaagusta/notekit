@@ -1,33 +1,21 @@
 /**
  * Notifications + IAP client helpers.
  */
+import type { NotificationsPort } from "../../application/ports/out/NotificationsPort";
+import type {
+  Entitlement,
+  NotificationItem,
+  NotificationPrefs,
+  NotificationStatus,
+} from "../../domain/entities/notification";
 import { apiFetch } from "./api";
 
-export interface NotificationItem {
-  id: string;
-  agentSlug: string;
-  eventType: string;
-  resourcePath: string | null;
-  summary: string;
-  payload: Record<string, unknown>;
-  createdAt: string;
-  readAt: string | null;
-}
-
-export interface NotificationPrefs {
-  telegramEnabled: boolean;
-  webPushEnabled: boolean;
-  mobilePushEnabled: boolean;
-}
-
-export interface NotificationStatus {
-  prefs: NotificationPrefs;
-  channels: {
-    telegram: { linked: boolean };
-    webPush: { configured: boolean };
-    mobilePush: { ios: boolean; android: boolean };
-  };
-}
+export type {
+  Entitlement,
+  NotificationItem,
+  NotificationPrefs,
+  NotificationStatus,
+};
 
 export async function listNotifications(
   limit = 50,
@@ -89,13 +77,22 @@ export async function notifyDevicePaired(
   });
 }
 
-export interface Entitlement {
-  plus: boolean;
-  plusUntil: string | null;
-  plusSource: "apple" | "google" | "stripe" | "lifetime" | null;
-  softLimits: { mobileFreeNotes: number };
-}
-
 export async function getEntitlement(): Promise<Entitlement> {
   return apiFetch(`/iap/entitlement`);
 }
+
+/**
+ * Conformance const wiring the module functions to the outbound port. The
+ * `: NotificationsPort` annotation makes any signature drift a compile error.
+ */
+export const notificationsPort: NotificationsPort = {
+  listNotifications,
+  markRead,
+  markAllRead,
+  getNotificationStatus,
+  updatePrefs,
+  createTelegramLinkCode,
+  unlinkTelegram,
+  notifyDevicePaired,
+  getEntitlement,
+};

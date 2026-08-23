@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { notifyDevicePaired } from "../adapters/driven/notifications-api";
 import {
   announcePair,
   fetchPair,
   clearPair,
 } from "../adapters/driven/vault-api";
+import { notificationsService } from "../composition/notifications";
 import { deriveFingerprint, formatFingerprint } from "../lib/crypto/fingerprint";
 import {
   recoveryFromMnemonic,
@@ -227,7 +227,7 @@ export function VaultPairNewDevice() {
       await importRecovery(recoveryInput).catch((_err) => { /* intentional noop — local copy is optional */ });
       // Security alert across the user's channels. Best-effort — pairing
       // already succeeded, so a notify failure must not block unlock.
-      await notifyDevicePaired(device.deviceId, device.name).catch((_err) => { /* intentional noop — notify is best-effort */ });
+      await notificationsService.notifyDevicePaired(device.deviceId, device.name).catch((_err) => { /* intentional noop — notify is best-effort */ });
       setPhase("ready");
     } catch (e) {
       setRecoveryError((e as Error).message);
@@ -267,7 +267,7 @@ export function VaultPairNewDevice() {
         },
         signing,
       );
-      await notifyDevicePaired(device.deviceId, device.name).catch((_err) => { /* intentional noop — notify is best-effort */ });
+      await notificationsService.notifyDevicePaired(device.deviceId, device.name).catch((_err) => { /* intentional noop — notify is best-effort */ });
       setPhase("ready");
     } catch (e) {
       setWalletError((e as Error).message);
@@ -460,7 +460,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
       await clearPair(code.trim()).catch((_err) => { /* intentional noop — pairing already completed */ });
       // Security alert across the user's channels. Best-effort — the device is
       // already paired, so a notify failure must not block closing the dialog.
-      await notifyDevicePaired(info.deviceId, info.deviceName).catch((_err) => { /* intentional noop — notify is best-effort */ });
+      await notificationsService.notifyDevicePaired(info.deviceId, info.deviceName).catch((_err) => { /* intentional noop — notify is best-effort */ });
       onClose();
     } catch (e) {
       setError((e as Error).message);

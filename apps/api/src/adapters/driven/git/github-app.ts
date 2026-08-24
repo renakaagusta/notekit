@@ -20,7 +20,7 @@
  * (`BEGIN RSA PRIVATE KEY`), which node:crypto signs directly — no conversion.
  */
 import crypto from "node:crypto";
-import { env } from "../env";
+import { env } from "../../../env";
 import { GhError, type GhRepo } from "./github";
 
 const GH = "https://api.github.com";

@@ -16,10 +16,10 @@
  */
 
 import { eq } from "drizzle-orm";
+import * as fj from "../adapters/driven/git/forgejo";
 import { db, schema } from "../db";
 import { env } from "../env";
 import { logger } from '../lib/logger'
-import * as fj from "./forgejo";
 import { provisionForgejoAccount } from "./forgejoAccounts";
 import { createVault, setActiveVault } from "./store";
 

@@ -8,9 +8,9 @@
 
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
+import { createUser, upsertAccessToken } from "../adapters/driven/git/forgejo";
 import { encryptToken, decryptToken } from "../auth/tokenCrypto";
 import { db, schema } from "../db";
-import { createUser, upsertAccessToken } from "./forgejo";
 
 /** Derive a safe Forgejo username from a user's email address. */
 function usernameFromEmail(email: string): string {

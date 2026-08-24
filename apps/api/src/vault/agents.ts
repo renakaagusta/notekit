@@ -12,9 +12,9 @@
  * picture, register that email at https://gravatar.com. Otherwise Gravatar
  * serves its default identicon. See [[agent-avatar-final-design]].
  */
+import * as fj from "../adapters/driven/git/forgejo";
+import * as gh from "../adapters/driven/git/github";
 import { env } from "../env";
-import * as fj from "./forgejo";
-import * as gh from "./github";
 import type { GitProvider } from "./tokens";
 
 function gitOps(provider: GitProvider) {

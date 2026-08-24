@@ -1,33 +1,5 @@
-import { env } from "../env";
-
-/**
- * Sign-in OAuth providers. Apple is implemented in `./apple.ts` because
- * its flow diverges enough (form_post callback, JWT-based client secret,
- * id_token-only profile) that the shared `OAuthProvider` shape below
- * doesn't fit it — but it still appears in this union so the rest of
- * the auth pipeline (`upsertUserFromOAuth`, the schema enum, the
- * provider-aware routes) treats it as a first-class provider.
- */
-export type ProviderName = "github" | "google" | "apple";
-
-export interface OAuthProvider {
-  name: ProviderName;
-  authorizeUrl: string;
-  tokenUrl: string;
-  userInfoUrl: string;
-  scopes: string[];
-  clientId: string;
-  clientSecret: string;
-  redirectUri: string;
-  parseProfile(profile: unknown, accessToken: string): Promise<NormalizedProfile>;
-}
-
-export interface NormalizedProfile {
-  providerAccountId: string;
-  email: string;
-  name: string | null;
-  avatarUrl: string | null;
-}
+import type { OAuthProvider, ProviderName } from "../../../domain/oauth-provider";
+import { env } from "../../../env";
 
 function require(value: string | null, msg: string): string {
   if (!value) throw new Error(msg);

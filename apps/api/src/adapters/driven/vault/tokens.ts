@@ -14,9 +14,9 @@
  */
 
 import { and, eq } from "drizzle-orm";
-import { decryptToken } from "../../../auth/tokenCrypto";
 import type { GitProvider } from "../../../domain/git-provider";
 import { logger } from '../../../lib/logger'
+import { decryptToken } from "../auth/tokenCrypto";
 import { db, schema } from "../db";
 import * as ghApp from "../git/github-app";
 import { getForgejoToken } from "./forgejoAccounts";

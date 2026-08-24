@@ -22,7 +22,7 @@
  */
 
 import { SignJWT, importPKCS8, jwtVerify, createRemoteJWKSet, type JWTPayload } from "jose";
-import { env } from "../env";
+import { env } from "../../../env";
 
 const APPLE_ISSUER = "https://appleid.apple.com";
 const APPLE_JWKS_URL = `${APPLE_ISSUER}/auth/keys`;

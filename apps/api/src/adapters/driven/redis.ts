@@ -1,6 +1,6 @@
 import Redis from "ioredis";
-import { env } from "../env";
-import { logger } from "./logger";
+import { env } from "../../env";
+import { logger } from "../../lib/logger";
 
 /**
  * Shared Redis client. The host's Redis instance is shared across projects, so

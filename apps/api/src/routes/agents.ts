@@ -7,6 +7,12 @@ import { and, eq, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { db, schema } from "../adapters/driven/db";
 import { GhError } from "../adapters/driven/git/github";
+import {
+  readAgent,
+  listAgents,
+  writeAgent,
+  deleteAgentFile,
+} from "../adapters/driven/vault/agentStore";
 import { getActiveVaultToken } from "../adapters/driven/vault/tokens";
 import {
   generateAgentToken,
@@ -14,14 +20,10 @@ import {
 } from "../auth/agentAuth";
 import { getCurrentUser } from "../auth/sessions";
 import {
-  readAgent,
-  listAgents,
-  writeAgent,
-  deleteAgentFile,
   defaultEmailFor,
   slugifyAgentName,
   type AgentProfile,
-} from "../vault/agents";
+} from "../domain/agents";
 
 export const agentRoutes = new Hono();
 

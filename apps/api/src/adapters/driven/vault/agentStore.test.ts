@@ -1,5 +1,5 @@
 /**
- * Provider parity tests for vault/agents.ts.
+ * Provider parity tests for the agentStore driven adapter.
  *
  * The helpers were refactored to dispatch by provider; this test asserts both
  * "github" and "notekit" paths produce the same shape of result, and that the
@@ -11,7 +11,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { readAgent, writeAgent, deleteAgentFile, listAgents } from "./agents";
+import { readAgent, writeAgent, deleteAgentFile, listAgents } from "./agentStore";
 
 interface FetchCall { url: string; init?: RequestInit }
 

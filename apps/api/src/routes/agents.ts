@@ -17,7 +17,7 @@ import { getActiveVaultToken } from "../adapters/driven/vault/tokens";
 import {
   generateAgentToken,
   newAgentTokenId,
-} from "../auth/agentAuth";
+} from "../composition/agentAuth";
 import { getCurrentUser } from "../composition/sessions";
 import {
   defaultEmailFor,

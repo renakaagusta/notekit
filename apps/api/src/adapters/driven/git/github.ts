@@ -4,6 +4,10 @@
  * Future: switch to blob/tree/commit if we need batched commits.
  */
 
+import { GhError } from "../../../domain/errors";
+
+export { GhError } from "../../../domain/errors";
+
 const GH = "https://api.github.com";
 
 function headers(token: string, json = false): Record<string, string> {
@@ -579,11 +583,4 @@ export async function cancelInvitation(
 
 function encodePath(path: string): string {
   return path.split("/").map(encodeURIComponent).join("/");
-}
-
-export class GhError extends Error {
-  constructor(public status: number, public body: string) {
-    super(`GitHub API ${status}: ${body.slice(0, 200)}`);
-    this.name = "GhError";
-  }
 }

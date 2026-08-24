@@ -510,6 +510,26 @@ export async function keyboxExists(): Promise<boolean> {
   return (await readKeyboxArmored()) !== null;
 }
 
+/**
+ * Model B keybox-trust hook. secrets-vault-roster registers a verifier that
+ * confirms the keybox was signed by an in-roster device; wiring it as a late
+ * bound hook (rather than a static import) avoids a core↔roster import cycle.
+ * Returns true if it handled verification for a roster vault, false if there is
+ * no roster (so the caller falls through to legacy master verification).
+ */
+export type KeyboxRosterVerifier = (payload: {
+  epoch: number;
+  recipient: string;
+  sig?: string;
+  signedBy?: string;
+}) => Promise<boolean>;
+
+let keyboxRosterVerifier: KeyboxRosterVerifier | null = null;
+
+export function configureKeyboxRosterVerifier(verifier: KeyboxRosterVerifier): void {
+  keyboxRosterVerifier = verifier;
+}
+
 export async function unlockVaultKey(
   device: DeviceIdentity,
   recoveryIdentity?: string,
@@ -523,40 +543,72 @@ export async function unlockVaultKey(
     if (!recoveryIdentity) throw err;
     payload = await openKeybox(armored, recoveryIdentity);
   }
-  const recovery = await readRecovery();
-  if (recovery?.signingKey) {
-    if (!payload.sig) {
-      throw new Error("keybox: missing signature in a signed-mode vault");
-    }
-    const ok = verify(
-      keyboxSigningPayload({
+  // Model B: if the vault has a roster, the keybox must be signed by an
+  // in-roster device (the master stays cold). The verifier chain-validates the
+  // roster and returns false only when no roster exists — then we fall through
+  // to legacy master verification. Fail-closed: a roster vault with a bad or
+  // missing device signature throws inside the verifier.
+  const handledByRoster = keyboxRosterVerifier
+    ? await keyboxRosterVerifier({
         epoch: payload.epoch,
         recipient: payload.vaultKey.recipient,
-      }),
-      payload.sig,
-      fromB64(recovery.signingKey),
-    );
-    if (!ok) {
-      throw new Error("keybox: signature does not match the vault recovery key");
+        sig: payload.sig,
+        signedBy: payload.signedBy,
+      })
+    : false;
+  if (!handledByRoster) {
+    const recovery = await readRecovery();
+    if (recovery?.signingKey) {
+      if (!payload.sig) {
+        throw new Error("keybox: missing signature in a signed-mode vault");
+      }
+      const ok = verify(
+        keyboxSigningPayload({
+          epoch: payload.epoch,
+          recipient: payload.vaultKey.recipient,
+        }),
+        payload.sig,
+        fromB64(recovery.signingKey),
+      );
+      if (!ok) {
+        throw new Error("keybox: signature does not match the vault recovery key");
+      }
     }
   }
   return payload.vaultKey;
+}
+
+/**
+ * Model B device signer for the keybox: an in-roster device signs {epoch,
+ * recipient} with its own key so the keybox binding is tamper-evident without
+ * the master. When supplied, it takes precedence over `recoverySigning`.
+ */
+export interface KeyboxDeviceSigner {
+  signPub: string;
+  signPriv: Uint8Array;
 }
 
 export async function writeKeybox(
   vaultKey: VaultKey,
   recipients: string[],
   message: string,
-  opts: { epoch?: number; recoverySigning?: RecoverySigningKey } = {},
+  opts: {
+    epoch?: number;
+    recoverySigning?: RecoverySigningKey;
+    deviceSigner?: KeyboxDeviceSigner;
+  } = {},
 ): Promise<void> {
   const epoch = opts.epoch ?? 1;
-  const sig = opts.recoverySigning
-    ? sign(
-        keyboxSigningPayload({ epoch, recipient: vaultKey.recipient }),
-        opts.recoverySigning.privateKey,
-      )
-    : undefined;
-  const armored = await sealKeybox(vaultKey, recipients, { epoch, sig });
+  const payload = keyboxSigningPayload({ epoch, recipient: vaultKey.recipient });
+  let sig: string | undefined;
+  let signedBy: string | undefined;
+  if (opts.deviceSigner) {
+    sig = sign(payload, opts.deviceSigner.signPriv);
+    signedBy = opts.deviceSigner.signPub;
+  } else if (opts.recoverySigning) {
+    sig = sign(payload, opts.recoverySigning.privateKey);
+  }
+  const armored = await sealKeybox(vaultKey, recipients, { epoch, sig, signedBy });
   const result = await backend.writeFile(
     KEYBOX_PATH,
     armored,
@@ -658,9 +710,31 @@ export function getVaultBackend(): SecretsBackend {
   return backend;
 }
 
+/**
+ * Model B recipient source. When a roster exists, the set of devices the vault
+ * key is wrapped to comes from the chain-verified roster (not the legacy device
+ * records). Late-bound to avoid a core↔roster import cycle; returns null when
+ * there is no roster so callers fall back to the legacy device-record set.
+ */
+export type RosterRecipientsResolver = (
+  device: DeviceIdentity,
+) => Promise<string[] | null>;
+
+let rosterRecipientsResolver: RosterRecipientsResolver | null = null;
+
+export function configureRosterRecipientsResolver(
+  resolver: RosterRecipientsResolver,
+): void {
+  rosterRecipientsResolver = resolver;
+}
+
 export async function collectVaultRecipients(
   device: DeviceIdentity,
 ): Promise<string[]> {
+  if (rosterRecipientsResolver) {
+    const fromRoster = await rosterRecipientsResolver(device);
+    if (fromRoster) return fromRoster;
+  }
   const [devices, recovery, members] = await Promise.all([
     listDevices(),
     readRecovery(),

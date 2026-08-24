@@ -5,10 +5,12 @@
  * The public recipient (age1…) is committed to the vault under
  * .notekit/devices/{deviceId}.json so other devices can encrypt to us.
  */
+import { ed25519 } from "@noble/curves/ed25519.js";
 import { generateIdentity, identityToRecipient } from "age-encryption";
 import { nanoid } from "nanoid";
 import type { PlatformPort } from "../../application/ports/out/PlatformPort";
 import type { NativePlatform } from "../../domain/platform";
+import { toB64 } from "./signing";
 
 let platform: PlatformPort | null = null;
 
@@ -37,6 +39,22 @@ export interface DeviceIdentity {
   identity: string;
   recipient: string;
   createdAt: string;
+  /**
+   * Per-device Ed25519 signing keypair (base64), the heart of Model B device
+   * management. The private key NEVER leaves this device and is never sealed
+   * into any vault file; only `signPublicKey` is published (in the roster). A
+   * device generated before Model B has neither field — {@link loadDeviceIdentity}
+   * back-fills them lazily so existing installs keep working.
+   */
+  signPublicKey?: string;
+  signPrivateKey?: string;
+}
+
+/** Fresh Ed25519 signing keypair for a device, encoded base64 for storage. */
+function generateSigningKeypair(): { signPublicKey: string; signPrivateKey: string } {
+  const signPrivateKey = ed25519.utils.randomSecretKey();
+  const signPublicKey = ed25519.getPublicKey(signPrivateKey);
+  return { signPublicKey: toB64(signPublicKey), signPrivateKey: toB64(signPrivateKey) };
 }
 
 function openDB(): Promise<IDBDatabase> {
@@ -87,7 +105,18 @@ async function idbDelete(key: string): Promise<void> {
 }
 
 export async function loadDeviceIdentity(): Promise<DeviceIdentity | null> {
-  return idbGet<DeviceIdentity>(KEY);
+  const device = await idbGet<DeviceIdentity>(KEY);
+  if (!device) return null;
+  // Back-fill the Model B signing keypair for a device created before it
+  // existed. Generating it locally is safe: the key is only ever *trusted* once
+  // an in-roster device vouches for it (re-vouch migration), so a pre-existing
+  // device gaining a signing key does not by itself grant any authority.
+  if (!device.signPublicKey || !device.signPrivateKey) {
+    const upgraded: DeviceIdentity = { ...device, ...generateSigningKeypair() };
+    await idbPut(KEY, upgraded);
+    return upgraded;
+  }
+  return device;
 }
 
 export async function createDeviceIdentity(name?: string): Promise<DeviceIdentity> {
@@ -99,6 +128,7 @@ export async function createDeviceIdentity(name?: string): Promise<DeviceIdentit
     identity,
     recipient,
     createdAt: new Date().toISOString(),
+    ...generateSigningKeypair(),
   };
   await idbPut(KEY, device);
   return device;

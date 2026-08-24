@@ -49,6 +49,39 @@ export function deviceSigningPayload(fields: {
   return new TextEncoder().encode(canonical);
 }
 
+/**
+ * Canonical bytes signed over a device roster version (Model B).
+ *
+ * The signature covers the security-critical shape of every entry — the device
+ * identity, its signing pubkey, and its encryption recipient — plus the
+ * monotonically increasing `version`, so a signer can't be replayed onto a
+ * different roster or a rolled-back version. The signer's own `signPub` is bound
+ * too so the chain link is explicit and can't be reattributed. Cosmetic fields
+ * (`name`, `vouchedBy`) are deliberately excluded so a rename never breaks the
+ * signature; `addedAt` IS included because it's part of each entry's identity.
+ *
+ * Entries are serialized in a canonical order (sorted by deviceId) so the bytes
+ * are independent of array ordering — two devices building the same roster
+ * produce identical bytes.
+ */
+export function rosterSigningPayload(fields: {
+  version: number;
+  signerSignPub: string;
+  entries: { deviceId: string; signPub: string; recipient: string; addedAt: string }[];
+}): Uint8Array {
+  const sorted = [...fields.entries].sort((a, b) => a.deviceId.localeCompare(b.deviceId));
+  const lines = sorted.map(
+    (e) => `${e.deviceId}\t${e.signPub}\t${e.recipient}\t${e.addedAt}`,
+  );
+  const canonical = [
+    "nk-roster-v1",
+    `version=${fields.version}`,
+    `signer=${fields.signerSignPub}`,
+    ...lines,
+  ].join("\n");
+  return new TextEncoder().encode(canonical);
+}
+
 /** Canonical bytes for recovery.json's self-signature. */
 export function recoverySigningPayload(fields: {
   recipient: string;

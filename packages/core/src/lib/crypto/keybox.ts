@@ -30,8 +30,16 @@ export interface KeyboxPayload {
   /** Bumped when the vault key is rotated (device removal). Lets a stale device re-unlock. */
   epoch: number;
   vaultKey: VaultKey;
-  /** Optional recovery-key signature over {v, epoch, recipient}; verified by the caller. */
+  /**
+   * Signature over {v, epoch, recipient}; verified by the caller. In legacy
+   * signed mode it is the recovery (master) key's signature. In Model B it is an
+   * in-roster DEVICE's signature, and {@link signedBy} names which device signing
+   * pubkey produced it (checked against the current roster) — so the master key
+   * stays cold on device add/revoke.
+   */
   sig?: string;
+  /** Model B: base64 device signing pubkey that produced `sig`. */
+  signedBy?: string;
 }
 
 /** A fresh random vault key. Called once at vault init (or on rotation). */
@@ -64,13 +72,14 @@ export function keyboxSigningPayload(fields: {
 export async function sealKeybox(
   vaultKey: VaultKey,
   recipients: string[],
-  opts: { epoch?: number; sig?: string } = {},
+  opts: { epoch?: number; sig?: string; signedBy?: string } = {},
 ): Promise<string> {
   const payload: KeyboxPayload = {
     v: 1,
     epoch: opts.epoch ?? 1,
     vaultKey,
     ...(opts.sig ? { sig: opts.sig } : {}),
+    ...(opts.signedBy ? { signedBy: opts.signedBy } : {}),
   };
   return encryptSecrets(JSON.stringify(payload), recipients);
 }
@@ -107,5 +116,6 @@ export async function openKeybox(
     epoch: parsed.epoch,
     vaultKey: { identity: vk.identity, recipient: vk.recipient },
     ...(typeof parsed.sig === "string" ? { sig: parsed.sig } : {}),
+    ...(typeof parsed.signedBy === "string" ? { signedBy: parsed.signedBy } : {}),
   };
 }

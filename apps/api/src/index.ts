@@ -9,6 +9,7 @@ import { pool } from "./adapters/driven/db";
 import { revokeVaultToken, vaultConfigured } from "./adapters/driven/hcvault";
 import { avatarRoutes } from "./adapters/driving/routes/avatar";
 import { directoryRoutes } from "./adapters/driving/routes/directory";
+import { iapRoutes } from "./adapters/driving/routes/iap";
 import { integrationsRoutes } from "./adapters/driving/routes/integrations";
 import { notificationRoutes } from "./adapters/driving/routes/notifications";
 import { backofficeRoutes } from "./backoffice/routes";
@@ -17,7 +18,6 @@ import { env } from "./env";
 import { logger } from "./lib/logger";
 import { agentRoutes } from "./routes/agents";
 import { authRoutes } from "./routes/auth";
-import { iapRoutes } from "./routes/iap";
 import { vaultRoutes } from "./routes/vault";
 
 const app = new Hono();

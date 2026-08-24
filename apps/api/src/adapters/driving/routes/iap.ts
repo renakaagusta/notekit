@@ -9,20 +9,16 @@
  * Pub/Sub push). They don't trust the payload alone — they re-lookup the
  * current state via the API and recompute entitlement.
  */
-import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { nanoid } from "nanoid";
-import { db, schema } from "../adapters/driven/db";
 import {
-  lookupTransaction,
-  type SignedTransactionInfo,
-} from "../adapters/driven/iap/apple";
-import { lookupSubscription } from "../adapters/driven/iap/google";
-import { requireWebhookSecret } from '../adapters/driving/middleware/webhook-auth'
-import { recomputePlusForUser } from "../composition/entitlement";
-import { getCurrentUser } from "../composition/sessions";
-import { logger } from '../lib/logger'
-import { parseBody, z } from "../validation";
+  handleGoogleWebhook,
+  verifyAppleReceipt,
+  verifyGooglePurchase,
+} from "../../../composition/iap";
+import { getCurrentUser } from "../../../composition/sessions";
+import { logger } from "../../../lib/logger";
+import { parseBody, z } from "../../../validation";
+import { requireWebhookSecret } from "../middleware/webhook-auth";
 
 export const iapRoutes = new Hono();
 
@@ -62,10 +58,8 @@ iapRoutes.post("/apple/verify", async (c) => {
   const parsed = await parseBody(c, AppleVerifyBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
   try {
-    const result = await lookupTransaction(parsed.data.transactionId);
-    await upsertAppleReceipt(user.id, result.info, result.environment, result.raw);
-    await recomputePlusForUser(user.id);
-    return c.json({ ok: true, productId: result.info.productId });
+    const result = await verifyAppleReceipt(user.id, parsed.data.transactionId);
+    return c.json({ ok: true, productId: result.productId });
   } catch (err) {
     logger.error({ err }, "[iap] verification failed")
     return c.json({ error: "verification_failed" }, 400);
@@ -83,10 +77,8 @@ iapRoutes.post("/google/verify", async (c) => {
   const parsed = await parseBody(c, GoogleVerifyBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
   try {
-    const state = await lookupSubscription(parsed.data.purchaseToken);
-    await upsertGooglePurchase(user.id, parsed.data.purchaseToken, state);
-    await recomputePlusForUser(user.id);
-    return c.json({ ok: true, productId: state.productId });
+    const result = await verifyGooglePurchase(user.id, parsed.data.purchaseToken);
+    return c.json({ ok: true, productId: result.productId });
   } catch (err) {
     logger.error({ err }, "[iap] verification failed")
     return c.json({ error: "verification_failed" }, 400);
@@ -130,86 +122,9 @@ iapRoutes.post("/google/webhook", requireWebhookSecret("GOOGLE_PLAY_PUBSUB_SECRE
     };
     const token = event.subscriptionNotification?.purchaseToken;
     if (!token) return c.json({ ok: true });
-    const existing = await db.query.googleIapPurchases.findFirst({
-      where: eq(schema.googleIapPurchases.purchaseToken, token),
-    });
-    if (!existing) {
-      return c.json({ ok: true });
-    }
-    const state = await lookupSubscription(token);
-    await upsertGooglePurchase(existing.userId, token, state);
-    await recomputePlusForUser(existing.userId);
+    await handleGoogleWebhook(token);
   } catch (err) {
     logger.warn({ err }, "[iap] webhook handler error")
   }
   return c.json({ ok: true });
 });
-
-async function upsertAppleReceipt(
-  userId: string,
-  info: SignedTransactionInfo,
-  environment: "sandbox" | "production",
-  raw: string,
-): Promise<void> {
-  const expiresAt = info.expiresDate ?? null;
-  await db
-    .insert(schema.appleIapReceipts)
-    .values({
-      id: `app_${nanoid(16)}`,
-      userId,
-      originalTransactionId: info.originalTransactionId,
-      latestTransactionId: info.transactionId,
-      productId: info.productId,
-      expiresAt,
-      environment,
-      rawJson: raw,
-      updatedAt: Date.now(),
-    })
-    .onConflictDoUpdate({
-      target: schema.appleIapReceipts.originalTransactionId,
-      set: {
-        latestTransactionId: info.transactionId,
-        productId: info.productId,
-        expiresAt,
-        environment,
-        rawJson: raw,
-        updatedAt: Date.now(),
-      },
-    })
-    .execute();
-}
-
-async function upsertGooglePurchase(
-  userId: string,
-  purchaseToken: string,
-  state: {
-    productId: string;
-    expiresAt: number;
-    acknowledged: boolean;
-    raw: unknown;
-  },
-): Promise<void> {
-  await db
-    .insert(schema.googleIapPurchases)
-    .values({
-      id: `gpl_${nanoid(16)}`,
-      userId,
-      purchaseToken,
-      productId: state.productId,
-      expiresAt: state.expiresAt ?? null,
-      acknowledged: state.acknowledged,
-      rawJson: JSON.stringify(state.raw),
-      updatedAt: Date.now(),
-    })
-    .onConflictDoUpdate({
-      target: schema.googleIapPurchases.purchaseToken,
-      set: {
-        productId: state.productId,
-        expiresAt: state.expiresAt ?? null,
-        acknowledged: state.acknowledged,
-        rawJson: JSON.stringify(state.raw),
-        updatedAt: Date.now(),
-      },
-    })
-    .execute();
-}

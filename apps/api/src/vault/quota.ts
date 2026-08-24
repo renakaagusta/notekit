@@ -13,7 +13,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "../adapters/driven/db";
 import * as fj from "../adapters/driven/git/forgejo";
 import { getForgejoToken } from "../adapters/driven/vault/forgejoAccounts";
-import { isPlus } from "../iap/entitlement";
+import { isPlus } from "../domain/entitlement";
 
 const FREE_QUOTA_BYTES = 100 * 1024 * 1024; // 100 MB
 const PLUS_QUOTA_BYTES = 1024 * 1024 * 1024; // 1 GB

@@ -6,9 +6,10 @@ import {
   recoveryFromMnemonic,
   recoverySigningFromMnemonic,
 } from "../../../lib/crypto/recovery";
-import { importRecovery, loadStoredRecovery } from "../../../lib/crypto/recovery-store";
+import { importRecovery } from "../../../lib/crypto/recovery-store";
 import { deriveWalletVaultIdentity } from "../../../lib/crypto/wallet-key";
 import { connectWallet, hasInjectedWallet } from "../../../lib/crypto/wallet-provider";
+import { resolveDeviceSigningKey } from "../../../lib/crypto-bootstrap";
 import { addDevice, listDevices, readRecovery } from "../../../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { AddVaultDialog } from "./AddVaultDialog";
@@ -421,13 +422,12 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     setBusy(true);
     setError(null);
     try {
-      // Sign the new device record with the recovery key. The origin device
-      // holds the mnemonic locally (one-click); a secondary device in a
-      // signed-mode vault must type the recovery phrase to obtain the key.
-      const stored = await loadStoredRecovery();
-      let recoverySigning = stored
-        ? await recoverySigningFromMnemonic(stored.mnemonic)
-        : undefined;
+      // Sign the new device record with the recovery key. Any already-authorized
+      // device approves one-click: it holds the key from its stored mnemonic or
+      // its per-device authority grant (WhatsApp-style linking). Only a device
+      // with neither, in a signed-mode vault, must type the recovery phrase.
+      let recoverySigning =
+        (await resolveDeviceSigningKey(signer)) ?? undefined;
       if (!recoverySigning) {
         const recovery = await readRecovery();
         if (recovery?.signingKey) {

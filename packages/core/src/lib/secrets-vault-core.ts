@@ -15,6 +15,8 @@ import {
   sealKeybox,
   openKeybox,
   keyboxSigningPayload,
+  sealAuthorityGrant,
+  openAuthorityGrant,
 } from "./crypto/keybox";
 import type { RecoverySigningKey } from "./crypto/recovery";
 import {
@@ -225,6 +227,7 @@ export const VAULTS_INDEX_PATH = ".notekit/secrets/_vaults.json";
 export const CONFIG_PATH = ".notekit/config.json";
 export const KEYBOX_PATH = ".notekit/keybox.age";
 export const MEMBERS_PREFIX = ".notekit/members/";
+export const AUTHORITY_PREFIX = ".notekit/authority/";
 export const DEFAULT_VAULT_SLUG = "";
 export const DEFAULT_VAULT_LABEL = "Default";
 export const SHARES_PREFIX = ".notekit/shares/";
@@ -358,6 +361,10 @@ export function assertValidSlug(slug: string): void {
 
 export function memberPath(memberId: string): string {
   return `${MEMBERS_PREFIX}${memberId}.json`;
+}
+
+export function authorityGrantPath(deviceId: string): string {
+  return `${AUTHORITY_PREFIX}${deviceId}.age`;
 }
 
 export function sharePath(kind: string, id: string): string {
@@ -564,6 +571,47 @@ export async function writeKeybox(
     shaCache.get(KEYBOX_PATH),
   );
   shaCache.set(KEYBOX_PATH, result.sha);
+}
+
+/**
+ * Seal the recovery signing key to a newly-approved OWNER device so it becomes a
+ * full authority (can enrol further devices phrase-free). Written only by a
+ * device that already holds the signing key; see the design doc.
+ */
+export async function writeAuthorityGrant(
+  recoverySigning: RecoverySigningKey,
+  deviceRecipient: string,
+  deviceId: string,
+  message: string,
+): Promise<void> {
+  const armored = await sealAuthorityGrant(recoverySigning, deviceRecipient);
+  const path = authorityGrantPath(deviceId);
+  const result = await backend.writeFile(path, armored, message, shaCache.get(path));
+  shaCache.set(path, result.sha);
+}
+
+/**
+ * Load this device's authority grant, if any. Returns the recovery signing key
+ * ONLY when its derived public key matches the vault's pinned recovery signing
+ * key — a mismatched/forged grant is rejected (fail-closed), so it can never be
+ * used to sign records that a verifier would then reject anyway. Absent grant or
+ * legacy vault (no recovery signing key) → null.
+ */
+export async function loadAuthorityGrant(
+  device: DeviceIdentity,
+): Promise<RecoverySigningKey | null> {
+  const recovery = await readRecovery();
+  if (!recovery?.signingKey) return null;
+  const file = await readVaultFile(authorityGrantPath(device.deviceId));
+  if (file.sha) shaCache.set(file.path, file.sha);
+  if (typeof file.content !== "string" || !file.content) return null;
+  const signing = await openAuthorityGrant(file.content, device.identity);
+  if (toB64(signing.publicKey) !== recovery.signingKey) {
+    throw new Error(
+      "authority grant: signing key does not match the vault recovery key",
+    );
+  }
+  return signing;
 }
 
 export async function readKeyboxEpoch(

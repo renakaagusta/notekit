@@ -13,7 +13,10 @@
  * secrets-vault.ts (which owns `backend` and the trust store), mirroring how
  * vault-crypto.ts stays IO-free.
  */
+import { ed25519 } from "@noble/curves/ed25519.js";
+import { base64 } from "@scure/base";
 import { generateIdentity, identityToRecipient } from "age-encryption";
+import type { RecoverySigningKey } from "./recovery";
 import { encryptSecrets, decryptSecrets } from "./vault-crypto";
 
 /** The vault's single content key: content is sealed to `recipient`, opened with `identity`. */
@@ -108,4 +111,53 @@ export async function openKeybox(
     vaultKey: { identity: vk.identity, recipient: vk.recipient },
     ...(typeof parsed.sig === "string" ? { sig: parsed.sig } : {}),
   };
+}
+
+/**
+ * WhatsApp-style device linking: an **authority grant** hands the vault's
+ * recovery *signing* key (the root that signs device records + the keybox) to a
+ * single already-approved OWNER device, so it can enrol further devices without
+ * the 24-word phrase — exactly like a WhatsApp companion phone.
+ *
+ * The grant is age-sealed to ONE device's recipient (not to the shared keybox),
+ * so members/agents never receive it: least-privilege is preserved. Reused
+ * verification unchanged — the grant only changes *who holds* the signing key,
+ * never *what a verifier accepts* (a forged grant yields a key whose public half
+ * won't match the pinned recovery root, so everything it signs is rejected).
+ */
+interface AuthorityGrantPayload {
+  v: 1;
+  /** Ed25519 recovery signing private scalar (32 bytes), base64. */
+  recoverySigningPrivateKey: string;
+}
+
+export async function sealAuthorityGrant(
+  recoverySigning: RecoverySigningKey,
+  deviceRecipient: string,
+): Promise<string> {
+  const payload: AuthorityGrantPayload = {
+    v: 1,
+    recoverySigningPrivateKey: base64.encode(recoverySigning.privateKey),
+  };
+  return encryptSecrets(JSON.stringify(payload), [deviceRecipient]);
+}
+
+/**
+ * Open an authority grant with a device identity, returning the recovery signing
+ * key. The public half is re-derived from the sealed private scalar so the
+ * caller can confirm it matches the vault's pinned recovery root before trusting
+ * it — a grant carrying the wrong key gains no authority.
+ */
+export async function openAuthorityGrant(
+  armored: string,
+  deviceIdentity: string,
+): Promise<RecoverySigningKey> {
+  const json = await decryptSecrets(armored, deviceIdentity);
+  const parsed = JSON.parse(json) as Partial<AuthorityGrantPayload>;
+  if (parsed.v !== 1 || typeof parsed.recoverySigningPrivateKey !== "string") {
+    throw new Error("authority grant: malformed payload");
+  }
+  const privateKey = base64.decode(parsed.recoverySigningPrivateKey);
+  const publicKey = ed25519.getPublicKey(privateKey);
+  return { privateKey, publicKey };
 }

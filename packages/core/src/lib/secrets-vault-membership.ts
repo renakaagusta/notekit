@@ -25,6 +25,7 @@ import {
   unlockVaultKey,
   keyboxExists,
   writeKeybox,
+  writeAuthorityGrant,
   readKeyboxEpoch,
   deviceRecordTrusted,
   type DeviceRecord,
@@ -83,6 +84,19 @@ export async function addDevice(
     ),
     `Add device "${newDevice.name}"`,
   );
+
+  // WhatsApp-style linking: the approver holds the signing key, and this is
+  // another OWNER device of the same user, so hand it a per-device authority
+  // grant. The new device can then enrol further devices phrase-free. Sealed to
+  // that device only (not the shared keybox), so members/agents never get it.
+  if (recoverySigning) {
+    await writeAuthorityGrant(
+      recoverySigning,
+      newDevice.recipient,
+      newDevice.deviceId,
+      `Grant device "${newDevice.name}" authority to approve devices`,
+    );
+  }
 
   const vaultKey = await unlockVaultKey(signer);
   if (vaultKey) {

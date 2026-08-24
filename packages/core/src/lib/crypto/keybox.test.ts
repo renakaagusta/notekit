@@ -5,7 +5,11 @@ import {
   sealKeybox,
   openKeybox,
   keyboxSigningPayload,
+  sealAuthorityGrant,
+  openAuthorityGrant,
 } from "./keybox";
+import { generateRecoveryMnemonic, recoverySigningFromMnemonic } from "./recovery";
+import { toB64 } from "./signing";
 import { encryptSecrets, decryptSecrets } from "./vault-crypto";
 
 async function device() {
@@ -87,5 +91,31 @@ describe("keybox (envelope encryption)", () => {
     const p3 = keyboxSigningPayload({ epoch: 3, recipient: "age1xyz" });
     expect(p1).toEqual(p2);
     expect(p1).not.toEqual(p3);
+  });
+});
+
+describe("authority grant (WhatsApp-style device linking)", () => {
+  it("round-trips the recovery signing key to the granted device", async () => {
+    const d = await device();
+    const signing = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    const grant = await sealAuthorityGrant(signing, d.recipient);
+    const opened = await openAuthorityGrant(grant, d.identity);
+    // Private + public halves survive the round-trip byte-for-byte.
+    expect(toB64(opened.privateKey)).toBe(toB64(signing.privateKey));
+    expect(toB64(opened.publicKey)).toBe(toB64(signing.publicKey));
+  });
+
+  it("a device outside the grant cannot open it (sealed per-device, least-privilege)", async () => {
+    const granted = await device();
+    const other = await device();
+    const signing = await recoverySigningFromMnemonic(generateRecoveryMnemonic());
+    const grant = await sealAuthorityGrant(signing, granted.recipient);
+    await expect(openAuthorityGrant(grant, other.identity)).rejects.toThrow();
+  });
+
+  it("rejects a malformed grant payload", async () => {
+    const d = await device();
+    const grant = await encryptSecrets(JSON.stringify({ v: 2 }), [d.recipient]);
+    await expect(openAuthorityGrant(grant, d.identity)).rejects.toThrow(/malformed/);
   });
 });

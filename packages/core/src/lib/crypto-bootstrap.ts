@@ -16,6 +16,7 @@ import type { VaultKey } from "./crypto/keybox";
 import {
   recoverySigningFromMnemonic,
   recoveryFromMnemonic,
+  type RecoverySigningKey,
 } from "./crypto/recovery";
 import { loadStoredRecovery } from "./crypto/recovery-store";
 import { toB64 } from "./crypto/signing";
@@ -31,6 +32,7 @@ import {
   keyboxExists,
   unlockVaultKey,
   addSelfToKeybox,
+  loadAuthorityGrant,
   setActiveVaultKey,
   beginVaultReadWindow,
   endVaultReadWindow,
@@ -46,6 +48,22 @@ let logger!: LoggerPort;
  */
 export function configureCryptoBootstrap(ports: { logger: LoggerPort }): void {
   logger = ports.logger;
+}
+
+/**
+ * The recovery signing key this device can use to authorize device enrolment —
+ * from its stored mnemonic (the vault-creating device or one that typed the
+ * phrase) OR from its per-device authority grant (a device WhatsApp-linked by an
+ * already-authorized device). Null when this device holds neither, in which case
+ * the caller falls back to prompting for the recovery phrase. This is what makes
+ * one-click phrase-free approval work on companion devices.
+ */
+export async function resolveDeviceSigningKey(
+  device: DeviceIdentity,
+): Promise<RecoverySigningKey | null> {
+  const stored = await loadStoredRecovery();
+  if (stored?.mnemonic) return recoverySigningFromMnemonic(stored.mnemonic);
+  return loadAuthorityGrant(device);
 }
 
 /**

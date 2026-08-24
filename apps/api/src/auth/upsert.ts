@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { db, schema } from "../db";
+import { db, schema } from "../adapters/driven/db";
 import type { NormalizedProfile, ProviderName } from "./providers";
 import { encryptToken } from "./tokenCrypto";
 

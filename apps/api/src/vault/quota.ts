@@ -10,8 +10,8 @@
  */
 
 import { eq } from "drizzle-orm";
+import { db, schema } from "../adapters/driven/db";
 import * as fj from "../adapters/driven/git/forgejo";
-import { db, schema } from "../db";
 import { isPlus } from "../iap/entitlement";
 import { getForgejoToken } from "./forgejoAccounts";
 

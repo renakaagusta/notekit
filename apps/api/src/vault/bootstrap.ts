@@ -16,8 +16,8 @@
  */
 
 import { eq } from "drizzle-orm";
+import { db, schema } from "../adapters/driven/db";
 import * as fj from "../adapters/driven/git/forgejo";
-import { db, schema } from "../db";
 import { env } from "../env";
 import { logger } from '../lib/logger'
 import { provisionForgejoAccount } from "./forgejoAccounts";

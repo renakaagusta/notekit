@@ -5,13 +5,13 @@
  */
 import { and, eq, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
+import { db, schema } from "../adapters/driven/db";
 import { GhError } from "../adapters/driven/git/github";
 import {
   generateAgentToken,
   newAgentTokenId,
 } from "../auth/agentAuth";
 import { getCurrentUser } from "../auth/sessions";
-import { db, schema } from "../db";
 import {
   readAgent,
   listAgents,

@@ -12,13 +12,13 @@
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { nanoid } from "nanoid";
+import { db, schema } from "../adapters/driven/db";
 import {
   lookupTransaction,
   type SignedTransactionInfo,
 } from "../adapters/driven/iap/apple";
 import { lookupSubscription } from "../adapters/driven/iap/google";
 import { getCurrentUser } from "../auth/sessions";
-import { db, schema } from "../db";
 import { recomputePlusForUser } from "../iap/entitlement";
 import { logger } from '../lib/logger'
 import { requireWebhookSecret } from '../middleware/webhook-auth'

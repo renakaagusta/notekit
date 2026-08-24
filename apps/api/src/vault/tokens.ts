@@ -14,9 +14,9 @@
  */
 
 import { and, eq } from "drizzle-orm";
+import { db, schema } from "../adapters/driven/db";
 import * as ghApp from "../adapters/driven/git/github-app";
 import { decryptToken } from "../auth/tokenCrypto";
-import { db, schema } from "../db";
 import { logger } from '../lib/logger'
 import { getForgejoToken } from "./forgejoAccounts";
 import { getActiveVault } from "./store";

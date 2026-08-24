@@ -19,8 +19,8 @@
  */
 import { eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { db, schema } from "../adapters/driven/db";
 import { getCurrentUser } from "../auth/sessions";
-import { db, schema } from "../db";
 import { parseBody, z } from "../validation";
 
 export const directoryRoutes = new Hono();

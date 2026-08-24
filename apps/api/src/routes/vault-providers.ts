@@ -4,13 +4,13 @@
  * Side-effect module: registers routes on the shared vaultRoutes instance.
  */
 import { and, eq } from "drizzle-orm";
+import { db, schema } from "../adapters/driven/db";
 import * as fj from "../adapters/driven/git/forgejo";
 import { GhError } from "../adapters/driven/git/github";
 import * as ghApp from "../adapters/driven/git/github-app";
 import * as gl from "../adapters/driven/git/gitlab";
 import { getCurrentUser } from "../auth/sessions";
 import { encryptToken, decryptToken } from "../auth/tokenCrypto";
-import { db, schema } from "../db";
 import { tryConsume } from "../middleware/rateLimit";
 import { parseBody, z, RepoName } from "../validation";
 import { provisionForgejoAccount, getForgejoAccount } from "../vault/forgejoAccounts";

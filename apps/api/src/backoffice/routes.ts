@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { pool } from "../db";
+import { pool } from "../adapters/driven/db";
 import { isBackofficeAdmin } from "../env";
 import { backofficeAuth } from "./auth";
 

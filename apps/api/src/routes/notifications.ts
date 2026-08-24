@@ -10,8 +10,8 @@
 import { and, desc, eq, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { nanoid } from "nanoid";
+import { db, schema } from "../adapters/driven/db";
 import { getCurrentUser } from "../auth/sessions";
-import { db, schema } from "../db";
 import { env } from "../env";
 import { emitAgentEvent } from "../notifications/emit";
 import { parseBody, z } from "../validation";

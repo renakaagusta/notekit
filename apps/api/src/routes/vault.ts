@@ -1,6 +1,7 @@
 import { streamSSE } from "hono/streaming";
 import { getCurrentUser } from "../auth/sessions";
 import { issueSseTicket, redeemSseTicket } from "../auth/sseTickets";
+import { sanitizeVaultPath, VaultPathError } from "../domain/path-sanitize";
 import { env } from "../env";
 import { isPlus } from "../iap/entitlement";
 import {
@@ -24,7 +25,6 @@ import {
 } from "../validation";
 import { readAgent, defaultEmailFor } from "../vault/agents";
 import { GhError, type GitAuthor } from "../vault/github";
-import { sanitizeVaultPath, VaultPathError } from "../vault/path-sanitize";
 import { checkWriteAllowed, refreshUsedBytesIfStale } from "../vault/quota";
 import {
   createVault,

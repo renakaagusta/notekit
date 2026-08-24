@@ -21,4 +21,5 @@ export interface VaultTokenPort {
   getActiveVaultToken(
     userId: string,
   ): Promise<{ vault: ActiveVault | null; token: string | null }>;
+  getVaultToken(userId: string, provider: GitProvider): Promise<string | null>;
 }

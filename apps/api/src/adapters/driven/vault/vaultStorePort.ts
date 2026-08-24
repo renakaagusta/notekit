@@ -2,19 +2,27 @@ import type {
   ActiveVaultRow,
   VaultStorePort,
 } from "../../../application/ports/out/VaultStorePort";
-import { getActiveVault } from "./store";
+import { getActiveVault, getVaultById } from "./store";
+import type { VaultRow } from "./store";
+
+function toActiveVaultRow(row: VaultRow): ActiveVaultRow {
+  return {
+    id: row.id,
+    owner: row.owner,
+    repo: row.repo,
+    branch: row.branch,
+    provider: row.provider,
+  };
+}
 
 /** Drizzle-backed implementation of {@link VaultStorePort}. */
 export const vaultStorePort: VaultStorePort = {
   async getActiveVault(userId: string): Promise<ActiveVaultRow | null> {
     const active = await getActiveVault(userId);
-    if (!active) return null;
-    return {
-      id: active.id,
-      owner: active.owner,
-      repo: active.repo,
-      branch: active.branch,
-      provider: active.provider,
-    };
+    return active ? toActiveVaultRow(active) : null;
+  },
+  async getVaultById(userId: string, vaultId: string): Promise<ActiveVaultRow | null> {
+    const row = await getVaultById(userId, vaultId);
+    return row ? toActiveVaultRow(row) : null;
   },
 };

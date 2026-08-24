@@ -2,12 +2,11 @@
  * Vault member management routes (collaborators + invitations).
  * Side-effect module: registers routes on the shared vaultRoutes instance.
  */
-import { getVaultById } from "../adapters/driven/vault/store";
-import { getVaultToken } from "../adapters/driven/vault/tokens";
-import { vaultRoutes } from "../adapters/driving/routes/vault-router";
-import { env, ghErr, gitOps, isDevToken, vaultMutationLimit } from "../adapters/driving/routes/vault-shared";
-import { getCurrentUser } from "../composition/sessions";
-import { parseBody, z, GithubUsername, CollaboratorPermissionEnum } from "../validation";
+import { getCurrentUser } from "../../../composition/sessions";
+import { getVaultById, getVaultToken } from "../../../composition/vault-members";
+import { parseBody, z, GithubUsername, CollaboratorPermissionEnum } from "../../../validation";
+import { vaultRoutes } from "./vault-router";
+import { env, ghErr, gitOps, isDevToken, vaultMutationLimit } from "./vault-shared";
 
 /**
  * GET /vaults/:id/members — list collaborators + pending invitations.

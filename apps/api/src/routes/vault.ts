@@ -14,6 +14,8 @@ import {
   type VaultRow,
 } from "../adapters/driven/vault/store";
 import { getVaultToken } from "../adapters/driven/vault/tokens";
+import { pairRoutes } from "../adapters/driving/routes/pair";
+import { vaultRoutes } from "../adapters/driving/routes/vault-router";
 import {
   publishVaultEvent,
   subscribeVault,
@@ -40,8 +42,6 @@ import {
   ThemeEnum,
   VaultProviderEnum,
 } from "../validation";
-import { pairRoutes } from "./pair";
-import { vaultRoutes } from "./vault-router";
 import {
   gitOps,
   isDevToken,

@@ -7,9 +7,9 @@
  */
 import { Hono } from "hono";
 import { consumeStartCode } from "../adapters/driven/notifications/telegram";
+import { requireWebhookSecret } from '../adapters/driving/middleware/webhook-auth'
 import { env } from "../env";
 import { logger } from '../lib/logger'
-import { requireWebhookSecret } from '../middleware/webhook-auth'
 
 export const integrationsRoutes = new Hono();
 

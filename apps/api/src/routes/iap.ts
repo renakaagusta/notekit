@@ -18,10 +18,10 @@ import {
   type SignedTransactionInfo,
 } from "../adapters/driven/iap/apple";
 import { lookupSubscription } from "../adapters/driven/iap/google";
+import { requireWebhookSecret } from '../adapters/driving/middleware/webhook-auth'
 import { recomputePlusForUser } from "../composition/entitlement";
 import { getCurrentUser } from "../composition/sessions";
 import { logger } from '../lib/logger'
-import { requireWebhookSecret } from '../middleware/webhook-auth'
 import { parseBody, z } from "../validation";
 
 export const iapRoutes = new Hono();

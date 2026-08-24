@@ -351,7 +351,7 @@ interface ChatBodyViewProps {
   messages: ChatMessage[];
   pendingApproval: PendingApproval | null;
   error: string | null;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
   onResolveApproval: (ok: boolean) => void;
 }
 
@@ -450,7 +450,7 @@ interface PanelChatActiveViewProps {
   messages: ChatMessage[];
   pendingApproval: PendingApproval | null;
   error: string | null;
-  scrollRef: React.RefObject<HTMLDivElement>;
+  scrollRef: React.RefObject<HTMLDivElement | null>;
   onResolveApproval: (ok: boolean) => void;
   composerProps: PanelComposerViewProps;
 }
@@ -726,8 +726,8 @@ interface PanelComposerViewProps {
   streaming: boolean;
   capturing: boolean;
   draft: string;
-  fileInputRef: React.RefObject<HTMLInputElement>;
-  inputRef: React.RefObject<HTMLTextAreaElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
   onAddImageFiles: (files: File[]) => void;
   onCaptureNote: () => void;
   onPaste: (e: React.ClipboardEvent) => void;

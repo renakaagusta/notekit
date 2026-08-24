@@ -19,10 +19,10 @@ import {
   type VaultEvent,
 } from "../application/vault-events";
 import { getCurrentUser } from "../auth/sessions";
+import { isPlus } from "../domain/entitlement";
 import { sanitizeVaultPath, VaultPathError } from "../domain/path-sanitize";
 import { issueSseTicket, redeemSseTicket } from "../domain/sseTickets";
 import { env } from "../env";
-import { isPlus } from "../iap/entitlement";
 import { emitAgentEvent } from "../notifications/emit";
 import {
   parseBody,

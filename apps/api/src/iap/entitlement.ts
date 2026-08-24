@@ -1,7 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { db, schema } from "../adapters/driven/db";
-
-export type PlusSource = "apple" | "google" | "stripe" | "lifetime";
+import type { PlusSource } from "../domain/entitlement";
 
 // eslint-disable-next-line complexity -- evaluates Apple, Google, Stripe, and lifetime plus sources with expiry comparisons; each branch is necessary
 export async function recomputePlusForUser(userId: string): Promise<void> {
@@ -42,13 +41,4 @@ export async function recomputePlusForUser(userId: string): Promise<void> {
     })
     .where(eq(schema.users.id, userId))
     .execute();
-}
-
-export function isPlus(user: {
-  plusUntil?: number | null;
-  plusSource?: string | null;
-}): boolean {
-  if (user.plusSource === "lifetime") return true;
-  if (!user.plusUntil) return false;
-  return user.plusUntil > Date.now();
 }

@@ -8,7 +8,7 @@
 
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
-import { encryptToken, decryptToken } from "../../../auth/tokenCrypto";
+import { encryptToken, decryptToken } from "../auth/tokenCrypto";
 import { db, schema } from "../db";
 import { createUser, upsertAccessToken } from "../git/forgejo";
 

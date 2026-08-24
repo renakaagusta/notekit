@@ -11,7 +11,7 @@
  * legacy plaintext and returned as-is (and re-encrypted on next write).
  */
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from "node:crypto";
-import { env } from "../env";
+import { env } from "../../../env";
 
 const VERSION = "v1";
 const ALGO = "aes-256-gcm";

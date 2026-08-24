@@ -13,16 +13,16 @@ import {
   type VaultRow,
 } from "../adapters/driven/vault/store";
 import { getVaultToken } from "../adapters/driven/vault/tokens";
-import { getCurrentUser } from "../auth/sessions";
-import { issueSseTicket, redeemSseTicket } from "../auth/sseTickets";
-import { sanitizeVaultPath, VaultPathError } from "../domain/path-sanitize";
-import { env } from "../env";
-import { isPlus } from "../iap/entitlement";
 import {
   publishVaultEvent,
   subscribeVault,
   type VaultEvent,
-} from "../lib/vault-events";
+} from "../application/vault-events";
+import { getCurrentUser } from "../auth/sessions";
+import { sanitizeVaultPath, VaultPathError } from "../domain/path-sanitize";
+import { issueSseTicket, redeemSseTicket } from "../domain/sseTickets";
+import { env } from "../env";
+import { isPlus } from "../iap/entitlement";
 import { emitAgentEvent } from "../notifications/emit";
 import {
   parseBody,

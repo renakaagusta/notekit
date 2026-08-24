@@ -17,7 +17,7 @@
  * channel. A leaked vault id alone can't subscribe.
  */
 
-import { logger } from "./logger";
+import { logger } from "../lib/logger";
 
 export type VaultEvent =
   | { type: "write"; path: string; sha: string }

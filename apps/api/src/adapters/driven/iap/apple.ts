@@ -14,7 +14,7 @@
  *   - https://developer.apple.com/documentation/appstoreservernotifications
  */
 import { createSign } from "node:crypto";
-import { env } from "../env";
+import { env } from "../../../env";
 
 export interface SignedTransactionInfo {
   transactionId: string;

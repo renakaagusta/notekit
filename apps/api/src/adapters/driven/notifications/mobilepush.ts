@@ -7,8 +7,8 @@
  * service-account credential covers both.
  */
 import { eq } from "drizzle-orm";
-import { db, schema } from "../../db";
-import { env } from "../../env";
+import { db, schema } from "../../../db";
+import { env } from "../../../env";
 
 export async function sendMobilePush(
   userId: string,

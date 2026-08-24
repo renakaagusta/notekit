@@ -9,7 +9,7 @@
  *   https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2/get
  */
 import { createSign } from "node:crypto";
-import { env } from "../env";
+import { env } from "../../../env";
 
 let tokenCache: { token: string; expiresAt: number } | null = null;
 

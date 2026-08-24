@@ -2,9 +2,9 @@
  * Web Push channel. Uses the `web-push` lib with VAPID. M3 wires this in.
  */
 import { eq } from "drizzle-orm";
-import { db, schema } from "../../db";
-import { env } from "../../env";
-import { logger } from '../../lib/logger'
+import { db, schema } from "../../../db";
+import { env } from "../../../env";
+import { logger } from '../../../lib/logger'
 
 interface WebPushModule {
   setVapidDetails: (subject: string, pub: string, priv: string) => void;

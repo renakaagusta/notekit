@@ -6,10 +6,10 @@
  * worker in `services/telegramPoller.ts`.
  */
 import { Hono } from "hono";
+import { consumeStartCode } from "../adapters/driven/notifications/telegram";
 import { env } from "../env";
 import { logger } from '../lib/logger'
 import { requireWebhookSecret } from '../middleware/webhook-auth'
-import { consumeStartCode } from "../notifications/channels/telegram";
 
 export const integrationsRoutes = new Hono();
 

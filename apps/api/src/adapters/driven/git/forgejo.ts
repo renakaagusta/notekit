@@ -7,7 +7,7 @@
  * not providers. GhError is also shared so vault.ts's ghErr handler works.
  */
 
-import { env } from "../env";
+import { env } from "../../../env";
 import {
   GhError,
   type GhRepo,

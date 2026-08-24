@@ -5,6 +5,7 @@
  */
 import { and, eq, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
+import { GhError } from "../adapters/driven/git/github";
 import {
   generateAgentToken,
   newAgentTokenId,
@@ -20,7 +21,6 @@ import {
   slugifyAgentName,
   type AgentProfile,
 } from "../vault/agents";
-import { GhError } from "../vault/github";
 import { getActiveVaultToken } from "../vault/tokens";
 
 export const agentRoutes = new Hono();

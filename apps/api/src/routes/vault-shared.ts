@@ -3,14 +3,14 @@
  * Imported by vault.ts and all vault-*.ts siblings.
  */
 import type { Context } from "hono";
+import * as fj from "../adapters/driven/git/forgejo";
+import { GhError } from "../adapters/driven/git/github";
+import * as gh from "../adapters/driven/git/github";
+import * as gl from "../adapters/driven/git/gitlab";
 import { getActingAgent } from "../auth/agentAuth";
 import { getCurrentUser } from "../auth/sessions";
 import { env } from "../env";
 import { rateLimit } from "../middleware/rateLimit";
-import * as fj from "../vault/forgejo";
-import { GhError } from "../vault/github";
-import * as gh from "../vault/github";
-import * as gl from "../vault/gitlab";
 import { getActiveVault } from "../vault/store";
 import type { GitProvider } from "../vault/tokens";
 

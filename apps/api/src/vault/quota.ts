@@ -10,9 +10,9 @@
  */
 
 import { eq } from "drizzle-orm";
+import * as fj from "../adapters/driven/git/forgejo";
 import { db, schema } from "../db";
 import { isPlus } from "../iap/entitlement";
-import * as fj from "./forgejo";
 import { getForgejoToken } from "./forgejoAccounts";
 
 const FREE_QUOTA_BYTES = 100 * 1024 * 1024; // 100 MB

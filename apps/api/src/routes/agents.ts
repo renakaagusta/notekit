@@ -7,6 +7,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { db, schema } from "../adapters/driven/db";
 import { GhError } from "../adapters/driven/git/github";
+import { getActiveVaultToken } from "../adapters/driven/vault/tokens";
 import {
   generateAgentToken,
   newAgentTokenId,
@@ -21,7 +22,6 @@ import {
   slugifyAgentName,
   type AgentProfile,
 } from "../vault/agents";
-import { getActiveVaultToken } from "../vault/tokens";
 
 export const agentRoutes = new Hono();
 

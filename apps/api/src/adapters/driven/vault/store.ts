@@ -5,7 +5,7 @@
  */
 import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
-import { db, schema } from "../adapters/driven/db";
+import { db, schema } from "../db";
 
 export interface VaultRow {
   id: string;

@@ -9,12 +9,12 @@ import * as fj from "../adapters/driven/git/forgejo";
 import { GhError } from "../adapters/driven/git/github";
 import * as ghApp from "../adapters/driven/git/github-app";
 import * as gl from "../adapters/driven/git/gitlab";
+import { provisionForgejoAccount, getForgejoAccount } from "../adapters/driven/vault/forgejoAccounts";
+import { getVaultToken } from "../adapters/driven/vault/tokens";
 import { getCurrentUser } from "../auth/sessions";
 import { encryptToken, decryptToken } from "../auth/tokenCrypto";
 import { tryConsume } from "../middleware/rateLimit";
 import { parseBody, z, RepoName } from "../validation";
-import { provisionForgejoAccount, getForgejoAccount } from "../vault/forgejoAccounts";
-import { getVaultToken } from "../vault/tokens";
 import { vaultRoutes } from "./vault-router";
 import { env, ghErr, isDevToken, vaultMutationLimit } from "./vault-shared";
 

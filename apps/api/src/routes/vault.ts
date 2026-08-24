@@ -1,5 +1,18 @@
 import { streamSSE } from "hono/streaming";
 import { GhError, type GitAuthor } from "../adapters/driven/git/github";
+import {
+  createVault,
+  deleteVault as removeVault,
+  getActiveVault,
+  getVaultById,
+  getVaultSettings,
+  listVaultsForUser,
+  renameVault,
+  setActiveVault,
+  updateVaultSettings,
+  type VaultRow,
+} from "../adapters/driven/vault/store";
+import { getVaultToken } from "../adapters/driven/vault/tokens";
 import { getCurrentUser } from "../auth/sessions";
 import { issueSseTicket, redeemSseTicket } from "../auth/sseTickets";
 import { sanitizeVaultPath, VaultPathError } from "../domain/path-sanitize";
@@ -26,19 +39,6 @@ import {
 } from "../validation";
 import { readAgent, defaultEmailFor } from "../vault/agents";
 import { checkWriteAllowed, refreshUsedBytesIfStale } from "../vault/quota";
-import {
-  createVault,
-  deleteVault as removeVault,
-  getActiveVault,
-  getVaultById,
-  getVaultSettings,
-  listVaultsForUser,
-  renameVault,
-  setActiveVault,
-  updateVaultSettings,
-  type VaultRow,
-} from "../vault/store";
-import { getVaultToken } from "../vault/tokens";
 import { pairRoutes } from "./pair";
 import { vaultRoutes } from "./vault-router";
 import {

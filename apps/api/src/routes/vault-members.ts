@@ -2,10 +2,10 @@
  * Vault member management routes (collaborators + invitations).
  * Side-effect module: registers routes on the shared vaultRoutes instance.
  */
+import { getVaultById } from "../adapters/driven/vault/store";
+import { getVaultToken } from "../adapters/driven/vault/tokens";
 import { getCurrentUser } from "../auth/sessions";
 import { parseBody, z, GithubUsername, CollaboratorPermissionEnum } from "../validation";
-import { getVaultById } from "../vault/store";
-import { getVaultToken } from "../vault/tokens";
 import { vaultRoutes } from "./vault-router";
 import { env, ghErr, gitOps, isDevToken, vaultMutationLimit } from "./vault-shared";
 

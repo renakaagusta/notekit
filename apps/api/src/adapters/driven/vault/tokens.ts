@@ -14,10 +14,10 @@
  */
 
 import { and, eq } from "drizzle-orm";
-import { db, schema } from "../adapters/driven/db";
-import * as ghApp from "../adapters/driven/git/github-app";
-import { decryptToken } from "../auth/tokenCrypto";
-import { logger } from '../lib/logger'
+import { decryptToken } from "../../../auth/tokenCrypto";
+import { logger } from '../../../lib/logger'
+import { db, schema } from "../db";
+import * as ghApp from "../git/github-app";
 import { getForgejoToken } from "./forgejoAccounts";
 import { getActiveVault } from "./store";
 import type { VaultRow } from "./store";

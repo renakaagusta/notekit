@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Shared IPC channel definitions for the NoteKit desktop wrapper.
-// Both main and preload import these constants and types so the typed bridge
-// stays in sync. Keep this file dependency-free so it can be required from
-// either Electron context without pulling in node-only modules.
+// Both the main-process composition root and the preload bridge import these
+// constants and types so the typed bridge stays in sync. Pure domain: no
+// external libraries and no Electron imports, so it can be required from either
+// Electron context without pulling in node-only modules.
 
 export const IPC_CHANNELS = {
   KeychainGet: "notekit:keychain:get",

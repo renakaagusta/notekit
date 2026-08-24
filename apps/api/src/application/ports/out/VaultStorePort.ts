@@ -19,4 +19,5 @@ export interface ActiveVaultRow {
  */
 export interface VaultStorePort {
   getActiveVault(userId: string): Promise<ActiveVaultRow | null>;
+  getVaultById(userId: string, vaultId: string): Promise<ActiveVaultRow | null>;
 }

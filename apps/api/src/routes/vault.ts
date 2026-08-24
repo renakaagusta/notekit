@@ -57,8 +57,8 @@ import {
   VaultProviderEnum,
 } from "../validation";
 // Side-effect imports: register member and provider routes on vaultRoutes.
-import "./vault-members";
-import "./vault-providers";
+import "../adapters/driving/routes/vault-members";
+import "../adapters/driving/routes/vault-providers";
 
 export { vaultRoutes };
 

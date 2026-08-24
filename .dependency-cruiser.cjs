@@ -328,7 +328,7 @@ module.exports = {
   ],
   options: {
     doNotFollow: {
-      path: "node_modules|dist|build",
+      path: "node_modules|dist|build|out",
     },
     // Generated / build output & native-synced webviews — never hand-authored,
     // mirror the eslint.config.js ignores. Bundled chunks are legitimately
@@ -339,6 +339,7 @@ module.exports = {
         "\\.d\\.ts$",
         "/dist/",
         "/build/",
+        "/out/",
         "/\\.next/",
         "/\\.turbo/",
         "/DerivedData/",

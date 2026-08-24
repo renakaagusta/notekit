@@ -35,6 +35,9 @@ import {
   writeKeybox,
   readKeyboxEpoch,
   keyboxExists,
+  writeDeviceRecord,
+  buildDeviceRecord,
+  devicePath,
   configureKeyboxRosterVerifier,
   configureRosterRecipientsResolver,
 } from "./secrets-vault-core";
@@ -279,6 +282,98 @@ export async function revokeDeviceViaRoster(
   }
   await publishRosterVersion(signer, nextEntries, `Revoke device "${revoked.name}" from roster`);
   await rotateVaultKey(signer, undefined, `after revoking "${revoked.name}"`, signerKeys);
+}
+
+// ─── Surface-facing orchestration (device list + approve + revoke) ───────────
+//
+// The three driving adapters (UI / CLI / MCP) call these — never the raw
+// add/revoke ops plus their own device-record IO — so the "roster is the trust,
+// device records are the display index" wiring lives in exactly one place.
+
+/** A trusted device as presented to the device-list UI/CLI/MCP. */
+export interface RosterDeviceView {
+  deviceId: string;
+  name: string;
+  signPub: string;
+  recipient: string;
+  addedAt: string;
+  /** True for the device asking — so the surface can render "this device". */
+  isSelf: boolean;
+}
+
+/**
+ * The current trusted-device list from the chain-verified roster, or null when
+ * the vault has no roster (legacy mode — the caller shows the device-record
+ * list instead). `self` marks the asking device by its signing pubkey.
+ */
+export async function listRosterDevices(
+  self: DeviceIdentity,
+): Promise<RosterDeviceView[] | null> {
+  const roster = await currentRoster();
+  if (!roster) return null;
+  const selfSignPub = deviceSigner(self)?.signPub ?? null;
+  return roster.entries.map((entry) => ({
+    deviceId: entry.deviceId,
+    name: entry.name,
+    signPub: entry.signPub,
+    recipient: entry.recipient,
+    addedAt: entry.addedAt,
+    isSelf: selfSignPub !== null && entry.signPub === selfSignPub,
+  }));
+}
+
+/** The roster entry for a device id, or null. Lets a surface map a chosen
+ * device (identified by its id in the list) to the `signPub` the revoke op
+ * needs, without the surface reaching into the roster document itself. */
+export async function rosterEntryForDevice(
+  deviceId: string,
+): Promise<RosterEntry | null> {
+  const roster = await currentRoster();
+  if (!roster) return null;
+  return roster.entries.find((entry) => entry.deviceId === deviceId) ?? null;
+}
+
+/**
+ * Approve a new device via the roster — the ONE op every approve surface calls.
+ * Adds it to the roster + re-wraps the vault key ({@link addDeviceViaRoster},
+ * device-signed, no master), then writes its device record so the device list
+ * and the new device's boot recognise it. The record carries no recovery
+ * signature: in Model B a device's trust IS its roster membership, not a
+ * recovery-signed device record.
+ */
+export async function approveDeviceViaRoster(
+  signer: DeviceIdentity,
+  newDevice: { deviceId: string; name: string; recipient: string; signPub: string },
+): Promise<void> {
+  await addDeviceViaRoster(signer, newDevice);
+  await writeDeviceRecord(
+    buildDeviceRecord({
+      deviceId: newDevice.deviceId,
+      name: newDevice.name,
+      recipient: newDevice.recipient,
+      addedAt: new Date().toISOString(),
+    }),
+    `Register device "${newDevice.name}" (roster-approved)`,
+  );
+}
+
+/**
+ * Revoke a device via the roster — the ONE op every revoke surface calls.
+ * Drops it from the roster + rotates the vault key ({@link revokeDeviceViaRoster},
+ * forward-only, no master), then deletes its device record so it disappears
+ * from the list. The revoked device's key can no longer open the rotated keybox.
+ */
+export async function revokeRosterDevice(
+  signer: DeviceIdentity,
+  target: { signPub: string; deviceId: string },
+): Promise<void> {
+  await revokeDeviceViaRoster(signer, target.signPub);
+  const path = devicePath(target.deviceId);
+  const file = await backend.readFile(path);
+  if (file.sha) {
+    await backend.deleteFile(path, file.sha, `Remove device record "${target.deviceId}"`);
+    shaCache.delete(path);
+  }
 }
 
 // ─── Late-bound hooks into secrets-vault-core (avoid an import cycle) ─────────

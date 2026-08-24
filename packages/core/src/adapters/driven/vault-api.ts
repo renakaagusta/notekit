@@ -354,6 +354,7 @@ export function announcePair(payload: {
   pubkey: string;
   deviceName: string;
   deviceId: string;
+  signPub?: string;
 }): Promise<{ ok: true; expiresAt: string }> {
   return apiFetch("/vault/pair/announce", {
     method: "POST",

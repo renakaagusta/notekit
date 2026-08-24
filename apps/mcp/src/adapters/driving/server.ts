@@ -19,6 +19,7 @@ import {
 import { registerNoteKitPrompts } from "./prompts/notekit.js";
 import { registerNoteResource } from "./resources/note.js";
 import { registerTicketResource } from "./resources/ticket.js";
+import { registerDeviceTools } from "./tools/devices.js";
 import { registerDiscoveryTools } from "./tools/discovery.js";
 import { registerInboxTools } from "./tools/inbox.js";
 import { registerLinkTools } from "./tools/links.js";
@@ -67,6 +68,7 @@ export function createMcpServer(opts: CreateServerOptions): McpServer {
   );
 
   registerVaultTools(server, nk);
+  registerDeviceTools(server, nk);
   registerProjectTools(server, nk);
   registerSecretTools(server, nk);
   registerNoteTools(server, nk);

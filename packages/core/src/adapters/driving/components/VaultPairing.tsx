@@ -9,7 +9,14 @@ import {
 import { importRecovery, loadStoredRecovery } from "../../../lib/crypto/recovery-store";
 import { deriveWalletVaultIdentity } from "../../../lib/crypto/wallet-key";
 import { connectWallet, hasInjectedWallet } from "../../../lib/crypto/wallet-provider";
-import { addDevice, listDevices, readRecovery } from "../../../lib/secrets-vault";
+import {
+  addDevice,
+  approveDeviceViaRoster,
+  currentRoster,
+  deviceSigner,
+  listDevices,
+  readRecovery,
+} from "../../../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { AddVaultDialog } from "./AddVaultDialog";
 
@@ -153,6 +160,10 @@ export function VaultPairNewDevice() {
           pubkey: device.recipient,
           deviceName: device.name,
           deviceId: device.deviceId,
+          // Publish our Model B signing key so a roster vault can vouch for us
+          // on approval with no recovery phrase. Omitted on a device predating
+          // Model B (falls back to the recovery-signed path).
+          signPub: deviceSigner(device)?.signPub,
         });
         if (!cancelled) setPairCode(code);
       } catch (e) {
@@ -386,6 +397,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     pubkey: string;
     deviceName: string;
     deviceId: string;
+    signPub?: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -408,6 +420,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
         pubkey: res.pubkey,
         deviceName: res.deviceName,
         deviceId: res.deviceId,
+        signPub: res.signPub,
       });
     } catch (e) {
       setError((e as Error).message);
@@ -416,43 +429,77 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     }
   }
 
+  /**
+   * Model B one-click approve: if this vault has a chain-verified roster and
+   * THIS device is a trusted member, vouch for the new device directly with our
+   * device key — no recovery phrase. Returns false when the roster path doesn't
+   * apply (no roster, we're not in it, or the new device sent no signing key),
+   * so the caller falls back to the recovery-signed device-record path. Trust
+   * logic lives in the core op; this only decides which op to call.
+   */
+  async function tryRosterApprove(target: {
+    pubkey: string;
+    deviceName: string;
+    deviceId: string;
+    signPub?: string;
+  }): Promise<boolean> {
+    if (!signer || !target.signPub) return false;
+    const roster = await currentRoster();
+    const selfSignPub = deviceSigner(signer)?.signPub;
+    if (!roster || !selfSignPub) return false;
+    if (!roster.entries.some((entry) => entry.signPub === selfSignPub)) return false;
+    await approveDeviceViaRoster(signer, {
+      deviceId: target.deviceId,
+      name: target.deviceName,
+      recipient: target.pubkey,
+      signPub: target.signPub,
+    });
+    return true;
+  }
+
+  async function legacyApprove(target: {
+    pubkey: string;
+    deviceName: string;
+    deviceId: string;
+  }): Promise<boolean> {
+    if (!signer) return false;
+    // Sign the new device record with the recovery key. The origin device holds
+    // the mnemonic locally (one-click); a secondary device in a signed-mode
+    // vault with no roster must type the recovery phrase to obtain the key.
+    const stored = await loadStoredRecovery();
+    let recoverySigning = stored
+      ? await recoverySigningFromMnemonic(stored.mnemonic)
+      : undefined;
+    if (!recoverySigning) {
+      const recovery = await readRecovery();
+      if (recovery?.signingKey) {
+        if (!phraseInput.trim()) {
+          setNeedsPhrase(true);
+          setError("This vault requires your recovery phrase to approve a device on this device.");
+          return false;
+        }
+        const { recipient } = await recoveryFromMnemonic(phraseInput);
+        if (recipient !== recovery.recipient) {
+          throw new Error("That recovery phrase doesn't match this vault.");
+        }
+        recoverySigning = await recoverySigningFromMnemonic(phraseInput);
+      }
+    }
+    await addDevice(
+      { deviceId: target.deviceId, name: target.deviceName, recipient: target.pubkey },
+      signer,
+      recoverySigning,
+    );
+    return true;
+  }
+
   async function onApprove() {
     if (!info || !signer) return;
     setBusy(true);
     setError(null);
     try {
-      // Sign the new device record with the recovery key. The origin device
-      // holds the mnemonic locally (one-click); a secondary device in a
-      // signed-mode vault must type the recovery phrase to obtain the key.
-      const stored = await loadStoredRecovery();
-      let recoverySigning = stored
-        ? await recoverySigningFromMnemonic(stored.mnemonic)
-        : undefined;
-      if (!recoverySigning) {
-        const recovery = await readRecovery();
-        if (recovery?.signingKey) {
-          if (!phraseInput.trim()) {
-            setNeedsPhrase(true);
-            setError("This vault requires your recovery phrase to approve a device on this device.");
-            setBusy(false);
-            return;
-          }
-          const { recipient } = await recoveryFromMnemonic(phraseInput);
-          if (recipient !== recovery.recipient) {
-            throw new Error("That recovery phrase doesn't match this vault.");
-          }
-          recoverySigning = await recoverySigningFromMnemonic(phraseInput);
-        }
-      }
-      await addDevice(
-        {
-          deviceId: info.deviceId,
-          name: info.deviceName,
-          recipient: info.pubkey,
-        },
-        signer,
-        recoverySigning,
-      );
+      const approved = (await tryRosterApprove(info)) || (await legacyApprove(info));
+      if (!approved) return;
       await pairingService.clearPair(code.trim()).catch((_err) => { /* intentional noop — pairing already completed */ });
       // Security alert across the user's channels. Best-effort — the device is
       // already paired, so a notify failure must not block closing the dialog.

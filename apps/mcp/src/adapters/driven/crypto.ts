@@ -7,8 +7,11 @@
 import type { NoteKitApi } from "@notekit/api-client";
 import {
   recoveryFromMnemonic,
+  recoverySigningFromMnemonic,
   isValidMnemonic,
   serializeEncryptedLink,
+  type DeviceIdentity,
+  type RecoverySigningKey,
   type RecoveryIdentity,
 } from "@notekit/core/crypto";
 import type { SavedLink } from "@notekit/core/types";
@@ -37,6 +40,32 @@ export async function requireVaultIdentity(): Promise<RecoveryIdentity> {
   const id = await tryVaultIdentity();
   if (!id) throw new VaultLockedError();
   return id;
+}
+
+/**
+ * A DeviceIdentity for secrets-vault ops (device list, legacy revoke), derived
+ * from the env recovery phrase. It has NO Model B signing keypair on purpose:
+ * the MCP server is headless and holds only the master phrase, so it acts in the
+ * master/recovery role, not as a roster-trusted device. Roster-signed ops need a
+ * persistent device signing key the server doesn't have — those fail closed with
+ * a clear message rather than silently downgrading.
+ */
+export async function vaultDevice(): Promise<DeviceIdentity> {
+  const id = await requireVaultIdentity();
+  return {
+    deviceId: "mcp",
+    name: "notekit-mcp",
+    identity: id.identity,
+    recipient: id.recipient,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+/** The master recovery signing key from the env phrase, or null if unavailable. */
+export async function recoverySigningFromEnv(): Promise<RecoverySigningKey | null> {
+  const phrase = process.env["NOTEKIT_RECOVERY_PHRASE"]?.trim();
+  if (!phrase || !isValidMnemonic(phrase)) return null;
+  return recoverySigningFromMnemonic(phrase);
 }
 
 export const isEncrypted = e2ee.isEncrypted;

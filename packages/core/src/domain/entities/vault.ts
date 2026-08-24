@@ -69,5 +69,12 @@ export interface PairAnnouncement {
   pubkey: string;
   deviceName: string;
   deviceId: string;
+  /**
+   * The new device's Ed25519 signing public key (base64), carried so a Model B
+   * roster vault can vouch for it directly on approval — no recovery phrase.
+   * Optional: a device or app version that predates Model B omits it, and the
+   * approver falls back to the recovery-signed device-record path.
+   */
+  signPub?: string;
   expiresAt: string;
 }

@@ -9,6 +9,7 @@
 
 import { defineCommand, runMain } from "citty";
 import { authCommand } from "./adapters/driving/commands/auth.js";
+import { devicesCommand } from "./adapters/driving/commands/devices.js";
 import { linkCommand } from "./adapters/driving/commands/link.js";
 import { mcpCommand } from "./adapters/driving/commands/mcp.js";
 import { noteCommand } from "./adapters/driving/commands/note.js";
@@ -30,6 +31,7 @@ const main = defineCommand({
     ticket: ticketCommand, // backward-compatible alias
     link: linkCommand,
     vault: vaultCommand,
+    devices: devicesCommand,
     secret: secretCommand,
     mcp: mcpCommand,
     upgrade: upgradeCommand,

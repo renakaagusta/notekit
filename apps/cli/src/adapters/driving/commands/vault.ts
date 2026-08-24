@@ -10,9 +10,16 @@ import {
   recoverySigningFromMnemonic,
   generateIdentity,
   identityToRecipient,
+  generateSigningKeypair,
   type DeviceIdentity,
 } from "@notekit/core/crypto";
-import { readRecovery, readVaultConfig, initVault, listDevices } from "@notekit/core/secrets";
+import {
+  readRecovery,
+  readVaultConfig,
+  initVault,
+  listDevices,
+  deviceSigner,
+} from "@notekit/core/secrets";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import { nanoid } from "nanoid";
@@ -341,7 +348,9 @@ const pairCmd = defineCommand({
       const nk = await getClient({ requireAuth: true });
       await getSecretsClient({ requireAuth: true });
 
-      // Load or create a persistent age keypair for this CLI install.
+      // Load or create a persistent age keypair for this CLI install. Mint the
+      // Model B signing keypair too so a roster vault can vouch for this CLI on
+      // approval with no recovery phrase.
       let device = await getDeviceIdentity();
       if (!device) {
         const identity = await generateIdentity();
@@ -352,6 +361,7 @@ const pairCmd = defineCommand({
           identity,
           recipient,
           createdAt: new Date().toISOString(),
+          ...generateSigningKeypair(),
         };
         await setDeviceIdentity(id);
         device = id;
@@ -376,6 +386,7 @@ const pairCmd = defineCommand({
         pubkey: device.recipient,
         deviceName: device.name,
         deviceId: device.deviceId,
+        signPub: deviceSigner(device)?.signPub,
       });
 
       const formatted = `${code.slice(0, 3)} ${code.slice(3)}`;

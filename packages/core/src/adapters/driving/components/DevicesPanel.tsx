@@ -11,11 +11,16 @@ import { recoverySigningFromMnemonic } from "../../../lib/crypto/recovery";
 import type { RecoverySigningKey } from "../../../lib/crypto/recovery";
 import { loadStoredRecovery } from "../../../lib/crypto/recovery-store";
 import {
+  bootstrapGenesisRoster,
   deviceRecordTrusted,
+  keyboxExists,
   listDevices,
   readMembers,
   readRecovery,
   removeDevice,
+  rosterEntryForDevice,
+  rosterExists,
+  revokeRosterDevice,
   type DeviceRecord,
   type MemberRecord,
 } from "../../../lib/secrets-vault";
@@ -64,6 +69,42 @@ async function revokeDeviceWithRecovery(
   }
 }
 
+/**
+ * Revoke a device the Model B way: an in-roster device drops it and rotates the
+ * vault key with its OWN key — no recovery phrase. The revoke is forward-only
+ * (see "don't reinvent Git"): the device loses access to future changes, but a
+ * copy it already synced stays on its machine. Trust + rotation live in the core
+ * op; this only resolves the chosen device to its roster signing key.
+ */
+async function revokeDeviceViaRosterFromPanel(
+  deviceId: string,
+  device: DeviceIdentity,
+): Promise<void> {
+  const entry = await rosterEntryForDevice(deviceId);
+  if (!entry) {
+    throw new Error("That device isn't in the current roster — cannot revoke it.");
+  }
+  await revokeRosterDevice(device, { signPub: entry.signPub, deviceId });
+}
+
+/**
+ * One-time upgrade of an existing envelope vault to Model B: the device that
+ * holds the master mnemonic signs the genesis roster, becoming its first
+ * member. Non-destructive — the vault key is unchanged, so no content is
+ * re-encrypted. Other devices join later by being re-vouched via the normal
+ * one-click approve flow.
+ */
+async function upgradeToModelB(device: DeviceIdentity): Promise<void> {
+  const stored = await loadStoredRecovery();
+  if (!stored?.mnemonic) {
+    throw new Error(
+      "This device doesn't hold the recovery phrase. Upgrade from the device you set the vault up on, or unlock it here with your phrase first.",
+    );
+  }
+  const recoverySigning = await recoverySigningFromMnemonic(stored.mnemonic);
+  await bootstrapGenesisRoster(device, recoverySigning);
+}
+
 // eslint-disable-next-line max-lines-per-function -- React component that handles device listing, member management, revocation flows, and approval UI
 export function DevicesPanel() {
   const phase = useCryptoStore((s) => s.phase);
@@ -81,6 +122,11 @@ export function DevicesPanel() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showApprove, setShowApprove] = useState(false);
+  // Model B (per-device-key roster) state. `hasRoster` decides whether revoke
+  // takes the roster path (device-signed, no phrase); `canUpgrade` offers the
+  // one-time genesis bootstrap on an envelope vault that predates the roster.
+  const [hasRoster, setHasRoster] = useState(false);
+  const [canUpgrade, setCanUpgrade] = useState(false);
 
   const myMemberId = account?.email ?? null;
 
@@ -88,16 +134,44 @@ export function DevicesPanel() {
     if (!device || phase !== "ready") return;
     setBusy(true);
     try {
-      const [devs, mems, sn, rec] = await Promise.all([
+      const [devs, mems, sn, rec, roster, keybox] = await Promise.all([
         listDevices(),
         readMembers(),
         mySafetyNumber(),
         readRecovery(),
+        rosterExists(),
+        keyboxExists(),
       ]);
       setDevices(devs);
       setMembers([...mems.values()]);
       setSafetyNumber(sn);
       setSigningKey(rec?.signingKey ?? null);
+      setHasRoster(roster);
+      // Offer the upgrade only on an envelope vault (has a keybox) that has a
+      // signing root but no roster yet. The bootstrap itself re-checks that this
+      // device holds the mnemonic and fails closed if it doesn't.
+      setCanUpgrade(keybox && !roster && !!rec?.signingKey);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onUpgradeToModelB() {
+    if (!device) return;
+    if (
+      !window.confirm(
+        "Turn on per-device approvals for this vault? Afterwards you can approve or revoke a device from any trusted device without typing your recovery phrase. This is safe and non-destructive — nothing is re-encrypted.",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await upgradeToModelB(device);
+      await refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -127,9 +201,14 @@ export function DevicesPanel() {
     setBusy(true);
     setError(null);
     try {
-      // Legacy vaults revoke directly (no prompt). Envelope+signed vaults
-      // rotate the vault key — revokeDeviceWithRecovery handles the phrase prompt.
-      await revokeDeviceWithRecovery(deviceId, device);
+      // Model B vaults revoke with this device's own key (no phrase) and rotate
+      // the vault key forward-only. Legacy vaults revoke directly (no prompt) or,
+      // for envelope+signed vaults, via revokeDeviceWithRecovery's phrase prompt.
+      if (hasRoster) {
+        await revokeDeviceViaRosterFromPanel(deviceId, device);
+      } else {
+        await revokeDeviceWithRecovery(deviceId, device);
+      }
       await refresh();
     } catch (e) {
       setError((e as Error).message);
@@ -191,7 +270,12 @@ export function DevicesPanel() {
           {d.deviceId === device?.deviceId && (
             <span className="nk-pill">this device</span>
           )}
-          {signingKey && !d.owner && !deviceRecordTrusted(d, signingKey) && (
+          {/* In Model B, trust is the signed roster, not the device-record
+              signature — so a roster-approved record legitimately has no
+              recovery signature. Only flag "unverified" in the legacy
+              (no-roster) signed-mode world, where an unsigned record really is
+              a possible injected recipient. */}
+          {!hasRoster && signingKey && !d.owner && !deviceRecordTrusted(d, signingKey) && (
             <span
               className="nk-pill nk-pill--warn"
               title="This device record isn't signed by your recovery key — it may have been injected. Revoke it if you don't recognise it."
@@ -280,6 +364,27 @@ export function DevicesPanel() {
           }
           onAdmitted={refresh}
         />
+      )}
+
+      {canUpgrade && (
+        <section className="nk-ai-section">
+          <header className="nk-ai-section-hd">
+            <h3>Per-device approvals</h3>
+            <button
+              className="nk-btn nk-btn--primary"
+              onClick={onUpgradeToModelB}
+              disabled={busy}
+            >
+              Turn on
+            </button>
+          </header>
+          <p className="nk-muted">
+            Approve or revoke a device from any trusted device without typing
+            your recovery phrase. Your phrase then stays offline — needed only to
+            recover the vault if you lose every device. This is safe and
+            non-destructive; nothing is re-encrypted.
+          </p>
+        </section>
       )}
 
       <section className="nk-ai-section">

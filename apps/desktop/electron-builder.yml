@@ -4,7 +4,7 @@ copyright: Copyright © NoteKit contributors. MIT licensed.
 
 directories:
   output: out
-  buildResources: build
+  buildResources: build-resources
 
 # Bundle the compiled main/preload AND the apps/web build. electron-builder
 # rewrites globs relative to this file, so `../web/dist` resolves to the

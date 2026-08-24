@@ -20,13 +20,13 @@ import {
   type VaultEvent,
 } from "../application/vault-events";
 import { getCurrentUser } from "../auth/sessions";
+import { emitAgentEvent } from "../composition/notifications";
 import { checkWriteAllowed, refreshUsedBytesIfStale } from "../composition/quota";
 import { defaultEmailFor } from "../domain/agents";
 import { isPlus } from "../domain/entitlement";
 import { sanitizeVaultPath, VaultPathError } from "../domain/path-sanitize";
 import { issueSseTicket, redeemSseTicket } from "../domain/sseTickets";
 import { env } from "../env";
-import { emitAgentEvent } from "../notifications/emit";
 import {
   parseBody,
   z,

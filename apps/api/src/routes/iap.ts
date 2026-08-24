@@ -19,7 +19,7 @@ import {
 } from "../adapters/driven/iap/apple";
 import { lookupSubscription } from "../adapters/driven/iap/google";
 import { getCurrentUser } from "../auth/sessions";
-import { recomputePlusForUser } from "../iap/entitlement";
+import { recomputePlusForUser } from "../composition/entitlement";
 import { logger } from '../lib/logger'
 import { requireWebhookSecret } from '../middleware/webhook-auth'
 import { parseBody, z } from "../validation";

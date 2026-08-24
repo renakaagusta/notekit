@@ -112,6 +112,11 @@ export {
   publishRosterVersion,
   addDeviceViaRoster,
   revokeDeviceViaRoster,
+  listRosterDevices,
+  rosterEntryForDevice,
+  approveDeviceViaRoster,
+  revokeRosterDevice,
+  type RosterDeviceView,
 } from "./secrets-vault-roster";
 
 // ─── Remaining imports for this module ───────────────────────────────────────

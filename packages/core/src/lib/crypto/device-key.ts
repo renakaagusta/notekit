@@ -5,12 +5,11 @@
  * The public recipient (age1…) is committed to the vault under
  * .notekit/devices/{deviceId}.json so other devices can encrypt to us.
  */
-import { ed25519 } from "@noble/curves/ed25519.js";
 import { generateIdentity, identityToRecipient } from "age-encryption";
 import { nanoid } from "nanoid";
 import type { PlatformPort } from "../../application/ports/out/PlatformPort";
 import type { NativePlatform } from "../../domain/platform";
-import { toB64 } from "./signing";
+import { generateSigningKeypair } from "./signing";
 
 let platform: PlatformPort | null = null;
 
@@ -48,13 +47,6 @@ export interface DeviceIdentity {
    */
   signPublicKey?: string;
   signPrivateKey?: string;
-}
-
-/** Fresh Ed25519 signing keypair for a device, encoded base64 for storage. */
-function generateSigningKeypair(): { signPublicKey: string; signPrivateKey: string } {
-  const signPrivateKey = ed25519.utils.randomSecretKey();
-  const signPublicKey = ed25519.getPublicKey(signPrivateKey);
-  return { signPublicKey: toB64(signPublicKey), signPrivateKey: toB64(signPrivateKey) };
 }
 
 function openDB(): Promise<IDBDatabase> {

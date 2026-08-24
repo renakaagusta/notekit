@@ -16,6 +16,7 @@ interface Announcement {
   pubkey: string;
   deviceName: string;
   deviceId: string;
+  signPub?: string;
   expiresAt: number;
 }
 
@@ -81,6 +82,7 @@ pairRoutes.post("/announce", async (c) => {
     pubkey?: string;
     deviceName?: string;
     deviceId?: string;
+    signPub?: string;
   } | null;
   if (!body?.code || !body?.pubkey || !body?.deviceName || !body?.deviceId) {
     return c.json({ error: "missing_fields" }, 400);
@@ -91,6 +93,12 @@ pairRoutes.post("/announce", async (c) => {
   if (!/^age1[0-9a-z]{20,}$/i.test(body.pubkey)) {
     return c.json({ error: "invalid_pubkey" }, 400);
   }
+  // signPub is the new device's Ed25519 public key (base64, 32 bytes → 44
+  // chars). Optional (pre-Model-B devices omit it); reject a malformed value
+  // rather than storing garbage the approver would try to trust.
+  if (body.signPub !== undefined && !/^[A-Za-z0-9+/]{43}=$/.test(body.signPub)) {
+    return c.json({ error: "invalid_sign_pub" }, 400);
+  }
   purgeExpired();
   const expiresAt = Date.now() + TTL_MS;
   announcements.set(keyFor(user.id, body.code), {
@@ -99,6 +107,7 @@ pairRoutes.post("/announce", async (c) => {
     pubkey: body.pubkey,
     deviceName: body.deviceName.slice(0, 64),
     deviceId: body.deviceId.slice(0, 32),
+    signPub: body.signPub,
     expiresAt,
   });
   return c.json({ ok: true, expiresAt: new Date(expiresAt).toISOString() });
@@ -126,6 +135,7 @@ pairRoutes.get("/:code", async (c) => {
     pubkey: announcement.pubkey,
     deviceName: announcement.deviceName,
     deviceId: announcement.deviceId,
+    signPub: announcement.signPub,
     expiresAt: new Date(announcement.expiresAt).toISOString(),
   });
 });

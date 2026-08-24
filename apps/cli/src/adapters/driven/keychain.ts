@@ -6,7 +6,7 @@
 // Windows the Credential Manager. No native compile needed (prebuilds ship).
 
 import { Entry } from "@napi-rs/keyring";
-import type { DeviceIdentity } from "@notekit/core/crypto";
+import { generateSigningKeypair, type DeviceIdentity } from "@notekit/core/crypto";
 
 const SERVICE = "notekit-cli";
 const ACCOUNT = "token";
@@ -82,7 +82,18 @@ function deviceEntry(): Entry {
 export async function getDeviceIdentity(): Promise<DeviceIdentity | null> {
   try {
     const json = deviceEntry().getPassword();
-    return json ? (JSON.parse(json) as DeviceIdentity) : null;
+    if (!json) return null;
+    const device = JSON.parse(json) as DeviceIdentity;
+    // Back-fill the Model B signing keypair for a CLI device paired before it
+    // existed, mirroring the browser's loadDeviceIdentity. Generating it locally
+    // is safe: the key only becomes trusted once an in-roster device vouches for
+    // it, so a pre-existing device gaining a signing key grants no authority.
+    if (!device.signPublicKey || !device.signPrivateKey) {
+      const upgraded: DeviceIdentity = { ...device, ...generateSigningKeypair() };
+      deviceEntry().setPassword(JSON.stringify(upgraded));
+      return upgraded;
+    }
+    return device;
   } catch {
     return null;
   }

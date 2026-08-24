@@ -9,6 +9,7 @@ import {
   configureSecretsCache,
   noopSecretsCache,
   initVault,
+  listDevices,
   setActiveVaultKey,
   unlockVaultKey,
   getSecret,
@@ -20,6 +21,10 @@ import {
   currentRoster,
   addDeviceViaRoster,
   revokeDeviceViaRoster,
+  approveDeviceViaRoster,
+  revokeRosterDevice,
+  listRosterDevices,
+  rosterEntryForDevice,
   deviceSigner,
 } from "./secrets-vault-roster";
 
@@ -365,5 +370,104 @@ describe("Model B least-privilege: no signing key or master ever leaves to anoth
     const keybox = requireFile(files, ".notekit/keybox.age");
     expect(keybox).not.toContain(requirePrivate(deviceA));
     expect(keybox).not.toContain(toB64(recoverySigning.privateKey));
+  });
+});
+
+// eslint-disable-next-line max-lines-per-function -- one describe grouping the surface-facing approve/revoke/list flows the UI/CLI/MCP call; splitting fragments a cohesive suite
+describe("Model B surface ops: approve writes a record, revoke removes it, list reflects the roster", () => {
+  beforeEach(() => {
+    configureSecretsCache(noopSecretsCache);
+    setActiveVaultKey(null);
+  });
+
+  function installBackend() {
+    const { backend, files } = memoryBackend();
+    configureSecretsBackend(backend);
+    return { files };
+  }
+
+  it("approveDeviceViaRoster adds to the roster AND writes a device record the list shows", async () => {
+    const deviceA = await newDevice("A");
+    installBackend();
+    await initEnvelopeVaultWithRoster(deviceA);
+    setActiveVaultKey(await unlockVaultKey(deviceA));
+
+    const deviceB = await newDevice("B");
+    const bKeys = signerOf(deviceB);
+    setActiveVaultKey(null);
+    await approveDeviceViaRoster(deviceA, {
+      deviceId: deviceB.deviceId,
+      name: deviceB.name,
+      recipient: deviceB.recipient,
+      signPub: bKeys.signPub,
+    });
+
+    // Roster trusts B, a device record exists for B, and B can unlock.
+    const roster = await currentRoster();
+    expect(roster?.entries.some((e) => e.signPub === bKeys.signPub)).toBe(true);
+    const records = await listDevices();
+    expect(records.some((d) => d.deviceId === deviceB.deviceId)).toBe(true);
+    expect(await unlockVaultKey(deviceB)).not.toBeNull();
+  });
+
+  it("revokeRosterDevice removes the roster entry, deletes the record, and rotates so the device can't unlock", async () => {
+    const deviceA = await newDevice("A");
+    installBackend();
+    await initEnvelopeVaultWithRoster(deviceA);
+    setActiveVaultKey(await unlockVaultKey(deviceA));
+    await setSecret("k", "v", deviceA);
+
+    const deviceB = await newDevice("B");
+    const bKeys = signerOf(deviceB);
+    setActiveVaultKey(null);
+    await approveDeviceViaRoster(deviceA, {
+      deviceId: deviceB.deviceId,
+      name: deviceB.name,
+      recipient: deviceB.recipient,
+      signPub: bKeys.signPub,
+    });
+    expect(await unlockVaultKey(deviceB)).not.toBeNull();
+
+    // A revokes B via the surface op (no recovery phrase).
+    setActiveVaultKey(await unlockVaultKey(deviceA));
+    await revokeRosterDevice(deviceA, { signPub: bKeys.signPub, deviceId: deviceB.deviceId });
+
+    const roster = await currentRoster();
+    expect(roster?.entries.some((e) => e.signPub === bKeys.signPub)).toBe(false);
+    const records = await listDevices();
+    expect(records.some((d) => d.deviceId === deviceB.deviceId)).toBe(false);
+    setActiveVaultKey(null);
+    await expect(unlockVaultKey(deviceB)).rejects.toThrow();
+  });
+
+  it("listRosterDevices marks the asking device and rosterEntryForDevice resolves the signing key", async () => {
+    const deviceA = await newDevice("A");
+    installBackend();
+    await initEnvelopeVaultWithRoster(deviceA);
+
+    const list = await listRosterDevices(deviceA);
+    expect(list).not.toBeNull();
+    expect(list?.length).toBe(1);
+    expect(list?.[0]?.isSelf).toBe(true);
+    expect(list?.[0]?.deviceId).toBe(deviceA.deviceId);
+
+    const entry = await rosterEntryForDevice(deviceA.deviceId);
+    expect(entry?.signPub).toBe(signerOf(deviceA).signPub);
+  });
+
+  it("listRosterDevices returns null on a legacy (no-roster) vault so the surface uses device records", async () => {
+    const deviceA = await newDevice("legacy");
+    installBackend();
+    const recoverySigning = await recoverySigningFromMnemonic(PHRASE);
+    const recovery = await recoveryFromMnemonic(PHRASE);
+    await initVault({
+      device: deviceA,
+      recoveryRecipient: recovery.recipient,
+      recoverySigning,
+      scheme: "envelope",
+    });
+    // No bootstrapGenesisRoster.
+    expect(await listRosterDevices(deviceA)).toBeNull();
+    expect(await rosterEntryForDevice(deviceA.deviceId)).toBeNull();
   });
 });

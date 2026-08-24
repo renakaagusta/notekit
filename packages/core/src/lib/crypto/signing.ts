@@ -25,6 +25,22 @@ export function fromB64(s: string): Uint8Array {
 }
 
 /**
+ * A fresh Ed25519 signing keypair for a device (Model B identity), base64 for
+ * storage. Storage-agnostic on purpose: the browser device-key module and the
+ * headless CLI/MCP both mint device signing keys from here, so the keypair shape
+ * never drifts across surfaces. The private key never leaves the device it's
+ * generated on.
+ */
+export function generateSigningKeypair(): {
+  signPublicKey: string;
+  signPrivateKey: string;
+} {
+  const signPrivateKey = ed25519.utils.randomSecretKey();
+  const signPublicKey = ed25519.getPublicKey(signPrivateKey);
+  return { signPublicKey: toB64(signPublicKey), signPrivateKey: toB64(signPrivateKey) };
+}
+
+/**
  * Canonical bytes signed for a device record. We deliberately sign only the
  * security-critical binding (deviceId ↔ recipient pubkey, plus when it was
  * added) and NOT the cosmetic `name`, so a rename never invalidates the

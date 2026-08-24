@@ -22,6 +22,8 @@ export {
   VaultLockedError,
   tryVaultIdentity,
   requireVaultIdentity,
+  vaultDevice,
+  recoverySigningFromEnv,
   isEncrypted,
   vaultIsEncrypted,
   decryptNote,

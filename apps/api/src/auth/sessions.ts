@@ -2,8 +2,8 @@ import type { Context } from "hono";
 import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import { nanoid } from "nanoid";
 import type { SessionRepository } from "../application/ports/out/SessionRepository";
+import { getPatPrincipal } from "../composition/personalTokens";
 import { env } from "../env";
-import { getPatPrincipal } from "./personalTokens";
 
 const SESSION_COOKIE = "notekit_session";
 const SESSION_TTL_MS = 60 * 60 * 24 * 30 * 1000; // 30 days

@@ -7,37 +7,33 @@
  * agent persona in a vault, PATs are scoped to a human user. They live in
  * separate tables and have separate plaintext prefixes so a misrouted token
  * is rejected loudly instead of silently authorising the wrong principal.
+ *
+ * The crypto/id primitives and principal shapes live in `domain/auth-tokens`;
+ * the DB lookup is behind {@link PersonalTokenRepository}, bound from the
+ * composition root before first use.
  */
-import { createHash, randomBytes } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
 import type { Context } from "hono";
-import { nanoid } from "nanoid";
-import { db, schema } from "../adapters/driven/db";
-import { logger } from '../lib/logger'
+import type { PersonalTokenRepository } from "../application/ports/out/PersonalTokenRepository";
+import { hashToken, parsePersonalAccessToken } from "../domain/auth-tokens";
+import type { PatPrincipal } from "../domain/auth-tokens";
+import { logger } from "../lib/logger";
 
-const TOKEN_PREFIX = "nkp_"; // "notekit personal"
+export {
+  generatePersonalAccessToken,
+  hashToken,
+  newPatId,
+} from "../domain/auth-tokens";
+export type { PatPrincipal, PersonalAccessTokenScope } from "../domain/auth-tokens";
 
-export type PersonalAccessTokenScope = "cli" | "mcp";
+let repo: PersonalTokenRepository;
 
-export function generatePersonalAccessToken(): { plain: string; hash: string } {
-  const random = randomBytes(32).toString("hex");
-  const plain = `${TOKEN_PREFIX}${random}`;
-  const hash = hashToken(plain);
-  return { plain, hash };
-}
-
-export function hashToken(plain: string): string {
-  return createHash("sha256").update(plain).digest("hex");
-}
-
-export function newPatId(): string {
-  return `pat_${nanoid(16)}`;
-}
-
-export interface PatPrincipal {
-  userId: string;
-  patId: string;
-  scope: PersonalAccessTokenScope;
+/**
+ * Bind the personal-token persistence port. Called once from the composition
+ * root before any route handler runs; importers pull `getPatPrincipal` from
+ * that root so the wiring is guaranteed to have happened first.
+ */
+export function configurePersonalTokens(r: PersonalTokenRepository): void {
+  repo = r;
 }
 
 /**
@@ -48,27 +44,18 @@ export interface PatPrincipal {
  */
 export async function getPatPrincipal(c: Context): Promise<PatPrincipal | null> {
   const header = c.req.header("Authorization") ?? c.req.header("authorization");
-  if (!header) return null;
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match) return null;
-  const plain = match[1]?.trim();
-  if (!plain || !plain.startsWith(TOKEN_PREFIX)) return null;
+  const plain = parsePersonalAccessToken(header);
+  if (!plain) return null;
 
   const hash = hashToken(plain);
-  const row = await db.query.personalAccessTokens.findFirst({
-    where: and(
-      eq(schema.personalAccessTokens.tokenHash, hash),
-      isNull(schema.personalAccessTokens.revokedAt),
-    ),
-  });
+  const row = await repo.findByHash(hash);
   if (!row) return null;
 
   // Best-effort last-used update. The leading `void` is the explicit
   // "intentional fire-and-forget" marker — without it this reads like a
   // missing await and trips up both linters and reviewers.
-  void db.update(schema.personalAccessTokens)
-    .set({ lastUsedAt: Date.now() })
-    .where(eq(schema.personalAccessTokens.id, row.id))
+  void repo
+    .touchLastUsed(row.id, Date.now())
     .catch((err) => logger.warn("[auth] personal token persist failed", err));
 
   return { userId: row.userId, patId: row.id, scope: row.scope };

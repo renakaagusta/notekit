@@ -3,33 +3,32 @@
  * we hash and look it up in agent_tokens (where revoked_at IS NULL) and resolve
  * the owning user. The token's plaintext is shown to the user ONCE at creation
  * and never persisted.
+ *
+ * The crypto/id primitives and principal shape live in `domain/auth-tokens`;
+ * the DB lookup is behind {@link AgentAuthRepository}, bound from the
+ * composition root before first use.
  */
-import { createHash, randomBytes } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
 import type { Context } from "hono";
-import { nanoid } from "nanoid";
-import { db, schema } from "../adapters/driven/db";
+import type { AgentAuthRepository } from "../application/ports/out/AgentAuthRepository";
+import { hashToken, parseAgentToken } from "../domain/auth-tokens";
+import type { AgentAuthContext } from "../domain/auth-tokens";
 
-const TOKEN_PREFIX = "nka_"; // "notekit agent"
+export {
+  generateAgentToken,
+  hashToken,
+  newAgentTokenId,
+} from "../domain/auth-tokens";
+export type { AgentAuthContext } from "../domain/auth-tokens";
 
-export function generateAgentToken(): { plain: string; hash: string } {
-  const random = randomBytes(32).toString("hex");
-  const plain = `${TOKEN_PREFIX}${random}`;
-  const hash = hashToken(plain);
-  return { plain, hash };
-}
+let repo: AgentAuthRepository;
 
-export function hashToken(plain: string): string {
-  return createHash("sha256").update(plain).digest("hex");
-}
-
-export function newAgentTokenId(): string {
-  return nanoid(16);
-}
-
-export interface AgentAuthContext {
-  userId: string;
-  agentSlug: string;
+/**
+ * Bind the agent-token persistence port. Called once from the composition root
+ * before any route handler runs; importers pull `getActingAgent` from that root
+ * so the wiring is guaranteed to have happened first.
+ */
+export function configureAgentAuth(r: AgentAuthRepository): void {
+  repo = r;
 }
 
 /**
@@ -39,16 +38,11 @@ export interface AgentAuthContext {
  */
 export async function getActingAgent(c: Context): Promise<AgentAuthContext | null> {
   const header = c.req.header("Authorization") ?? c.req.header("authorization");
-  if (!header) return null;
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  if (!match) return null;
-  const plain = match[1]?.trim();
-  if (!plain || !plain.startsWith(TOKEN_PREFIX)) return null;
+  const plain = parseAgentToken(header);
+  if (!plain) return null;
 
   const hash = hashToken(plain);
-  const row = await db.query.agentTokens.findFirst({
-    where: and(eq(schema.agentTokens.tokenHash, hash), isNull(schema.agentTokens.revokedAt)),
-  });
+  const row = await repo.findByHash(hash);
   if (!row) return null;
 
   return { userId: row.userId, agentSlug: row.agentSlug };

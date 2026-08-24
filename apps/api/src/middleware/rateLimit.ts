@@ -8,7 +8,7 @@
  */
 import type { Context, MiddlewareHandler } from "hono";
 import { redis, REDIS_PREFIX } from "../adapters/driven/redis";
-import { getActingAgent } from "../auth/agentAuth";
+import { getActingAgent } from "../composition/agentAuth";
 import { getCurrentUser } from "../composition/sessions";
 import { logger } from "../lib/logger";
 

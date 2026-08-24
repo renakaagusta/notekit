@@ -44,7 +44,7 @@ interface EditorBinding {
 interface PaneContentProps {
   pane: PaneLeaf;
   paneId: string;
-  editorRef: React.RefObject<EditorHandle>;
+  editorRef: React.RefObject<EditorHandle | null>;
   editorBinding: EditorBinding | null;
   isInkNote: boolean;
   activeNoteId: string | null;
@@ -149,7 +149,7 @@ function PaneContent({
 
 interface PaneMainContentProps {
   paneId: string;
-  editorRef: React.RefObject<EditorHandle>;
+  editorRef: React.RefObject<EditorHandle | null>;
   editorBinding: EditorBinding | null;
   isInkNote: boolean;
   activeNoteId: string | null;

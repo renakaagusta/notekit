@@ -1,21 +1,48 @@
 import { streamSSE } from "hono/streaming";
-import { GhError, type GitAuthor } from "../adapters/driven/git/github";
-import { readAgent } from "../adapters/driven/vault/agentStore";
+import type { GitAuthorDto } from "../../../application/ports/out/GitOpsPort";
+import type { VaultRow } from "../../../application/ports/out/VaultStorePort";
+import {
+  publishVaultEvent,
+  subscribeVault,
+  type VaultEvent,
+} from "../../../application/vault-events";
+import { emitAgentEvent } from "../../../composition/notifications";
+import { checkWriteAllowed, refreshUsedBytesIfStale } from "../../../composition/quota";
+import { getCurrentUser } from "../../../composition/sessions";
 import {
   createVault,
   deleteVault as removeVault,
   getActiveVault,
   getVaultById,
   getVaultSettings,
+  getVaultToken,
   listVaultsForUser,
+  readAgent,
   renameVault,
   setActiveVault,
   updateVaultSettings,
-  type VaultRow,
-} from "../adapters/driven/vault/store";
-import { getVaultToken } from "../adapters/driven/vault/tokens";
-import { pairRoutes } from "../adapters/driving/routes/pair";
-import { vaultRoutes } from "../adapters/driving/routes/vault-router";
+} from "../../../composition/vault-route";
+import { defaultEmailFor } from "../../../domain/agents";
+import { isPlus } from "../../../domain/entitlement";
+import { GhError } from "../../../domain/errors";
+import { sanitizeVaultPath, VaultPathError } from "../../../domain/path-sanitize";
+import { issueSseTicket, redeemSseTicket } from "../../../domain/sseTickets";
+import { env } from "../../../env";
+import {
+  parseBody,
+  z,
+  FolderPathNullable,
+  AgentSlugNullable,
+  BranchName,
+  OwnerName,
+  RepoName,
+  Label,
+  LabelNullable,
+  ThemeEnum,
+  VaultProviderEnum,
+} from "../../../validation";
+import { pairRoutes } from "./pair";
+import { vaultRoutes } from "./vault-router";
 import {
   gitOps,
   isDevToken,
@@ -29,36 +56,10 @@ import {
   MOBILE_FREE_NOTE_CAP,
   DEV_GH_REPOS,
   DEV_FJ_REPOS,
-} from "../adapters/driving/routes/vault-shared";
-import {
-  publishVaultEvent,
-  subscribeVault,
-  type VaultEvent,
-} from "../application/vault-events";
-import { emitAgentEvent } from "../composition/notifications";
-import { checkWriteAllowed, refreshUsedBytesIfStale } from "../composition/quota";
-import { getCurrentUser } from "../composition/sessions";
-import { defaultEmailFor } from "../domain/agents";
-import { isPlus } from "../domain/entitlement";
-import { sanitizeVaultPath, VaultPathError } from "../domain/path-sanitize";
-import { issueSseTicket, redeemSseTicket } from "../domain/sseTickets";
-import { env } from "../env";
-import {
-  parseBody,
-  z,
-  FolderPathNullable,
-  AgentSlugNullable,
-  BranchName,
-  OwnerName,
-  RepoName,
-  Label,
-  LabelNullable,
-  ThemeEnum,
-  VaultProviderEnum,
-} from "../validation";
+} from "./vault-shared";
 // Side-effect imports: register member and provider routes on vaultRoutes.
-import "../adapters/driving/routes/vault-members";
-import "../adapters/driving/routes/vault-providers";
+import "./vault-members";
+import "./vault-providers";
 
 export { vaultRoutes };
 
@@ -507,7 +508,7 @@ async function writeFileAsAgent(
 ): Promise<{ path: string; sha: string; actor: string }> {
   const found = await readAgent({ provider: vault.provider, token, owner: vault.owner, repo: vault.repo, branch: vault.branch, slug: actingAs });
   if (!found) throw Object.assign(new Error("agent_profile_missing"), { code: "agent_profile_missing" });
-  const author: GitAuthor = { name: found.profile.name, email: found.profile.email || defaultEmailFor(actingAs) };
+  const author: GitAuthorDto = { name: found.profile.name, email: found.profile.email || defaultEmailFor(actingAs) };
   const login = await gitOps(vault.provider).getUserLogin(token);
   const committerHost =
     vault.provider === "notekit"
@@ -515,7 +516,7 @@ async function writeFileAsAgent(
       : vault.provider === "gitlab"
         ? "users.noreply.gitlab.com"
         : "users.noreply.github.com";
-  const committer: GitAuthor = { name: login, email: `${login}@${committerHost}` };
+  const committer: GitAuthorDto = { name: login, email: `${login}@${committerHost}` };
   const result = await gitOps(vault.provider).writeFileAs(
     token, vault.owner, vault.repo, body.path, body.content,
     body.message ?? `notekit: ${actingAs} updated ${body.path}`,

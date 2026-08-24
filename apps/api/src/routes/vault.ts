@@ -19,6 +19,7 @@ import {
   type VaultEvent,
 } from "../application/vault-events";
 import { getCurrentUser } from "../auth/sessions";
+import { checkWriteAllowed, refreshUsedBytesIfStale } from "../composition/quota";
 import { isPlus } from "../domain/entitlement";
 import { sanitizeVaultPath, VaultPathError } from "../domain/path-sanitize";
 import { issueSseTicket, redeemSseTicket } from "../domain/sseTickets";
@@ -38,7 +39,6 @@ import {
   VaultProviderEnum,
 } from "../validation";
 import { readAgent, defaultEmailFor } from "../vault/agents";
-import { checkWriteAllowed, refreshUsedBytesIfStale } from "../vault/quota";
 import { pairRoutes } from "./pair";
 import { vaultRoutes } from "./vault-router";
 import {

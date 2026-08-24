@@ -3,22 +3,15 @@
  * Imported by vault.ts and all vault-*.ts siblings.
  */
 import type { Context } from "hono";
-import * as fj from "../adapters/driven/git/forgejo";
-import { GhError } from "../adapters/driven/git/github";
-import * as gh from "../adapters/driven/git/github";
-import * as gl from "../adapters/driven/git/gitlab";
-import { getActiveVault } from "../adapters/driven/vault/store";
-import type { GitProvider } from "../adapters/driven/vault/tokens";
-import { getActingAgent } from "../composition/agentAuth";
-import { rateLimit } from "../composition/rate-limit";
-import { getCurrentUser } from "../composition/sessions";
-import { env } from "../env";
+import { getActingAgent } from "../../../composition/agentAuth";
+import { rateLimit } from "../../../composition/rate-limit";
+import { getCurrentUser } from "../../../composition/sessions";
+import { gitOps, resolveVault } from "../../../composition/vault-shared";
+import { GhError } from "../../../domain/errors";
+import type { GitProvider } from "../../../domain/git-provider";
+import { env } from "../../../env";
 
-export function gitOps(provider: GitProvider) {
-  if (provider === "notekit") return fj;
-  if (provider === "gitlab") return gl;
-  return gh;
-}
+export { gitOps, resolveVault };
 
 export function isDevToken(token: string): boolean {
   return token === "dev_github_token" || token === "dev_forgejo_token";
@@ -74,18 +67,6 @@ export async function requirePrincipal(c: Context): Promise<{
   const user = await getCurrentUser(c);
   if (!user) return { userId: null, actingAs: null };
   return { userId: user.id, actingAs: null };
-}
-
-export async function resolveVault(userId: string) {
-  const active = await getActiveVault(userId);
-  if (!active) return null;
-  return {
-    id: active.id,
-    owner: active.owner,
-    repo: active.repo,
-    branch: active.branch,
-    provider: active.provider as GitProvider,
-  };
 }
 
 export function providerFromQuery(c: Context): GitProvider {

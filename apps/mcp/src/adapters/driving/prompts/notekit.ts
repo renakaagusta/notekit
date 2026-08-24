@@ -13,7 +13,7 @@
 
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { resolveProjectContext } from "../lib/project.js";
+import { resolveProjectContext } from "../../../composition/index.js";
 
 // eslint-disable-next-line max-lines-per-function -- registers all MCP prompts in one place; splitting would scatter related prompt definitions
 export function registerNoteKitPrompts(server: McpServer): void {

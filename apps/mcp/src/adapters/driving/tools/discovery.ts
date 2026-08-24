@@ -15,10 +15,8 @@ import {
   errorContent,
   isEncryptedItemPath,
   jsonContent,
-  listVaultFiles,
-} from "../lib/notekit.js";
-import { resolveProjectContext } from "../lib/project.js";
-import { isUnderAnyPrefix, projectOfPath, resolveScope } from "../lib/scope.js";
+  listVaultFiles, resolveProjectContext , isUnderAnyPrefix, projectOfPath, resolveScope 
+} from "../../../composition/index.js";
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 const KIND_VALUES = ["notes", "tickets", "links", "inbox", "all"] as const;

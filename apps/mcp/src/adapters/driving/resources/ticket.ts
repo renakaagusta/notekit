@@ -1,35 +1,28 @@
-// `note://` resource scheme — exposes notes in the selected vault as MCP
-// resources so clients can list and read them without invoking a tool. The
-// URI shape is:
-//
-//   note://<vaultId>/<urlEncodedPath>
-//
-// For listing, we only enumerate notes in the *currently selected* vault.
-// Cross-vault listing would require fanning out to every vault on every
-// call; clients that want that should call `vault_list` first.
+// `ticket://` resource scheme — same model as `note://` but for tickets.
+//   ticket://<vaultId>/<urlEncodedPath>
 
 import { ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
-import { listVaultFiles } from "../lib/notekit.js";
+import { listVaultFiles } from "../../../composition/index.js";
 
-const NOTES_PREFIX = "notes/";
+const TICKETS_PREFIX = "tickets/";
 
-export function registerNoteResource(server: McpServer, nk: NoteKitApi): void {
+export function registerTicketResource(server: McpServer, nk: NoteKitApi): void {
   server.registerResource(
-    "note",
-    new ResourceTemplate("note://{vaultId}/{+path}", {
+    "ticket",
+    new ResourceTemplate("ticket://{vaultId}/{+path}", {
       list: async () => {
         const status = await nk.vault.status();
         const vault = status.vault;
         if (!vault) return { resources: [] };
         const vaultId = vault.id ?? `${vault.owner}-${vault.repo}`;
-        const entries = await listVaultFiles(nk, NOTES_PREFIX);
+        const entries = await listVaultFiles(nk, TICKETS_PREFIX);
         return {
           resources: entries
             .filter((e) => e.path.endsWith(".md"))
             .map((e) => ({
-              uri: `note://${vaultId}/${encodePath(e.path)}`,
+              uri: `ticket://${vaultId}/${encodePath(e.path)}`,
               name: e.path,
               mimeType: "text/markdown",
             })),
@@ -37,8 +30,8 @@ export function registerNoteResource(server: McpServer, nk: NoteKitApi): void {
       },
     }),
     {
-      title: "NoteKit note",
-      description: "A Markdown note stored in a NoteKit vault.",
+      title: "NoteKit ticket",
+      description: "A Markdown ticket stored in a NoteKit vault.",
       mimeType: "text/markdown",
     },
     async (uri, vars) => {
@@ -59,6 +52,5 @@ export function registerNoteResource(server: McpServer, nk: NoteKitApi): void {
 }
 
 function encodePath(p: string): string {
-  // Encode each segment separately so `/` stays readable in the URI.
   return p.split("/").map(encodeURIComponent).join("/");
 }

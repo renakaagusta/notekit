@@ -16,18 +16,13 @@ import type { NoteKitApi } from "@notekit/api-client";
 import { slugify } from "@notekit/core/paths";
 import type { Note } from "@notekit/core/types";
 import { z } from "zod";
-import { vaultIsEncrypted, encryptNote, decryptNote } from "../lib/crypto.js";
-import { parseMarkdown, serializeMarkdown } from "../lib/markdown.js";
-import {
+import { vaultIsEncrypted, encryptNote, decryptNote, parseMarkdown, serializeMarkdown ,
   encryptedSkippedNote,
   errorContent,
   isEncryptedItemPath,
   jsonContent,
   listVaultFiles,
-  textContent,
-} from "../lib/notekit.js";
-import { resolveProjectContext } from "../lib/project.js";
-import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
+  textContent, resolveProjectContext , isUnderAnyPrefix, resolveScope  } from "../../../composition/index.js";
 
 function newItemId(): string {
   return randomBytes(8).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, 10);

@@ -11,8 +11,11 @@ import {
   noopSecretsCache,
   secretsBackendFromApi,
 } from "@notekit/core/secrets";
-import { makeClient, type NoteKitMcpConfig } from "./lib/notekit.js";
-import { resolveProjectContext } from "./lib/project.js";
+import {
+  makeClient,
+  resolveProjectContext,
+  type NoteKitMcpConfig,
+} from "../../composition/index.js";
 import { registerNoteKitPrompts } from "./prompts/notekit.js";
 import { registerNoteResource } from "./resources/note.js";
 import { registerTicketResource } from "./resources/ticket.js";

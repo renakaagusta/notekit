@@ -7,9 +7,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
 import { z } from "zod";
-import { errorContent, textContent } from "../lib/notekit.js";
-import { resolveProjectContext } from "../lib/project.js";
-import { resolveScope } from "../lib/scope.js";
+import { errorContent, textContent, resolveProjectContext , resolveScope  } from "../../../composition/index.js";
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 

@@ -19,21 +19,10 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { slugify } from "@notekit/core/paths";
+import type { ProjectMarker, ProjectScope } from "../../domain/scope.js";
 
 export { slugify };
-
-export type ProjectScope = "project" | "global" | "all";
-
-export interface ProjectMarker {
-  /** Resolved slug used as `projects/<slug>/` inside the active vault. */
-  project: string;
-  /** Optional vault override declared in the marker file. */
-  vault?: string;
-  /** Optional default scope declared in the marker file. */
-  scope?: ProjectScope;
-  /** Absolute path to the marker that produced this context, if any. */
-  source: string | null;
-}
+export type { ProjectMarker, ProjectScope };
 
 const MARKER_FILENAMES = [".notekit", "notekit.json", ".notekit.json"];
 

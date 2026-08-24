@@ -78,7 +78,7 @@ module.exports = {
       from: { path: "^apps/cli/src/" },
       to: {
         path: "^apps/(web|api|mcp|desktop|mobile)/src/",
-        pathNot: "^apps/mcp/src/(run|server)\\.ts$",
+        pathNot: "^apps/mcp/src/(composition/run|adapters/driving/server)\\.ts$",
       },
     },
     {
@@ -210,6 +210,44 @@ module.exports = {
       severity: "error",
       from: { path: "^apps/cli/src/adapters/driving/" },
       to: { path: "^apps/cli/src/adapters/driven/" },
+    },
+    {
+      name: "mcp-domain-no-external",
+      comment: "apps/mcp/src/domain/* must not import external npm modules (MCP domain layer is framework-decoupled)",
+      severity: "error",
+      from: { path: "^apps/mcp/src/domain/" },
+      to: {
+        dependencyTypes: ["npm"],
+        pathNot: "^(uuid|decimal\\.js|node:).*",
+      },
+    },
+    {
+      name: "mcp-domain-no-application",
+      comment: "apps/mcp/src/domain/* must not import from apps/mcp/src/application/* or apps/mcp/src/adapters/* (inner never imports outer layers)",
+      severity: "error",
+      from: { path: "^apps/mcp/src/domain/" },
+      to: { path: "^apps/mcp/src/(application|adapters)/" },
+    },
+    {
+      name: "mcp-application-no-adapters",
+      comment: "apps/mcp/src/application/* must not import from apps/mcp/src/adapters/* (inner never imports outer)",
+      severity: "error",
+      from: { path: "^apps/mcp/src/application/" },
+      to: { path: "^apps/mcp/src/adapters/" },
+    },
+    {
+      name: "mcp-driven-not-driving",
+      comment: "apps/mcp/src/adapters/driven/* must not import from apps/mcp/src/adapters/driving/* (driven adapters remain passive)",
+      severity: "error",
+      from: { path: "^apps/mcp/src/adapters/driven/" },
+      to: { path: "^apps/mcp/src/adapters/driving/" },
+    },
+    {
+      name: "mcp-driving-not-driven",
+      comment: "apps/mcp/src/adapters/driving/* must not import from apps/mcp/src/adapters/driven/* (no reverse coupling; driving reaches driven only through composition)",
+      severity: "error",
+      from: { path: "^apps/mcp/src/adapters/driving/" },
+      to: { path: "^apps/mcp/src/adapters/driven/" },
     },
   ],
   options: {

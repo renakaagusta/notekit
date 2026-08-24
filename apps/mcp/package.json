@@ -39,8 +39,8 @@
   ],
   "exports": {
     ".": "./src/index.ts",
-    "./run": "./src/run.ts",
-    "./server": "./src/server.ts"
+    "./run": "./src/composition/run.ts",
+    "./server": "./src/adapters/driving/server.ts"
   },
   "bin": {
     "notekit-mcp": "bin/notekit-mcp.mjs"

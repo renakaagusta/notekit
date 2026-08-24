@@ -25,18 +25,13 @@ import type { NoteKitApi } from "@notekit/api-client";
 import { slugify } from "@notekit/core/paths";
 import type { SavedLink } from "@notekit/core/types";
 import { z } from "zod";
-import { vaultIsEncrypted, encryptLink, decryptLink } from "../lib/crypto.js";
-import { parseMarkdown } from "../lib/markdown.js";
-import {
+import { vaultIsEncrypted, encryptLink, decryptLink, parseMarkdown ,
   encryptedSkippedNote,
   errorContent,
   isEncryptedItemPath,
   jsonContent,
   listVaultFiles,
-  textContent,
-} from "../lib/notekit.js";
-import { resolveProjectContext } from "../lib/project.js";
-import { isUnderAnyPrefix, resolveScope } from "../lib/scope.js";
+  textContent, resolveProjectContext , isUnderAnyPrefix, resolveScope  } from "../../../composition/index.js";
 
 const SCOPE_VALUES = ["project", "global", "all"] as const;
 

@@ -14,8 +14,8 @@
  */
 import * as fj from "../adapters/driven/git/forgejo";
 import * as gh from "../adapters/driven/git/github";
+import type { GitProvider } from "../adapters/driven/vault/tokens";
 import { env } from "../env";
-import type { GitProvider } from "./tokens";
 
 function gitOps(provider: GitProvider) {
   return provider === "notekit" ? fj : gh;

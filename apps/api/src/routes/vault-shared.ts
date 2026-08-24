@@ -7,12 +7,12 @@ import * as fj from "../adapters/driven/git/forgejo";
 import { GhError } from "../adapters/driven/git/github";
 import * as gh from "../adapters/driven/git/github";
 import * as gl from "../adapters/driven/git/gitlab";
+import { getActiveVault } from "../adapters/driven/vault/store";
+import type { GitProvider } from "../adapters/driven/vault/tokens";
 import { getActingAgent } from "../auth/agentAuth";
 import { getCurrentUser } from "../auth/sessions";
 import { env } from "../env";
 import { rateLimit } from "../middleware/rateLimit";
-import { getActiveVault } from "../vault/store";
-import type { GitProvider } from "../vault/tokens";
 
 export function gitOps(provider: GitProvider) {
   if (provider === "notekit") return fj;

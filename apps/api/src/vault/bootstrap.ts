@@ -18,10 +18,10 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "../adapters/driven/db";
 import * as fj from "../adapters/driven/git/forgejo";
+import { provisionForgejoAccount } from "../adapters/driven/vault/forgejoAccounts";
+import { createVault, setActiveVault } from "../adapters/driven/vault/store";
 import { env } from "../env";
 import { logger } from '../lib/logger'
-import { provisionForgejoAccount } from "./forgejoAccounts";
-import { createVault, setActiveVault } from "./store";
 
 const DEFAULT_REPO_NAME = "notekit-vault";
 const DEFAULT_VAULT_LABEL = "My vault";

@@ -10,9 +10,9 @@ import * as gl from "../adapters/driven/git/gitlab";
 import { getActiveVault } from "../adapters/driven/vault/store";
 import type { GitProvider } from "../adapters/driven/vault/tokens";
 import { getActingAgent } from "../composition/agentAuth";
+import { rateLimit } from "../composition/rate-limit";
 import { getCurrentUser } from "../composition/sessions";
 import { env } from "../env";
-import { rateLimit } from "../middleware/rateLimit";
 
 export function gitOps(provider: GitProvider) {
   if (provider === "notekit") return fj;

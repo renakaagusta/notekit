@@ -7,14 +7,26 @@
  * - Web push: GET /notifications/web-push/key, POST /notifications/web-push/subscribe, DELETE /notifications/web-push/subscribe
  * - Mobile push: POST /notifications/mobile-push/subscribe, DELETE /notifications/mobile-push/subscribe
  */
-import { and, desc, eq, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { nanoid } from "nanoid";
-import { db, schema } from "../adapters/driven/db";
-import { emitAgentEvent } from "../composition/notifications";
-import { getCurrentUser } from "../composition/sessions";
-import { env } from "../env";
-import { parseBody, z } from "../validation";
+import {
+  emitAgentEvent,
+  getNotificationPrefs,
+  hasTelegramLink,
+  listInbox,
+  markAllNotificationsRead,
+  markNotificationRead,
+  mintTelegramLinkCode,
+  subscribeMobilePush,
+  subscribeWebPush,
+  unlinkTelegram,
+  unsubscribeMobilePush,
+  unsubscribeWebPush,
+  upsertNotificationPrefs,
+} from "../../../composition/notifications";
+import { getCurrentUser } from "../../../composition/sessions";
+import { env } from "../../../env";
+import { parseBody, z } from "../../../validation";
 
 export const notificationRoutes = new Hono();
 
@@ -72,26 +84,7 @@ notificationRoutes.get("/", async (c) => {
   const limit = Math.min(Number(c.req.query("limit") ?? "50") || 50, 100);
   const before = c.req.query("before");
 
-  let cursorTs: number | null = null;
-  if (before) {
-    const cursor = await db.query.notifications.findFirst({
-      where: eq(schema.notifications.id, before),
-    });
-    if (cursor) cursorTs = cursor.createdAt;
-  }
-
-  const where = cursorTs
-    ? and(
-        eq(schema.notifications.userId, user.id),
-        lt(schema.notifications.createdAt, cursorTs),
-      )
-    : eq(schema.notifications.userId, user.id);
-
-  const rows = await db.query.notifications.findMany({
-    where,
-    orderBy: [desc(schema.notifications.createdAt)],
-    limit,
-  });
+  const rows = await listInbox(user.id, before, limit);
 
   return c.json({
     notifications: rows.map((r) => ({
@@ -112,39 +105,22 @@ notificationRoutes.post("/:id/read", async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const id = c.req.param("id");
-  await db
-    .update(schema.notifications)
-    .set({ readAt: Date.now() })
-    .where(
-      and(
-        eq(schema.notifications.id, id),
-        eq(schema.notifications.userId, user.id),
-      ),
-    )
-    .execute();
+  await markNotificationRead(user.id, id, Date.now());
   return c.json({ ok: true });
 });
 
 notificationRoutes.post("/read-all", async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  await db
-    .update(schema.notifications)
-    .set({ readAt: Date.now() })
-    .where(eq(schema.notifications.userId, user.id))
-    .execute();
+  await markAllNotificationsRead(user.id, Date.now());
   return c.json({ ok: true });
 });
 
 notificationRoutes.get("/prefs", async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const prefs = await db.query.notificationPrefs.findFirst({
-    where: eq(schema.notificationPrefs.userId, user.id),
-  });
-  const link = await db.query.telegramLinks.findFirst({
-    where: eq(schema.telegramLinks.userId, user.id),
-  });
+  const prefs = await getNotificationPrefs(user.id);
+  const linked = await hasTelegramLink(user.id);
   return c.json({
     prefs: {
       telegramEnabled: prefs?.telegramEnabled ?? false,
@@ -152,7 +128,7 @@ notificationRoutes.get("/prefs", async (c) => {
       mobilePushEnabled: prefs?.mobilePushEnabled ?? false,
     },
     channels: {
-      telegram: { linked: Boolean(link) },
+      telegram: { linked },
       webPush: { configured: Boolean(env.vapid.publicKey) },
       mobilePush: {
         // Both platforms deliver via FCM now, so a single credential gates both.
@@ -175,31 +151,15 @@ notificationRoutes.patch("/prefs", async (c) => {
   const parsed = await parseBody(c, PrefsBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
   const now = Date.now();
-  await db
-    .insert(schema.notificationPrefs)
-    .values({
-      userId: user.id,
+  await upsertNotificationPrefs(
+    user.id,
+    {
       telegramEnabled: parsed.data.telegramEnabled ?? false,
       webPushEnabled: parsed.data.webPushEnabled ?? false,
       mobilePushEnabled: parsed.data.mobilePushEnabled ?? false,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: schema.notificationPrefs.userId,
-      set: {
-        ...(parsed.data.telegramEnabled !== undefined && {
-          telegramEnabled: parsed.data.telegramEnabled,
-        }),
-        ...(parsed.data.webPushEnabled !== undefined && {
-          webPushEnabled: parsed.data.webPushEnabled,
-        }),
-        ...(parsed.data.mobilePushEnabled !== undefined && {
-          mobilePushEnabled: parsed.data.mobilePushEnabled,
-        }),
-        updatedAt: now,
-      },
-    })
-    .execute();
+    },
+    now,
+  );
   return c.json({ ok: true });
 });
 
@@ -215,14 +175,7 @@ notificationRoutes.post("/telegram/link-code", async (c) => {
   // 8 chars, base62-ish via nanoid. Trades uniqueness for shortness — codes
   // expire in 10 minutes so collision risk is negligible.
   const code = nanoid(8);
-  await db
-    .insert(schema.telegramLinkCodes)
-    .values({
-      code,
-      userId: user.id,
-      expiresAt: Date.now() + 10 * 60_000,
-    })
-    .execute();
+  await mintTelegramLinkCode(code, user.id, Date.now() + 10 * 60_000);
   return c.json({
     code,
     url: `https://t.me/${env.telegram.botUsername}?start=${code}`,
@@ -233,22 +186,7 @@ notificationRoutes.post("/telegram/link-code", async (c) => {
 notificationRoutes.delete("/telegram", async (c) => {
   const user = await getCurrentUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  await db
-    .delete(schema.telegramLinks)
-    .where(eq(schema.telegramLinks.userId, user.id))
-    .execute();
-  await db
-    .insert(schema.notificationPrefs)
-    .values({
-      userId: user.id,
-      telegramEnabled: false,
-      updatedAt: Date.now(),
-    })
-    .onConflictDoUpdate({
-      target: schema.notificationPrefs.userId,
-      set: { telegramEnabled: false, updatedAt: Date.now() },
-    })
-    .execute();
+  await unlinkTelegram(user.id, Date.now());
   return c.json({ ok: true });
 });
 
@@ -271,38 +209,17 @@ notificationRoutes.post("/web-push/subscribe", async (c) => {
   const parsed = await parseBody(c, WebPushSubscribeBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
   const userAgent = c.req.header("user-agent") ?? null;
-  await db
-    .insert(schema.webPushSubscriptions)
-    .values({
+  await subscribeWebPush(
+    {
       id: `wps_${nanoid(16)}`,
       userId: user.id,
       endpoint: parsed.data.endpoint,
       p256dh: parsed.data.keys.p256dh,
       auth: parsed.data.keys.auth,
       userAgent,
-    })
-    .onConflictDoUpdate({
-      target: schema.webPushSubscriptions.endpoint,
-      set: {
-        userId: user.id,
-        p256dh: parsed.data.keys.p256dh,
-        auth: parsed.data.keys.auth,
-        userAgent,
-      },
-    })
-    .execute();
-  await db
-    .insert(schema.notificationPrefs)
-    .values({
-      userId: user.id,
-      webPushEnabled: true,
-      updatedAt: Date.now(),
-    })
-    .onConflictDoUpdate({
-      target: schema.notificationPrefs.userId,
-      set: { webPushEnabled: true, updatedAt: Date.now() },
-    })
-    .execute();
+    },
+    Date.now(),
+  );
   return c.json({ ok: true });
 });
 
@@ -313,15 +230,7 @@ notificationRoutes.delete("/web-push/subscribe", async (c) => {
     endpoint?: string;
   } | null;
   if (!body?.endpoint) return c.json({ error: "endpoint_required" }, 400);
-  await db
-    .delete(schema.webPushSubscriptions)
-    .where(
-      and(
-        eq(schema.webPushSubscriptions.userId, user.id),
-        eq(schema.webPushSubscriptions.endpoint, body.endpoint),
-      ),
-    )
-    .execute();
+  await unsubscribeWebPush(user.id, body.endpoint);
   return c.json({ ok: true });
 });
 
@@ -336,36 +245,16 @@ notificationRoutes.post("/mobile-push/subscribe", async (c) => {
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const parsed = await parseBody(c, MobileSubscribeBody);
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
-  await db
-    .insert(schema.mobilePushTokens)
-    .values({
+  await subscribeMobilePush(
+    {
       id: `mpt_${nanoid(16)}`,
       userId: user.id,
       platform: parsed.data.platform,
       token: parsed.data.token,
       deviceId: parsed.data.deviceId ?? null,
-    })
-    .onConflictDoUpdate({
-      target: schema.mobilePushTokens.token,
-      set: {
-        userId: user.id,
-        platform: parsed.data.platform,
-        deviceId: parsed.data.deviceId ?? null,
-      },
-    })
-    .execute();
-  await db
-    .insert(schema.notificationPrefs)
-    .values({
-      userId: user.id,
-      mobilePushEnabled: true,
-      updatedAt: Date.now(),
-    })
-    .onConflictDoUpdate({
-      target: schema.notificationPrefs.userId,
-      set: { mobilePushEnabled: true, updatedAt: Date.now() },
-    })
-    .execute();
+    },
+    Date.now(),
+  );
   return c.json({ ok: true });
 });
 
@@ -376,14 +265,6 @@ notificationRoutes.delete("/mobile-push/subscribe", async (c) => {
     token?: string;
   } | null;
   if (!body?.token) return c.json({ error: "token_required" }, 400);
-  await db
-    .delete(schema.mobilePushTokens)
-    .where(
-      and(
-        eq(schema.mobilePushTokens.userId, user.id),
-        eq(schema.mobilePushTokens.token, body.token),
-      ),
-    )
-    .execute();
+  await unsubscribeMobilePush(user.id, body.token);
   return c.json({ ok: true });
 });

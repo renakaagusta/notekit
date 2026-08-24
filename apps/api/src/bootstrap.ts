@@ -11,7 +11,7 @@
  *   2. index.ts      — static imports (telemetry → env → routes) evaluate now
  *   3. serve()       — HTTP server starts
  */
-import { loadVaultSecrets, vaultConfigured } from './lib/hcvault.js';
+import { loadVaultSecrets, vaultConfigured } from './adapters/driven/hcvault.js';
 
 if (vaultConfigured()) {
   await loadVaultSecrets();

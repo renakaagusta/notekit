@@ -7,10 +7,10 @@
  * us (no cleanup) and the shared instance stays collision-free.
  */
 import type { Context, MiddlewareHandler } from "hono";
+import { redis, REDIS_PREFIX } from "../adapters/driven/redis";
 import { getActingAgent } from "../auth/agentAuth";
 import { getCurrentUser } from "../auth/sessions";
 import { logger } from "../lib/logger";
-import { redis, REDIS_PREFIX } from "../lib/redis";
 
 export interface RateLimitOptions {
   /** Logical name for telemetry + isolation between routes. */

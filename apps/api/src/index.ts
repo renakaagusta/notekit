@@ -13,12 +13,12 @@ import { directoryRoutes } from "./adapters/driving/routes/directory";
 import { iapRoutes } from "./adapters/driving/routes/iap";
 import { integrationsRoutes } from "./adapters/driving/routes/integrations";
 import { notificationRoutes } from "./adapters/driving/routes/notifications";
+import { vaultRoutes } from "./adapters/driving/routes/vault";
 import { backofficeRoutes } from "./backoffice/routes";
 import { startTelegramPoller } from "./composition/notifications";
 import { env } from "./env";
 import { logger } from "./lib/logger";
 import { authRoutes } from "./routes/auth";
-import { vaultRoutes } from "./routes/vault";
 
 const app = new Hono();
 

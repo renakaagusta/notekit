@@ -2,7 +2,17 @@ import type {
   ActiveVaultRow,
   VaultStorePort,
 } from "../../../application/ports/out/VaultStorePort";
-import { getActiveVault, getVaultById } from "./store";
+import {
+  createVault,
+  deleteVault,
+  getActiveVault,
+  getVaultById,
+  getVaultSettings,
+  listVaultsForUser,
+  renameVault,
+  setActiveVault,
+  updateVaultSettings,
+} from "./store";
 import type { VaultRow } from "./store";
 
 function toActiveVaultRow(row: VaultRow): ActiveVaultRow {
@@ -25,4 +35,13 @@ export const vaultStorePort: VaultStorePort = {
     const row = await getVaultById(userId, vaultId);
     return row ? toActiveVaultRow(row) : null;
   },
+  getActiveVaultRow: getActiveVault,
+  getVaultRowById: getVaultById,
+  listVaultsForUser,
+  createVault,
+  renameVault,
+  deleteVault,
+  setActiveVault,
+  getVaultSettings,
+  updateVaultSettings,
 };

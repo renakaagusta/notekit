@@ -15,6 +15,7 @@
 
 import { and, eq } from "drizzle-orm";
 import { decryptToken } from "../../../auth/tokenCrypto";
+import type { GitProvider } from "../../../domain/git-provider";
 import { logger } from '../../../lib/logger'
 import { db, schema } from "../db";
 import * as ghApp from "../git/github-app";
@@ -22,7 +23,7 @@ import { getForgejoToken } from "./forgejoAccounts";
 import { getActiveVault } from "./store";
 import type { VaultRow } from "./store";
 
-export type GitProvider = "github" | "gitlab" | "notekit";
+export type { GitProvider } from "../../../domain/git-provider";
 
 export async function getGithubToken(userId: string): Promise<string | null> {
   // Prefer a GitHub App installation token — short-lived and scoped to only the

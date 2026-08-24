@@ -13,10 +13,10 @@ import * as gl from "../adapters/driven/git/gitlab";
 import { provisionForgejoAccount, getForgejoAccount } from "../adapters/driven/vault/forgejoAccounts";
 import { getVaultToken } from "../adapters/driven/vault/tokens";
 import { vaultRoutes } from "../adapters/driving/routes/vault-router";
+import { env, ghErr, isDevToken, vaultMutationLimit } from "../adapters/driving/routes/vault-shared";
 import { tryConsume } from "../composition/rate-limit";
 import { getCurrentUser } from "../composition/sessions";
 import { parseBody, z, RepoName } from "../validation";
-import { env, ghErr, isDevToken, vaultMutationLimit } from "./vault-shared";
 
 const provisionCreateLimitBucket = {
   bucket: "vault-provision",

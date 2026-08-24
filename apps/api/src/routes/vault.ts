@@ -17,6 +17,20 @@ import { getVaultToken } from "../adapters/driven/vault/tokens";
 import { pairRoutes } from "../adapters/driving/routes/pair";
 import { vaultRoutes } from "../adapters/driving/routes/vault-router";
 import {
+  gitOps,
+  isDevToken,
+  ghErr,
+  requirePrincipal,
+  resolveVault,
+  providerFromQuery,
+  vaultMutationLimit,
+  writeLimit,
+  importLimit,
+  MOBILE_FREE_NOTE_CAP,
+  DEV_GH_REPOS,
+  DEV_FJ_REPOS,
+} from "../adapters/driving/routes/vault-shared";
+import {
   publishVaultEvent,
   subscribeVault,
   type VaultEvent,
@@ -42,20 +56,6 @@ import {
   ThemeEnum,
   VaultProviderEnum,
 } from "../validation";
-import {
-  gitOps,
-  isDevToken,
-  ghErr,
-  requirePrincipal,
-  resolveVault,
-  providerFromQuery,
-  vaultMutationLimit,
-  writeLimit,
-  importLimit,
-  MOBILE_FREE_NOTE_CAP,
-  DEV_GH_REPOS,
-  DEV_FJ_REPOS,
-} from "./vault-shared";
 // Side-effect imports: register member and provider routes on vaultRoutes.
 import "./vault-members";
 import "./vault-providers";

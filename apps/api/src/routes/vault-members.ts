@@ -5,9 +5,9 @@
 import { getVaultById } from "../adapters/driven/vault/store";
 import { getVaultToken } from "../adapters/driven/vault/tokens";
 import { vaultRoutes } from "../adapters/driving/routes/vault-router";
+import { env, ghErr, gitOps, isDevToken, vaultMutationLimit } from "../adapters/driving/routes/vault-shared";
 import { getCurrentUser } from "../composition/sessions";
 import { parseBody, z, GithubUsername, CollaboratorPermissionEnum } from "../validation";
-import { env, ghErr, gitOps, isDevToken, vaultMutationLimit } from "./vault-shared";
 
 /**
  * GET /vaults/:id/members — list collaborators + pending invitations.

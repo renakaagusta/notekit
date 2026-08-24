@@ -8,7 +8,7 @@
  * Storage is intentionally in-memory: pairing is a one-shot handshake.
  */
 import { Hono, type Context } from "hono";
-import { getCurrentUser } from "../composition/sessions";
+import { getCurrentUser } from "../../../composition/sessions";
 
 interface Announcement {
   userId: string;

@@ -1,4 +1,4 @@
-import { env, providerConfigured } from "../env";
+import { env, providerConfigured } from "../../../env";
 
 /** Tiny HTML escaper for the CLI consent pages. No user-controlled rich content. */
 export function escHtml(s: string): string {

@@ -4,7 +4,7 @@
  * functions from here so the port is wired before first use.
  */
 import { sessionRepository } from "../adapters/driven/auth/sessionRepository";
-import { configureSessions } from "../auth/sessions";
+import { configureSessions } from "../adapters/driving/auth/sessions";
 
 // `getCurrentUser` (in auth/sessions) calls `getPatPrincipal`. Importing the
 // PAT composition root here guarantees the PAT port is bound before any session
@@ -13,4 +13,4 @@ import "./personalTokens";
 
 configureSessions(sessionRepository);
 
-export * from "../auth/sessions";
+export * from "../adapters/driving/auth/sessions";

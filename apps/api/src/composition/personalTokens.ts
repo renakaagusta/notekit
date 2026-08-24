@@ -7,8 +7,8 @@
  * calls `getPatPrincipal`) can never run before the PAT port is bound.
  */
 import { personalTokenRepository } from "../adapters/driven/auth/personalTokenRepository";
-import { configurePersonalTokens } from "../auth/personalTokens";
+import { configurePersonalTokens } from "../adapters/driving/auth/personalTokens";
 
 configurePersonalTokens(personalTokenRepository);
 
-export * from "../auth/personalTokens";
+export * from "../adapters/driving/auth/personalTokens";

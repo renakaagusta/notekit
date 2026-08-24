@@ -4,8 +4,8 @@
  * functions from here so the port is wired before first use.
  */
 import { agentAuthRepository } from "../adapters/driven/auth/agentAuthRepository";
-import { configureAgentAuth } from "../auth/agentAuth";
+import { configureAgentAuth } from "../adapters/driving/auth/agentAuth";
 
 configureAgentAuth(agentAuthRepository);
 
-export * from "../auth/agentAuth";
+export * from "../adapters/driving/auth/agentAuth";

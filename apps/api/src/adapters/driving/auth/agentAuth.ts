@@ -9,16 +9,16 @@
  * composition root before first use.
  */
 import type { Context } from "hono";
-import type { AgentAuthRepository } from "../application/ports/out/AgentAuthRepository";
-import { hashToken, parseAgentToken } from "../domain/auth-tokens";
-import type { AgentAuthContext } from "../domain/auth-tokens";
+import type { AgentAuthRepository } from "../../../application/ports/out/AgentAuthRepository";
+import { hashToken, parseAgentToken } from "../../../domain/auth-tokens";
+import type { AgentAuthContext } from "../../../domain/auth-tokens";
 
 export {
   generateAgentToken,
   hashToken,
   newAgentTokenId,
-} from "../domain/auth-tokens";
-export type { AgentAuthContext } from "../domain/auth-tokens";
+} from "../../../domain/auth-tokens";
+export type { AgentAuthContext } from "../../../domain/auth-tokens";
 
 let repo: AgentAuthRepository;
 

@@ -13,17 +13,17 @@
  * composition root before first use.
  */
 import type { Context } from "hono";
-import type { PersonalTokenRepository } from "../application/ports/out/PersonalTokenRepository";
-import { hashToken, parsePersonalAccessToken } from "../domain/auth-tokens";
-import type { PatPrincipal } from "../domain/auth-tokens";
-import { logger } from "../lib/logger";
+import type { PersonalTokenRepository } from "../../../application/ports/out/PersonalTokenRepository";
+import { hashToken, parsePersonalAccessToken } from "../../../domain/auth-tokens";
+import type { PatPrincipal } from "../../../domain/auth-tokens";
+import { logger } from "../../../lib/logger";
 
 export {
   generatePersonalAccessToken,
   hashToken,
   newPatId,
-} from "../domain/auth-tokens";
-export type { PatPrincipal, PersonalAccessTokenScope } from "../domain/auth-tokens";
+} from "../../../domain/auth-tokens";
+export type { PatPrincipal, PersonalAccessTokenScope } from "../../../domain/auth-tokens";
 
 let repo: PersonalTokenRepository;
 

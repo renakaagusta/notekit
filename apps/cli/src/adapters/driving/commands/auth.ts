@@ -14,9 +14,15 @@ import type { AddressInfo } from "node:net";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import open from "open";
-import { getClient, dieWithError } from "../client.js";
-import { loadConfig, patchConfig } from "../config.js";
-import { getToken, setToken, clearToken } from "../keychain.js";
+import {
+  getClient,
+  dieWithError,
+  loadConfig,
+  patchConfig,
+  getToken,
+  setToken,
+  clearToken,
+} from "../../../composition/index.js";
 
 const login = defineCommand({
   meta: { name: "login", description: "Sign in to NoteKit and store a CLI token in your OS keychain." },

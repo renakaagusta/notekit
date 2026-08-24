@@ -8,14 +8,14 @@
 // thin index.
 
 import { defineCommand, runMain } from "citty";
-import { authCommand } from "./commands/auth.js";
-import { linkCommand } from "./commands/link.js";
-import { mcpCommand } from "./commands/mcp.js";
-import { noteCommand } from "./commands/note.js";
-import { secretCommand } from "./commands/secret.js";
-import { ticketCommand } from "./commands/ticket.js";
-import { upgradeCommand } from "./commands/upgrade.js";
-import { vaultCommand } from "./commands/vault.js";
+import { authCommand } from "./adapters/driving/commands/auth.js";
+import { linkCommand } from "./adapters/driving/commands/link.js";
+import { mcpCommand } from "./adapters/driving/commands/mcp.js";
+import { noteCommand } from "./adapters/driving/commands/note.js";
+import { secretCommand } from "./adapters/driving/commands/secret.js";
+import { ticketCommand } from "./adapters/driving/commands/ticket.js";
+import { upgradeCommand } from "./adapters/driving/commands/upgrade.js";
+import { vaultCommand } from "./adapters/driving/commands/vault.js";
 
 const main = defineCommand({
   meta: {

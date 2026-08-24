@@ -16,15 +16,17 @@ import { readRecovery, readVaultConfig, initVault, listDevices } from "@notekit/
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import { nanoid } from "nanoid";
-import { getClient, dieWithError } from "../client.js";
-import { patchConfig, loadConfig  } from "../config.js";
 import {
+  getClient,
+  dieWithError,
+  patchConfig,
+  loadConfig,
   setRecoveryPhrase,
   clearRecoveryPhrase,
   getDeviceIdentity,
   setDeviceIdentity,
-} from "../keychain.js";
-import { getSecretsClient } from "../lib/secrets.js";
+  getSecretsClient,
+} from "../../../composition/index.js";
 
 const listCmd = defineCommand({
   meta: { name: "list", description: "List vaults the signed-in user can access." },

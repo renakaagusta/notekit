@@ -21,9 +21,11 @@ import {
 } from "@notekit/core/secrets";
 import { defineCommand } from "citty";
 import kleur from "kleur";
-import { dieWithError } from "../client.js";
-import { vaultDevice } from "../lib/crypto.js";
-import { getSecretsClient } from "../lib/secrets.js";
+import {
+  dieWithError,
+  vaultDevice,
+  getSecretsClient,
+} from "../../../composition/index.js";
 
 
 // ── secret vault subcommands ─────────────────────────────────────────────────

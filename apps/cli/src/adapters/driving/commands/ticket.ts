@@ -8,17 +8,17 @@ import type { Ticket, TicketStatus, TicketPriority } from "@notekit/core/types";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import { nanoid } from "nanoid";
-import { dieWithError } from "../client.js";
 import {
+  dieWithError,
   vaultIsEncrypted,
   encryptTicket,
   decryptTicket,
   listEncryptedTickets,
   isEncrypted,
-} from "../lib/crypto.js";
-import { openEditor } from "../lib/editor.js";
-import { parseFrontmatter, stringifyFrontmatter } from "../lib/frontmatter.js";
-import { getSecretsClient } from "../lib/secrets.js";
+  openEditor,
+  getSecretsClient,
+} from "../../../composition/index.js";
+import { parseFrontmatter, stringifyFrontmatter } from "../../../domain/frontmatter.js";
 
 const TICKETS_DIR = "tickets";
 const INDEX_PATH = `${TICKETS_DIR}/index.json`;

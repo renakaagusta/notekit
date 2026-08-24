@@ -173,6 +173,44 @@ module.exports = {
       from: { path: "^apps/api/src/adapters/driving/" },
       to: { path: "^apps/api/src/adapters/driven/" },
     },
+    {
+      name: "cli-domain-no-external",
+      comment: "apps/cli/src/domain/* must not import external npm modules (CLI domain layer is framework-decoupled)",
+      severity: "error",
+      from: { path: "^apps/cli/src/domain/" },
+      to: {
+        dependencyTypes: ["npm"],
+        pathNot: "^(uuid|decimal\\.js|node:).*",
+      },
+    },
+    {
+      name: "cli-domain-no-application",
+      comment: "apps/cli/src/domain/* must not import from apps/cli/src/application/* or apps/cli/src/adapters/* (inner never imports outer layers)",
+      severity: "error",
+      from: { path: "^apps/cli/src/domain/" },
+      to: { path: "^apps/cli/src/(application|adapters)/" },
+    },
+    {
+      name: "cli-application-no-adapters",
+      comment: "apps/cli/src/application/* must not import from apps/cli/src/adapters/* (inner never imports outer)",
+      severity: "error",
+      from: { path: "^apps/cli/src/application/" },
+      to: { path: "^apps/cli/src/adapters/" },
+    },
+    {
+      name: "cli-driven-not-driving",
+      comment: "apps/cli/src/adapters/driven/* must not import from apps/cli/src/adapters/driving/* (driven adapters remain passive)",
+      severity: "error",
+      from: { path: "^apps/cli/src/adapters/driven/" },
+      to: { path: "^apps/cli/src/adapters/driving/" },
+    },
+    {
+      name: "cli-driving-not-driven",
+      comment: "apps/cli/src/adapters/driving/* must not import from apps/cli/src/adapters/driven/* (no reverse coupling; driving reaches driven only through composition)",
+      severity: "error",
+      from: { path: "^apps/cli/src/adapters/driving/" },
+      to: { path: "^apps/cli/src/adapters/driven/" },
+    },
   ],
   options: {
     doNotFollow: {

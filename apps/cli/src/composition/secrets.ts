@@ -10,7 +10,7 @@ import {
   noopSecretsCache,
   secretsBackendFromApi,
 } from "@notekit/core/secrets";
-import { getClient, type GetClientOptions } from "../client.js";
+import { getClient, type GetClientOptions } from "../adapters/driven/client.js";
 
 let configured = false;
 

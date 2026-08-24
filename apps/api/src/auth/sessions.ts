@@ -1,18 +1,28 @@
-import { eq } from "drizzle-orm";
 import type { Context } from "hono";
 import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import { nanoid } from "nanoid";
-import { db, schema } from "../adapters/driven/db";
+import type { SessionRepository } from "../application/ports/out/SessionRepository";
 import { env } from "../env";
 import { getPatPrincipal } from "./personalTokens";
 
 const SESSION_COOKIE = "notekit_session";
 const SESSION_TTL_MS = 60 * 60 * 24 * 30 * 1000; // 30 days
 
+let repo: SessionRepository;
+
+/**
+ * Bind the session persistence port. Called once from the composition root
+ * before any route handler runs; importers pull the session functions from
+ * that root so the wiring is guaranteed to have happened first.
+ */
+export function configureSessions(r: SessionRepository): void {
+  repo = r;
+}
+
 export async function createSession(userId: string): Promise<{ id: string; expiresAt: Date }> {
   const id = nanoid(32);
   const expiresAtMs = Date.now() + SESSION_TTL_MS;
-  await db.insert(schema.sessions).values({ id, userId, expiresAt: expiresAtMs });
+  await repo.insertSession(id, userId, expiresAtMs);
   return { id, expiresAt: new Date(expiresAtMs) };
 }
 
@@ -43,32 +53,26 @@ export function clearSessionCookie(c: Context): void {
 export async function getCurrentUser(c: Context) {
   const pat = await getPatPrincipal(c);
   if (pat) {
-    const user = await db.query.users.findFirst({
-      where: eq(schema.users.id, pat.userId),
-    });
+    const user = await repo.findUserById(pat.userId);
     return user ?? null;
   }
 
   const sessionId = getCookie(c, SESSION_COOKIE);
   if (!sessionId) return null;
 
-  const session = await db.query.sessions.findFirst({
-    where: eq(schema.sessions.id, sessionId),
-  });
+  const session = await repo.findSessionById(sessionId);
   if (!session) return null;
   if (session.expiresAt < Date.now()) {
-    await db.delete(schema.sessions).where(eq(schema.sessions.id, sessionId));
+    await repo.deleteSession(sessionId);
     return null;
   }
 
-  const user = await db.query.users.findFirst({
-    where: eq(schema.users.id, session.userId),
-  });
+  const user = await repo.findUserById(session.userId);
   return user ?? null;
 }
 
 export async function destroySession(sessionId: string): Promise<void> {
-  await db.delete(schema.sessions).where(eq(schema.sessions.id, sessionId));
+  await repo.deleteSession(sessionId);
 }
 
 export function getSessionId(c: Context): string | null {
@@ -88,17 +92,13 @@ export async function getSessionUser(c: Context) {
   const sessionId = getSessionId(c);
   if (!sessionId) return null;
 
-  const session = await db.query.sessions.findFirst({
-    where: eq(schema.sessions.id, sessionId),
-  });
+  const session = await repo.findSessionById(sessionId);
   if (!session) return null;
   if (session.expiresAt < Date.now()) {
-    await db.delete(schema.sessions).where(eq(schema.sessions.id, sessionId));
+    await repo.deleteSession(sessionId);
     return null;
   }
 
-  const user = await db.query.users.findFirst({
-    where: eq(schema.users.id, session.userId),
-  });
+  const user = await repo.findUserById(session.userId);
   return user ?? null;
 }

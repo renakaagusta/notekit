@@ -9,7 +9,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { redis, REDIS_PREFIX } from "../adapters/driven/redis";
 import { getActingAgent } from "../auth/agentAuth";
-import { getCurrentUser } from "../auth/sessions";
+import { getCurrentUser } from "../composition/sessions";
 import { logger } from "../lib/logger";
 
 export interface RateLimitOptions {

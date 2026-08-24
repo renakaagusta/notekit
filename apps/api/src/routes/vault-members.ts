@@ -4,7 +4,7 @@
  */
 import { getVaultById } from "../adapters/driven/vault/store";
 import { getVaultToken } from "../adapters/driven/vault/tokens";
-import { getCurrentUser } from "../auth/sessions";
+import { getCurrentUser } from "../composition/sessions";
 import { parseBody, z, GithubUsername, CollaboratorPermissionEnum } from "../validation";
 import { vaultRoutes } from "./vault-router";
 import { env, ghErr, gitOps, isDevToken, vaultMutationLimit } from "./vault-shared";

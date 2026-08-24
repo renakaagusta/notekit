@@ -18,7 +18,7 @@ import {
   generateAgentToken,
   newAgentTokenId,
 } from "../auth/agentAuth";
-import { getCurrentUser } from "../auth/sessions";
+import { getCurrentUser } from "../composition/sessions";
 import {
   defaultEmailFor,
   slugifyAgentName,

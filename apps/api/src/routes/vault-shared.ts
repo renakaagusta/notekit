@@ -10,7 +10,7 @@ import * as gl from "../adapters/driven/git/gitlab";
 import { getActiveVault } from "../adapters/driven/vault/store";
 import type { GitProvider } from "../adapters/driven/vault/tokens";
 import { getActingAgent } from "../auth/agentAuth";
-import { getCurrentUser } from "../auth/sessions";
+import { getCurrentUser } from "../composition/sessions";
 import { env } from "../env";
 import { rateLimit } from "../middleware/rateLimit";
 

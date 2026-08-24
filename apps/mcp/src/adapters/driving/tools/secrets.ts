@@ -21,7 +21,7 @@ import {
   DEFAULT_VAULT_LABEL,
 } from "@notekit/core/secrets";
 import { z } from "zod";
-import { errorContent, jsonContent, textContent } from "../lib/notekit.js";
+import { errorContent, jsonContent, textContent } from "../../../composition/index.js";
 
 // eslint-disable-next-line max-lines-per-function -- registers all secret-management MCP tools in one place; splitting would scatter related tool definitions
 export function registerSecretTools(server: McpServer, nk: NoteKitApi): void {

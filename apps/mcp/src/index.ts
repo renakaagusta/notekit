@@ -14,7 +14,7 @@
 //   NOTEKIT_MCP_SSE_HOST     SSE bind host (default 127.0.0.1; opt out for tunnels)
 //   NOTEKIT_MCP_SSE_SECRET   SSE Authorization bearer (default: same as NOTEKIT_TOKEN)
 
-import { runMcpServer } from "./run.js";
+import { runMcpServer } from "./composition/run.js";
 
 interface Cli {
   transport: "stdio" | "sse";

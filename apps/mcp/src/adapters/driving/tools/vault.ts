@@ -5,7 +5,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
 import { z } from "zod";
-import { errorContent, jsonContent, textContent } from "../lib/notekit.js";
+import { errorContent, jsonContent, textContent } from "../../../composition/index.js";
 
 export function registerVaultTools(server: McpServer, nk: NoteKitApi): void {
   server.registerTool(

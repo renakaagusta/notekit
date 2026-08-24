@@ -3,9 +3,9 @@
 // can statically import it without dragging in argv parsing or the
 // process.exit calls that only make sense for the standalone bundle.
 
-import { createMcpServer } from "./server.js";
-import { runSse } from "./transports/sse.js";
-import { runStdio } from "./transports/stdio.js";
+import { createMcpServer } from "../adapters/driving/server.js";
+import { runSse } from "../adapters/driving/transports/sse.js";
+import { runStdio } from "../adapters/driving/transports/stdio.js";
 
 export interface RunMcpServerOptions {
   /** NoteKit API base URL — defaults to http://localhost:3001. */

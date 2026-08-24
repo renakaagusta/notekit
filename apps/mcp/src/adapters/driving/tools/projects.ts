@@ -21,14 +21,12 @@ import {
   errorContent,
   jsonContent,
   listVaultFiles,
-} from "../lib/notekit.js";
-import {
   deriveSlugFromGit,
   findGitRoot,
   ownerRepoFromGit,
   resolveProjectContext,
-  slugify,
-} from "../lib/project.js";
+  slugify
+} from "../../../composition/index.js";
 
 const PROJECTS_PREFIX = "projects/";
 

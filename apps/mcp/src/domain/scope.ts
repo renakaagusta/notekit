@@ -18,7 +18,21 @@
 // invoking the default scope from outside a known project still works —
 // the `effective` field tells callers what we actually used.
 
-import type { ProjectMarker, ProjectScope } from "./project.js";
+// Pure project-context value-objects. Defined here (domain) rather than in the
+// driven `project` adapter so the domain layer stays self-contained — the
+// adapter that resolves markers from the filesystem imports these types back.
+export type ProjectScope = "project" | "global" | "all";
+
+export interface ProjectMarker {
+  /** Resolved slug used as `projects/<slug>/` inside the active vault. */
+  project: string;
+  /** Optional vault override declared in the marker file. */
+  vault?: string;
+  /** Optional default scope declared in the marker file. */
+  scope?: ProjectScope;
+  /** Absolute path to the marker that produced this context, if any. */
+  source: string | null;
+}
 
 export type ItemKind = "notes" | "tickets" | "inbox" | "links";
 

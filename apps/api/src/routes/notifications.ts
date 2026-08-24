@@ -12,8 +12,8 @@ import { Hono } from "hono";
 import { nanoid } from "nanoid";
 import { db, schema } from "../adapters/driven/db";
 import { getCurrentUser } from "../auth/sessions";
+import { emitAgentEvent } from "../composition/notifications";
 import { env } from "../env";
-import { emitAgentEvent } from "../notifications/emit";
 import { parseBody, z } from "../validation";
 
 export const notificationRoutes = new Hono();

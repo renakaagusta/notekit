@@ -12,9 +12,9 @@ import * as ghApp from "../adapters/driven/git/github-app";
 import * as gl from "../adapters/driven/git/gitlab";
 import { provisionForgejoAccount, getForgejoAccount } from "../adapters/driven/vault/forgejoAccounts";
 import { getVaultToken } from "../adapters/driven/vault/tokens";
-import { tryConsume } from "../adapters/driving/middleware/rateLimit";
 import { vaultRoutes } from "../adapters/driving/routes/vault-router";
 import { getCurrentUser } from "../composition/sessions";
+import { tryConsume } from "../middleware/rateLimit";
 import { parseBody, z, RepoName } from "../validation";
 import { env, ghErr, isDevToken, vaultMutationLimit } from "./vault-shared";
 

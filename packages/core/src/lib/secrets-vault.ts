@@ -97,6 +97,23 @@ export {
   removeMember,
 } from "./secrets-vault-membership";
 
+// ─── Model B device roster (per-device-key management) ───────────────────────
+// Importing this module also registers its keybox-verifier + recipient-resolver
+// hooks into secrets-vault-core (the configure* calls at its foot), so the
+// envelope trust path becomes roster-aware wherever the barrel is loaded.
+export {
+  ROSTER_PREFIX,
+  rosterVersionPath,
+  deviceSigner,
+  readRosterChain,
+  rosterExists,
+  currentRoster,
+  bootstrapGenesisRoster,
+  publishRosterVersion,
+  addDeviceViaRoster,
+  revokeDeviceViaRoster,
+} from "./secrets-vault-roster";
+
 // ─── Remaining imports for this module ───────────────────────────────────────
 import type { DeviceIdentity } from "./crypto/device-key";
 import type { RecoverySigningKey } from "./crypto/recovery";

@@ -37,6 +37,7 @@ import {
   recipientSignature,
   type BatchFile,
   type SecretRef,
+  type KeyboxDeviceSigner,
 } from "./secrets-vault-core";
 import { extraRecipientsForItem } from "./secrets-vault-sharing";
 
@@ -222,6 +223,7 @@ export async function rotateVaultKey(
   signer: DeviceIdentity,
   recoverySigning: RecoverySigningKey | undefined,
   reason: string,
+  deviceSigner?: KeyboxDeviceSigner,
 ): Promise<VaultKey> {
   const current = getActiveVaultKey();
   const readIdentity = current ? current.identity : signer.identity;
@@ -239,6 +241,7 @@ export async function rotateVaultKey(
   await writeKeybox(next, recipients, `Rotate keybox (epoch ${epoch}) ${reason}`, {
     epoch,
     recoverySigning,
+    deviceSigner,
   });
   setActiveVaultKey(next);
   return next;

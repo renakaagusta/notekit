@@ -3,9 +3,9 @@
  * instead (see docs/NOTIFICATIONS.md M2). This poller is no-op if either
  * (a) the bot token is missing or (b) NODE_ENV=production.
  */
+import { consumeStartCode } from "../adapters/driven/notifications/telegram";
 import { env } from "../env";
 import { logger } from '../lib/logger'
-import { consumeStartCode } from "./channels/telegram";
 
 interface TgUpdate {
   update_id: number;

@@ -2,6 +2,7 @@ import type { GithubAppProviderPort } from "../../../application/ports/out/Githu
 import {
   addRepoToInstallation,
   createUserRepo,
+  exchangeUserCode,
   githubAppConfigured,
   listInstallationRepos,
 } from "./github-app";
@@ -9,6 +10,7 @@ import {
 /** GitHub App implementation of {@link GithubAppProviderPort}. */
 export const githubAppProviderPort: GithubAppProviderPort = {
   configured: githubAppConfigured,
+  exchangeUserCode,
   listInstallationRepos,
   createUserRepo,
   addRepoToInstallation,

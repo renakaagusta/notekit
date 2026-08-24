@@ -1,0 +1,111 @@
+/**
+ * Per-principal fixed-window rate limiter, backed by the shared Redis instance.
+ * Counters are persistent (survive API restarts) and correct across processes —
+ * nothing lives in this process's memory. Buckets are keyed by user id (or agent
+ * token) + route bucket name, so different routes don't drain each other's
+ * budgets. Keys carry the `notekit:` prefix + a TTL, so Redis expires them for
+ * us (no cleanup) and the shared instance stays collision-free.
+ */
+import type { Context, MiddlewareHandler } from "hono";
+import type { RateLimitStore } from "../../../application/ports/out/RateLimitStore";
+import { getActingAgent } from "../../../composition/agentAuth";
+import { getCurrentUser } from "../../../composition/sessions";
+import { logger } from "../../../lib/logger";
+
+export interface RateLimitOptions {
+  /** Logical name for telemetry + isolation between routes. */
+  bucket: string;
+  /** Window size in milliseconds. */
+  windowMs: number;
+  /** Max requests per principal within the window. */
+  max: number;
+}
+
+export function createRateLimit(store: RateLimitStore) {
+  async function check(key: string, windowMs: number, max: number): Promise<{
+    allowed: boolean;
+    remaining: number;
+    resetAt: number;
+  }> {
+    const now = Date.now();
+    const windowStart = Math.floor(now / windowMs) * windowMs;
+    const resetAt = windowStart + windowMs;
+    if (!store.available) {
+      // No Redis configured (e.g. local dev) — don't block; just allow.
+      return { allowed: true, remaining: max, resetAt };
+    }
+    try {
+      const count = await store.increment(key, windowStart, resetAt - now);
+      return { allowed: count <= max, remaining: Math.max(0, max - count), resetAt };
+    } catch (err) {
+      // Fail open: a Redis blip shouldn't lock everyone out.
+      logger.warn({ err, key }, "[ratelimit] redis check failed — allowing");
+      return { allowed: true, remaining: max, resetAt };
+    }
+  }
+
+  async function principalId(c: Context): Promise<string | null> {
+    const agent = await getActingAgent(c);
+    if (agent) return `agent:${agent.userId}:${agent.agentSlug}`;
+    const user = await getCurrentUser(c);
+    if (user) return `user:${user.id}`;
+    return null;
+  }
+
+  function rateLimit(opts: RateLimitOptions): MiddlewareHandler {
+    return async (c, next) => {
+      const principal = await principalId(c);
+      if (!principal) {
+        // Unauthenticated traffic shouldn't get a per-principal allowance —
+        // let the downstream auth check 401 it. We still budget per IP to
+        // contain misbehaving clients during login flows.
+        const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+        const r = await check(`ip:${ip}:${opts.bucket}`, opts.windowMs, opts.max);
+        if (!r.allowed) return rateLimitedResponse(c, opts, r);
+        await next();
+        return;
+      }
+      const key = `${principal}:${opts.bucket}`;
+      const r = await check(key, opts.windowMs, opts.max);
+      if (!r.allowed) return rateLimitedResponse(c, opts, r);
+      c.header("X-RateLimit-Limit", String(opts.max));
+      c.header("X-RateLimit-Remaining", String(r.remaining));
+      c.header("X-RateLimit-Reset", String(Math.floor(r.resetAt / 1000)));
+      await next();
+    };
+  }
+
+  /**
+   * Consume one unit of a rate-limit bucket imperatively (outside middleware).
+   * Use when only *some* code paths should count against the budget — e.g. an
+   * idempotent endpoint that should only rate-limit the expensive create path,
+   * not cheap "already done" returns. Returns a 429 Response when over budget,
+   * or null when the request may proceed.
+   */
+  async function tryConsume(
+    c: Context,
+    opts: RateLimitOptions,
+  ): Promise<Response | null> {
+    const principal = await principalId(c);
+    const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim() || "anon";
+    const key = principal ? `${principal}:${opts.bucket}` : `ip:${ip}:${opts.bucket}`;
+    const r = await check(key, opts.windowMs, opts.max);
+    if (!r.allowed) return rateLimitedResponse(c, opts, r);
+    return null;
+  }
+
+  return { rateLimit, tryConsume };
+}
+
+function rateLimitedResponse(
+  c: Context,
+  opts: RateLimitOptions,
+  state: { resetAt: number },
+) {
+  const retryAfter = Math.max(1, Math.ceil((state.resetAt - Date.now()) / 1000));
+  c.header("Retry-After", String(retryAfter));
+  c.header("X-RateLimit-Limit", String(opts.max));
+  c.header("X-RateLimit-Remaining", "0");
+  c.header("X-RateLimit-Reset", String(Math.floor(state.resetAt / 1000)));
+  return c.json({ error: "rate_limited", retryAfter }, 429);
+}

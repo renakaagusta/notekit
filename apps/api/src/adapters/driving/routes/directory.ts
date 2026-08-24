@@ -17,11 +17,13 @@
  *   - PUT /directory/keys            publish the caller's public keys
  *   - GET /directory/keys?email=…    look up a user's public keys
  */
-import { eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { db, schema } from "../adapters/driven/db";
-import { getCurrentUser } from "../composition/sessions";
-import { parseBody, z } from "../validation";
+import {
+  lookupDirectoryByEmail,
+  publishDirectoryKeys,
+} from "../../../composition/directory";
+import { getCurrentUser } from "../../../composition/sessions";
+import { parseBody, z } from "../../../validation";
 
 export const directoryRoutes = new Hono();
 
@@ -48,34 +50,18 @@ directoryRoutes.put("/keys", async (c) => {
   if (!parsed.ok) return c.json(parsed.body, parsed.status);
   const { signingKey, devices } = parsed.data;
 
-  const now = Date.now();
-  await db
-    .insert(schema.userSigningKeys)
-    .values({ userId: user.id, signingKey, updatedAt: now })
-    .onConflictDoUpdate({
-      target: schema.userSigningKeys.userId,
-      set: { signingKey, updatedAt: now },
-    });
-
-  // Replace the published device set wholesale — simplest way to drop revoked
-  // devices. (The set is small and bounded at 100.)
-  await db
-    .delete(schema.userDirectoryDevices)
-    .where(eq(schema.userDirectoryDevices.userId, user.id));
-  if (devices.length > 0) {
-    await db.insert(schema.userDirectoryDevices).values(
-      devices.map((d) => ({
-        userId: user.id,
-        deviceId: d.deviceId,
-        name: d.name ?? null,
-        recipient: d.recipient,
-        addedAt: d.addedAt,
-        owner: d.owner ?? null,
-        sig: d.sig ?? null,
-        updatedAt: now,
-      })),
-    );
-  }
+  await publishDirectoryKeys({
+    userId: user.id,
+    signingKey,
+    devices: devices.map((d) => ({
+      deviceId: d.deviceId,
+      name: d.name ?? null,
+      recipient: d.recipient,
+      addedAt: d.addedAt,
+      owner: d.owner ?? null,
+      sig: d.sig ?? null,
+    })),
+  });
 
   return c.json({ ok: true });
 });
@@ -87,26 +73,13 @@ directoryRoutes.get("/keys", async (c) => {
   const email = c.req.query("email")?.trim().toLowerCase();
   if (!email) return c.json({ error: "email_required" }, 400);
 
-  const target = await db.query.users.findFirst({
-    where: eq(schema.users.email, email),
-  });
-  // Don't distinguish "no such user" from "published nothing" — both are a
-  // plain 404 so the directory can't be used to enumerate who has an account.
-  if (!target) return c.json({ error: "not_found" }, 404);
-
-  const signing = await db.query.userSigningKeys.findFirst({
-    where: eq(schema.userSigningKeys.userId, target.id),
-  });
-  if (!signing) return c.json({ error: "not_found" }, 404);
-
-  const devices = await db.query.userDirectoryDevices.findMany({
-    where: eq(schema.userDirectoryDevices.userId, target.id),
-  });
+  const result = await lookupDirectoryByEmail(email);
+  if (!result) return c.json({ error: "not_found" }, 404);
 
   return c.json({
     email,
-    signingKey: signing.signingKey,
-    devices: devices.map((d) => ({
+    signingKey: result.signingKey,
+    devices: result.devices.map((d) => ({
       deviceId: d.deviceId,
       name: d.name,
       recipient: d.recipient,

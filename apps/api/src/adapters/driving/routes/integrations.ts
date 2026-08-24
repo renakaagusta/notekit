@@ -6,10 +6,10 @@
  * worker in `services/telegramPoller.ts`.
  */
 import { Hono } from "hono";
-import { consumeStartCode } from "../adapters/driven/notifications/telegram";
-import { requireWebhookSecret } from '../adapters/driving/middleware/webhook-auth'
-import { env } from "../env";
-import { logger } from '../lib/logger'
+import { consumeTelegramStartCode } from "../../../composition/notifications";
+import { env } from "../../../env";
+import { logger } from '../../../lib/logger'
+import { requireWebhookSecret } from '../middleware/webhook-auth'
 
 export const integrationsRoutes = new Hono();
 
@@ -44,7 +44,7 @@ integrationsRoutes.post("/telegram/webhook", requireWebhookSecret("TELEGRAM_WEBH
       );
       return c.json({ ok: true });
     }
-    const result = await consumeStartCode(code, chatId);
+    const result = await consumeTelegramStartCode(code, chatId);
     if (result.ok) {
       await sendBotMessage(
         chatId,

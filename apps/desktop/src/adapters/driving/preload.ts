@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: MIT
 // NoteKit desktop preload — MIT-licensed Electron wrapper around the
 // @notekit/web build. Runs with contextIsolation=true and sandbox=true, so
-// only the typed surface defined in ./ipc.ts is exposed to the renderer.
-// Do not import anything node-only here beyond `electron` itself.
+// only the typed surface defined in the domain IPC contract is exposed to the
+// renderer. This is a driving adapter: it hands the renderer a typed bridge it
+// uses to drive the main process. Do not import anything node-only here beyond
+// `electron` itself.
 
 import { contextBridge, ipcRenderer } from "electron";
 import {
@@ -13,7 +15,7 @@ import {
   type IpcContract,
   type NotekitDesktopBridge,
   type UpdaterCheckResult,
-} from "./ipc";
+} from "../../domain/ipc-contract";
 
 const invoker = {
   invoke<C extends IpcChannel>(

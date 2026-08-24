@@ -9,7 +9,7 @@
     "dev": "concurrently -k -n web,electron -c blue,magenta \"pnpm --filter @notekit/web dev\" \"wait-on tcp:5173 && pnpm build:tsc && cross-env NOTEKIT_DEV=1 electron .\"",
     "build": "pnpm --filter @notekit/web build && pnpm build:tsc && electron-builder",
     "build:tsc": "tsc -p . && pnpm build:preload",
-    "build:preload": "esbuild src/preload.ts --bundle --platform=node --target=node20 --external:electron --format=cjs --outfile=dist/preload.js --sourcemap",
+    "build:preload": "esbuild src/adapters/driving/preload.ts --bundle --platform=node --target=node20 --external:electron --format=cjs --outfile=dist/preload.js --sourcemap",
     "start": "electron .",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf .turbo dist out",

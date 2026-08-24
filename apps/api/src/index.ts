@@ -8,6 +8,7 @@ import { secureHeaders } from "hono/secure-headers";
 import { pool } from "./adapters/driven/db";
 import { revokeVaultToken, vaultConfigured } from "./adapters/driven/hcvault";
 import { agentRoutes } from "./adapters/driving/routes/agents";
+import { authRoutes } from "./adapters/driving/routes/auth";
 import { avatarRoutes } from "./adapters/driving/routes/avatar";
 import { directoryRoutes } from "./adapters/driving/routes/directory";
 import { iapRoutes } from "./adapters/driving/routes/iap";
@@ -18,7 +19,6 @@ import { backofficeRoutes } from "./backoffice/routes";
 import { startTelegramPoller } from "./composition/notifications";
 import { env } from "./env";
 import { logger } from "./lib/logger";
-import { authRoutes } from "./routes/auth";
 
 const app = new Hono();
 

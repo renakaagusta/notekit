@@ -8,15 +8,15 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
-import { Route as AuthCallbackRouteImport } from './routes/auth-callback'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
-import { Route as AuthenticatedSubscriptionsRouteImport } from './routes/_authenticated/subscriptions'
-import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
-import { Route as AuthenticatedVaultsRouteImport } from './routes/_authenticated/vaults'
+import { Route as rootRouteImport } from './adapters/driving/routes/__root'
+import { Route as IndexRouteImport } from './adapters/driving/routes/index'
+import { Route as AuthenticatedRouteImport } from './adapters/driving/routes/_authenticated'
+import { Route as AuthCallbackRouteImport } from './adapters/driving/routes/auth-callback'
+import { Route as LoginRouteImport } from './adapters/driving/routes/login'
+import { Route as AuthenticatedDashboardRouteImport } from './adapters/driving/routes/_authenticated/dashboard'
+import { Route as AuthenticatedSubscriptionsRouteImport } from './adapters/driving/routes/_authenticated/subscriptions'
+import { Route as AuthenticatedUsersRouteImport } from './adapters/driving/routes/_authenticated/users'
+import { Route as AuthenticatedVaultsRouteImport } from './adapters/driving/routes/_authenticated/vaults'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',

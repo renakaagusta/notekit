@@ -29,7 +29,7 @@ export default [
     coreHelpers: CORE_HELPERS,
     corePackage: '@notekit/core',
     ignoreReinventPathContains: ['/packages/core/'],
-    vendored: ['apps/backoffice/src/components/ui/**'],
+    vendored: ['apps/backoffice/src/adapters/driving/components/ui/**'],
     ignores: [
       // other agents' git worktrees — not our source
       '.claude/**',
@@ -73,7 +73,7 @@ export default [
   // would reject (the preset's `vendored` option already drops the maintainability
   // heuristics; this drops the react-compiler hook rules + ref non-null on top).
   {
-    files: ['apps/backoffice/src/components/ui/**/*.{ts,tsx}'],
+    files: ['apps/backoffice/src/adapters/driving/components/ui/**/*.{ts,tsx}'],
     rules: {
       'react-hooks/set-state-in-effect': 'off',
       'react-hooks/immutability': 'off',

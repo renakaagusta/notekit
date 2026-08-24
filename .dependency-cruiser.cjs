@@ -249,6 +249,44 @@ module.exports = {
       from: { path: "^apps/mcp/src/adapters/driving/" },
       to: { path: "^apps/mcp/src/adapters/driven/" },
     },
+    {
+      name: "bo-domain-no-external",
+      comment: "apps/backoffice/src/domain/* must not import external npm modules (backoffice domain layer is framework-decoupled)",
+      severity: "error",
+      from: { path: "^apps/backoffice/src/domain/", pathNot: "\\.d\\.ts$" },
+      to: {
+        dependencyTypes: ["npm"],
+        pathNot: "^(uuid|decimal\\.js|node:).*",
+      },
+    },
+    {
+      name: "bo-domain-no-application",
+      comment: "apps/backoffice/src/domain/* must not import from apps/backoffice/src/application/* or apps/backoffice/src/adapters/* (inner never imports outer layers)",
+      severity: "error",
+      from: { path: "^apps/backoffice/src/domain/" },
+      to: { path: "^apps/backoffice/src/(application|adapters)/" },
+    },
+    {
+      name: "bo-application-no-adapters",
+      comment: "apps/backoffice/src/application/* must not import from apps/backoffice/src/adapters/* (inner never imports outer). The backoffice is a thin admin UI over the NoteKit API, so it has no genuine application/ use-case layer yet; this rule holds vacuously and guards future growth.",
+      severity: "error",
+      from: { path: "^apps/backoffice/src/application/" },
+      to: { path: "^apps/backoffice/src/adapters/" },
+    },
+    {
+      name: "bo-driven-not-driving",
+      comment: "apps/backoffice/src/adapters/driven/* must not import from apps/backoffice/src/adapters/driving/* (driven adapters remain passive)",
+      severity: "error",
+      from: { path: "^apps/backoffice/src/adapters/driven/" },
+      to: { path: "^apps/backoffice/src/adapters/driving/" },
+    },
+    {
+      name: "bo-driving-not-driven",
+      comment: "apps/backoffice/src/adapters/driving/* must not import from apps/backoffice/src/adapters/driven/* (no reverse coupling; driving reaches driven only through the composition barrel)",
+      severity: "error",
+      from: { path: "^apps/backoffice/src/adapters/driving/" },
+      to: { path: "^apps/backoffice/src/adapters/driven/" },
+    },
   ],
   options: {
     doNotFollow: {
@@ -269,7 +307,7 @@ module.exports = {
         "apps/mobile/ios/App/App/public/",
         "apps/mobile/android/app/src/main/assets/public/",
         "apps/landing/",
-        "apps/backoffice/",
+        "apps/backoffice/src/routeTree\\.gen\\.ts$",
         "\\.min\\.js$",
         "\\.test\\.(ts|tsx)$",
       ],

@@ -1,4 +1,3 @@
-import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
@@ -9,13 +8,8 @@ import { defineConfig } from 'vite'
 // backoffice origin for cookies/bearer auth to work.
 export default defineConfig({
   plugins: [
-    TanStackRouterVite({ routesDirectory: './src/routes', generatedRouteTree: './src/routeTree.gen.ts' }),
+    TanStackRouterVite({ routesDirectory: './src/adapters/driving/routes', generatedRouteTree: './src/routeTree.gen.ts' }),
     react(),
     tailwindcss(),
   ],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
-  },
 })

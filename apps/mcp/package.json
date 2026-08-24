@@ -59,6 +59,7 @@
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@notekit/api-client": "workspace:*",
     "@notekit/core": "workspace:*",
+    "nanoid": "^5.0.7",
     "zod": "^4.0.0"
   },
   "devDependencies": {

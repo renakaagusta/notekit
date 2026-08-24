@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { createDeviceIdentity, loadDeviceIdentity } from "../../../composition/device-key";
+import type { DeviceIdentity } from "../../../lib/crypto/device-key";
 import {
   recoveryFromMnemonic,
   recoverySigningFromMnemonic,
 } from "../../../lib/crypto/recovery";
+import type { RecoverySigningKey } from "../../../lib/crypto/recovery";
 import {
   createAndStoreRecovery,
   loadStoredRecovery,
@@ -16,7 +18,11 @@ import {
   hasInjectedWallet,
   type WalletId,
 } from "../../../lib/crypto/wallet-provider";
-import { initVault, getActiveVaultKey } from "../../../lib/secrets-vault";
+import {
+  initVault,
+  initVaultWithPerDeviceApprovals,
+  getActiveVaultKey,
+} from "../../../lib/secrets-vault";
 import { useAuthStore } from "../stores/authStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
@@ -71,6 +77,32 @@ export function VaultSetup() {
   const [importError, setImportError] = useState<string | null>(null);
   // Guard against React 18 StrictMode double-invoke creating two vaults.
   const ranRef = useRef(false);
+  // Opt-in "per-device approvals" (Model B). OFF by default — the global default
+  // scheme stays "multi"; this only upgrades THIS vault when the user picks it.
+  // A ref mirrors the toggle so the effect-driven `run()` reads the current
+  // choice without adding it to the effect deps (which would re-run setup).
+  const [perDeviceApprovals, setPerDeviceApprovals] = useState(false);
+  const perDeviceApprovalsRef = useRef(false);
+  perDeviceApprovalsRef.current = perDeviceApprovals;
+
+  /**
+   * Create the vault with the user's chosen trust scheme. Default (toggle off)
+   * is the unchanged {@link initVault} path (scheme "multi"); when the user
+   * opted into per-device approvals we take the Model B path — envelope scheme
+   * plus a genesis roster — via the single core op both surfaces share.
+   */
+  async function createVault(args: {
+    device: DeviceIdentity;
+    recoveryRecipient: string;
+    recoverySigning: RecoverySigningKey;
+  }) {
+    const owner = ownerFromAccount();
+    if (perDeviceApprovalsRef.current) {
+      await initVaultWithPerDeviceApprovals({ ...args, owner });
+      return;
+    }
+    await initVault({ ...args, owner });
+  }
 
   useEffect(() => {
     if (choosing) return; // wait for the user to pick a root
@@ -103,11 +135,10 @@ export function VaultSetup() {
       const device = (await loadDeviceIdentity()) ?? (await createDeviceIdentity());
       const conn = await connectWallet();
       const { identity, signing } = await deriveWalletVaultIdentity(conn.sign);
-      await initVault({
+      await createVault({
         device,
         recoveryRecipient: identity.recipient,
         recoverySigning: signing,
-        owner: ownerFromAccount(),
       });
       setDevice(device);
       setEncryptionRequired(true);
@@ -143,11 +174,10 @@ export function VaultSetup() {
       // Throws on an invalid BIP39 phrase — surfaced inline below.
       const { recipient } = await recoveryFromMnemonic(mnemonic);
       const recoverySigning = await recoverySigningFromMnemonic(mnemonic);
-      await initVault({
+      await createVault({
         device,
         recoveryRecipient: recipient,
         recoverySigning,
-        owner: ownerFromAccount(),
       });
       // Cache the phrase locally (marked backed-up — the user already holds it)
       // so the recovery sheet and nudge stay consistent on this device.
@@ -183,11 +213,10 @@ export function VaultSetup() {
       const recoverySigning = await recoverySigningFromMnemonic(recovery.mnemonic);
       // Born-with-membership: stamp the owner as member #0 (keyed by account
       // email, matching how the directory looks members up).
-      await initVault({
+      await createVault({
         device,
         recoveryRecipient: recovery.recipient,
         recoverySigning,
-        owner: ownerFromAccount(),
       });
       setDevice(device);
       // initVault stamps `encryption: required`; reflect that in the live store
@@ -262,6 +291,23 @@ export function VaultSetup() {
           >
             I already have a recovery phrase →
           </button>
+
+          <label className="nk-vault-optin">
+            <input
+              type="checkbox"
+              checked={perDeviceApprovals}
+              onChange={(event) => setPerDeviceApprovals(event.target.checked)}
+              disabled={walletBusy || importBusy}
+            />
+            <span>
+              <strong>Per-device approvals (recommended)</strong>
+              <span className="nk-muted">
+                Each new device is approved from one you already trust — no need
+                to type your recovery phrase to add a device, and revoking one
+                takes effect immediately.
+              </span>
+            </span>
+          </label>
           {failed && <p className="nk-error-text">{failed}</p>}
         </div>
         {importOpen && (

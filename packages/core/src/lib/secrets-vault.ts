@@ -165,6 +165,7 @@ import {
   reencryptSecretsTo,
   reencryptItemsTo,
 } from "./secrets-vault-reencrypt";
+import { bootstrapGenesisRoster } from "./secrets-vault-roster";
 import { currentVaultScope } from "./vault-persistence";
 
 // ─── Vault index ─────────────────────────────────────────────────────────────
@@ -328,6 +329,27 @@ export async function initVault({
     );
     setActiveVaultKey(vaultKey);
   }
+}
+
+/**
+ * Opt-in Model B vault creation: initialize an ENVELOPE-scheme vault and
+ * immediately bootstrap its genesis device roster, so per-device approvals are
+ * live from the first commit. This does NOT change the global default scheme
+ * (callers that want the default keep calling {@link initVault}); it's the one
+ * op every surface uses when the user explicitly picks "per-device approvals".
+ *
+ * The master signing key is used ONLY here (genesis) and at full recovery — the
+ * origin device's own signing key takes over immediately (bootstrapGenesisRoster
+ * re-signs the keybox under the device). Requires the origin device to carry a
+ * Model B signing keypair; a freshly created device always does.
+ */
+export async function initVaultWithPerDeviceApprovals(
+  args: Omit<InitVaultArgs, "scheme" | "encryption"> & {
+    recoverySigning: RecoverySigningKey;
+  },
+): Promise<void> {
+  await initVault({ ...args, encryption: "required", scheme: "envelope" });
+  await bootstrapGenesisRoster(args.device, args.recoverySigning);
 }
 
 export async function migrateToEnvelope(

@@ -16,6 +16,7 @@ import {
 } from "@notekit/core/crypto";
 import type { SavedLink } from "@notekit/core/types";
 import * as e2ee from "@notekit/core/vault-e2ee";
+import { loadMcpDeviceIdentity } from "./device-identity.js";
 
 export class VaultLockedError extends Error {
   constructor() {
@@ -43,22 +44,20 @@ export async function requireVaultIdentity(): Promise<RecoveryIdentity> {
 }
 
 /**
- * A DeviceIdentity for secrets-vault ops (device list, legacy revoke), derived
- * from the env recovery phrase. It has NO Model B signing keypair on purpose:
- * the MCP server is headless and holds only the master phrase, so it acts in the
- * master/recovery role, not as a roster-trusted device. Roster-signed ops need a
- * persistent device signing key the server doesn't have — those fail closed with
- * a clear message rather than silently downgrading.
+ * This MCP server's persistent per-device identity — its OWN age keypair plus a
+ * Model B Ed25519 signing keypair, loaded from (or created in) a local file on
+ * the server's disk (see device-identity.ts). The private keys never leave this
+ * machine and are never uploaded to the vault.
+ *
+ * Having a real device identity is what lets the headless server participate in
+ * the roster: once an OWNER device explicitly approves this device's signPub
+ * (via the normal pairing/approval flow — human safety-number verification), the
+ * server's own roster-signed device ops (e.g. revoke) work with no master phrase.
+ * Until then it is not a trusted roster member and roster ops fail closed — the
+ * server is NOT auto-enrolled and is NOT silently granted owner-level power.
  */
 export async function vaultDevice(): Promise<DeviceIdentity> {
-  const id = await requireVaultIdentity();
-  return {
-    deviceId: "mcp",
-    name: "notekit-mcp",
-    identity: id.identity,
-    recipient: id.recipient,
-    createdAt: new Date().toISOString(),
-  };
+  return loadMcpDeviceIdentity();
 }
 
 /** The master recovery signing key from the env phrase, or null if unavailable. */

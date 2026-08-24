@@ -5554,6 +5554,27 @@ a.nk-commit-sha:hover {
   font-size: 14px;
 }
 
+.nk-vault-optin {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 20px;
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.nk-vault-optin input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.nk-vault-optin span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 /* ─── Vault setup ───────────────────────────────────────────────── */
 
 .nk-vault-setup,

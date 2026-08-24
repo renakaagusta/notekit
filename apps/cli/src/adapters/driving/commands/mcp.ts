@@ -19,17 +19,18 @@ import { runMcpServer } from "@notekit/mcp/run";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 
-import { getClient } from "../client.js";
-import { loadConfig } from "../config.js";
-import { getToken, getRecoveryPhrase } from "../keychain.js";
 import {
+  getClient,
+  loadConfig,
+  getToken,
+  getRecoveryPhrase,
   ALL_CLIENTS,
   buildEntry,
-  getClient as getClientAdapter,
+  getClientAdapter,
   resolveNotekitBinary,
   type ClientId,
-} from "../lib/mcp-clients.js";
-import { NOTEKIT_SKILL_MD } from "../lib/skill.js";
+} from "../../../composition/index.js";
+import { NOTEKIT_SKILL_MD } from "../../../domain/skill.js";
 
 const serveCmd = defineCommand({
   meta: {

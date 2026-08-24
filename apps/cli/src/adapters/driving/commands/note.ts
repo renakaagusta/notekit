@@ -8,17 +8,17 @@ import type { Note } from "@notekit/core/types";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import { nanoid } from "nanoid";
-import { dieWithError } from "../client.js";
 import {
+  dieWithError,
   isEncrypted,
   decryptNote,
   vaultIsEncrypted,
   encryptNote,
   listEncryptedNotes,
-} from "../lib/crypto.js";
-import { openEditor } from "../lib/editor.js";
-import { parseFrontmatter, stringifyFrontmatter } from "../lib/frontmatter.js";
-import { getSecretsClient } from "../lib/secrets.js";
+  openEditor,
+  getSecretsClient,
+} from "../../../composition/index.js";
+import { parseFrontmatter, stringifyFrontmatter } from "../../../domain/frontmatter.js";
 
 const NOTES_DIR = "notes";
 const INDEX_PATH = `${NOTES_DIR}/index.json`;

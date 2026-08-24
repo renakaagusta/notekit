@@ -11,7 +11,7 @@ import {
 } from "@notekit/core/crypto";
 import type { Note, Ticket  } from "@notekit/core/types";
 import * as e2ee from "@notekit/core/vault-e2ee";
-import { getRecoveryPhrase, getDeviceIdentity } from "../keychain.js";
+import { getRecoveryPhrase, getDeviceIdentity } from "../adapters/driven/keychain.js";
 
 /** Thrown when an encrypted item is hit but no recovery phrase is unlocked. */
 export class VaultLockedError extends Error {

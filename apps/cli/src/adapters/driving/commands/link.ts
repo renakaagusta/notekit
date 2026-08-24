@@ -28,13 +28,13 @@ import type { SavedLink } from "@notekit/core/types";
 import { recipientsFor } from "@notekit/core/vault-e2ee";
 import { defineCommand } from "citty";
 import kleur from "kleur";
-import { dieWithError } from "../client.js";
 import {
+  dieWithError,
   isEncrypted,
   vaultIsEncrypted,
   requireVaultIdentity,
-} from "../lib/crypto.js";
-import { getSecretsClient } from "../lib/secrets.js";
+  getSecretsClient,
+} from "../../../composition/index.js";
 
 const LINKS_DIR = "links";
 

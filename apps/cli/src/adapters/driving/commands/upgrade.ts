@@ -9,8 +9,7 @@
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import open from "open";
-import { getClient, dieWithError } from "../client.js";
-import { loadConfig } from "../config.js";
+import { getClient, dieWithError, loadConfig } from "../../../composition/index.js";
 
 function plusPitch(mobileFreeNotes: number): string[] {
   return [

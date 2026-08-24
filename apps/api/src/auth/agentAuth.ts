@@ -8,7 +8,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, eq, isNull } from "drizzle-orm";
 import type { Context } from "hono";
 import { nanoid } from "nanoid";
-import { db, schema } from "../db";
+import { db, schema } from "../adapters/driven/db";
 
 const TOKEN_PREFIX = "nka_"; // "notekit agent"
 

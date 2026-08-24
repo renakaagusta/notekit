@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { db, schema } from "../db";
+import { db, schema } from "../adapters/driven/db";
 
 export type PlusSource = "apple" | "google" | "stripe" | "lifetime";
 

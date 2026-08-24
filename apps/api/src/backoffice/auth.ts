@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { magicLink } from "better-auth/plugins";
-import { pool } from "../db";
+import { pool } from "../adapters/driven/db";
 import { env, isBackofficeAdmin } from "../env";
 import { logger } from "../lib/logger";
 

@@ -10,10 +10,10 @@
  */
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { db, schema } from "../adapters/driven/db";
 import { sendMobilePush } from "../adapters/driven/notifications/mobilepush";
 import { sendTelegram } from "../adapters/driven/notifications/telegram";
 import { sendWebPush } from "../adapters/driven/notifications/webpush";
-import { db, schema } from "../db";
 import { logger } from '../lib/logger'
 
 export type AgentEventType = "file.write" | "file.delete" | "device.paired";

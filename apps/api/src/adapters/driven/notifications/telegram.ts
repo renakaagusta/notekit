@@ -2,8 +2,8 @@
  * Telegram channel. M2 fills this in. See docs/NOTIFICATIONS.md.
  */
 import { eq } from "drizzle-orm";
-import { db, schema } from "../../../db";
 import { env } from "../../../env";
+import { db, schema } from "../db";
 
 export async function sendTelegram(
   userId: string,

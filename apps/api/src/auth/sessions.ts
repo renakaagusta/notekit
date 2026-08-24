@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import type { Context } from "hono";
 import { setCookie, deleteCookie, getCookie } from "hono/cookie";
 import { nanoid } from "nanoid";
-import { db, schema } from "../db";
+import { db, schema } from "../adapters/driven/db";
 import { env } from "../env";
 import { getPatPrincipal } from "./personalTokens";
 

@@ -5785,6 +5785,18 @@ a.nk-commit-sha:hover {
   padding-right: 24px;
 }
 
+.nk-recovery-backup .nk-modal-hd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nk-recovery-backup .nk-modal-hd h2 {
+  margin: 0;
+  /* leave room for the absolutely-positioned close button */
+  padding-right: 24px;
+}
+
 /* The passphrase value and its copy button share a row; let the code shrink. */
 .nk-share-link .nk-share-row code {
   flex: 1;

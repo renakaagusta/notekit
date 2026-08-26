@@ -83,6 +83,7 @@ export {
 export {
   reEncryptChats,
   reEncryptVaultIfMembersChanged,
+  reencryptImportedItems,
 } from "./secrets-vault-reencrypt";
 
 // ─── Device & member management ───────────────────────────────────────────────

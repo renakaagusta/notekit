@@ -20,9 +20,31 @@ import {
   type RecoveryIdentity,
   type DeviceIdentity,
 } from "./crypto";
-import { collectVaultRecipients, readVaultConfig } from "./secrets-vault";
+import {
+  collectVaultRecipients,
+  readVaultConfig,
+  reencryptImportedItems,
+} from "./secrets-vault";
 
 export { isEncryptedItemPath as isEncrypted, classifyEncryptedPath };
+
+/**
+ * Finish a cross-vault migration: re-seal every item that was byte-copied from
+ * another vault (still encrypted to the SOURCE vault) to the ACTIVE vault's
+ * recipients, in ONE batched commit. Must run on a device that is a recipient
+ * of the source vault, so it can decrypt; items it can't open are skipped and
+ * reported. Idempotent — safe to re-run until `skipped` reaches 0.
+ */
+export async function finishVaultImport(
+  device: DeviceIdentity,
+): Promise<{ resealed: number; skipped: number }> {
+  const recipients = await collectVaultRecipients(device);
+  return reencryptImportedItems(
+    device,
+    recipients,
+    (kind, id) => `Re-encrypt imported ${kind} ${id}`,
+  );
+}
 
 /** Is the active vault born-E2EE? (`.notekit/config.json` says `required`.) */
 export async function vaultIsEncrypted(): Promise<boolean> {

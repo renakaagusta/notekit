@@ -125,6 +125,7 @@ export function vaultReadServedFromCache(): boolean {
 }
 
 async function readVaultFileFresh(path: string): Promise<VaultFileResult> {
+  syncShaCacheScope();
   const scope = currentVaultScope();
   if (vaultPreferCache && scope) {
     const hit = await fileCache().getFile(scope, path);
@@ -327,6 +328,27 @@ export interface VaultsIndex {
 
 export const shaCache = new Map<string, string>();
 
+// `shaCache` maps a vault path → its last-known git sha, used to decide
+// create-vs-update on writes. It is module-global, so switching vaults IN-APP
+// (no reload) would otherwise carry a sha from vault A into a write against
+// vault B — a stale sha turns a create into an UPDATE of a file that doesn't
+// exist there (Forgejo "object does not exist" → 500). Bind the cache to the
+// active vault scope: the first access under a new scope clears it.
+let shaCacheScope: string | null = null;
+export function syncShaCacheScope(): void {
+  const scope = currentVaultScope();
+  if (scope !== shaCacheScope) {
+    shaCache.clear();
+    shaCacheScope = scope;
+  }
+}
+
+/** The prior sha for `path` in the ACTIVE vault (drops any other vault's). */
+function cachedSha(path: string): string | undefined {
+  syncShaCacheScope();
+  return shaCache.get(path);
+}
+
 // ─── Path helpers ────────────────────────────────────────────────────────────
 
 export function secretPath(name: string, vaultSlug = ""): string {
@@ -385,7 +407,7 @@ export async function commitMany(files: BatchFile[], batchMessage: string): Prom
     return;
   }
   for (const f of files) {
-    const result = await backend.writeFile(f.path, f.content, f.message ?? batchMessage, shaCache.get(f.path));
+    const result = await backend.writeFile(f.path, f.content, f.message ?? batchMessage, cachedSha(f.path));
     shaCache.set(f.path, result.sha);
   }
 }
@@ -435,7 +457,7 @@ export async function writeMemberRecord(record: MemberRecord, message: string): 
     path,
     JSON.stringify(record, null, 2),
     message,
-    shaCache.get(path),
+    cachedSha(path),
   );
   shaCache.set(path, result.sha);
 }
@@ -493,7 +515,7 @@ export async function writeVaultConfig(config: VaultConfig, message: string) {
     CONFIG_PATH,
     JSON.stringify(config, null, 2),
     message,
-    shaCache.get(CONFIG_PATH),
+    cachedSha(CONFIG_PATH),
   );
   shaCache.set(CONFIG_PATH, result.sha);
 }
@@ -613,7 +635,7 @@ export async function writeKeybox(
     KEYBOX_PATH,
     armored,
     message,
-    shaCache.get(KEYBOX_PATH),
+    cachedSha(KEYBOX_PATH),
   );
   shaCache.set(KEYBOX_PATH, result.sha);
 }
@@ -770,7 +792,7 @@ export async function writeDeviceRecord(record: DeviceRecord, message: string) {
     path,
     JSON.stringify(record, null, 2),
     message,
-    shaCache.get(path),
+    cachedSha(path),
   );
   shaCache.set(path, result.sha);
 }
@@ -780,7 +802,7 @@ export async function writeRecoveryRecord(record: RecoveryRecord, message: strin
     RECOVERY_PATH,
     JSON.stringify(record, null, 2),
     message,
-    shaCache.get(RECOVERY_PATH),
+    cachedSha(RECOVERY_PATH),
   );
   shaCache.set(RECOVERY_PATH, result.sha);
 }

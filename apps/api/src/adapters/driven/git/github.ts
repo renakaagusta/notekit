@@ -4,7 +4,7 @@
  * Future: switch to blob/tree/commit if we need batched commits.
  */
 
-import { GhError } from "../../../domain/errors";
+import { gitError } from "./error-trace";
 
 export { GhError } from "../../../domain/errors";
 
@@ -40,13 +40,13 @@ export async function listRepos(token: string): Promise<GhRepo[]> {
     `${GH}/user/repos?affiliation=owner&per_page=100&sort=updated`,
     { headers: headers(token) },
   );
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   return (await res.json()) as GhRepo[];
 }
 
 export async function getUserLogin(token: string): Promise<string> {
   const res = await fetch(`${GH}/user`, { headers: headers(token) });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { login: string };
   return json.login;
 }
@@ -66,7 +66,7 @@ export async function createRepo(
       auto_init: true,
     }),
   });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   return (await res.json()) as GhRepo;
 }
 
@@ -89,7 +89,7 @@ export async function readFile(
   const url = `${GH}/repos/${owner}/${repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(branch)}`;
   const res = await fetch(url, { headers: headers(token) });
   if (res.status === 404) return null;
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as {
     path: string;
     sha: string;
@@ -140,7 +140,7 @@ export async function writeFile(
     headers: headers(token, true),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { content: { sha: string } };
   return { sha: json.content.sha };
 }
@@ -174,7 +174,7 @@ export async function writeFileAs(
     `${GH}/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
     { headers: headers(token) },
   );
-  if (!refRes.ok) throw new GhError(refRes.status, await refRes.text());
+  if (!refRes.ok) throw await gitError(refRes);
   const ref = (await refRes.json()) as { object: { sha: string } };
   const parentSha = ref.object.sha;
 
@@ -183,7 +183,7 @@ export async function writeFileAs(
     `${GH}/repos/${owner}/${repo}/git/commits/${parentSha}`,
     { headers: headers(token) },
   );
-  if (!commitRes.ok) throw new GhError(commitRes.status, await commitRes.text());
+  if (!commitRes.ok) throw await gitError(commitRes);
   const parentCommit = (await commitRes.json()) as { tree: { sha: string } };
   const baseTreeSha = parentCommit.tree.sha;
 
@@ -196,7 +196,7 @@ export async function writeFileAs(
       encoding: "base64",
     }),
   });
-  if (!blobRes.ok) throw new GhError(blobRes.status, await blobRes.text());
+  if (!blobRes.ok) throw await gitError(blobRes);
   const blob = (await blobRes.json()) as { sha: string };
 
   // 4. Create a new tree off the base tree with our blob at `path`.
@@ -208,7 +208,7 @@ export async function writeFileAs(
       tree: [{ path, mode: "100644", type: "blob", sha: blob.sha }],
     }),
   });
-  if (!treeRes.ok) throw new GhError(treeRes.status, await treeRes.text());
+  if (!treeRes.ok) throw await gitError(treeRes);
   const tree = (await treeRes.json()) as { sha: string };
 
   // 5. Create a commit pointing at that tree, with explicit author + committer.
@@ -224,7 +224,7 @@ export async function writeFileAs(
       committer: { ...committer, date: nowIso },
     }),
   });
-  if (!newCommitRes.ok) throw new GhError(newCommitRes.status, await newCommitRes.text());
+  if (!newCommitRes.ok) throw await gitError(newCommitRes);
   const newCommit = (await newCommitRes.json()) as { sha: string };
 
   // 6. Fast-forward the branch ref to the new commit.
@@ -236,7 +236,7 @@ export async function writeFileAs(
       body: JSON.stringify({ sha: newCommit.sha, force: false }),
     },
   );
-  if (!updateRes.ok) throw new GhError(updateRes.status, await updateRes.text());
+  if (!updateRes.ok) throw await gitError(updateRes);
 
   return { sha: blob.sha };
 }
@@ -266,13 +266,13 @@ export async function commitFiles(
     `${GH}/repos/${owner}/${repo}/git/refs/heads/${encodeURIComponent(branch)}`,
     { headers: headers(token) },
   );
-  if (!refRes.ok) throw new GhError(refRes.status, await refRes.text());
+  if (!refRes.ok) throw await gitError(refRes);
   const parentSha = ((await refRes.json()) as { object: { sha: string } }).object.sha;
 
   const commitRes = await fetch(`${GH}/repos/${owner}/${repo}/git/commits/${parentSha}`, {
     headers: headers(token),
   });
-  if (!commitRes.ok) throw new GhError(commitRes.status, await commitRes.text());
+  if (!commitRes.ok) throw await gitError(commitRes);
   const baseTreeSha = ((await commitRes.json()) as { tree: { sha: string } }).tree.sha;
 
   // Inline file content into the tree entries — GitHub creates the blobs,
@@ -285,7 +285,7 @@ export async function commitFiles(
       tree: files.map((f) => ({ path: f.path, mode: "100644", type: "blob", content: f.content })),
     }),
   });
-  if (!treeRes.ok) throw new GhError(treeRes.status, await treeRes.text());
+  if (!treeRes.ok) throw await gitError(treeRes);
   const treeSha = ((await treeRes.json()) as { sha: string }).sha;
 
   const nowIso = new Date().toISOString();
@@ -300,7 +300,7 @@ export async function commitFiles(
       ...(committer ? { committer: { ...committer, date: nowIso } } : {}),
     }),
   });
-  if (!newCommitRes.ok) throw new GhError(newCommitRes.status, await newCommitRes.text());
+  if (!newCommitRes.ok) throw await gitError(newCommitRes);
   const newCommitSha = ((await newCommitRes.json()) as { sha: string }).sha;
 
   const updateRes = await fetch(
@@ -311,7 +311,7 @@ export async function commitFiles(
       body: JSON.stringify({ sha: newCommitSha, force: false }),
     },
   );
-  if (!updateRes.ok) throw new GhError(updateRes.status, await updateRes.text());
+  if (!updateRes.ok) throw await gitError(updateRes);
 
   return { commitSha: newCommitSha };
 }
@@ -333,7 +333,7 @@ export async function deleteFile(
     body: JSON.stringify({ message, branch, sha: prevSha }),
   });
   if (!res.ok && res.status !== 404) {
-    throw new GhError(res.status, await res.text());
+    throw await gitError(res);
   }
 }
 
@@ -360,14 +360,14 @@ export async function listTree(
     { headers: headers(token) },
   );
   if (refRes.status === 404) return [];
-  if (!refRes.ok) throw new GhError(refRes.status, await refRes.text());
+  if (!refRes.ok) throw await gitError(refRes);
   const ref = (await refRes.json()) as { object: { sha: string } };
 
   const treeRes = await fetch(
     `${GH}/repos/${owner}/${repo}/git/trees/${ref.object.sha}?recursive=1`,
     { headers: headers(token) },
   );
-  if (!treeRes.ok) throw new GhError(treeRes.status, await treeRes.text());
+  if (!treeRes.ok) throw await gitError(treeRes);
   const tree = (await treeRes.json()) as {
     tree: GhTreeEntry[];
     truncated: boolean;
@@ -427,7 +427,7 @@ export async function listCommits(
     const url = `${GH}/repos/${owner}/${repo}/commits?${params}`;
     const res = await fetch(url, { headers: headers(token) });
     if (res.status === 404 || res.status === 409) return out;
-    if (!res.ok) throw new GhError(res.status, await res.text());
+    if (!res.ok) throw await gitError(res);
     const arr = (await res.json()) as RawCommit[];
     for (const c of arr) {
       out.push({
@@ -473,7 +473,7 @@ export async function listCollaborators(
     `${GH}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators?affiliation=direct&per_page=100`,
     { headers: headers(token) },
   );
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const arr = (await res.json()) as {
     login: string;
     avatar_url: string | null;
@@ -525,7 +525,7 @@ export async function addCollaborator(
       },
     };
   }
-  throw new GhError(res.status, await res.text());
+  throw await gitError(res);
 }
 
 export async function removeCollaborator(
@@ -538,7 +538,7 @@ export async function removeCollaborator(
     `${GH}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators/${encodeURIComponent(username)}`,
     { method: "DELETE", headers: headers(token) },
   );
-  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+  if (!res.ok && res.status !== 404) throw await gitError(res);
 }
 
 export async function listInvitations(
@@ -550,7 +550,7 @@ export async function listInvitations(
     `${GH}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/invitations?per_page=100`,
     { headers: headers(token) },
   );
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const arr = (await res.json()) as {
     id: number;
     invitee: { login: string; avatar_url: string | null } | null;
@@ -578,7 +578,7 @@ export async function cancelInvitation(
     `${GH}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/invitations/${invitationId}`,
     { method: "DELETE", headers: headers(token) },
   );
-  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+  if (!res.ok && res.status !== 404) throw await gitError(res);
 }
 
 function encodePath(path: string): string {

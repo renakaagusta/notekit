@@ -8,16 +8,16 @@
  */
 
 import { env } from "../../../env";
-import {
-  GhError,
-  type GhRepo,
-  type GhFile,
-  type GhTreeEntry,
-  type GhCommit,
-  type GitAuthor,
-  type GhCollaborator,
-  type GhInvitation,
-  type CollaboratorPermission,
+import { gitError, recordGitRequest } from "./error-trace";
+import type {
+  GhRepo,
+  GhFile,
+  GhTreeEntry,
+  GhCommit,
+  GitAuthor,
+  GhCollaborator,
+  GhInvitation,
+  CollaboratorPermission,
 } from "./github";
 
 function baseUrl(): string {
@@ -86,7 +86,7 @@ export async function createUser(
     const body = await res.text();
     if (body.includes("user already exists") || body.includes("name already exists")) return;
   }
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
 }
 
 export async function createAccessToken(username: string, tokenName: string): Promise<string> {
@@ -100,7 +100,7 @@ export async function createAccessToken(username: string, tokenName: string): Pr
       body: JSON.stringify({ name: tokenName, scopes: ["all"] }),
     },
   );
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { sha1: string };
   return json.sha1;
 }
@@ -111,7 +111,7 @@ export async function deleteAccessToken(username: string, tokenName: string): Pr
     { method: "DELETE", headers: adminBasicHeaders(username, true) },
   );
   // 404 = already gone, that's fine
-  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+  if (!res.ok && res.status !== 404) throw await gitError(res);
 }
 
 /** Create token, deleting any existing token with the same name first (upsert). */
@@ -130,14 +130,14 @@ export async function listRepos(token: string): Promise<GhRepo[]> {
     `${baseUrl()}/api/v1/repos/search?limit=50&sort=updated&order=desc&token=${encodeURIComponent(token)}`,
     { headers: headers(token) },
   );
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { data: GhRepo[] };
   return json.data ?? [];
 }
 
 export async function getUserLogin(token: string): Promise<string> {
   const res = await fetch(`${baseUrl()}/api/v1/user`, { headers: headers(token) });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { login: string };
   return json.login;
 }
@@ -157,7 +157,7 @@ export async function createRepo(
       auto_init: true,
     }),
   });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   return (await res.json()) as GhRepo;
 }
 
@@ -173,7 +173,7 @@ export async function readFile(
   const url = `${baseUrl()}/api/v1/repos/${owner}/${repo}/contents/${encodePath(path)}?ref=${encodeURIComponent(branch)}`;
   const res = await fetch(url, { headers: headers(token) });
   if (res.status === 404) return null;
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as {
     path: string;
     sha: string;
@@ -206,15 +206,17 @@ export async function writeFile(
     branch,
   };
   if (prevSha) body.sha = prevSha;
+  const method = prevSha ? "PUT" : "POST";
+  recordGitRequest("forgejo", method, path, prevSha);
   const res = await fetch(url, {
     // Forgejo (unlike GitHub) splits create/update: POST creates a new file,
     // PUT updates an existing one and *requires* `sha`. Using PUT for a new
     // file 422s with "[SHA]: Required".
-    method: prevSha ? "PUT" : "POST",
+    method,
     headers: headers(token, true),
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { content: { sha: string } };
   return { sha: json.content.sha };
 }
@@ -263,7 +265,7 @@ export async function writeFileAs(
     headers: headers(token, true),
     body: JSON.stringify(reqBody),
   });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { content: { sha: string } };
   return { sha: json.content.sha };
 }
@@ -323,7 +325,7 @@ export async function commitFiles(
         : {}),
     }),
   });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { commit?: { sha?: string } };
   return { commitSha: json.commit?.sha ?? "" };
 }
@@ -344,7 +346,7 @@ export async function deleteFile(
     headers: headers(token, true),
     body: JSON.stringify({ message, branch, sha: prevSha }),
   });
-  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+  if (!res.ok && res.status !== 404) throw await gitError(res);
 }
 
 /**
@@ -364,7 +366,7 @@ async function branchHeadSha(
     { headers: headers(token) },
   );
   if (res.status === 404) return null;
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const j = (await res.json()) as { commit: { id: string } };
   return j.commit.id;
 }
@@ -383,7 +385,7 @@ export async function listTree(
     `${baseUrl()}/api/v1/repos/${owner}/${repo}/git/trees/${headSha}?recursive=true&per_page=1000`,
     { headers: headers(token) },
   );
-  if (!treeRes.ok) throw new GhError(treeRes.status, await treeRes.text());
+  if (!treeRes.ok) throw await gitError(treeRes);
   const tree = (await treeRes.json()) as { tree: GhTreeEntry[] };
 
   const normPrefix = prefix.endsWith("/") ? prefix : prefix + "/";
@@ -407,7 +409,7 @@ export async function listCommits(
   const url = `${baseUrl()}/api/v1/repos/${owner}/${repo}/commits?${params}`;
   const res = await fetch(url, { headers: headers(token) });
   if (res.status === 404 || res.status === 409) return [];
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const arr = (await res.json()) as {
     sha: string;
     html_url: string;
@@ -453,7 +455,7 @@ export async function listCollaborators(
     `${baseUrl()}/api/v1/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators`,
     { headers: headers(token) },
   );
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const arr = (await res.json()) as {
     login: string;
     avatar_url: string | null;
@@ -509,7 +511,7 @@ export async function addCollaborator(
   if (res.status === 204 || res.status === 201) {
     return { status: 204, invitation: null };
   }
-  throw new GhError(res.status, await res.text());
+  throw await gitError(res);
 }
 
 export async function removeCollaborator(
@@ -522,7 +524,7 @@ export async function removeCollaborator(
     `${baseUrl()}/api/v1/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/collaborators/${encodeURIComponent(username)}`,
     { method: "DELETE", headers: headers(token) },
   );
-  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+  if (!res.ok && res.status !== 404) throw await gitError(res);
 }
 
 /**

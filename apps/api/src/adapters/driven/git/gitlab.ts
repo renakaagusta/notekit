@@ -15,6 +15,7 @@
  *     writeFile re-reads after write to surface a consistent `sha` field
  */
 
+import { gitError } from "./error-trace";
 import {
   GhError,
   type GhRepo,
@@ -83,14 +84,14 @@ export async function listRepos(token: string): Promise<GhRepo[]> {
     `${GL}/projects?membership=true&owned=true&per_page=100&order_by=updated_at`,
     { headers: headers(token) },
   );
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const arr = (await res.json()) as GlProject[];
   return arr.map(toGhRepo);
 }
 
 export async function getUserLogin(token: string): Promise<string> {
   const res = await fetch(`${GL}/user`, { headers: headers(token) });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { username: string };
   return json.username;
 }
@@ -104,7 +105,7 @@ export async function getCurrentUserInfo(
   token: string,
 ): Promise<{ id: number; username: string }> {
   const res = await fetch(`${GL}/user`, { headers: headers(token) });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as { id: number; username: string };
   return { id: json.id, username: json.username };
 }
@@ -126,7 +127,7 @@ export async function createRepo(
       default_branch: "main",
     }),
   });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   return toGhRepo((await res.json()) as GlProject);
 }
 
@@ -140,7 +141,7 @@ export async function readFile(
   const url = `${GL}/projects/${projectId(owner, repo)}/repository/files/${encodeFilePath(path)}?ref=${encodeURIComponent(branch)}`;
   const res = await fetch(url, { headers: headers(token) });
   if (res.status === 404) return null;
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const json = (await res.json()) as {
     file_path: string;
     blob_id: string;
@@ -209,7 +210,7 @@ export async function writeFile(
       throw new GhError(400, text);
     }
   }
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   // GitLab's file-write response doesn't include the new blob sha. One extra
   // read brings the response shape in line with GitHub/Forgejo so callers
   // (sync engine, publishVaultEvent) get a real sha to dedupe against.
@@ -274,7 +275,7 @@ export async function writeFileAs(
       throw new GhError(400, text);
     }
   }
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
 
   const fetched = await readFile(token, owner, repo, path, branch);
   return { sha: fetched?.sha ?? "" };
@@ -315,7 +316,7 @@ export async function commitFiles(
       ...(author ? { author_name: author.name, author_email: author.email } : {}),
     }),
   });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const commit = (await res.json()) as { id: string };
   return { commitSha: commit.id };
 }
@@ -339,7 +340,7 @@ export async function deleteFile(
     body: JSON.stringify({ branch, commit_message: message }),
   });
   if (!res.ok && res.status !== 404) {
-    throw new GhError(res.status, await res.text());
+    throw await gitError(res);
   }
 }
 
@@ -367,7 +368,7 @@ export async function listTree(
     const url = `${GL}/projects/${projectId(owner, repo)}/repository/tree?${params}`;
     const res = await fetch(url, { headers: headers(token) });
     if (res.status === 404) return out;
-    if (!res.ok) throw new GhError(res.status, await res.text());
+    if (!res.ok) throw await gitError(res);
     const arr = (await res.json()) as {
       id: string;
       path: string;
@@ -401,7 +402,7 @@ export async function listCommits(
   const url = `${GL}/projects/${projectId(owner, repo)}/repository/commits?${params}`;
   const res = await fetch(url, { headers: headers(token) });
   if (res.status === 404) return [];
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const arr = (await res.json()) as {
     id: string;
     title: string;
@@ -454,7 +455,7 @@ export async function listCollaborators(
 ): Promise<GhCollaborator[]> {
   const url = `${GL}/projects/${projectId(owner, repo)}/members/all?per_page=100`;
   const res = await fetch(url, { headers: headers(token) });
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const arr = (await res.json()) as {
     username: string;
     avatar_url: string | null;
@@ -474,7 +475,7 @@ async function lookupUserIdByUsername(token: string, username: string): Promise<
     `${GL}/users?username=${encodeURIComponent(username)}`,
     { headers: headers(token) },
   );
-  if (!res.ok) throw new GhError(res.status, await res.text());
+  if (!res.ok) throw await gitError(res);
   const arr = (await res.json()) as { id: number; username: string }[];
   const match = arr.find((u) => u.username.toLowerCase() === username.toLowerCase());
   return match?.id ?? null;
@@ -509,10 +510,10 @@ export async function addCollaborator(
         body: JSON.stringify({ access_level: accessLevel }),
       },
     );
-    if (!updateRes.ok) throw new GhError(updateRes.status, await updateRes.text());
+    if (!updateRes.ok) throw await gitError(updateRes);
     return { status: 204, invitation: null };
   }
-  if (!addRes.ok) throw new GhError(addRes.status, await addRes.text());
+  if (!addRes.ok) throw await gitError(addRes);
   return { status: 204, invitation: null };
 }
 
@@ -528,7 +529,7 @@ export async function removeCollaborator(
     `${GL}/projects/${projectId(owner, repo)}/members/${userId}`,
     { method: "DELETE", headers: headers(token) },
   );
-  if (!res.ok && res.status !== 404) throw new GhError(res.status, await res.text());
+  if (!res.ok && res.status !== 404) throw await gitError(res);
 }
 
 /** GitLab adds members immediately — no pending-invitation flow surfaced. */

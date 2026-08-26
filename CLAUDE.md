@@ -214,6 +214,31 @@ Enforcement per rule → see `CONVENTIONS.md`. In short:
   recover via the 24-word phrase or another still-ready device. Keep this in mind when
   debugging E2EE auth.
 
+## Observability — a trace must explain a failure without reproducing it (MANDATORY)
+
+Every request is traced (OTel → Tempo) and every span should carry enough to debug from
+the trace **alone** — we should never have to re-run the failing call or SSH into a
+container to read a log. This rule is encoded from a real bug: an approve returned `502
+unknown_error`, but the trace only showed `PUT /vault/file → 500`; the actual cause
+(Forgejo `UpdateFile: object does not exist`) was in the provider's **response body**,
+which the code read (`await res.text()`) then threw away — invisible in Tempo.
+
+- **Third-party/external calls MUST record their outcome on the span.** OTel's auto HTTP
+  instrumentation gives the outbound **method + url + status** but NEVER the bodies. So on
+  a non-OK response from any external service (Forgejo/GitHub/GitLab, Stripe, an OAuth
+  provider, …), attach the **response body** to the active span (see
+  `adapters/driven/git/error-trace.ts` → `gitError`). A failure from a service we don't
+  own must be legible in the trace.
+- **For writes/mutations, also record the request payload that decides behaviour** — the
+  method, target path/id, and discriminating fields (e.g. the prior `sha` that picks
+  create-vs-update), via `recordGitRequest`. NOT the content bytes (large + user data) and
+  **never secrets** (tokens, phrases, plaintext).
+- **Do not put tracing in `domain/`.** Spans are an outer concern; `domain/` stays
+  dependency-free (see Architecture). Record on the span in the driven adapter that made
+  the call.
+- New integrations with an external service ship with this instrumentation from the start —
+  a third-party error that only shows a bare status code is a bug, not just missing polish.
+
 ## Git, commit & push
 - **`main` is the default branch.** Before substantive work, **branch first**; commit/push only
   when the user asks.

@@ -118,8 +118,14 @@ export async function listEncryptedNotes(
     if (classifyEncryptedPath(e.path) !== "note") continue;
     const file = await nk.vault.readFile(e.path);
     if (!file.content) continue;
-    const note = await decryptNote(e.path, file.content, identity);
-    if (note) out.push(note);
+    try {
+      const note = await decryptNote(e.path, file.content, identity);
+      if (note) out.push(note);
+    } catch {
+      // A note sealed to a recipient set this identity isn't in (e.g. an
+      // orphan from a migration) shouldn't fail the whole listing — skip it,
+      // mirroring the app, which shows readable items and flags the rest.
+    }
   }
   out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return out;
@@ -136,8 +142,12 @@ export async function listEncryptedTickets(
     if (classifyEncryptedPath(e.path) !== "ticket") continue;
     const file = await nk.vault.readFile(e.path);
     if (!file.content) continue;
-    const t = await decryptTicket(e.path, file.content, identity);
-    if (t) out.push(t);
+    try {
+      const t = await decryptTicket(e.path, file.content, identity);
+      if (t) out.push(t);
+    } catch {
+      // Skip an item this identity can't open (see listEncryptedNotes).
+    }
   }
   out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return out;

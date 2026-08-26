@@ -138,6 +138,73 @@ export async function reencryptAllItems(
   await commitMany(batch, "Re-encrypt items for updated recipients");
 }
 
+/**
+ * Re-seal items that were byte-copied from ANOTHER vault (cross-vault import)
+ * so they end up encrypted to THIS vault's recipients — in a single batched
+ * commit rather than one commit per note.
+ *
+ * The distinction from {@link reencryptAllItems}: imported items are still
+ * encrypted to the SOURCE vault's device recipients, so they can't be opened
+ * with this vault's key (`contentIdentity`, which is the envelope DEK once a
+ * member is active). We instead decrypt with the running device's OWN age
+ * identity — valid because the migrating device is a recipient of the source
+ * vault — then re-encrypt to `recipients`. Items this device can't open (not a
+ * recipient of the source) are skipped and counted, never dropped or corrupted.
+ */
+export async function reencryptImportedItems(
+  sourceDevice: DeviceIdentity,
+  recipients: string[],
+  commitMessage: (kind: EncryptedItemKind, id: string) => string,
+): Promise<{ resealed: number; skipped: number }> {
+  const batch: BatchFile[] = [];
+  let skipped = 0;
+  for (const prefix of ["notes/", "tickets/", "links/"]) {
+    let entries: { path: string; sha: string }[] = [];
+    try {
+      ({ entries } = await backend.listFiles(prefix));
+    } catch (_err) {
+      continue;
+    }
+    for (const e of entries) {
+      const outcome = await resealImportedItem(e, sourceDevice, recipients, commitMessage);
+      if (outcome === "skip") skipped++;
+      else if (outcome) batch.push(outcome);
+    }
+  }
+  await commitMany(batch, "Re-encrypt imported items to the vault key");
+  return { resealed: batch.length, skipped };
+}
+
+/**
+ * Re-seal a single imported item. Returns the batch entry, `"skip"` when this
+ * device can't decrypt it (leave untouched for a device that can), or `null`
+ * when the path isn't an encrypted item at all.
+ */
+async function resealImportedItem(
+  entry: { path: string; sha: string },
+  sourceDevice: DeviceIdentity,
+  recipients: string[],
+  commitMessage: (kind: EncryptedItemKind, id: string) => string,
+): Promise<BatchFile | "skip" | null> {
+  const kind = classifyEncryptedPath(entry.path);
+  if (!kind) return null;
+  const file = await backend.readFile(entry.path);
+  if (!file.sha || typeof file.content !== "string" || !file.content) return null;
+  shaCache.set(entry.path, file.sha);
+  const env = parseEncryptedEnvelope(file.content);
+  if (!env) return null;
+  let payload: unknown;
+  try {
+    payload = await decryptItemPayload<unknown>(env.ciphertext, sourceDevice.identity);
+  } catch (_err) {
+    return "skip";
+  }
+  const armored = await encryptItemPayload(payload, recipients);
+  const headerEnd = file.content.indexOf("-----BEGIN AGE ENCRYPTED FILE-----");
+  const header = headerEnd >= 0 ? file.content.slice(0, headerEnd) : "---\n---\n";
+  return { path: entry.path, content: `${header}${armored}\n`, message: commitMessage(kind, env.fm.id) };
+}
+
 // ─── Envelope re-seal helpers (migration + rotation) ─────────────────────────
 
 export async function reencryptSecretsTo(

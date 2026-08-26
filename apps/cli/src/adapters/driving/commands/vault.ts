@@ -20,6 +20,7 @@ import {
   listDevices,
   deviceSigner,
 } from "@notekit/core/secrets";
+import { finishVaultImport } from "@notekit/core/vault-e2ee";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import { nanoid } from "nanoid";
@@ -33,6 +34,7 @@ import {
   getDeviceIdentity,
   setDeviceIdentity,
   getSecretsClient,
+  vaultDevice,
 } from "../../../composition/index.js";
 
 const listCmd = defineCommand({
@@ -205,6 +207,33 @@ const migrateCmd = defineCommand({
         }
         await nk.vault.deleteVault(fromId);
         process.stdout.write(`${kleur.green("deleted")} source vault ${fromId}\n`);
+      }
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
+const resealImportsCmd = defineCommand({
+  meta: {
+    name: "reseal-imports",
+    description:
+      "Finish a cross-vault migration: re-seal notes/tickets/links copied in from another vault to the ACTIVE vault's key, in one batch. Run on a device that can read the original vault; items it can't open are reported as skipped. Idempotent.",
+  },
+  async run() {
+    try {
+      await getSecretsClient({ requireAuth: true });
+      const device = await vaultDevice();
+      const { resealed, skipped } = await finishVaultImport(device);
+      process.stdout.write(
+        `${kleur.green("done")} resealed=${resealed} skipped=${skipped}\n`,
+      );
+      if (skipped > 0) {
+        process.stdout.write(
+          kleur.yellow(
+            `${skipped} item(s) couldn't be opened on this device — re-run from a device that reads the source vault.\n`,
+          ),
+        );
       }
     } catch (err) {
       dieWithError(err);
@@ -448,5 +477,6 @@ export const vaultCommand = defineCommand({
     pair: pairCmd,
     members: membersCmd,
     migrate: migrateCmd,
+    "reseal-imports": resealImportsCmd,
   },
 });

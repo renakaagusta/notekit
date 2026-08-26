@@ -70,6 +70,15 @@ export async function recoverySigningFromEnv(): Promise<RecoverySigningKey | nul
 export const isEncrypted = e2ee.isEncrypted;
 export const vaultIsEncrypted = e2ee.vaultIsEncrypted;
 
+/**
+ * Finish a cross-vault migration by re-sealing imported items to the active
+ * vault's key in one batch. Runs as this server's device — items it can't
+ * decrypt (it isn't a recipient of the source vault) are reported as skipped.
+ */
+export async function finishVaultImport(): Promise<{ resealed: number; skipped: number }> {
+  return e2ee.finishVaultImport(await vaultDevice());
+}
+
 export async function decryptNote(path: string, content: string) {
   return e2ee.decryptNote(path, content, await requireVaultIdentity());
 }

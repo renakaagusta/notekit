@@ -5,9 +5,33 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
 import { z } from "zod";
-import { errorContent, jsonContent, textContent } from "../../../composition/index.js";
+import {
+  errorContent,
+  finishVaultImport,
+  jsonContent,
+  textContent,
+} from "../../../composition/index.js";
 
 export function registerVaultTools(server: McpServer, nk: NoteKitApi): void {
+  server.registerTool(
+    "vault_reseal_imports",
+    {
+      title: "Finish vault import",
+      description:
+        "Finish a cross-vault migration: re-seal notes/tickets/links copied in from another vault to the ACTIVE vault's key, in one batch, so every device on this vault can read them. Run after importing; items this device can't open are reported as skipped. Idempotent.",
+      inputSchema: {},
+      annotations: { idempotentHint: true },
+    },
+    async () => {
+      try {
+        const { resealed, skipped } = await finishVaultImport();
+        return jsonContent({ resealed, skipped });
+      } catch (err) {
+        return errorContent(`vault_reseal_imports failed: ${(err as Error).message}`);
+      }
+    },
+  );
+
   server.registerTool(
     "vault_list",
     {

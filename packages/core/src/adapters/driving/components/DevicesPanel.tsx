@@ -24,6 +24,7 @@ import {
   type DeviceRecord,
   type MemberRecord,
 } from "../../../lib/secrets-vault";
+import { finishVaultImport } from "../../../lib/vault-e2ee";
 import { useAuthStore } from "../stores/authStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
@@ -94,6 +95,58 @@ async function revokeDeviceViaRosterFromPanel(
  * re-encrypted. Other devices join later by being re-vouched via the normal
  * one-click approve flow.
  */
+function importResultMessage({ resealed, skipped }: { resealed: number; skipped: number }): string {
+  if (skipped > 0) {
+    return `Re-sealed ${resealed}. ${skipped} couldn't be opened here — run this on a device that already reads the original vault.`;
+  }
+  if (resealed > 0) {
+    return `Re-sealed ${resealed} imported item${resealed === 1 ? "" : "s"} to this vault.`;
+  }
+  return "Nothing to re-seal — every item already belongs to this vault.";
+}
+
+/**
+ * After copying notes in from another vault, re-seal them to THIS vault's key
+ * in one batched commit so every device here can read them. Runs on the current
+ * device — which must be a recipient of the source vault to open the imports.
+ */
+function ImportSection({ device }: { device: DeviceIdentity | null }) {
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onFinishImport() {
+    if (!device) return;
+    setError(null);
+    setStatus(null);
+    setBusy(true);
+    try {
+      setStatus(importResultMessage(await finishVaultImport(device)));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="nk-ai-section">
+      <header className="nk-ai-section-hd">
+        <h3>Imported notes</h3>
+        <button className="nk-btn" onClick={onFinishImport} disabled={busy || !device}>
+          Finish import
+        </button>
+      </header>
+      <p className="nk-muted">
+        Copied notes in from another vault? Re-seal them to this vault&apos;s key
+        in one batch so every device here can read them. Safe to re-run.
+      </p>
+      {error && <p className="nk-error-text">{error}</p>}
+      {status && <p className="nk-muted">{status}</p>}
+    </section>
+  );
+}
+
 async function upgradeToModelB(device: DeviceIdentity): Promise<void> {
   const stored = await loadStoredRecovery();
   if (!stored?.mnemonic) {
@@ -399,6 +452,8 @@ export function DevicesPanel() {
           paired device. Keep a copy somewhere safe and offline.
         </p>
       </section>
+
+      <ImportSection device={device} />
 
       {safetyNumber && (
         <section className="nk-ai-section">

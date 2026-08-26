@@ -26,6 +26,7 @@ export {
   recoverySigningFromEnv,
   isEncrypted,
   vaultIsEncrypted,
+  finishVaultImport,
   decryptNote,
   decryptTicket,
   encryptNote,

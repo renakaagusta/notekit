@@ -3584,99 +3584,86 @@ a.nk-commit-sha:hover {
 
 /* ─── Subtasks (markdown checkboxes) ───────────────────────────── */
 
-.nk-subtasks {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin: 2px 0 0;
-}
-
-.nk-subtask-list {
+/* Subtasks = child tickets, listed in the detail panel. */
+.nk-subtask-children {
   list-style: none;
-  margin: 0;
+  margin: 0 0 8px;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
 }
 
-.nk-subtask-list li label {
+.nk-subtask-child {
   display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text);
-  cursor: pointer;
-  padding: 1px 0;
-  line-height: 1.35;
+  align-items: center;
+  gap: 8px;
 }
 
-.nk-subtask-list li label input[type="checkbox"] {
-  margin: 2px 0 0;
+.nk-subtask-check {
+  background: transparent;
+  border: 0;
+  padding: 2px;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
   flex: none;
 }
 
-/* Break long unbroken content (e.g. a pasted URL) so a subtask can't overflow
-   its card. min-width:0 lets the flex text child shrink below its content. */
-.nk-subtask-list li label > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
+.nk-subtask-check:hover {
+  color: var(--text);
 }
 
-.nk-subtask-list li.is-done > label > span {
+/* min-width:0 + overflow-wrap let a long child title shrink instead of overflow. */
+.nk-subtask-open {
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  padding: 2px 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  flex: 1;
+}
+
+.nk-subtask-open:hover {
+  color: var(--text-2);
+  text-decoration: underline;
+}
+
+.nk-subtask-open.is-done {
   text-decoration: line-through;
   color: var(--muted);
 }
 
-.nk-subtask-more {
-  background: transparent;
-  border: 0;
-  color: var(--muted);
-  font: inherit;
-  font-size: 11.5px;
-  padding: 2px 0;
-  cursor: pointer;
-  text-align: left;
-}
-
-.nk-subtask-more:hover {
-  color: var(--text-2);
-}
-
 .nk-subtask-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nk-subtask-add .nk-input {
+  flex: 1;
+}
+
+.nk-detail-parent {
   background: transparent;
   border: 0;
-  color: var(--muted);
+  padding: 0;
+  margin: -2px 0 8px;
   font: inherit;
-  font-size: 11.5px;
-  padding: 2px 0;
+  font-size: 12px;
+  color: var(--muted);
   cursor: pointer;
-  text-align: left;
   align-self: flex-start;
 }
 
-.nk-subtask-add--empty {
-  opacity: 0;
-  transition: opacity 0.12s ease;
-}
-
-.nk-card:hover .nk-subtask-add--empty {
-  opacity: 1;
-}
-
-.nk-subtask-add:hover {
+.nk-detail-parent:hover {
   color: var(--text-2);
-}
-
-.nk-subtask-input input {
-  width: 100%;
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: 3px 6px;
-  font: inherit;
-  font-size: 12px;
-  color: var(--text);
+  text-decoration: underline;
 }
 
 .nk-subtask-progress {

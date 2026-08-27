@@ -333,7 +333,7 @@ export function CalendarView({ onOpenJournal, onOpenTicket, focusTicket, endSlot
       )}
 
       {detailId && (
-        <TicketDetail ticketId={detailId} onClose={() => setDetailId(null)} />
+        <TicketDetail ticketId={detailId} onClose={() => setDetailId(null)} onOpen={setDetailId} />
       )}
     </div>
   );

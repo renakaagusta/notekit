@@ -1,7 +1,7 @@
 import { CalendarDays, CheckSquare, Lock } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { Ticket, TicketStatus, TicketPriority } from "../../../domain/entities/ticket";
-import { subtaskProgress } from "../../../domain/subtasks";
+import { childProgress } from "../../../domain/ticket-hierarchy";
 import {
   BUILTIN_VIEWS,
   EMPTY_FILTERS,
@@ -24,7 +24,6 @@ import { useVaultStore } from "../stores/vaultStore";
 import { BoardToolbar } from "./BoardToolbar";
 import { CardQuickActions } from "./CardQuickActions";
 import { ShortcutCheatsheet } from "./ShortcutCheatsheet";
-import { SubtaskList } from "./SubtaskList";
 import { TicketDetail } from "./TicketDetail";
 
 // Shared with CalendarView so a card dragged on the board can also be dropped
@@ -236,8 +235,9 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
   const dueRange = useMemo(() => viewDueRange(activeViewId), [activeViewId]);
 
   const visible = useMemo(() => {
+    // Subtasks (tickets with a parent) live under their parent, not on the board.
     return all.filter(
-      (t) => matchTicket(t, filters) && matchDueRange(t, dueRange),
+      (t) => !t.parentId && matchTicket(t, filters) && matchDueRange(t, dueRange),
     );
   }, [all, filters, dueRange]);
 
@@ -423,7 +423,7 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
             >
               {/* eslint-disable-next-line max-lines-per-function -- card render includes encrypted badge, subtask progress, labels, and quick-action toolbar */}
               {cards.map((t) => {
-                const progress = subtaskProgress(t.body);
+                const progress = childProgress(t.id, all);
                 const isFocused = focusedId === t.id;
                 return (
                 <article
@@ -503,10 +503,6 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
                   >
                     {t.title}
                   </button>
-                  <SubtaskList
-                    body={t.body}
-                    onChange={(nextBody) => upsert({ ...t, body: nextBody })}
-                  />
                   {t.labels.length > 0 && (
                     <div className="nk-card-foot">
                       <span className="labels">
@@ -542,6 +538,7 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
         <TicketDetail
           ticketId={detailId}
           onClose={() => setDetailId(null)}
+          onOpen={(id) => setDetailId(id)}
         />
       )}
       {cheatsheetOpen && (

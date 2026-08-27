@@ -20,7 +20,6 @@ export { TicketSidebarList } from "./TicketSidebarList";
 export { AssigneePicker } from "./AssigneePicker";
 export { BoardToolbar } from "./BoardToolbar";
 export { CardQuickActions } from "./CardQuickActions";
-export { SubtaskList } from "./SubtaskList";
 export { TicketDetail } from "./TicketDetail";
 export { ShortcutCheatsheet } from "./ShortcutCheatsheet";
 export { VaultPicker } from "./VaultPicker";

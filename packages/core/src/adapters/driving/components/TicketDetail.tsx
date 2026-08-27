@@ -1,4 +1,4 @@
-import { X } from "lucide-react";
+import { CheckSquare, Plus, Square, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMembersStore } from "../../../composition/members-store";
 import {
@@ -13,15 +13,18 @@ import type {
   TicketStatus,
 } from "../../../domain/entities/ticket";
 import { resolveAssignee } from "../../../domain/members";
-import { subtaskProgress } from "../../../domain/subtasks";
+import { childProgress, childrenOf } from "../../../domain/ticket-hierarchy";
 import { useTicketsStore } from "../stores/ticketsStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { AssigneePicker } from "./AssigneePicker";
-import { SubtaskList } from "./SubtaskList";
+
+const DONE_STATUSES: ReadonlySet<TicketStatus> = new Set(["done", "archived"]);
 
 interface TicketDetailProps {
   ticketId: string;
   onClose(): void;
+  /** Open another ticket in the detail panel (e.g. a subtask or the parent). */
+  onOpen?(id: string): void;
 }
 
 const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
@@ -40,9 +43,11 @@ const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
 ];
 
 // eslint-disable-next-line max-lines-per-function -- React component rendering all ticket fields with inline editing; splitting would require complex state lifting
-export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
+export function TicketDetail({ ticketId, onClose, onOpen }: TicketDetailProps) {
   const ticket = useTicketsStore((s) => s.tickets[ticketId]);
   const upsert = useTicketsStore((s) => s.upsert);
+  const setStatus = useTicketsStore((s) => s.setStatus);
+  const tickets = useTicketsStore((s) => s.tickets);
   const vault = useVaultStore((s) => s.vault);
   const members = useMembersStore((s) => s.members);
 
@@ -64,7 +69,9 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
   const bodySource = ticket?.body ?? "";
   const description = useMemo(() => bodyWithoutComments(bodySource).trim(), [bodySource]);
   const comments = useMemo(() => parseComments(bodySource), [bodySource]);
-  const progress = useMemo(() => subtaskProgress(bodySource), [bodySource]);
+  const allTickets = useMemo(() => Object.values(tickets), [tickets]);
+  const children = useMemo(() => childrenOf(ticketId, allTickets), [ticketId, allTickets]);
+  const progress = useMemo(() => childProgress(ticketId, allTickets), [ticketId, allTickets]);
 
   if (!ticket) {
     return (
@@ -145,6 +152,17 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
           >
             {ticket.title}
           </h2>
+
+          {ticket.parentId && (
+            <button
+              type="button"
+              className="nk-detail-parent"
+              onClick={() => onOpen?.(ticket.parentId as string)}
+              title="Open parent task"
+            >
+              Subtask of {parentLabel(tickets[ticket.parentId])}
+            </button>
+          )}
 
           <div className="nk-detail-row">
             <span className="nk-detail-label">Status</span>
@@ -253,13 +271,15 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
             )}
           </section>
 
-          <section className="nk-detail-section">
-            <h3 className="nk-detail-section-title">Subtasks</h3>
-            <SubtaskList
-              body={ticket.body}
-              onChange={(nextBody) => upsert({ ...ticket, body: nextBody })}
-            />
-          </section>
+          <SubtasksSection
+            subtasks={children}
+            progress={progress}
+            onToggle={(child) =>
+              setStatus(child.id, DONE_STATUSES.has(child.status) ? "todo" : "done")
+            }
+            onOpen={onOpen}
+            onAdd={(title) => upsert({ title, parentId: ticket.id, status: "todo" })}
+          />
 
           <section className="nk-detail-section">
             <h3 className="nk-detail-section-title">
@@ -295,6 +315,92 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
           </section>
         </div>
       </aside>
+    </div>
+  );
+}
+
+function parentLabel(parent: Ticket | undefined): string {
+  return parent?.key ?? parent?.title ?? "another task";
+}
+
+interface SubtasksSectionProps {
+  subtasks: Ticket[];
+  progress: { done: number; total: number };
+  onToggle(child: Ticket): void;
+  onOpen?(id: string): void;
+  onAdd(title: string): void;
+}
+
+function SubtasksSection({ subtasks, progress, onToggle, onOpen, onAdd }: SubtasksSectionProps) {
+  return (
+    <section className="nk-detail-section">
+      <h3 className="nk-detail-section-title">
+        Subtasks{progress.total > 0 ? ` ${progress.done}/${progress.total}` : ""}
+      </h3>
+      {subtasks.length > 0 ? (
+        <ul className="nk-subtask-children">
+          {subtasks.map((child) => {
+            const done = DONE_STATUSES.has(child.status);
+            return (
+              <li key={child.id} className="nk-subtask-child">
+                <button
+                  type="button"
+                  className="nk-subtask-check"
+                  onClick={() => onToggle(child)}
+                  aria-label={done ? "Mark not done" : "Mark done"}
+                >
+                  {done ? <CheckSquare size={15} aria-hidden /> : <Square size={15} aria-hidden />}
+                </button>
+                <button
+                  type="button"
+                  className={"nk-subtask-open" + (done ? " is-done" : "")}
+                  onClick={() => onOpen?.(child.id)}
+                >
+                  {child.title}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="nk-empty-hint">No subtasks.</p>
+      )}
+      <AddSubtask onAdd={onAdd} />
+    </section>
+  );
+}
+
+function AddSubtask({ onAdd }: { onAdd: (title: string) => void }) {
+  const [title, setTitle] = useState("");
+  function submit() {
+    const text = title.trim();
+    if (!text) return;
+    onAdd(text);
+    setTitle("");
+  }
+  return (
+    <div className="nk-subtask-add">
+      <input
+        className="nk-input"
+        placeholder="Add a subtask…"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          }
+        }}
+      />
+      <button
+        type="button"
+        className="nk-iconbtn"
+        onClick={submit}
+        disabled={!title.trim()}
+        aria-label="Add subtask"
+      >
+        <Plus size={16} aria-hidden />
+      </button>
     </div>
   );
 }

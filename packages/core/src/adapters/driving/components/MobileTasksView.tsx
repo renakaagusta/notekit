@@ -238,7 +238,9 @@ export function MobileTasksView({ userName, focusTicket }: MobileTasksViewProps)
         <Plus size={22} aria-hidden />
       </button>
 
-      {detailId && <TicketDetail ticketId={detailId} onClose={() => setDetailId(null)} />}
+      {detailId && (
+        <TicketDetail ticketId={detailId} onClose={() => setDetailId(null)} onOpen={setDetailId} />
+      )}
     </div>
   );
 }

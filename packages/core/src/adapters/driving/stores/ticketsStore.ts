@@ -30,6 +30,25 @@ interface TicketsState {
 
 const now = () => new Date().toISOString();
 
+/** Keys taken by every ticket except `exceptId` — for deriving a unique key. */
+function otherKeys(tickets: Record<string, Ticket>, exceptId: string): string[] {
+  const keys: string[] = [];
+  for (const t of Object.values(tickets)) {
+    if (t.id !== exceptId && t.key) keys.push(t.key);
+  }
+  return keys;
+}
+
+/** Detach a deleted ticket's direct children so they survive as top-level tasks. */
+function promoteChildrenInPlace(tickets: Record<string, Ticket>, parentId: string): void {
+  for (const child of Object.values(tickets)) {
+    if (child.parentId === parentId) {
+      child.parentId = undefined;
+      child.updatedAt = now();
+    }
+  }
+}
+
 export const useTicketsStore = create<TicketsState>()(
   persist(
     immer<TicketsState>((set, get) => ({
@@ -39,16 +58,12 @@ export const useTicketsStore = create<TicketsState>()(
       const id = input.id ?? nanoid(12);
       const existing = get().tickets[id];
       const owner = useVaultStore.getState().vault?.owner;
-      const existingKeys: string[] = [];
-      for (const other of Object.values(get().tickets)) {
-        if (other.id !== id && other.key) existingKeys.push(other.key);
-      }
       const ticket = resolveUpsertedTicket(id, input, existing, {
         clock: { now: () => Date.now(), nowIso: now },
         resolvePath: ticketPathFor,
         encryptionRequired: useCryptoStore.getState().encryptionRequired,
         defaultCreator: owner ? `user:${owner}` : null,
-        existingKeys,
+        existingKeys: otherKeys(get().tickets, id),
       });
       set((state) => {
         state.tickets[id] = ticket;
@@ -102,6 +117,7 @@ export const useTicketsStore = create<TicketsState>()(
 
     remove(id) {
       set((state) => {
+        promoteChildrenInPlace(state.tickets, id);
         const { [id]: _, ...rest } = state.tickets;
         state.tickets = rest;
       });

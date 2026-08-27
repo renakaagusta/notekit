@@ -4,6 +4,11 @@
 // model as notes.
 
 import type { NoteKitApi } from "@notekit/api-client";
+import {
+  canReparent,
+  childProgress,
+  childrenOf,
+} from "@notekit/core/ticket-hierarchy";
 import { deriveTicketKey } from "@notekit/core/ticket-key";
 import type { Ticket, TicketStatus, TicketPriority } from "@notekit/core/types";
 import { defineCommand } from "citty";
@@ -27,6 +32,7 @@ const INDEX_PATH = `${TICKETS_DIR}/index.json`;
 interface TicketIndexEntry {
   id: string;
   key?: string;
+  parentId?: string;
   path: string;
   title: string;
   status: TicketStatus;
@@ -51,6 +57,7 @@ const newCmd = defineCommand({
     assignee: { type: "string", description: "Assignee ref, e.g. user:abc or agent:xyz.", required: false },
     label: { type: "string", description: "Comma-separated labels.", required: false },
     key: { type: "string", description: "Human-friendly key (slug). Auto-derived from the title if omitted.", required: false },
+    parent: { type: "string", description: "Make this a subtask of another task (its id or key).", required: false },
   },
   async run({ args }) {
     try {
@@ -68,6 +75,10 @@ const newCmd = defineCommand({
         ? String(args.label).split(",").map((s) => s.trim()).filter(Boolean)
         : [];
 
+      const parentId = args.parent
+        ? (await readTicket(nk, String(args.parent))).ticket.id
+        : undefined;
+
       const key = deriveTicketKey(
         String(args.title),
         await listTicketKeys(nk),
@@ -77,6 +88,7 @@ const newCmd = defineCommand({
       const ticket: Omit<Ticket, "path"> = {
         id,
         key,
+        ...(parentId ? { parentId } : {}),
         title: String(args.title),
         body,
         status: "todo",
@@ -95,6 +107,7 @@ const newCmd = defineCommand({
         idx.tickets.unshift({
           id,
           key,
+          ...(parentId ? { parentId } : {}),
           path,
           title: ticket.title,
           status: ticket.status,
@@ -105,7 +118,8 @@ const newCmd = defineCommand({
         return idx;
       });
 
-      process.stdout.write(`${kleur.green("created")} ${kleur.cyan(key)} ${kleur.dim(path)}\n`);
+      const kind = parentId ? "subtask" : "created";
+      process.stdout.write(`${kleur.green(kind)} ${kleur.cyan(key)} ${kleur.dim(path)}\n`);
     } catch (err) {
       dieWithError(err);
     }
@@ -113,25 +127,25 @@ const newCmd = defineCommand({
 });
 
 const listCmd = defineCommand({
-  meta: { name: "list", description: "List tasks, optionally filtered by status." },
+  meta: { name: "list", description: "List tasks. Top-level only by default; use --parent for subtasks." },
   args: {
     status: { type: "string", description: "Filter: todo|in_progress|blocked|done|archived.", required: false },
     all: { type: "boolean", description: "Include archived/done.", required: false },
+    parent: { type: "string", description: "List the subtasks of a task (its id or key) instead of the top level.", required: false },
   },
   async run({ args }) {
     try {
       const nk = await getSecretsClient({ requireAuth: true });
-      // E2EE → scan + decrypt; plaintext → index. Both yield rows with the
-      // fields below (status/priority/title).
-      let rows: {
-        id: string;
-        key?: string;
-        title: string;
-        status: TicketStatus;
-        priority: TicketPriority;
-      }[] = (await vaultIsEncrypted())
-        ? await listEncryptedTickets(nk)
-        : (await readIndex(nk)).index.tickets;
+      const graph = await loadTicketGraph(nk);
+
+      // Scope: a parent's direct children, else the top level (no parent).
+      const parentId = args.parent
+        ? (await readTicket(nk, String(args.parent))).ticket.id
+        : undefined;
+      let rows = parentId
+        ? childrenOf(parentId, graph)
+        : graph.filter((t) => !t.parentId);
+
       if (args.status) {
         const want = normalizeStatus(String(args.status));
         rows = rows.filter((t) => t.status === want);
@@ -143,8 +157,11 @@ const listCmd = defineCommand({
         return;
       }
       for (const t of rows) {
+        const sub = childProgress(t.id, graph);
+        const subBadge =
+          sub.total > 0 ? `  ${kleur.dim(`[${sub.done}/${sub.total}]`)}` : "";
         process.stdout.write(
-          `${kleur.cyan(t.key ?? t.id)}  ${badge(t.status)}  ${priorityBadge(t.priority)}  ${t.title}\n`,
+          `${kleur.cyan(t.key ?? t.id)}  ${badge(t.status)}  ${priorityBadge(t.priority)}${subBadge}  ${t.title}\n`,
         );
       }
     } catch (err) {
@@ -160,14 +177,27 @@ const showCmd = defineCommand({
     try {
       const nk = await getSecretsClient({ requireAuth: true });
       const { ticket } = await readTicket(nk, String(args.id));
+      const graph = await loadTicketGraph(nk);
       const ref = ticket.key ? `${kleur.cyan(ticket.key)} ${kleur.dim(`#${ticket.id}`)}` : kleur.dim(`#${ticket.id}`);
       process.stdout.write(`${kleur.bold(ticket.title)}  ${ref}\n`);
       process.stdout.write(`${badge(ticket.status)}  ${priorityBadge(ticket.priority)}`);
       if (ticket.assignee) process.stdout.write(`  ${kleur.cyan(ticket.assignee)}`);
       if (ticket.labels.length > 0) process.stdout.write(`  ${ticket.labels.map((l) => kleur.gray(`#${l}`)).join(" ")}`);
+      if (ticket.parentId) {
+        const parent = graph.find((t) => t.id === ticket.parentId);
+        process.stdout.write(`\n${kleur.dim("subtask of")} ${kleur.cyan(parent?.key ?? ticket.parentId)}`);
+      }
       process.stdout.write("\n\n");
       process.stdout.write(ticket.body);
       if (!ticket.body.endsWith("\n")) process.stdout.write("\n");
+      const children = childrenOf(ticket.id, graph);
+      if (children.length > 0) {
+        const done = childProgress(ticket.id, graph);
+        process.stdout.write(`\n${kleur.bold(`Subtasks ${done.done}/${done.total}`)}\n`);
+        for (const c of children) {
+          process.stdout.write(`  ${badge(c.status)}  ${kleur.cyan(c.key ?? c.id)}  ${c.title}\n`);
+        }
+      }
     } catch (err) {
       dieWithError(err);
     }
@@ -249,14 +279,69 @@ const renameCmd = defineCommand({
   },
 });
 
+const reparentCmd = defineCommand({
+  meta: { name: "reparent", description: "Move a task under another task (or to the top level)." },
+  args: {
+    id: { type: "positional", description: "Task id, key, or path.", required: true },
+    parent: { type: "positional", description: "New parent id/key, or `none` for top level.", required: true },
+  },
+  async run({ args }) {
+    try {
+      const nk = await getSecretsClient({ requireAuth: true });
+      const { ticket, sha } = await readTicket(nk, String(args.id));
+      const target = String(args.parent);
+      let nextParent: string | undefined;
+      if (target === "none" || target === "") {
+        nextParent = undefined;
+      } else {
+        const parentId = (await readTicket(nk, target)).ticket.id;
+        if (!canReparent(ticket.id, parentId, await loadTicketGraph(nk))) {
+          throw new Error(`cannot reparent ${ticket.id} under ${parentId}: that would create a cycle`);
+        }
+        nextParent = parentId;
+      }
+      ticket.parentId = nextParent;
+      ticket.updatedAt = new Date().toISOString();
+      await writeTicket(nk, ticket, sha);
+      await updateIndex(nk, (idx) => {
+        const row = idx.tickets.find((t) => t.id === ticket.id);
+        if (row) {
+          row.parentId = nextParent;
+          row.updatedAt = ticket.updatedAt;
+        }
+        return idx;
+      });
+      process.stdout.write(
+        `${kleur.green("reparented")} ${ticket.id} -> ${nextParent ? kleur.cyan(nextParent) : kleur.dim("(top level)")}\n`,
+      );
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
 const rmCmd = defineCommand({
-  meta: { name: "rm", description: "Delete a task." },
+  meta: { name: "rm", description: "Delete a task. Its subtasks are promoted to the top level." },
   args: {
     idOrPath: { type: "positional", description: "Task id or vault path.", required: true },
   },
   async run({ args }) {
     try {
       const nk = await getSecretsClient({ requireAuth: true });
+      const { ticket } = await readTicket(nk, String(args.idOrPath));
+      // Promote direct children to the top level so nothing is lost.
+      const children = childrenOf(ticket.id, await loadTicketGraph(nk));
+      for (const child of children) {
+        const { ticket: childTicket, sha: childSha } = await readTicket(nk, child.id);
+        childTicket.parentId = undefined;
+        childTicket.updatedAt = new Date().toISOString();
+        await writeTicket(nk, childTicket, childSha);
+        await updateIndex(nk, (idx) => {
+          const row = idx.tickets.find((t) => t.id === child.id);
+          if (row) row.parentId = undefined;
+          return idx;
+        });
+      }
       const path = await resolveTicketPath(nk, String(args.idOrPath));
       const existing = await nk.vault.readFile(path);
       if (!existing.sha) {
@@ -270,7 +355,8 @@ const rmCmd = defineCommand({
           return idx;
         });
       }
-      process.stdout.write(`${kleur.yellow("removed")} ${path}\n`);
+      const note = children.length > 0 ? kleur.dim(` (${children.length} subtask(s) promoted)`) : "";
+      process.stdout.write(`${kleur.yellow("removed")} ${path}${note}\n`);
     } catch (err) {
       dieWithError(err);
     }
@@ -287,6 +373,7 @@ export const ticketCommand = defineCommand({
     reopen: reopenCmd,
     assign: assignCmd,
     rename: renameCmd,
+    reparent: reparentCmd,
     rm: rmCmd,
   },
 });
@@ -353,6 +440,34 @@ async function listTicketKeys(nk: NoteKitApi): Promise<string[]> {
   return rows.map((t) => t.key).filter((k): k is string => Boolean(k));
 }
 
+interface TicketRow {
+  id: string;
+  key?: string;
+  parentId?: string;
+  title: string;
+  status: TicketStatus;
+  priority: TicketPriority;
+}
+
+/**
+ * A flat view of every ticket with just the fields the hierarchy + list views
+ * need. E2EE → scan + decrypt; plaintext → the index. Cheap enough to build the
+ * parent/child tree on each command.
+ */
+async function loadTicketGraph(nk: NoteKitApi): Promise<TicketRow[]> {
+  const rows = (await vaultIsEncrypted())
+    ? await listEncryptedTickets(nk)
+    : (await readIndex(nk)).index.tickets;
+  return rows.map((t) => ({
+    id: t.id,
+    key: t.key,
+    parentId: t.parentId,
+    title: t.title,
+    status: t.status,
+    priority: t.priority,
+  }));
+}
+
 async function readIndex(nk: NoteKitApi): Promise<{ index: TicketIndex; sha: string | null }> {
   try {
     const file = await nk.vault.readFile(INDEX_PATH);
@@ -415,6 +530,7 @@ async function readTicket(nk: NoteKitApi, idOrPath: string): Promise<{ ticket: T
   const ticket: Ticket = {
     id: String(data.id ?? path.split("/").pop()?.replace(/\.md$/, "") ?? ""),
     ...(data.key ? { key: String(data.key) } : {}),
+    ...(data.parentId ? { parentId: String(data.parentId) } : {}),
     path,
     title: String(data.title ?? "(untitled)"),
     body: body.trimStart(),
@@ -441,6 +557,7 @@ async function writeTicket(nk: NoteKitApi, ticket: Ticket, sha?: string | null):
   const data: Record<string, unknown> = {
     id: ticket.id,
     ...(ticket.key ? { key: ticket.key } : {}),
+    ...(ticket.parentId ? { parentId: ticket.parentId } : {}),
     title: ticket.title,
     status: ticket.status,
     priority: ticket.priority,

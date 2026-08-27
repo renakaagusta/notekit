@@ -3,8 +3,19 @@
  * whose {@link Ticket.parentId} points at its parent's immutable `id`. These
  * helpers are pure and dependency-free — the hierarchy is derived from a flat
  * ticket list, never stored as a separate structure.
+ *
+ * They are generic over a minimal node shape so callers can pass full `Ticket`s
+ * or lightweight index rows; the helpers only read `id`, `parentId`, and
+ * (for progress) `status`.
  */
-import type { Ticket, TicketStatus } from "./entities/ticket";
+import type { TicketStatus } from "./entities/ticket";
+
+export interface HierarchyNode {
+  id: string;
+  parentId?: string;
+}
+
+type StatusNode = HierarchyNode & { status: TicketStatus };
 
 const COMPLETE_STATUSES: ReadonlySet<TicketStatus> = new Set<TicketStatus>([
   "done",
@@ -12,8 +23,11 @@ const COMPLETE_STATUSES: ReadonlySet<TicketStatus> = new Set<TicketStatus>([
 ]);
 
 /** Direct children of a parent, in the given list's order. */
-export function childrenOf(parentId: string, tickets: Iterable<Ticket>): Ticket[] {
-  const out: Ticket[] = [];
+export function childrenOf<T extends HierarchyNode>(
+  parentId: string,
+  tickets: Iterable<T>,
+): T[] {
+  const out: T[] = [];
   for (const t of tickets) {
     if (t.parentId === parentId) out.push(t);
   }
@@ -21,8 +35,8 @@ export function childrenOf(parentId: string, tickets: Iterable<Ticket>): Ticket[
 }
 
 /** Tickets with no parent — the top level of the board. */
-export function topLevelTickets(tickets: Iterable<Ticket>): Ticket[] {
-  const out: Ticket[] = [];
+export function topLevelTickets<T extends HierarchyNode>(tickets: Iterable<T>): T[] {
+  const out: T[] = [];
   for (const t of tickets) {
     if (!t.parentId) out.push(t);
   }
@@ -33,7 +47,10 @@ export function topLevelTickets(tickets: Iterable<Ticket>): Ticket[] {
  * Every descendant id of `rootId` (children, grandchildren, …), excluding the
  * root itself. Cycle-safe: a ticket is never visited twice.
  */
-export function descendantIds(rootId: string, tickets: Iterable<Ticket>): Set<string> {
+export function descendantIds(
+  rootId: string,
+  tickets: Iterable<HierarchyNode>,
+): Set<string> {
   const byParent = new Map<string, string[]>();
   for (const t of tickets) {
     if (!t.parentId) continue;
@@ -60,7 +77,7 @@ export function descendantIds(rootId: string, tickets: Iterable<Ticket>): Set<st
 export function canReparent(
   childId: string,
   newParentId: string,
-  tickets: Iterable<Ticket>,
+  tickets: Iterable<HierarchyNode>,
 ): boolean {
   if (childId === newParentId) return false;
   return !descendantIds(childId, tickets).has(newParentId);
@@ -72,7 +89,10 @@ export interface ChildProgress {
 }
 
 /** Completion over a ticket's DIRECT children (done/archived count as done). */
-export function childProgress(parentId: string, tickets: Iterable<Ticket>): ChildProgress {
+export function childProgress(
+  parentId: string,
+  tickets: Iterable<StatusNode>,
+): ChildProgress {
   const children = childrenOf(parentId, tickets);
   return {
     done: children.filter((c) => COMPLETE_STATUSES.has(c.status)).length,

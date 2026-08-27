@@ -8,8 +8,12 @@ import { randomBytes } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
 import { slugify } from "@notekit/core/paths";
+import {
+  canReparent,
+  childrenOf,
+} from "@notekit/core/ticket-hierarchy";
 import { deriveTicketKey } from "@notekit/core/ticket-key";
-import type { Ticket } from "@notekit/core/types";
+import type { Ticket, TicketStatus } from "@notekit/core/types";
 import { z } from "zod";
 import { vaultIsEncrypted, encryptTicket, decryptTicket, parseMarkdown, serializeMarkdown ,
   encryptedSkippedNote,
@@ -56,29 +60,40 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
     {
       title: "List tasks",
       description:
-        "List tasks in the active scope, optionally filtered by status, priority, or assignee. Returns a compact summary. Use this when the user asks 'what am I working on', 'show me open tasks', or before tasks_create to check for duplicates. Scope-aware (see `scope`).",
+        "List tasks in the active scope, optionally filtered by status, priority, or assignee. Top-level tasks only by default — pass `parent` (a task id/key/path) to list that task's subtasks. Each row carries `parentId` and `childCount`. Use before tasks_create to check for duplicates. Scope-aware (see `scope`).",
       inputSchema: {
         status: z.enum(STATUSES).optional().describe("Filter by ticket status."),
         priority: z.enum(PRIORITIES).optional().describe("Filter by priority."),
         assignee: z.string().optional().describe("Filter by assignee username."),
+        parent: z.string().optional().describe("List the subtasks of this task (its id, key, or path) instead of the top level."),
         limit: z.number().int().min(1).max(100).optional().describe("Max results (default 25)."),
         scope: scopeSchema,
         project: projectSchema,
       },
       annotations: { readOnlyHint: true, idempotentHint: true },
     },
-    async ({ status, priority, assignee, limit, scope, project }) => {
+    async ({ status, priority, assignee, parent, limit, scope, project }) => {
       const max = limit ?? 25;
       try {
         const ctx = resolveProjectContext();
         const resolved = resolveScope("tickets", { scope, project, ctx });
-        const candidatePaths = await collectCandidatePaths(nk, resolved.readPrefixes);
+        const nodes = await loadTicketNodes(nk, resolved.readPrefixes);
+        const parentId = parent ? resolveParentId(nodes, parent) : undefined;
+        // Scope to a parent's subtasks, else the top level (tasks with no parent).
+        const scopedPaths = (parentId
+          ? childrenOf(parentId, nodes)
+          : nodes.filter((n) => !n.parentId)
+        ).map((n) => n.path);
         const filters: TicketFilters = { status, priority, assignee };
-        const { tickets, encryptedSkipped } = await runTicketList(nk, candidatePaths, filters, max);
+        const { tickets, encryptedSkipped } = await runTicketList(nk, scopedPaths, filters, max);
+        for (const t of tickets) {
+          t["childCount"] = childrenOf(String(t["id"]), nodes).length;
+        }
         return jsonContent({
           count: tickets.length,
           scope: resolved.effective,
           project: resolved.project,
+          ...(parentId ? { parent: parentId } : {}),
           tickets,
           ...(encryptedSkippedNote(encryptedSkipped, "ticket") ?? {}),
         });
@@ -109,12 +124,14 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         if (file.content && isEncryptedItemPath(path)) {
           const ticket = await decryptTicket(path, file.content);
           if (!ticket) return errorContent(`tasks_read: couldn't decrypt ${path}`);
+          const children = childSummaries(ticket.id, await loadTicketNodes(nk, ["tickets/"]));
           return jsonContent({
             path,
             sha: file.sha,
             frontmatter: {
               title: ticket.title,
               ...(ticket.key ? { key: ticket.key } : {}),
+              ...(ticket.parentId ? { parentId: ticket.parentId } : {}),
               status: ticket.status,
               priority: ticket.priority,
               assignee: ticket.assignee,
@@ -124,14 +141,18 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
               updatedAt: ticket.updatedAt,
             },
             body: ticket.body,
+            children,
           });
         }
         const parsed = parseMarkdown(file.content ?? "");
+        const id = parsed.frontmatter["id"] ? String(parsed.frontmatter["id"]) : deriveTitle(path);
+        const children = childSummaries(id, await loadTicketNodes(nk, [parentPrefix(path)]));
         return jsonContent({
           path: file.path,
           sha: file.sha,
           frontmatter: parsed.frontmatter,
           body: parsed.body,
+          children,
         });
       } catch (err) {
         return errorContent(`tasks_read failed: ${(err as Error).message}`);
@@ -148,6 +169,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
       inputSchema: {
         title: z.string().min(1).describe("Ticket title."),
         key: z.string().optional().describe("Human-friendly key (slug). Auto-derived from the title if omitted; de-duped per vault."),
+        parent: z.string().optional().describe("Make this a subtask: the id, key, or path of the parent task."),
         body: z.string().optional().describe("Optional Markdown description."),
         status: z.enum(STATUSES).optional().describe("Initial status (default `todo`)."),
         priority: z.enum(PRIORITIES).optional().describe("Priority (default `medium`)."),
@@ -168,14 +190,13 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         // Born-E2EE vault → seal as an opaque tickets/<id>.md.age (#49).
         if (await vaultIsEncrypted()) {
           const id = newItemId();
-          const key = deriveTicketKey(
-            args.title,
-            await collectExistingKeys(nk, ["tickets/"]),
-            args.key,
-          );
+          const nodes = await loadTicketNodes(nk, ["tickets/"]);
+          const key = deriveTicketKey(args.title, keysOf(nodes), args.key);
+          const parentId = args.parent ? resolveParentId(nodes, args.parent) : undefined;
           const ticket: Ticket = {
             id,
             key,
+            ...(parentId ? { parentId } : {}),
             path: `tickets/${id}.md.age`,
             title: args.title,
             body: args.body ?? "",
@@ -195,7 +216,8 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
             sealed,
             args.commitMessage ?? `notekit: open ticket ${args.title}`,
           );
-          return textContent(`Created encrypted ticket ${key} at ${ticket.path}`);
+          const kind = parentId ? "subtask" : "ticket";
+          return textContent(`Created encrypted ${kind} ${key} at ${ticket.path}`);
         }
         const ctx = resolveProjectContext();
         const resolved = resolveScope("tickets", {
@@ -205,14 +227,13 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         });
         const targetPath =
           args.path ?? `${resolved.writePrefix}${slugify(args.title)}.md`;
-        const key = deriveTicketKey(
-          args.title,
-          await collectExistingKeys(nk, resolved.readPrefixes),
-          args.key,
-        );
+        const nodes = await loadTicketNodes(nk, resolved.readPrefixes);
+        const key = deriveTicketKey(args.title, keysOf(nodes), args.key);
+        const parentId = args.parent ? resolveParentId(nodes, args.parent) : undefined;
         const frontmatter: Record<string, unknown> = {
           title: args.title,
           key,
+          ...(parentId ? { parentId } : {}),
           status: args.status ?? "todo",
           priority: args.priority ?? "medium",
           assignee: args.assignee ?? null,
@@ -230,7 +251,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
           content,
           args.commitMessage ?? `notekit: open ticket ${args.title}`,
         );
-        return textContent(`Created ticket ${key} at ${targetPath}`);
+        return textContent(`Created ${parentId ? "subtask" : "ticket"} ${key} at ${targetPath}`);
       } catch (err) {
         return errorContent(`tasks_create failed: ${(err as Error).message}`);
       }
@@ -247,6 +268,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         path: z.string().min(1).describe("Vault path of the ticket."),
         title: z.string().optional(),
         key: z.string().optional().describe("Rename the human-friendly key (slug). Slugged + de-duped per vault."),
+        parent: z.string().nullable().optional().describe("Reparent this task under another (id/key/path); `null` promotes it to the top level. Cycle-guarded."),
         status: z.enum(STATUSES).optional(),
         priority: z.enum(PRIORITIES).optional(),
         assignee: z.string().nullable().optional(),
@@ -257,43 +279,16 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
       },
       annotations: { destructiveHint: false, idempotentHint: false },
     },
-    async ({ path, body, commitMessage, ...patch }) => {
+    async ({ path, body, commitMessage, parent, ...patch }) => {
       try {
         const existing = await nk.vault.readFile(path);
-        // Encrypted ticket → decrypt, patch, re-encrypt (#49).
-        if (existing.content && isEncryptedItemPath(path)) {
-          const ticket = await decryptTicket(path, existing.content);
-          if (!ticket) return errorContent(`tasks_update: couldn't decrypt ${path}`);
-          if (patch.key !== undefined) {
-            const others = (await collectExistingKeys(nk, ["tickets/"])).filter((k) => k !== ticket.key);
-            ticket.key = deriveTicketKey(ticket.title, others, patch.key);
-          }
-          applyTicketPatch(ticket, body, patch);
-          ticket.updatedAt = new Date().toISOString();
-          const sealed = await encryptTicket(ticket);
-          await nk.vault.writeFile(
-            path,
-            sealed,
-            commitMessage ?? `notekit: update ticket ${path}`,
-            existing.sha ?? undefined,
-          );
-          return textContent(`Updated ${path}`);
-        }
-        const parsed = parseMarkdown(existing.content ?? "");
-        const fm: Record<string, unknown> = { ...parsed.frontmatter };
-        await applyFrontmatterPatch(nk, path, fm, patch);
-        fm["updatedAt"] = new Date().toISOString();
-        const nextContent = serializeMarkdown({
-          frontmatter: fm,
-          body: body ?? parsed.body,
-        });
-        await nk.vault.writeFile(
-          path,
-          nextContent,
-          commitMessage ?? `notekit: update ticket ${path}`,
-          existing.sha ?? undefined,
-        );
-        return textContent(`Updated ${path}`);
+        const ok =
+          existing.content && isEncryptedItemPath(path)
+            ? await updateEncryptedTicket(nk, path, existing, { body, commitMessage, parent, patch })
+            : await updatePlaintextTicket(nk, path, existing, { body, commitMessage, parent, patch });
+        return ok
+          ? textContent(`Updated ${path}`)
+          : errorContent(`tasks_update: couldn't decrypt ${path}`);
       } catch (err) {
         return errorContent(`tasks_update failed: ${(err as Error).message}`);
       }
@@ -305,7 +300,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
     {
       title: "Delete task",
       description:
-        "Delete a task. The deletion is committed to Git — it stays in history. Use when the user wants to remove a task entirely (not just close it — for that, use `tasks_update` with `status: 'archived'`).",
+        "Delete a task. Its subtasks are promoted to the top level (not deleted). The deletion is committed to Git — it stays in history. Use when the user wants to remove a task entirely (not just close it — for that, use `tasks_update` with `status: 'archived'`).",
       inputSchema: {
         path: z.string().min(1).describe("Vault path of the ticket."),
         commitMessage: z.string().optional().describe("Git commit message."),
@@ -320,12 +315,123 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
             `tasks_delete: ${path} has no SHA — refusing to delete to avoid surprises.`,
           );
         }
+        const promoted = await promoteChildrenOf(nk, path);
         await nk.vault.deleteFile(path, file.sha, commitMessage ?? `notekit: delete ticket ${path}`);
-        return textContent(`Deleted ${path}`);
+        const note = promoted > 0 ? ` (${promoted} subtask(s) promoted to top level)` : "";
+        return textContent(`Deleted ${path}${note}`);
       } catch (err) {
         return errorContent(`tasks_delete failed: ${(err as Error).message}`);
       }
     },
+  );
+}
+
+/**
+ * Clear the parent link on every direct child of the ticket at `path`, so
+ * deleting the parent promotes them to the top level instead of orphaning them.
+ * Returns the number promoted.
+ */
+async function promoteChildrenOf(nk: NoteKitApi, path: string): Promise<number> {
+  const prefix = isEncryptedItemPath(path) ? "tickets/" : parentPrefix(path);
+  const nodes = await loadTicketNodes(nk, [prefix]);
+  const self = nodes.find((n) => n.path === path);
+  if (!self) return 0;
+  const children = childrenOf(self.id, nodes);
+  for (const child of children) await clearParentLink(nk, child.path);
+  return children.length;
+}
+
+interface VaultFileRef {
+  content?: string | null;
+  sha?: string | null;
+}
+
+interface TicketUpdate {
+  body?: string;
+  commitMessage?: string;
+  parent?: string | null;
+  patch: TicketPatch & { key?: string };
+}
+
+/** Decrypt → patch (key/parent/fields) → re-encrypt. Returns false if it can't decrypt. */
+async function updateEncryptedTicket(
+  nk: NoteKitApi,
+  path: string,
+  existing: VaultFileRef,
+  { body, commitMessage, parent, patch }: TicketUpdate,
+): Promise<boolean> {
+  const ticket = existing.content ? await decryptTicket(path, existing.content) : null;
+  if (!ticket) return false;
+  if (patch.key !== undefined) {
+    const others = (await collectExistingKeys(nk, ["tickets/"])).filter((k) => k !== ticket.key);
+    ticket.key = deriveTicketKey(ticket.title, others, patch.key);
+  }
+  if (parent !== undefined) {
+    ticket.parentId = reparentTarget(ticket.id, parent, await loadTicketNodes(nk, ["tickets/"]));
+  }
+  applyTicketPatch(ticket, body, patch);
+  ticket.updatedAt = new Date().toISOString();
+  await nk.vault.writeFile(
+    path,
+    await encryptTicket(ticket),
+    commitMessage ?? `notekit: update ticket ${path}`,
+    existing.sha ?? undefined,
+  );
+  return true;
+}
+
+/** Patch plaintext frontmatter (key/parent/fields) and rewrite. Always succeeds. */
+async function updatePlaintextTicket(
+  nk: NoteKitApi,
+  path: string,
+  existing: VaultFileRef,
+  { body, commitMessage, parent, patch }: TicketUpdate,
+): Promise<boolean> {
+  const parsed = parseMarkdown(existing.content ?? "");
+  const fm: Record<string, unknown> = { ...parsed.frontmatter };
+  if (parent !== undefined) {
+    const selfId = fm["id"] ? String(fm["id"]) : deriveTitle(path);
+    const pid = reparentTarget(selfId, parent, await loadTicketNodes(nk, [parentPrefix(path)]));
+    if (pid) fm["parentId"] = pid;
+    else delete fm["parentId"];
+  }
+  await applyFrontmatterPatch(nk, path, fm, patch as Record<string, unknown>);
+  fm["updatedAt"] = new Date().toISOString();
+  await nk.vault.writeFile(
+    path,
+    serializeMarkdown({ frontmatter: fm, body: body ?? parsed.body }),
+    commitMessage ?? `notekit: update ticket ${path}`,
+    existing.sha ?? undefined,
+  );
+  return true;
+}
+
+/** Remove the `parentId` from a single ticket file, encrypted or plaintext. */
+async function clearParentLink(nk: NoteKitApi, path: string): Promise<void> {
+  const existing = await nk.vault.readFile(path);
+  const now = new Date().toISOString();
+  if (isEncryptedItemPath(path)) {
+    const ticket = existing.content ? await decryptTicket(path, existing.content) : null;
+    if (!ticket) return;
+    ticket.parentId = undefined;
+    ticket.updatedAt = now;
+    await nk.vault.writeFile(
+      path,
+      await encryptTicket(ticket),
+      `notekit: promote subtask ${path}`,
+      existing.sha ?? undefined,
+    );
+    return;
+  }
+  const parsed = parseMarkdown(existing.content ?? "");
+  const fm: Record<string, unknown> = { ...parsed.frontmatter };
+  delete fm["parentId"];
+  fm["updatedAt"] = now;
+  await nk.vault.writeFile(
+    path,
+    serializeMarkdown({ frontmatter: fm, body: parsed.body }),
+    `notekit: promote subtask ${path}`,
+    existing.sha ?? undefined,
   );
 }
 
@@ -380,29 +486,97 @@ async function applyFrontmatterPatch(
   }
 }
 
+interface TicketNode {
+  id: string;
+  key?: string;
+  parentId?: string;
+  status: TicketStatus;
+  title: string;
+  path: string;
+}
+
 /**
- * Collect the human-friendly keys already taken across the given prefixes, so a
- * new/renamed ticket can be de-duped. Best-effort: unreadable or un-decryptable
- * tickets are skipped rather than aborting the write.
+ * A flat view of every ticket under the given prefixes with just the fields the
+ * hierarchy + key logic need. Best-effort: unreadable/locked tickets are
+ * skipped rather than aborting.
  */
-async function collectExistingKeys(nk: NoteKitApi, prefixes: string[]): Promise<string[]> {
-  const keys: string[] = [];
+async function loadTicketNodes(nk: NoteKitApi, prefixes: string[]): Promise<TicketNode[]> {
+  const nodes: TicketNode[] = [];
   for (const filePath of await collectCandidatePaths(nk, prefixes)) {
-    try {
-      const file = await nk.vault.readFile(filePath);
-      if (isEncryptedItemPath(filePath)) {
-        const ticket = file.content ? await decryptTicket(filePath, file.content) : null;
-        if (ticket?.key) keys.push(ticket.key);
-      } else if (filePath.endsWith(".md")) {
-        const parsed = parseMarkdown(file.content ?? "");
-        const key = parsed.frontmatter["key"];
-        if (key) keys.push(String(key));
-      }
-    } catch {
-      // Skip unreadable/locked tickets — a missing key just can't collide.
-    }
+    const node = await tryReadTicketNode(nk, filePath);
+    if (node) nodes.push(node);
   }
-  return keys;
+  return nodes;
+}
+
+/** One ticket file → a hierarchy node, or null when it isn't a readable ticket. */
+async function tryReadTicketNode(nk: NoteKitApi, filePath: string): Promise<TicketNode | null> {
+  try {
+    const file = await nk.vault.readFile(filePath);
+    if (isEncryptedItemPath(filePath)) {
+      const t = file.content ? await decryptTicket(filePath, file.content) : null;
+      return t
+        ? { id: t.id, key: t.key, parentId: t.parentId, status: t.status, title: t.title, path: filePath }
+        : null;
+    }
+    if (!filePath.endsWith(".md")) return null;
+    const { frontmatter } = parseMarkdown(file.content ?? "");
+    return {
+      id: frontmatter["id"] ? String(frontmatter["id"]) : deriveTitle(filePath),
+      key: frontmatter["key"] ? String(frontmatter["key"]) : undefined,
+      parentId: frontmatter["parentId"] ? String(frontmatter["parentId"]) : undefined,
+      status: (frontmatter["status"] as TicketStatus) ?? "todo",
+      title: String(frontmatter["title"] ?? deriveTitle(filePath)),
+      path: filePath,
+    };
+  } catch {
+    return null; // unreadable/locked ticket
+  }
+}
+
+/** The human-friendly keys already taken among the given nodes. */
+function keysOf(nodes: TicketNode[]): string[] {
+  return nodes.map((n) => n.key).filter((k): k is string => Boolean(k));
+}
+
+/** The human-friendly keys already taken across the given prefixes. */
+async function collectExistingKeys(nk: NoteKitApi, prefixes: string[]): Promise<string[]> {
+  return keysOf(await loadTicketNodes(nk, prefixes));
+}
+
+/** Resolve a parent reference (id, key, or path) to its immutable ticket id. */
+function resolveParentId(nodes: TicketNode[], ref: string): string {
+  const match = nodes.find((n) => n.id === ref || n.key === ref || n.path === ref);
+  if (!match) throw new Error(`parent task not found: ${ref}`);
+  return match.id;
+}
+
+/**
+ * Resolve a reparent request to the new parent id. `null`/empty clears the
+ * parent (promote to top level). Throws if the move would create a cycle.
+ */
+function reparentTarget(
+  childId: string,
+  parent: string | null,
+  nodes: TicketNode[],
+): string | undefined {
+  if (parent === null || parent === "") return undefined;
+  const parentId = resolveParentId(nodes, parent);
+  if (!canReparent(childId, parentId, nodes)) {
+    throw new Error(`reparenting ${childId} under ${parentId} would create a cycle`);
+  }
+  return parentId;
+}
+
+/** Compact child records for a parent, for tasks_read output. */
+function childSummaries(parentId: string, nodes: TicketNode[]): TicketRecord[] {
+  return childrenOf(parentId, nodes).map((c) => ({
+    id: c.id,
+    ...(c.key ? { key: c.key } : {}),
+    title: c.title,
+    status: c.status,
+    path: c.path,
+  }));
 }
 
 /**
@@ -466,7 +640,9 @@ async function tryDecryptAndReadTicket(
   if (!t) return "encrypted-failed";
   return {
     path: filePath,
+    id: t.id,
     ...(t.key ? { key: t.key } : {}),
+    ...(t.parentId ? { parentId: t.parentId } : {}),
     title: t.title,
     status: t.status,
     priority: t.priority,
@@ -488,7 +664,9 @@ async function readPlaintextTicket(
   const { frontmatter, body } = parseMarkdown(file.content ?? "");
   return {
     path: filePath,
+    id: frontmatter["id"] ?? deriveTitle(filePath),
     ...(frontmatter["key"] ? { key: frontmatter["key"] } : {}),
+    ...(frontmatter["parentId"] ? { parentId: frontmatter["parentId"] } : {}),
     title: frontmatter["title"] ?? deriveTitle(filePath),
     status: frontmatter["status"] ?? "todo",
     priority: frontmatter["priority"] ?? "medium",

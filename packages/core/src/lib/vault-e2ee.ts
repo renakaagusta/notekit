@@ -26,6 +26,7 @@ import {
   readVaultConfig,
   reencryptImportedItems,
 } from "./secrets-vault";
+import type { VaultCiphertextCache } from "./vault-ciphertext-cache";
 
 export { isEncryptedItemPath as isEncrypted, classifyEncryptedPath };
 
@@ -36,6 +37,26 @@ export { isEncryptedItemPath as isEncrypted, classifyEncryptedPath };
  * git backend (our own Forgejo) with an unbounded burst.
  */
 const VAULT_READ_CONCURRENCY = 8;
+
+/**
+ * Fetch a file's ciphertext, serving it from the content-addressed cache when
+ * the blob sha is already known (zero network) and warming the cache on a miss.
+ * Without a cache this is just a `readFile`.
+ */
+async function readCiphertext(
+  nk: NoteKitApi,
+  entry: { path: string; sha: string },
+  cache: VaultCiphertextCache | undefined,
+): Promise<string | undefined> {
+  if (cache) {
+    const hit = await cache.get(entry.sha);
+    if (hit !== undefined) return hit;
+  }
+  const file = await nk.vault.readFile(entry.path);
+  const content = file.content ?? undefined;
+  if (cache && content !== undefined) await cache.put(entry.sha, content);
+  return content;
+}
 
 /**
  * Finish a cross-vault migration: re-seal every item that was byte-copied from
@@ -120,14 +141,15 @@ export function decryptLink(
 export async function listEncryptedNotes(
   nk: NoteKitApi,
   identity: RecoveryIdentity,
+  cache?: VaultCiphertextCache,
 ): Promise<Note[]> {
   const { entries } = await nk.vault.listFiles("notes/");
   const targets = entries.filter((e) => classifyEncryptedPath(e.path) === "note");
   const decrypted = await mapWithConcurrency(targets, VAULT_READ_CONCURRENCY, async (e) => {
-    const file = await nk.vault.readFile(e.path);
-    if (!file.content) return null;
+    const content = await readCiphertext(nk, e, cache);
+    if (!content) return null;
     try {
-      return await decryptNote(e.path, file.content, identity);
+      return await decryptNote(e.path, content, identity);
     } catch {
       // A note sealed to a recipient set this identity isn't in (e.g. an
       // orphan from a migration) shouldn't fail the whole listing — skip it,
@@ -144,14 +166,15 @@ export async function listEncryptedNotes(
 export async function listEncryptedTickets(
   nk: NoteKitApi,
   identity: RecoveryIdentity,
+  cache?: VaultCiphertextCache,
 ): Promise<Ticket[]> {
   const { entries } = await nk.vault.listFiles("tickets/");
   const targets = entries.filter((e) => classifyEncryptedPath(e.path) === "ticket");
   const decrypted = await mapWithConcurrency(targets, VAULT_READ_CONCURRENCY, async (e) => {
-    const file = await nk.vault.readFile(e.path);
-    if (!file.content) return null;
+    const content = await readCiphertext(nk, e, cache);
+    if (!content) return null;
     try {
-      return await decryptTicket(e.path, file.content, identity);
+      return await decryptTicket(e.path, content, identity);
     } catch {
       // Skip an item this identity can't open (see listEncryptedNotes).
       return null;

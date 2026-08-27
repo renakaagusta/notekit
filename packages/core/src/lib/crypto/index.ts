@@ -11,6 +11,9 @@ export * from "./recovery";
 export * from "./item-crypto";
 export * from "./signing";
 export * from "./wallet-key";
+// Pure safety-number derivation (no storage) — out-of-band device verification
+// on Node surfaces (CLI approve).
+export { deriveFingerprint, formatFingerprint } from "./fingerprint";
 // Type-only — no runtime import of the IndexedDB-backed device-key module.
 export type { DeviceIdentity } from "./device-key";
 // Pure age keypair generation (no IDB storage) — safe for Node consumers.

@@ -3,7 +3,9 @@
 // MCP tools call: the trust rules (roster chain, key rotation) live in the core,
 // never here — a command only parses input, calls one op, and formats output.
 
+import { deriveFingerprint, formatFingerprint } from "@notekit/core/crypto";
 import {
+  approveDeviceViaRoster,
   currentRoster,
   deviceSigner,
   listDevices,
@@ -12,6 +14,7 @@ import {
   rosterEntryForDevice,
   revokeRosterDevice,
 } from "@notekit/core/secrets";
+import type { DeviceKind } from "@notekit/core/types";
 import { defineCommand } from "citty";
 import kleur from "kleur";
 import {
@@ -105,10 +108,87 @@ const revokeCmd = defineCommand({
   },
 });
 
+const approveCmd = defineCommand({
+  meta: {
+    name: "approve",
+    description:
+      "Approve a device that announced a pairing code (from `notekit vault pair` or the MCP's devices_pair). This CLI must already be a trusted roster device; it vouches for the new one with its own key — no recovery phrase. VERIFY the emoji safety number matches the other screen before confirming.",
+  },
+  args: {
+    code: { type: "positional", description: "The 6-digit pairing code.", required: true },
+    yes: { type: "boolean", description: "Skip the interactive safety-number confirmation.", required: false },
+  },
+  async run({ args }) {
+    try {
+      const nk = await getSecretsClient({ requireAuth: true });
+      const self = await vaultDevice();
+      const roster = await currentRoster();
+      if (!roster) {
+        throw new Error("This vault has no Model B roster — approve from the app instead.");
+      }
+      const selfSigner = deviceSigner(self);
+      if (!selfSigner || !roster.entries.some((e) => e.signPub === selfSigner.signPub)) {
+        throw new Error(
+          "This CLI isn't a trusted roster device, so it can't approve another. Pair it first (`notekit vault pair`).",
+        );
+      }
+      const announcement = await nk.vault.fetchPair(String(args.code).trim());
+      if (!announcement) throw new Error("Pairing code not found or expired.");
+      if (!announcement.signPub) {
+        throw new Error("That device didn't publish a signing key (pre-Model-B) — approve from the app.");
+      }
+
+      const fingerprint = formatFingerprint(await deriveFingerprint(announcement.pubkey));
+      process.stdout.write(
+        `\nApproving ${kleur.bold(announcement.deviceName)}` +
+          (announcement.deviceKind ? kleur.dim(` (${announcement.deviceKind})`) : "") +
+          `  ${kleur.dim(`···${announcement.deviceId.slice(-4)}`)}\n`,
+      );
+      process.stdout.write(`Safety number: ${kleur.cyan(fingerprint)}\n`);
+      process.stdout.write(kleur.dim("Confirm this matches the code shown on the other device.\n\n"));
+
+      if (!args.yes) {
+        const ok = await confirm("Approve this device?");
+        if (!ok) {
+          process.stdout.write(kleur.yellow("Aborted.\n"));
+          return;
+        }
+      }
+
+      await approveDeviceViaRoster(self, {
+        deviceId: announcement.deviceId,
+        name: announcement.deviceName,
+        recipient: announcement.pubkey,
+        signPub: announcement.signPub,
+        ...(announcement.deviceKind ? { kind: announcement.deviceKind as DeviceKind } : {}),
+      });
+      await nk.vault.clearPair(String(args.code).trim()).catch(() => undefined);
+      process.stdout.write(kleur.green(`Approved "${announcement.deviceName}" — it can now read this vault with its own key.\n`));
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
+/** Minimal yes/no prompt on stdin (no dependency — devices approve is the only user). */
+function confirm(question: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    process.stdout.write(`${question} [y/N] `);
+    const onData = (chunk: Buffer) => {
+      process.stdin.pause();
+      process.stdin.off("data", onData);
+      resolve(/^y(es)?$/i.test(chunk.toString().trim()));
+    };
+    process.stdin.resume();
+    process.stdin.once("data", onData);
+  });
+}
+
 export const devicesCommand = defineCommand({
-  meta: { name: "devices", description: "List and revoke trusted E2EE devices." },
+  meta: { name: "devices", description: "List, approve, and revoke trusted E2EE devices." },
   subCommands: {
     list: listCmd,
+    approve: approveCmd,
     revoke: revokeCmd,
   },
 });

@@ -1,3 +1,4 @@
+export * from "../device-kind";
 export * from "./note";
 export * from "./ticket";
 export * from "./link";

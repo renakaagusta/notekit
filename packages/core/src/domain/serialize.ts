@@ -139,6 +139,7 @@ export function serializeTicket(t: Ticket): string {
   const fm = emitFrontmatter({
     id: t.id,
     ...(t.key ? { key: t.key } : {}),
+    ...(t.parentId ? { parentId: t.parentId } : {}),
     status: t.status,
     priority: t.priority,
     assignee: t.assignee,
@@ -177,6 +178,7 @@ export function deserializeTicket(path: string, content: string): Ticket | null 
   return {
     id,
     ...(frontmatter.key ? { key: String(frontmatter.key) } : {}),
+    ...(frontmatter.parentId ? { parentId: String(frontmatter.parentId) } : {}),
     path,
     title,
     body: rest,

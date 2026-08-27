@@ -93,6 +93,7 @@ export interface TicketPublicFrontmatter {
   status: TicketStatus;
   priority: TicketPriority;
   dueDate: string | null;
+  parentId?: string;
 }
 export interface LinkPublicFrontmatter {
   v: 1;
@@ -171,6 +172,7 @@ export function splitTicketForEncryption(t: Ticket): {
       status: t.status,
       priority: t.priority,
       dueDate: t.dueDate,
+      ...(t.parentId ? { parentId: t.parentId } : {}),
     },
     payload: {
       title: t.title,
@@ -192,6 +194,7 @@ export function mergeEncryptedTicket(
   return {
     id: fm.id,
     ...(payload.key ? { key: payload.key } : {}),
+    ...(fm.parentId ? { parentId: fm.parentId } : {}),
     path,
     title: payload.title,
     body: payload.body,

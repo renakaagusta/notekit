@@ -173,6 +173,17 @@ describe("tickets E2EE round-trip", () => {
     expect(restored!.key).toBe("fire-client-x");
   });
 
+  it("round-trips parentId in the plaintext header so the tree survives a lock", async () => {
+    const original = buildTicket({ parentId: "prnt00000000" });
+    const content = await serializeEncryptedTicket(original, [recipient]);
+    const headerEnd = content.indexOf("-----BEGIN AGE ENCRYPTED FILE-----");
+    // parentId is an opaque id, kept in the clear so the board can nest while locked.
+    expect(content.slice(0, headerEnd)).toContain("prnt00000000");
+    const restored = await deserializeEncryptedTicket(original.path, content, identity);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- round-trip always restores
+    expect(restored!.parentId).toBe("prnt00000000");
+  });
+
   it("exposes status/priority/dueDate to the operator but hides title/assignee", async () => {
     const t = buildTicket();
     const content = await serializeEncryptedTicket(t, [recipient]);

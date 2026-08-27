@@ -14,6 +14,13 @@ export interface Ticket {
    * frontmatter. Optional — tickets predating this feature fall back to {@link id}.
    */
   key?: string;
+  /**
+   * Immutable {@link id} of this ticket's parent, when it is a subtask. Absent
+   * for top-level tickets. References the parent's `id` (never its renameable
+   * `key`), and lives in plaintext frontmatter — it is an opaque handle, not
+   * sensitive, so the board can build the hierarchy while the vault is locked.
+   */
+  parentId?: string;
   path: string;
   title: string;
   body: string;

@@ -51,9 +51,13 @@ export function resolveUpsertedTicket(
   ports: UpsertTicketPorts,
 ): Ticket {
   const timestamp = ports.clock.nowIso();
+  // Presence of the `parentId` key means "set it" (or clear, when undefined);
+  // absence means "keep the existing parent". `??` can't tell those apart.
+  const parentId = "parentId" in command ? command.parentId : existing?.parentId;
   return {
     id,
     key: resolveTicketKey(command, existing, ports.existingKeys),
+    ...(parentId ? { parentId } : {}),
     path: command.path ?? existing?.path ?? ports.resolvePath({ id, title: command.title }),
     title: command.title,
     body: command.body ?? existing?.body ?? "",

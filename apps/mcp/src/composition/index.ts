@@ -51,6 +51,7 @@ export {
 } from "../adapters/driven/project.js";
 
 export { logger } from "../adapters/driven/logger.js";
+export { diskCiphertextCache } from "../adapters/driven/vault-cache.js";
 
 export {
   resolveScope,

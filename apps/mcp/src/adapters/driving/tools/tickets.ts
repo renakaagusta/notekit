@@ -7,6 +7,7 @@
 import { randomBytes } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
+import { mapWithConcurrency } from "@notekit/core/concurrency";
 import { slugify } from "@notekit/core/paths";
 import {
   canReparent,
@@ -14,8 +15,10 @@ import {
 } from "@notekit/core/ticket-hierarchy";
 import { deriveTicketKey } from "@notekit/core/ticket-key";
 import type { Ticket, TicketStatus } from "@notekit/core/types";
+import type { VaultCiphertextCache } from "@notekit/core/vault-e2ee";
 import { z } from "zod";
 import { vaultIsEncrypted, encryptTicket, decryptTicket, parseMarkdown, serializeMarkdown ,
+  diskCiphertextCache,
   encryptedSkippedNote,
   errorContent,
   isEncryptedItemPath,
@@ -25,6 +28,45 @@ import { vaultIsEncrypted, encryptTicket, decryptTicket, parseMarkdown, serializ
 
 function newItemId(): string {
   return randomBytes(8).toString("base64url").replace(/[^A-Za-z0-9]/g, "").slice(0, 10);
+}
+
+/** A vault file's path plus its content-addressed git blob sha. */
+interface VaultEntry {
+  path: string;
+  sha: string;
+}
+
+/**
+ * How many ciphertext files to fetch at once when scanning. Bounded so we don't
+ * burst the git backend. Mirrors the shared core scan.
+ */
+const READ_CONCURRENCY = 8;
+
+/**
+ * Process-wide ciphertext cache (content-addressed by blob sha). A long-lived
+ * MCP server reuses it across tool calls; a warm blob is served from disk with
+ * no network read. Undefined when caching is disabled.
+ */
+const ciphertextCache: VaultCiphertextCache | undefined = diskCiphertextCache();
+
+/**
+ * Fetch a file's content, serving `.age` ciphertext from the cache when its blob
+ * sha is already known (zero network) and warming it on a miss. Plaintext files
+ * aren't content-addressed here, so they always read through.
+ */
+async function readVaultContent(
+  nk: NoteKitApi,
+  entry: VaultEntry,
+): Promise<string | undefined> {
+  const cacheable = ciphertextCache && isEncryptedItemPath(entry.path);
+  if (cacheable) {
+    const hit = await ciphertextCache.get(entry.sha);
+    if (hit !== undefined) return hit;
+  }
+  const file = await nk.vault.readFile(entry.path);
+  const content = file.content ?? undefined;
+  if (cacheable && content !== undefined) await ciphertextCache.put(entry.sha, content);
+  return content;
 }
 
 const STATUSES = ["todo", "in_progress", "blocked", "done", "archived"] as const;
@@ -80,12 +122,14 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         const nodes = await loadTicketNodes(nk, resolved.readPrefixes);
         const parentId = parent ? resolveParentId(nodes, parent) : undefined;
         // Scope to a parent's subtasks, else the top level (tasks with no parent).
-        const scopedPaths = (parentId
+        // Reuse each node's sha so runTicketList's reads hit the warm cache that
+        // loadTicketNodes just populated (no second download).
+        const scoped: VaultEntry[] = (parentId
           ? childrenOf(parentId, nodes)
           : nodes.filter((n) => !n.parentId)
-        ).map((n) => n.path);
+        ).map((n) => ({ path: n.path, sha: n.sha }));
         const filters: TicketFilters = { status, priority, assignee };
-        const { tickets, encryptedSkipped } = await runTicketList(nk, scopedPaths, filters, max);
+        const { tickets, encryptedSkipped } = await runTicketList(nk, scoped, filters, max);
         for (const t of tickets) {
           t["childCount"] = childrenOf(String(t["id"]), nodes).length;
         }
@@ -438,16 +482,16 @@ async function clearParentLink(nk: NoteKitApi, path: string): Promise<void> {
 async function collectCandidatePaths(
   nk: NoteKitApi,
   prefixes: string[],
-): Promise<string[]> {
+): Promise<VaultEntry[]> {
   const seen = new Set<string>();
-  const out: string[] = [];
+  const out: VaultEntry[] = [];
   for (const prefix of prefixes) {
     const entries = await listVaultFiles(nk, prefix);
     for (const entry of entries) {
       if (!isUnderAnyPrefix(entry.path, [prefix])) continue;
       if (seen.has(entry.path)) continue;
       seen.add(entry.path);
-      out.push(entry.path);
+      out.push({ path: entry.path, sha: entry.sha });
     }
   }
   return out;
@@ -493,41 +537,42 @@ interface TicketNode {
   status: TicketStatus;
   title: string;
   path: string;
+  sha: string;
 }
 
 /**
  * A flat view of every ticket under the given prefixes with just the fields the
- * hierarchy + key logic need. Best-effort: unreadable/locked tickets are
- * skipped rather than aborting.
+ * hierarchy + key logic need. Reads are fanned out (bounded) and cache-served.
+ * Best-effort: unreadable/locked tickets are skipped rather than aborting.
  */
 async function loadTicketNodes(nk: NoteKitApi, prefixes: string[]): Promise<TicketNode[]> {
-  const nodes: TicketNode[] = [];
-  for (const filePath of await collectCandidatePaths(nk, prefixes)) {
-    const node = await tryReadTicketNode(nk, filePath);
-    if (node) nodes.push(node);
-  }
-  return nodes;
+  const entries = await collectCandidatePaths(nk, prefixes);
+  const nodes = await mapWithConcurrency(entries, READ_CONCURRENCY, (e) =>
+    tryReadTicketNode(nk, e),
+  );
+  return nodes.filter((n): n is TicketNode => n !== null);
 }
 
 /** One ticket file → a hierarchy node, or null when it isn't a readable ticket. */
-async function tryReadTicketNode(nk: NoteKitApi, filePath: string): Promise<TicketNode | null> {
+async function tryReadTicketNode(nk: NoteKitApi, entry: VaultEntry): Promise<TicketNode | null> {
   try {
-    const file = await nk.vault.readFile(filePath);
-    if (isEncryptedItemPath(filePath)) {
-      const t = file.content ? await decryptTicket(filePath, file.content) : null;
+    const content = await readVaultContent(nk, entry);
+    if (isEncryptedItemPath(entry.path)) {
+      const t = content ? await decryptTicket(entry.path, content) : null;
       return t
-        ? { id: t.id, key: t.key, parentId: t.parentId, status: t.status, title: t.title, path: filePath }
+        ? { id: t.id, key: t.key, parentId: t.parentId, status: t.status, title: t.title, path: entry.path, sha: entry.sha }
         : null;
     }
-    if (!filePath.endsWith(".md")) return null;
-    const { frontmatter } = parseMarkdown(file.content ?? "");
+    if (!entry.path.endsWith(".md")) return null;
+    const { frontmatter } = parseMarkdown(content ?? "");
     return {
-      id: frontmatter["id"] ? String(frontmatter["id"]) : deriveTitle(filePath),
+      id: frontmatter["id"] ? String(frontmatter["id"]) : deriveTitle(entry.path),
       key: frontmatter["key"] ? String(frontmatter["key"]) : undefined,
       parentId: frontmatter["parentId"] ? String(frontmatter["parentId"]) : undefined,
       status: (frontmatter["status"] as TicketStatus) ?? "todo",
-      title: String(frontmatter["title"] ?? deriveTitle(filePath)),
-      path: filePath,
+      title: String(frontmatter["title"] ?? deriveTitle(entry.path)),
+      path: entry.path,
+      sha: entry.sha,
     };
   } catch {
     return null; // unreadable/locked ticket
@@ -584,14 +629,16 @@ function childSummaries(parentId: string, nodes: TicketNode[]): TicketRecord[] {
  */
 async function runTicketList(
   nk: NoteKitApi,
-  candidatePaths: string[],
+  candidates: VaultEntry[],
   filters: TicketFilters,
   max: number,
 ): Promise<{ tickets: TicketRecord[]; encryptedSkipped: number }> {
+  const resolved = await mapWithConcurrency(candidates, READ_CONCURRENCY, (e) =>
+    resolveTicketEntry(nk, e, filters),
+  );
   const tickets: TicketRecord[] = [];
   let encryptedSkipped = 0;
-  for (const filePath of candidatePaths) {
-    const entry = await resolveTicketEntry(nk, filePath, filters);
+  for (const entry of resolved) {
     if (entry === "encrypted-failed") { encryptedSkipped++; continue; }
     if (!entry) continue;
     tickets.push(entry);
@@ -607,17 +654,17 @@ async function runTicketList(
  */
 async function resolveTicketEntry(
   nk: NoteKitApi,
-  filePath: string,
+  entry: VaultEntry,
   filters: TicketFilters,
 ): Promise<TicketRecord | null | "encrypted-failed"> {
-  if (isEncryptedItemPath(filePath)) {
-    const record = await tryDecryptAndReadTicket(nk, filePath);
+  if (isEncryptedItemPath(entry.path)) {
+    const record = await tryDecryptAndReadTicket(nk, entry);
     if (record === "encrypted-failed") return "encrypted-failed";
     if (!record || !matchesTicketFilters(record, filters)) return null;
     return record;
   }
-  if (!filePath.endsWith(".md")) return null;
-  const record = await readPlaintextTicket(nk, filePath);
+  if (!entry.path.endsWith(".md")) return null;
+  const record = await readPlaintextTicket(nk, entry);
   return matchesTicketFilters(record, filters) ? record : null;
 }
 
@@ -628,18 +675,18 @@ async function resolveTicketEntry(
  */
 async function tryDecryptAndReadTicket(
   nk: NoteKitApi,
-  filePath: string,
+  entry: VaultEntry,
 ): Promise<TicketRecord | null | "encrypted-failed"> {
   let t: Ticket | null = null;
   try {
-    const file = await nk.vault.readFile(filePath);
-    t = file.content ? await decryptTicket(filePath, file.content) : null;
+    const content = await readVaultContent(nk, entry);
+    t = content ? await decryptTicket(entry.path, content) : null;
   } catch {
     t = null;
   }
   if (!t) return "encrypted-failed";
   return {
-    path: filePath,
+    path: entry.path,
     id: t.id,
     ...(t.key ? { key: t.key } : {}),
     ...(t.parentId ? { parentId: t.parentId } : {}),
@@ -658,16 +705,16 @@ async function tryDecryptAndReadTicket(
  */
 async function readPlaintextTicket(
   nk: NoteKitApi,
-  filePath: string,
+  entry: VaultEntry,
 ): Promise<TicketRecord> {
-  const file = await nk.vault.readFile(filePath);
-  const { frontmatter, body } = parseMarkdown(file.content ?? "");
+  const content = await readVaultContent(nk, entry);
+  const { frontmatter, body } = parseMarkdown(content ?? "");
   return {
-    path: filePath,
-    id: frontmatter["id"] ?? deriveTitle(filePath),
+    path: entry.path,
+    id: frontmatter["id"] ?? deriveTitle(entry.path),
     ...(frontmatter["key"] ? { key: frontmatter["key"] } : {}),
     ...(frontmatter["parentId"] ? { parentId: frontmatter["parentId"] } : {}),
-    title: frontmatter["title"] ?? deriveTitle(filePath),
+    title: frontmatter["title"] ?? deriveTitle(entry.path),
     status: frontmatter["status"] ?? "todo",
     priority: frontmatter["priority"] ?? "medium",
     assignee: frontmatter["assignee"] ?? null,

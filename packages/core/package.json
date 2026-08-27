@@ -16,6 +16,7 @@
     "./paths": "./src/domain/file-paths.ts",
     "./ticket-key": "./src/domain/ticket-key.ts",
     "./ticket-hierarchy": "./src/domain/ticket-hierarchy.ts",
+    "./concurrency": "./src/lib/concurrency.ts",
     "./vault-e2ee": "./src/lib/vault-e2ee.ts",
     "./styles.css": "./src/styles.css"
   },

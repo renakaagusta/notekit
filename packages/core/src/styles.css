@@ -6077,6 +6077,24 @@ a.nk-commit-sha:hover {
   font-weight: 500;
 }
 
+/* Icon + name group takes the row; the revoke button is pushed to the end. */
+.nk-device-item > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.nk-device-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  color: var(--muted);
+}
+
+.nk-pill--kind {
+  background: var(--surface);
+  color: var(--muted);
+}
+
 .nk-device-id {
   font-family: var(--font-mono, monospace);
   font-size: 10px;

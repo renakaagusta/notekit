@@ -10,6 +10,8 @@
 import { Hono, type Context } from "hono";
 import { getCurrentUser } from "../../../composition/sessions";
 
+const DEVICE_KINDS = new Set(["web", "desktop", "ios", "android", "cli", "mcp"]);
+
 interface Announcement {
   userId: string;
   code: string;
@@ -17,6 +19,7 @@ interface Announcement {
   deviceName: string;
   deviceId: string;
   signPub?: string;
+  deviceKind?: string;
   expiresAt: number;
 }
 
@@ -74,30 +77,42 @@ export const pairRoutes = new Hono();
  * Stores an offer keyed on (userId, code). A different device authenticated
  * to the SAME GitHub account can later retrieve it.
  */
+interface AnnounceBody {
+  code?: string;
+  pubkey?: string;
+  deviceName?: string;
+  deviceId?: string;
+  signPub?: string;
+  deviceKind?: string;
+}
+
+/** Validate an announce body, returning an error code or null when it's valid. */
+function announceError(body: AnnounceBody | null): string | null {
+  if (!body?.code || !body?.pubkey || !body?.deviceName || !body?.deviceId) {
+    return "missing_fields";
+  }
+  if (!/^\d{6}$/.test(body.code)) return "invalid_code";
+  if (!/^age1[0-9a-z]{20,}$/i.test(body.pubkey)) return "invalid_pubkey";
+  // signPub is the new device's Ed25519 public key (base64, 44 chars). Optional
+  // (pre-Model-B devices omit it); reject a malformed value rather than storing
+  // garbage the approver would try to trust.
+  if (body.signPub !== undefined && !/^[A-Za-z0-9+/]{43}=$/.test(body.signPub)) {
+    return "invalid_sign_pub";
+  }
+  // Cosmetic runtime label; reject an unknown value rather than storing garbage.
+  if (body.deviceKind !== undefined && !DEVICE_KINDS.has(body.deviceKind)) {
+    return "invalid_device_kind";
+  }
+  return null;
+}
+
 pairRoutes.post("/announce", async (c) => {
   const user = await requireUser(c);
   if (!user) return c.json({ error: "unauthorized" }, 401);
-  const body = (await c.req.json().catch(() => null)) as {
-    code?: string;
-    pubkey?: string;
-    deviceName?: string;
-    deviceId?: string;
-    signPub?: string;
-  } | null;
-  if (!body?.code || !body?.pubkey || !body?.deviceName || !body?.deviceId) {
-    return c.json({ error: "missing_fields" }, 400);
-  }
-  if (!/^\d{6}$/.test(body.code)) {
-    return c.json({ error: "invalid_code" }, 400);
-  }
-  if (!/^age1[0-9a-z]{20,}$/i.test(body.pubkey)) {
-    return c.json({ error: "invalid_pubkey" }, 400);
-  }
-  // signPub is the new device's Ed25519 public key (base64, 32 bytes → 44
-  // chars). Optional (pre-Model-B devices omit it); reject a malformed value
-  // rather than storing garbage the approver would try to trust.
-  if (body.signPub !== undefined && !/^[A-Za-z0-9+/]{43}=$/.test(body.signPub)) {
-    return c.json({ error: "invalid_sign_pub" }, 400);
+  const body = (await c.req.json().catch(() => null)) as AnnounceBody | null;
+  const err = announceError(body);
+  if (err || !body?.code || !body.pubkey || !body.deviceName || !body.deviceId) {
+    return c.json({ error: err ?? "missing_fields" }, 400);
   }
   purgeExpired();
   const expiresAt = Date.now() + TTL_MS;
@@ -108,6 +123,7 @@ pairRoutes.post("/announce", async (c) => {
     deviceName: body.deviceName.slice(0, 64),
     deviceId: body.deviceId.slice(0, 32),
     signPub: body.signPub,
+    deviceKind: body.deviceKind,
     expiresAt,
   });
   return c.json({ ok: true, expiresAt: new Date(expiresAt).toISOString() });
@@ -136,6 +152,7 @@ pairRoutes.get("/:code", async (c) => {
     deviceName: announcement.deviceName,
     deviceId: announcement.deviceId,
     signPub: announcement.signPub,
+    deviceKind: announcement.deviceKind,
     expiresAt: new Date(announcement.expiresAt).toISOString(),
   });
 });

@@ -229,6 +229,7 @@ export function vaultEndpoints(client: NoteKitClient) {
       deviceName: string;
       deviceId: string;
       signPub?: string;
+      deviceKind?: string;
     }): Promise<{ ok: true; expiresAt: string }> {
       return client.request("/vault/pair/announce", { method: "POST", body: payload });
     },
@@ -238,6 +239,7 @@ export function vaultEndpoints(client: NoteKitClient) {
       deviceName: string;
       deviceId: string;
       signPub?: string;
+      deviceKind?: string;
       expiresAt: string;
     } | null> {
       try {

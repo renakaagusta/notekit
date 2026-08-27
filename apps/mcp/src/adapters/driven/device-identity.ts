@@ -89,6 +89,7 @@ export async function loadMcpDeviceIdentity(): Promise<DeviceIdentity> {
   const device: DeviceIdentity = {
     deviceId: `mcp-${nanoid(8)}`,
     name: "notekit-mcp",
+    kind: "mcp",
     identity,
     recipient,
     createdAt: new Date().toISOString(),

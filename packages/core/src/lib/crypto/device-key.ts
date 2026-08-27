@@ -8,6 +8,7 @@
 import { generateIdentity, identityToRecipient } from "age-encryption";
 import { nanoid } from "nanoid";
 import type { PlatformPort } from "../../application/ports/out/PlatformPort";
+import { deviceKindFrom, type DeviceKind } from "../../domain/device-kind";
 import type { NativePlatform } from "../../domain/platform";
 import { generateSigningKeypair } from "./signing";
 
@@ -35,6 +36,12 @@ const KEY = "self";
 export interface DeviceIdentity {
   deviceId: string;
   name: string;
+  /**
+   * Coarse runtime category (web / desktop / ios / android / cli / mcp), for a
+   * per-kind icon in the devices list. Cosmetic, unsigned. Optional — devices
+   * created before this field fall back to a deviceId-prefix guess in the UI.
+   */
+  kind?: DeviceKind;
   identity: string;
   recipient: string;
   createdAt: string;
@@ -117,6 +124,7 @@ export async function createDeviceIdentity(name?: string): Promise<DeviceIdentit
   const device: DeviceIdentity = {
     deviceId: nanoid(10),
     name: name?.trim() || defaultDeviceName(),
+    kind: defaultDeviceKind(),
     identity,
     recipient,
     createdAt: new Date().toISOString(),
@@ -124,6 +132,11 @@ export async function createDeviceIdentity(name?: string): Promise<DeviceIdentit
   };
   await idbPut(KEY, device);
   return device;
+}
+
+function defaultDeviceKind(): DeviceKind {
+  if (!platform) return "web";
+  return deviceKindFrom({ native: platform.getNativePlatform(), electron: isElectronWrapper() });
 }
 
 export async function clearDeviceIdentity(): Promise<void> {

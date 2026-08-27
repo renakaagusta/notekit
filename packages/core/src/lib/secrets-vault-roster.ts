@@ -13,6 +13,7 @@
  *
  * Re-exported from secrets-vault.ts for external callers.
  */
+import { inferDeviceKind, type DeviceKind } from "../domain/device-kind";
 import type { DeviceIdentity } from "./crypto/device-key";
 import { keyboxSigningPayload } from "./crypto/keybox";
 import type { RecoverySigningKey } from "./crypto/recovery";
@@ -138,6 +139,7 @@ export async function bootstrapGenesisRoster(
   const entry: RosterEntry = {
     deviceId: device.deviceId,
     name: device.name,
+    ...(device.kind ? { kind: device.kind } : {}),
     signPub: signer.signPub,
     recipient: device.recipient,
     addedAt: new Date().toISOString(),
@@ -220,7 +222,7 @@ async function rosterVaultRecipients(roster: RosterDocument): Promise<string[]> 
  */
 export async function addDeviceViaRoster(
   signer: DeviceIdentity,
-  newDevice: { deviceId: string; name: string; recipient: string; signPub: string },
+  newDevice: { deviceId: string; name: string; recipient: string; signPub: string; kind?: DeviceKind },
 ): Promise<void> {
   const current = await currentRoster();
   if (!current) throw new Error("roster: cannot add a device — this vault has no roster.");
@@ -234,6 +236,7 @@ export async function addDeviceViaRoster(
   const entry: RosterEntry = {
     deviceId: newDevice.deviceId,
     name: newDevice.name,
+    ...(newDevice.kind ? { kind: newDevice.kind } : {}),
     signPub: newDevice.signPub,
     recipient: newDevice.recipient,
     addedAt: new Date().toISOString(),
@@ -294,6 +297,8 @@ export async function revokeDeviceViaRoster(
 export interface RosterDeviceView {
   deviceId: string;
   name: string;
+  /** Coarse runtime category for the list icon; inferred for pre-kind entries. */
+  kind?: DeviceKind;
   signPub: string;
   recipient: string;
   addedAt: string;
@@ -315,6 +320,7 @@ export async function listRosterDevices(
   return roster.entries.map((entry) => ({
     deviceId: entry.deviceId,
     name: entry.name,
+    kind: entry.kind ?? inferDeviceKind(entry.deviceId),
     signPub: entry.signPub,
     recipient: entry.recipient,
     addedAt: entry.addedAt,
@@ -343,15 +349,17 @@ export async function rosterEntryForDevice(
  */
 export async function approveDeviceViaRoster(
   signer: DeviceIdentity,
-  newDevice: { deviceId: string; name: string; recipient: string; signPub: string },
+  newDevice: { deviceId: string; name: string; recipient: string; signPub: string; kind?: DeviceKind },
 ): Promise<void> {
   await addDeviceViaRoster(signer, newDevice);
+  const kind = newDevice.kind ?? inferDeviceKind(newDevice.deviceId);
   await writeDeviceRecord(
     buildDeviceRecord({
       deviceId: newDevice.deviceId,
       name: newDevice.name,
       recipient: newDevice.recipient,
       addedAt: new Date().toISOString(),
+      ...(kind ? { kind } : {}),
     }),
     `Register device "${newDevice.name}" (roster-approved)`,
   );

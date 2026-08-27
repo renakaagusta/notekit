@@ -5,6 +5,7 @@
  *
  * Re-exported from secrets-vault.ts for external callers.
  */
+import { inferDeviceKind, type DeviceKind } from "../domain/device-kind";
 import type { DeviceIdentity } from "./crypto/device-key";
 import type { RecoverySigningKey } from "./crypto/recovery";
 import {
@@ -56,7 +57,7 @@ export interface SelfRegisterResult {
 }
 
 export async function addDevice(
-  newDevice: { deviceId: string; name: string; recipient: string },
+  newDevice: { deviceId: string; name: string; recipient: string; kind?: DeviceKind },
   signer: DeviceIdentity,
   recoverySigning?: RecoverySigningKey,
 ): Promise<void> {
@@ -75,9 +76,10 @@ export async function addDevice(
       if (m.signingKey === signerKeyB64) { owner = m.memberId; break; }
     }
   }
+  const kind = newDevice.kind ?? inferDeviceKind(newDevice.deviceId);
   await writeDeviceRecord(
     buildDeviceRecord(
-      { deviceId: newDevice.deviceId, name: newDevice.name, recipient: newDevice.recipient, addedAt: now },
+      { deviceId: newDevice.deviceId, name: newDevice.name, recipient: newDevice.recipient, addedAt: now, ...(kind ? { kind } : {}) },
       recoverySigning,
       owner,
     ),
@@ -191,7 +193,7 @@ export async function ensureOwnerMember(
     if (!deviceRecordTrusted(d, ownerKeyB64)) continue;
     await writeDeviceRecord(
       buildDeviceRecord(
-        { deviceId: d.deviceId, name: d.name, recipient: d.recipient, addedAt: d.addedAt },
+        { deviceId: d.deviceId, name: d.name, recipient: d.recipient, addedAt: d.addedAt, ...(d.kind ? { kind: d.kind } : {}) },
         ownerSigning,
         owner.memberId,
       ),

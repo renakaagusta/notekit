@@ -76,5 +76,7 @@ export interface PairAnnouncement {
    * approver falls back to the recovery-signed device-record path.
    */
   signPub?: string;
+  /** Cosmetic runtime category (web/desktop/…) for the devices-list icon. */
+  deviceKind?: string;
   expiresAt: string;
 }

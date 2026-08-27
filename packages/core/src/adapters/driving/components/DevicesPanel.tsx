@@ -1,3 +1,4 @@
+import { Bot, Globe, Monitor, Smartphone, Terminal } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   admitMember,
@@ -6,6 +7,11 @@ import {
   revokeMember,
   type SharePreview,
 } from "../../../composition/directory";
+import {
+  deviceKindLabel,
+  inferDeviceKind,
+  type DeviceKind,
+} from "../../../domain/device-kind";
 import type { DeviceIdentity } from "../../../lib/crypto/device-key";
 import { recoverySigningFromMnemonic } from "../../../lib/crypto/recovery";
 import type { RecoverySigningKey } from "../../../lib/crypto/recovery";
@@ -43,6 +49,17 @@ import { VaultApproveDevice } from "./VaultPairing";
  *    one-tap approval (no phrase); only admitting another *person* asks you
  *    to confirm their emoji safety number.
  */
+function DeviceKindIcon({ kind }: { kind: DeviceKind }) {
+  switch (kind) {
+    case "desktop": return <Monitor size={16} aria-hidden />;
+    case "web": return <Globe size={16} aria-hidden />;
+    case "ios":
+    case "android": return <Smartphone size={16} aria-hidden />;
+    case "cli": return <Terminal size={16} aria-hidden />;
+    case "mcp": return <Bot size={16} aria-hidden />;
+  }
+}
+
 async function revokeDeviceWithRecovery(
   deviceId: string,
   device: DeviceIdentity,
@@ -316,10 +333,17 @@ export function DevicesPanel() {
 
   function renderDevice(d: DeviceRecord) {
     const idSuffix = d.deviceId.slice(-4);
+    const kind = d.kind ?? inferDeviceKind(d.deviceId);
     return (
       <li key={d.deviceId} className="nk-device-item">
+        {kind && (
+          <span className="nk-device-icon" title={deviceKindLabel(kind)} aria-hidden>
+            <DeviceKindIcon kind={kind} />
+          </span>
+        )}
         <div>
           <strong>{d.name}</strong>
+          {kind && <span className="nk-pill nk-pill--kind">{deviceKindLabel(kind)}</span>}
           {d.deviceId === device?.deviceId && (
             <span className="nk-pill">this device</span>
           )}

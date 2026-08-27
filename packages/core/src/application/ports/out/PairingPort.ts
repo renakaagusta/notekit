@@ -14,6 +14,7 @@ export interface PairingPort {
     deviceName: string;
     deviceId: string;
     signPub?: string;
+    deviceKind?: string;
   }): Promise<{ ok: true; expiresAt: string }>;
   fetchPair(code: string): Promise<PairAnnouncement | null>;
   clearPair(code: string): Promise<{ ok: true }>;

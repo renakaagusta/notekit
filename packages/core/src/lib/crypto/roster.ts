@@ -23,6 +23,7 @@
  * never leaves that device. This module only ever handles public keys and
  * signatures.
  */
+import type { DeviceKind } from "../../domain/device-kind";
 import { rosterSigningPayload, sign, verify, fromB64 } from "./signing";
 
 /** One trusted device in the roster. All public — safe to commit to git. */
@@ -35,6 +36,8 @@ export interface RosterEntry {
   /** age recipient (`age1…`) the vault key is wrapped to for this device. */
   recipient: string;
   addedAt: string;
+  /** Coarse runtime category for the devices-list icon. Cosmetic, NOT signed. */
+  kind?: DeviceKind;
   /**
    * `signPub` of whoever admitted this entry — the master key at genesis, or an
    * in-roster device afterwards. Audit metadata; NOT covered by the signature

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { notificationsService } from "../../../composition/notifications";
 import { pairingService } from "../../../composition/pairing";
+import type { DeviceKind } from "../../../domain/device-kind";
 import { deriveFingerprint, formatFingerprint } from "../../../lib/crypto/fingerprint";
 import {
   recoveryFromMnemonic,
@@ -164,6 +165,7 @@ export function VaultPairNewDevice() {
           // on approval with no recovery phrase. Omitted on a device predating
           // Model B (falls back to the recovery-signed path).
           signPub: deviceSigner(device)?.signPub,
+          ...(device.kind ? { deviceKind: device.kind } : {}),
         });
         if (!cancelled) setPairCode(code);
       } catch (e) {
@@ -398,6 +400,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     deviceName: string;
     deviceId: string;
     signPub?: string;
+    deviceKind?: string;
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -421,6 +424,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
         deviceName: res.deviceName,
         deviceId: res.deviceId,
         signPub: res.signPub,
+        deviceKind: res.deviceKind,
       });
     } catch (e) {
       setError((e as Error).message);
@@ -442,6 +446,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     deviceName: string;
     deviceId: string;
     signPub?: string;
+    deviceKind?: string;
   }): Promise<boolean> {
     if (!signer || !target.signPub) return false;
     const roster = await currentRoster();
@@ -453,6 +458,8 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
       name: target.deviceName,
       recipient: target.pubkey,
       signPub: target.signPub,
+      // Validated server-side against the known kinds before relay.
+      ...(target.deviceKind ? { kind: target.deviceKind as DeviceKind } : {}),
     });
     return true;
   }
@@ -461,6 +468,7 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
     pubkey: string;
     deviceName: string;
     deviceId: string;
+    deviceKind?: string;
   }): Promise<boolean> {
     if (!signer) return false;
     // Sign the new device record with the recovery key. The origin device holds
@@ -486,7 +494,12 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
       }
     }
     await addDevice(
-      { deviceId: target.deviceId, name: target.deviceName, recipient: target.pubkey },
+      {
+        deviceId: target.deviceId,
+        name: target.deviceName,
+        recipient: target.pubkey,
+        ...(target.deviceKind ? { kind: target.deviceKind as DeviceKind } : {}),
+      },
       signer,
       recoverySigning,
     );

@@ -320,6 +320,7 @@ const setupCmd = defineCommand({
       const device: DeviceIdentity = {
         deviceId: `cli-${nanoid(8)}`,
         name: "notekit-cli",
+        kind: "cli",
         identity,
         recipient,
         createdAt: new Date().toISOString(),
@@ -387,6 +388,7 @@ const pairCmd = defineCommand({
         const id: DeviceIdentity = {
           deviceId: `cli-${nanoid(8)}`,
           name: "notekit-cli",
+          kind: "cli",
           identity,
           recipient,
           createdAt: new Date().toISOString(),
@@ -416,6 +418,7 @@ const pairCmd = defineCommand({
         deviceName: device.name,
         deviceId: device.deviceId,
         signPub: deviceSigner(device)?.signPub,
+        ...(device.kind ? { deviceKind: device.kind } : {}),
       });
 
       const formatted = `${code.slice(0, 3)} ${code.slice(3)}`;

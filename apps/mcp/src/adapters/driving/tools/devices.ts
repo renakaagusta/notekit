@@ -71,6 +71,7 @@ function registerPairTool(server: McpServer, nk: NoteKitApi): void {
           deviceName: self.name,
           deviceId: self.deviceId,
           signPub: signer.signPub,
+          ...(self.kind ? { deviceKind: self.kind } : {}),
         });
         return textContent(
           [

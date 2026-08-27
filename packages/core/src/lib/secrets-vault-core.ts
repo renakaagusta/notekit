@@ -8,6 +8,7 @@
  */
 import type { NoteKitApi } from "@notekit/api-client";
 import type { StoragePort } from "../application/ports/out/StoragePort";
+import type { DeviceKind } from "../domain/device-kind";
 import type { DeviceIdentity } from "./crypto/device-key";
 import {
   type VaultKey,
@@ -240,6 +241,8 @@ export interface DeviceRecord {
   name: string;
   recipient: string;
   addedAt: string;
+  /** Coarse runtime category for the devices-list icon. Cosmetic, not signed. */
+  kind?: DeviceKind;
   owner?: string;
   sig?: string;
 }
@@ -808,7 +811,7 @@ export async function writeRecoveryRecord(record: RecoveryRecord, message: strin
 }
 
 export function buildDeviceRecord(
-  fields: { deviceId: string; name: string; recipient: string; addedAt: string },
+  fields: { deviceId: string; name: string; recipient: string; addedAt: string; kind?: DeviceKind },
   signing?: RecoverySigningKey,
   owner?: string,
 ): DeviceRecord {

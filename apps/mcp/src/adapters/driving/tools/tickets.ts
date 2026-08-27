@@ -8,6 +8,7 @@ import { randomBytes } from "node:crypto";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { NoteKitApi } from "@notekit/api-client";
 import { slugify } from "@notekit/core/paths";
+import { deriveTicketKey } from "@notekit/core/ticket-key";
 import type { Ticket } from "@notekit/core/types";
 import { z } from "zod";
 import { vaultIsEncrypted, encryptTicket, decryptTicket, parseMarkdown, serializeMarkdown ,
@@ -113,6 +114,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
             sha: file.sha,
             frontmatter: {
               title: ticket.title,
+              ...(ticket.key ? { key: ticket.key } : {}),
               status: ticket.status,
               priority: ticket.priority,
               assignee: ticket.assignee,
@@ -145,6 +147,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         "Create a new task. Default path is `<writePrefix><slugified-title>.md` (project-scoped folder if a `.notekit` marker is present). Defaults: status=`todo`, priority=`medium`.",
       inputSchema: {
         title: z.string().min(1).describe("Ticket title."),
+        key: z.string().optional().describe("Human-friendly key (slug). Auto-derived from the title if omitted; de-duped per vault."),
         body: z.string().optional().describe("Optional Markdown description."),
         status: z.enum(STATUSES).optional().describe("Initial status (default `todo`)."),
         priority: z.enum(PRIORITIES).optional().describe("Priority (default `medium`)."),
@@ -165,8 +168,14 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         // Born-E2EE vault → seal as an opaque tickets/<id>.md.age (#49).
         if (await vaultIsEncrypted()) {
           const id = newItemId();
+          const key = deriveTicketKey(
+            args.title,
+            await collectExistingKeys(nk, ["tickets/"]),
+            args.key,
+          );
           const ticket: Ticket = {
             id,
+            key,
             path: `tickets/${id}.md.age`,
             title: args.title,
             body: args.body ?? "",
@@ -186,7 +195,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
             sealed,
             args.commitMessage ?? `notekit: open ticket ${args.title}`,
           );
-          return textContent(`Created encrypted ticket at ${ticket.path}`);
+          return textContent(`Created encrypted ticket ${key} at ${ticket.path}`);
         }
         const ctx = resolveProjectContext();
         const resolved = resolveScope("tickets", {
@@ -196,8 +205,14 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         });
         const targetPath =
           args.path ?? `${resolved.writePrefix}${slugify(args.title)}.md`;
+        const key = deriveTicketKey(
+          args.title,
+          await collectExistingKeys(nk, resolved.readPrefixes),
+          args.key,
+        );
         const frontmatter: Record<string, unknown> = {
           title: args.title,
+          key,
           status: args.status ?? "todo",
           priority: args.priority ?? "medium",
           assignee: args.assignee ?? null,
@@ -215,7 +230,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
           content,
           args.commitMessage ?? `notekit: open ticket ${args.title}`,
         );
-        return textContent(`Created ticket at ${targetPath}`);
+        return textContent(`Created ticket ${key} at ${targetPath}`);
       } catch (err) {
         return errorContent(`tasks_create failed: ${(err as Error).message}`);
       }
@@ -231,6 +246,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
       inputSchema: {
         path: z.string().min(1).describe("Vault path of the ticket."),
         title: z.string().optional(),
+        key: z.string().optional().describe("Rename the human-friendly key (slug). Slugged + de-duped per vault."),
         status: z.enum(STATUSES).optional(),
         priority: z.enum(PRIORITIES).optional(),
         assignee: z.string().nullable().optional(),
@@ -248,6 +264,10 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         if (existing.content && isEncryptedItemPath(path)) {
           const ticket = await decryptTicket(path, existing.content);
           if (!ticket) return errorContent(`tasks_update: couldn't decrypt ${path}`);
+          if (patch.key !== undefined) {
+            const others = (await collectExistingKeys(nk, ["tickets/"])).filter((k) => k !== ticket.key);
+            ticket.key = deriveTicketKey(ticket.title, others, patch.key);
+          }
           applyTicketPatch(ticket, body, patch);
           ticket.updatedAt = new Date().toISOString();
           const sealed = await encryptTicket(ticket);
@@ -261,10 +281,7 @@ export function registerTicketTools(server: McpServer, nk: NoteKitApi): void {
         }
         const parsed = parseMarkdown(existing.content ?? "");
         const fm: Record<string, unknown> = { ...parsed.frontmatter };
-        for (const [k, v] of Object.entries(patch)) {
-          if (v === undefined) continue;
-          fm[k] = v;
-        }
+        await applyFrontmatterPatch(nk, path, fm, patch);
         fm["updatedAt"] = new Date().toISOString();
         const nextContent = serializeMarkdown({
           frontmatter: fm,
@@ -335,6 +352,59 @@ function deriveTitle(path: string): string {
   return base.replace(/\.md$/, "");
 }
 
+function parentPrefix(path: string): string {
+  const index = path.lastIndexOf("/");
+  return index >= 0 ? path.slice(0, index + 1) : "";
+}
+
+/**
+ * Apply a tasks_update patch onto plaintext frontmatter in place. A `key` field
+ * is a rename: slugged + de-duped against the other tickets in its folder.
+ */
+async function applyFrontmatterPatch(
+  nk: NoteKitApi,
+  path: string,
+  fm: Record<string, unknown>,
+  patch: Record<string, unknown>,
+): Promise<void> {
+  for (const [field, value] of Object.entries(patch)) {
+    if (value === undefined) continue;
+    if (field === "key") {
+      const others = (await collectExistingKeys(nk, [parentPrefix(path)])).filter(
+        (key) => key !== fm["key"],
+      );
+      fm["key"] = deriveTicketKey(String(fm["title"] ?? ""), others, String(value));
+      continue;
+    }
+    fm[field] = value;
+  }
+}
+
+/**
+ * Collect the human-friendly keys already taken across the given prefixes, so a
+ * new/renamed ticket can be de-duped. Best-effort: unreadable or un-decryptable
+ * tickets are skipped rather than aborting the write.
+ */
+async function collectExistingKeys(nk: NoteKitApi, prefixes: string[]): Promise<string[]> {
+  const keys: string[] = [];
+  for (const filePath of await collectCandidatePaths(nk, prefixes)) {
+    try {
+      const file = await nk.vault.readFile(filePath);
+      if (isEncryptedItemPath(filePath)) {
+        const ticket = file.content ? await decryptTicket(filePath, file.content) : null;
+        if (ticket?.key) keys.push(ticket.key);
+      } else if (filePath.endsWith(".md")) {
+        const parsed = parseMarkdown(file.content ?? "");
+        const key = parsed.frontmatter["key"];
+        if (key) keys.push(String(key));
+      }
+    } catch {
+      // Skip unreadable/locked tickets — a missing key just can't collide.
+    }
+  }
+  return keys;
+}
+
 /**
  * Run the full ticket list loop over candidate paths.
  */
@@ -396,6 +466,7 @@ async function tryDecryptAndReadTicket(
   if (!t) return "encrypted-failed";
   return {
     path: filePath,
+    ...(t.key ? { key: t.key } : {}),
     title: t.title,
     status: t.status,
     priority: t.priority,
@@ -417,6 +488,7 @@ async function readPlaintextTicket(
   const { frontmatter, body } = parseMarkdown(file.content ?? "");
   return {
     path: filePath,
+    ...(frontmatter["key"] ? { key: frontmatter["key"] } : {}),
     title: frontmatter["title"] ?? deriveTitle(filePath),
     status: frontmatter["status"] ?? "todo",
     priority: frontmatter["priority"] ?? "medium",

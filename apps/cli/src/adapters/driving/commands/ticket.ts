@@ -4,6 +4,7 @@
 // model as notes.
 
 import type { NoteKitApi } from "@notekit/api-client";
+import { deriveTicketKey } from "@notekit/core/ticket-key";
 import type { Ticket, TicketStatus, TicketPriority } from "@notekit/core/types";
 import { defineCommand } from "citty";
 import kleur from "kleur";
@@ -25,6 +26,7 @@ const INDEX_PATH = `${TICKETS_DIR}/index.json`;
 
 interface TicketIndexEntry {
   id: string;
+  key?: string;
   path: string;
   title: string;
   status: TicketStatus;
@@ -48,6 +50,7 @@ const newCmd = defineCommand({
     priority: { type: "string", description: "low|medium|high|urgent (default medium).", required: false },
     assignee: { type: "string", description: "Assignee ref, e.g. user:abc or agent:xyz.", required: false },
     label: { type: "string", description: "Comma-separated labels.", required: false },
+    key: { type: "string", description: "Human-friendly key (slug). Auto-derived from the title if omitted.", required: false },
   },
   async run({ args }) {
     try {
@@ -65,8 +68,15 @@ const newCmd = defineCommand({
         ? String(args.label).split(",").map((s) => s.trim()).filter(Boolean)
         : [];
 
+      const key = deriveTicketKey(
+        String(args.title),
+        await listTicketKeys(nk),
+        args.key ? String(args.key) : undefined,
+      );
+
       const ticket: Omit<Ticket, "path"> = {
         id,
+        key,
         title: String(args.title),
         body,
         status: "todo",
@@ -84,6 +94,7 @@ const newCmd = defineCommand({
       await updateIndex(nk, (idx) => {
         idx.tickets.unshift({
           id,
+          key,
           path,
           title: ticket.title,
           status: ticket.status,
@@ -94,7 +105,7 @@ const newCmd = defineCommand({
         return idx;
       });
 
-      process.stdout.write(`${kleur.green("created")} ${path}\n`);
+      process.stdout.write(`${kleur.green("created")} ${kleur.cyan(key)} ${kleur.dim(path)}\n`);
     } catch (err) {
       dieWithError(err);
     }
@@ -114,6 +125,7 @@ const listCmd = defineCommand({
       // fields below (status/priority/title).
       let rows: {
         id: string;
+        key?: string;
         title: string;
         status: TicketStatus;
         priority: TicketPriority;
@@ -132,7 +144,7 @@ const listCmd = defineCommand({
       }
       for (const t of rows) {
         process.stdout.write(
-          `${kleur.dim(t.id)}  ${badge(t.status)}  ${priorityBadge(t.priority)}  ${t.title}\n`,
+          `${kleur.cyan(t.key ?? t.id)}  ${badge(t.status)}  ${priorityBadge(t.priority)}  ${t.title}\n`,
         );
       }
     } catch (err) {
@@ -148,7 +160,8 @@ const showCmd = defineCommand({
     try {
       const nk = await getSecretsClient({ requireAuth: true });
       const { ticket } = await readTicket(nk, String(args.id));
-      process.stdout.write(`${kleur.bold(ticket.title)}  ${kleur.dim(`#${ticket.id}`)}\n`);
+      const ref = ticket.key ? `${kleur.cyan(ticket.key)} ${kleur.dim(`#${ticket.id}`)}` : kleur.dim(`#${ticket.id}`);
+      process.stdout.write(`${kleur.bold(ticket.title)}  ${ref}\n`);
       process.stdout.write(`${badge(ticket.status)}  ${priorityBadge(ticket.priority)}`);
       if (ticket.assignee) process.stdout.write(`  ${kleur.cyan(ticket.assignee)}`);
       if (ticket.labels.length > 0) process.stdout.write(`  ${ticket.labels.map((l) => kleur.gray(`#${l}`)).join(" ")}`);
@@ -206,6 +219,36 @@ const assignCmd = defineCommand({
   },
 });
 
+const renameCmd = defineCommand({
+  meta: { name: "rename", description: "Change a task's human-friendly key (its slug)." },
+  args: {
+    id: { type: "positional", description: "Task id, key, or path.", required: true },
+    key: { type: "positional", description: "New key (slug).", required: true },
+  },
+  async run({ args }) {
+    try {
+      const nk = await getSecretsClient({ requireAuth: true });
+      const { ticket, sha } = await readTicket(nk, String(args.id));
+      const others = (await listTicketKeys(nk)).filter((k) => k !== ticket.key);
+      const next = deriveTicketKey(ticket.title, others, String(args.key));
+      ticket.key = next;
+      ticket.updatedAt = new Date().toISOString();
+      await writeTicket(nk, ticket, sha);
+      await updateIndex(nk, (idx) => {
+        const row = idx.tickets.find((t) => t.id === ticket.id);
+        if (row) {
+          row.key = next;
+          row.updatedAt = ticket.updatedAt;
+        }
+        return idx;
+      });
+      process.stdout.write(`${kleur.green("renamed")} ${ticket.id} -> ${kleur.cyan(next)}\n`);
+    } catch (err) {
+      dieWithError(err);
+    }
+  },
+});
+
 const rmCmd = defineCommand({
   meta: { name: "rm", description: "Delete a task." },
   args: {
@@ -243,6 +286,7 @@ export const ticketCommand = defineCommand({
     close: closeCmd,
     reopen: reopenCmd,
     assign: assignCmd,
+    rename: renameCmd,
     rm: rmCmd,
   },
 });
@@ -302,6 +346,13 @@ function priorityBadge(p: TicketPriority): string {
   }
 }
 
+async function listTicketKeys(nk: NoteKitApi): Promise<string[]> {
+  const rows = (await vaultIsEncrypted())
+    ? await listEncryptedTickets(nk)
+    : (await readIndex(nk)).index.tickets;
+  return rows.map((t) => t.key).filter((k): k is string => Boolean(k));
+}
+
 async function readIndex(nk: NoteKitApi): Promise<{ index: TicketIndex; sha: string | null }> {
   try {
     const file = await nk.vault.readFile(INDEX_PATH);
@@ -334,9 +385,17 @@ async function resolveTicketPath(nk: NoteKitApi, idOrPath: string): Promise<stri
   ) {
     return idOrPath;
   }
-  if (await vaultIsEncrypted()) return `${TICKETS_DIR}/${idOrPath}.md.age`;
+  if (await vaultIsEncrypted()) {
+    // The file name is the nanoid id; a human key lives inside the ciphertext,
+    // so resolving one means scanning + decrypting the ticket list.
+    const direct = `${TICKETS_DIR}/${idOrPath}.md.age`;
+    const match = (await listEncryptedTickets(nk)).find(
+      (t) => t.id === idOrPath || t.key === idOrPath,
+    );
+    return match?.path ?? direct;
+  }
   const { index: idx } = await readIndex(nk);
-  const found = idx.tickets.find((t) => t.id === idOrPath);
+  const found = idx.tickets.find((t) => t.id === idOrPath || t.key === idOrPath);
   if (found) return found.path;
   return `${TICKETS_DIR}/${idOrPath}.md`;
 }
@@ -355,6 +414,7 @@ async function readTicket(nk: NoteKitApi, idOrPath: string): Promise<{ ticket: T
   // tickets may be missing optional fields.
   const ticket: Ticket = {
     id: String(data.id ?? path.split("/").pop()?.replace(/\.md$/, "") ?? ""),
+    ...(data.key ? { key: String(data.key) } : {}),
     path,
     title: String(data.title ?? "(untitled)"),
     body: body.trimStart(),
@@ -380,6 +440,7 @@ async function writeTicket(nk: NoteKitApi, ticket: Ticket, sha?: string | null):
   }
   const data: Record<string, unknown> = {
     id: ticket.id,
+    ...(ticket.key ? { key: ticket.key } : {}),
     title: ticket.title,
     status: ticket.status,
     priority: ticket.priority,

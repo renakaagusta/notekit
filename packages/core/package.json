@@ -14,6 +14,7 @@
     "./secrets": "./src/lib/secrets-vault.ts",
     "./crypto": "./src/lib/crypto/index.ts",
     "./paths": "./src/domain/file-paths.ts",
+    "./ticket-key": "./src/domain/ticket-key.ts",
     "./vault-e2ee": "./src/lib/vault-e2ee.ts",
     "./styles.css": "./src/styles.css"
   },

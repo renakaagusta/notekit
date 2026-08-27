@@ -449,9 +449,9 @@ export function TicketsBoard({ focusTicket, endSlot }: TicketsBoardProps = {}) {
                         e.stopPropagation();
                         setDetailId(t.id);
                       }}
-                      title="Open ticket"
+                      title={t.key ? `${t.key} · open ticket` : "Open ticket"}
                     >
-                      {t.id.slice(0, 6)}
+                      {t.key ?? t.id.slice(0, 6)}
                     </button>
                     <span className={`nk-chip ${PRIORITY_CLASS[t.priority]}`}>
                       {PRIORITY_LABEL[t.priority]}

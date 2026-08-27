@@ -162,6 +162,17 @@ describe("tickets E2EE round-trip", () => {
     expect(restored!.dueDate).toBe(original.dueDate);
   });
 
+  it("round-trips the human-friendly key inside the ciphertext, not the header", async () => {
+    const original = buildTicket({ key: "fire-client-x" });
+    const content = await serializeEncryptedTicket(original, [recipient]);
+    const headerEnd = content.indexOf("-----BEGIN AGE ENCRYPTED FILE-----");
+    // The key is title-derived, so it must not leak into the plaintext header.
+    expect(content.slice(0, headerEnd)).not.toContain("fire-client-x");
+    const restored = await deserializeEncryptedTicket(original.path, content, identity);
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- round-trip always restores
+    expect(restored!.key).toBe("fire-client-x");
+  });
+
   it("exposes status/priority/dueDate to the operator but hides title/assignee", async () => {
     const t = buildTicket();
     const content = await serializeEncryptedTicket(t, [recipient]);

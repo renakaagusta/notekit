@@ -7,6 +7,7 @@ const ports = (encryptionRequired = false, defaultCreator: string | null = "user
   resolvePath: (t) => `tickets/${t.title || "untitled"}--${t.id}.md`,
   encryptionRequired,
   defaultCreator,
+  existingKeys: [],
 });
 
 describe("resolveUpsertedTicket", () => {
@@ -14,6 +15,7 @@ describe("resolveUpsertedTicket", () => {
     const t = resolveUpsertedTicket("t1", { title: "Do it" }, undefined, ports());
     expect(t).toEqual<Ticket>({
       id: "t1",
+      key: "do-it",
       path: "tickets/Do it--t1.md",
       title: "Do it",
       body: "",
@@ -53,5 +55,31 @@ describe("resolveUpsertedTicket", () => {
 
   it("defaults new tickets to the vault encryption policy", () => {
     expect(resolveUpsertedTicket("n", { title: "t" }, undefined, ports(true)).encrypted).toBe(true);
+  });
+
+  it("derives a human-friendly key from the title on create", () => {
+    expect(resolveUpsertedTicket("t1", { title: "Deploy to prod" }, undefined, ports()).key).toBe(
+      "deploy-to-prod",
+    );
+  });
+
+  it("de-dupes the derived key against other tickets' keys", () => {
+    const t = resolveUpsertedTicket("t2", { title: "Deploy" }, undefined, {
+      ...ports(),
+      existingKeys: ["deploy"],
+    });
+    expect(t.key).toBe("deploy-2");
+  });
+
+  it("keeps a ticket's key stable across a plain title edit", () => {
+    const existing = { ...(resolveUpsertedTicket("t1", { title: "Deploy" }, undefined, ports())) };
+    const renamed = resolveUpsertedTicket("t1", { title: "Deploy v2" }, existing, ports());
+    expect(renamed.key).toBe("deploy");
+  });
+
+  it("renames the key when the command supplies one, slugging and de-duping it", () => {
+    const existing = resolveUpsertedTicket("t1", { title: "Deploy" }, undefined, ports());
+    const renamed = resolveUpsertedTicket("t1", { title: "Deploy", key: "Ship It" }, existing, ports());
+    expect(renamed.key).toBe("ship-it");
   });
 });

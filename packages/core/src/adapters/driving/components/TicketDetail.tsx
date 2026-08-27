@@ -78,6 +78,7 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
 
   const currentAuthor = vault?.owner ? `user:${vault.owner}` : "user:me";
   const creator = resolveAssignee(ticket.createdBy, members);
+  const keyDisplay = ticket.key ?? ticket.id.slice(0, 8);
 
   function sendComment() {
     const text = draft.trim();
@@ -103,7 +104,23 @@ export function TicketDetail({ ticketId, onClose }: TicketDetailProps) {
         aria-label={`Ticket ${ticket.title}`}
       >
         <header className="nk-detail-hd">
-          <div className="nk-detail-id">{ticket.id.slice(0, 8)}</div>
+          <div
+            className="nk-detail-id"
+            contentEditable
+            suppressContentEditableWarning
+            spellCheck={false}
+            title="Rename key — a human-friendly slug, unique per vault"
+            onBlur={(e) => {
+              const next = e.currentTarget.textContent?.trim();
+              if (next && next !== keyDisplay) {
+                upsert({ ...ticket, key: next });
+              } else {
+                e.currentTarget.textContent = keyDisplay;
+              }
+            }}
+          >
+            {keyDisplay}
+          </div>
           <button
             className="nk-iconbtn"
             onClick={onClose}

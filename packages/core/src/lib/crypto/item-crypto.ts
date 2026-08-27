@@ -59,6 +59,7 @@ export interface EncryptedTicketPayload {
   labels: string[];
   linkedNotes: string[];
   createdBy: string | null;
+  key?: string;
 }
 export interface EncryptedLinkPayload {
   title: string;
@@ -178,6 +179,7 @@ export function splitTicketForEncryption(t: Ticket): {
       labels: t.labels,
       linkedNotes: t.linkedNotes,
       createdBy: t.createdBy,
+      ...(t.key ? { key: t.key } : {}),
     },
   };
 }
@@ -189,6 +191,7 @@ export function mergeEncryptedTicket(
 ): Ticket {
   return {
     id: fm.id,
+    ...(payload.key ? { key: payload.key } : {}),
     path,
     title: payload.title,
     body: payload.body,

@@ -1,4 +1,5 @@
 import type { Ticket } from "../../domain/entities/ticket";
+import { deriveTicketKey } from "../../domain/ticket-key";
 import type { ClockPort } from "../ports/out/ClockPort";
 
 /** Fields a caller may supply when creating or updating a ticket. */
@@ -12,6 +13,28 @@ export interface UpsertTicketPorts {
   encryptionRequired: boolean;
   /** Creator to stamp on new tickets (e.g. `user:<owner>`), resolved by the caller. */
   defaultCreator: string | null;
+  /**
+   * Keys already taken by OTHER tickets in the vault, for uniqueness when
+   * deriving/renaming this ticket's human-friendly key. Excludes this ticket's
+   * own key so a title edit doesn't churn a stable key.
+   */
+  existingKeys: Iterable<string>;
+}
+
+/**
+ * Resolve the human-friendly key for an upsert. An explicit `command.key` is a
+ * rename (slugged + de-duped against other tickets). Otherwise keep a ticket's
+ * existing key, and derive a fresh one only when it has none (create/backfill).
+ */
+function resolveTicketKey(
+  command: UpsertTicketCommand,
+  existing: Ticket | undefined,
+  existingKeys: Iterable<string>,
+): string {
+  if (command.key !== undefined) {
+    return deriveTicketKey(command.title, existingKeys, command.key);
+  }
+  return existing?.key ?? deriveTicketKey(command.title, existingKeys);
 }
 
 /**
@@ -30,6 +53,7 @@ export function resolveUpsertedTicket(
   const timestamp = ports.clock.nowIso();
   return {
     id,
+    key: resolveTicketKey(command, existing, ports.existingKeys),
     path: command.path ?? existing?.path ?? ports.resolvePath({ id, title: command.title }),
     title: command.title,
     body: command.body ?? existing?.body ?? "",

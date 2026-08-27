@@ -138,6 +138,7 @@ export function deserializeNote(path: string, content: string): Note | null {
 export function serializeTicket(t: Ticket): string {
   const fm = emitFrontmatter({
     id: t.id,
+    ...(t.key ? { key: t.key } : {}),
     status: t.status,
     priority: t.priority,
     assignee: t.assignee,
@@ -175,6 +176,7 @@ export function deserializeTicket(path: string, content: string): Ticket | null 
 
   return {
     id,
+    ...(frontmatter.key ? { key: String(frontmatter.key) } : {}),
     path,
     title,
     body: rest,

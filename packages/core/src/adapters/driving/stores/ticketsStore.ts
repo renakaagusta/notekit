@@ -39,11 +39,16 @@ export const useTicketsStore = create<TicketsState>()(
       const id = input.id ?? nanoid(12);
       const existing = get().tickets[id];
       const owner = useVaultStore.getState().vault?.owner;
+      const existingKeys: string[] = [];
+      for (const other of Object.values(get().tickets)) {
+        if (other.id !== id && other.key) existingKeys.push(other.key);
+      }
       const ticket = resolveUpsertedTicket(id, input, existing, {
         clock: { now: () => Date.now(), nowIso: now },
         resolvePath: ticketPathFor,
         encryptionRequired: useCryptoStore.getState().encryptionRequired,
         defaultCreator: owner ? `user:${owner}` : null,
+        existingKeys,
       });
       set((state) => {
         state.tickets[id] = ticket;

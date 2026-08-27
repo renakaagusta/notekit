@@ -9,6 +9,7 @@ import type { NoteKitApi } from "@notekit/api-client";
 import type { SavedLink } from "../domain/entities/link";
 import type { Note } from "../domain/entities/note";
 import type { Ticket } from "../domain/entities/ticket";
+import { mapWithConcurrency } from "./concurrency";
 import {
   serializeEncryptedNote,
   serializeEncryptedTicket,
@@ -27,6 +28,14 @@ import {
 } from "./secrets-vault";
 
 export { isEncryptedItemPath as isEncrypted, classifyEncryptedPath };
+
+/**
+ * How many ciphertext files to fetch at once when scanning a vault. An E2EE
+ * vault has no plaintext index, so a listing reads every file — done serially
+ * over the network that is unusably slow. Bounded so we don't hammer the
+ * git backend (our own Forgejo) with an unbounded burst.
+ */
+const VAULT_READ_CONCURRENCY = 8;
 
 /**
  * Finish a cross-vault migration: re-seal every item that was byte-copied from
@@ -113,20 +122,20 @@ export async function listEncryptedNotes(
   identity: RecoveryIdentity,
 ): Promise<Note[]> {
   const { entries } = await nk.vault.listFiles("notes/");
-  const out: Note[] = [];
-  for (const e of entries) {
-    if (classifyEncryptedPath(e.path) !== "note") continue;
+  const targets = entries.filter((e) => classifyEncryptedPath(e.path) === "note");
+  const decrypted = await mapWithConcurrency(targets, VAULT_READ_CONCURRENCY, async (e) => {
     const file = await nk.vault.readFile(e.path);
-    if (!file.content) continue;
+    if (!file.content) return null;
     try {
-      const note = await decryptNote(e.path, file.content, identity);
-      if (note) out.push(note);
+      return await decryptNote(e.path, file.content, identity);
     } catch {
       // A note sealed to a recipient set this identity isn't in (e.g. an
       // orphan from a migration) shouldn't fail the whole listing — skip it,
       // mirroring the app, which shows readable items and flags the rest.
+      return null;
     }
-  }
+  });
+  const out = decrypted.filter((note): note is Note => note !== null);
   out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return out;
 }
@@ -137,18 +146,18 @@ export async function listEncryptedTickets(
   identity: RecoveryIdentity,
 ): Promise<Ticket[]> {
   const { entries } = await nk.vault.listFiles("tickets/");
-  const out: Ticket[] = [];
-  for (const e of entries) {
-    if (classifyEncryptedPath(e.path) !== "ticket") continue;
+  const targets = entries.filter((e) => classifyEncryptedPath(e.path) === "ticket");
+  const decrypted = await mapWithConcurrency(targets, VAULT_READ_CONCURRENCY, async (e) => {
     const file = await nk.vault.readFile(e.path);
-    if (!file.content) continue;
+    if (!file.content) return null;
     try {
-      const t = await decryptTicket(e.path, file.content, identity);
-      if (t) out.push(t);
+      return await decryptTicket(e.path, file.content, identity);
     } catch {
       // Skip an item this identity can't open (see listEncryptedNotes).
+      return null;
     }
-  }
+  });
+  const out = decrypted.filter((t): t is Ticket => t !== null);
   out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return out;
 }

@@ -18,6 +18,7 @@ export {
   setDeviceIdentity,
 } from "../adapters/driven/keychain.js";
 export { openEditor } from "../adapters/driven/editor.js";
+export { clearCiphertextCache, cacheInfo } from "../adapters/driven/vault-cache.js";
 export {
   ALL_CLIENTS,
   buildEntry,

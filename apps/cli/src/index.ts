@@ -9,6 +9,7 @@
 
 import { defineCommand, runMain } from "citty";
 import { authCommand } from "./adapters/driving/commands/auth.js";
+import { cacheCommand } from "./adapters/driving/commands/cache.js";
 import { devicesCommand } from "./adapters/driving/commands/devices.js";
 import { linkCommand } from "./adapters/driving/commands/link.js";
 import { mcpCommand } from "./adapters/driving/commands/mcp.js";
@@ -34,6 +35,7 @@ const main = defineCommand({
     devices: devicesCommand,
     secret: secretCommand,
     mcp: mcpCommand,
+    cache: cacheCommand,
     upgrade: upgradeCommand,
   },
 });

@@ -12,6 +12,7 @@ import {
 import type { Note, Ticket  } from "@notekit/core/types";
 import * as e2ee from "@notekit/core/vault-e2ee";
 import { getRecoveryPhrase, getDeviceIdentity } from "../adapters/driven/keychain.js";
+import { diskCiphertextCache } from "../adapters/driven/vault-cache.js";
 
 /** Thrown when an encrypted item is hit but no recovery phrase is unlocked. */
 export class VaultLockedError extends Error {
@@ -74,8 +75,8 @@ export async function encryptTicket(ticket: Ticket): Promise<string> {
   return e2ee.encryptTicket(ticket, await requireVaultIdentity());
 }
 export async function listEncryptedNotes(nk: NoteKitApi): Promise<Note[]> {
-  return e2ee.listEncryptedNotes(nk, await requireVaultIdentity());
+  return e2ee.listEncryptedNotes(nk, await requireVaultIdentity(), diskCiphertextCache());
 }
 export async function listEncryptedTickets(nk: NoteKitApi): Promise<Ticket[]> {
-  return e2ee.listEncryptedTickets(nk, await requireVaultIdentity());
+  return e2ee.listEncryptedTickets(nk, await requireVaultIdentity(), diskCiphertextCache());
 }

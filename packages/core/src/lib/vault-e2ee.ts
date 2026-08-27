@@ -29,6 +29,7 @@ import {
 import type { VaultCiphertextCache } from "./vault-ciphertext-cache";
 
 export { isEncryptedItemPath as isEncrypted, classifyEncryptedPath };
+export type { VaultCiphertextCache } from "./vault-ciphertext-cache";
 
 /**
  * How many ciphertext files to fetch at once when scanning a vault. An E2EE

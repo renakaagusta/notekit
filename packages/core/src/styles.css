@@ -3493,6 +3493,7 @@ a.nk-commit-sha:hover {
   display: block;
   text-align: left;
   width: 100%;
+  overflow-wrap: anywhere;
   font-size: 13px;
   font-weight: 500;
   line-height: 1.35;
@@ -3613,6 +3614,13 @@ a.nk-commit-sha:hover {
 .nk-subtask-list li label input[type="checkbox"] {
   margin: 2px 0 0;
   flex: none;
+}
+
+/* Break long unbroken content (e.g. a pasted URL) so a subtask can't overflow
+   its card. min-width:0 lets the flex text child shrink below its content. */
+.nk-subtask-list li label > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .nk-subtask-list li.is-done > label > span {

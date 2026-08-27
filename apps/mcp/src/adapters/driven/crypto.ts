@@ -14,6 +14,7 @@ import {
   type RecoverySigningKey,
   type RecoveryIdentity,
 } from "@notekit/core/crypto";
+import { listDevices, listRosterDevices } from "@notekit/core/secrets";
 import type { SavedLink } from "@notekit/core/types";
 import * as e2ee from "@notekit/core/vault-e2ee";
 import { loadMcpDeviceIdentity } from "./device-identity.js";
@@ -29,8 +30,35 @@ export class VaultLockedError extends Error {
 
 let cached: RecoveryIdentity | null = null;
 
+/**
+ * Whether an OWNER has approved this MCP device — a roster entry for it (Model B)
+ * or a committed device record (legacy). Only then are vault items sealed to its
+ * age recipient, so only then can it decrypt with its OWN key.
+ */
+async function deviceIsApproved(device: DeviceIdentity): Promise<boolean> {
+  try {
+    const roster = await listRosterDevices(device);
+    if (roster) return roster.some((d) => d.isSelf);
+    return (await listDevices()).some((r) => r.recipient === device.recipient);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve the identity used to decrypt. Least-privilege first: if this server's
+ * device has been approved, decrypt with its OWN age key — no master phrase
+ * needed, and it can be revoked per-device. Only fall back to the recovery
+ * phrase (full power) when the device isn't approved yet AND the phrase is set,
+ * so an unpaired server can still bootstrap. Neither available → locked.
+ */
 export async function tryVaultIdentity(): Promise<RecoveryIdentity | null> {
   if (cached) return cached;
+  const device = await loadMcpDeviceIdentity();
+  if (await deviceIsApproved(device)) {
+    cached = { identity: device.identity, recipient: device.recipient };
+    return cached;
+  }
   const phrase = process.env["NOTEKIT_RECOVERY_PHRASE"]?.trim();
   if (!phrase || !isValidMnemonic(phrase)) return null;
   cached = await recoveryFromMnemonic(phrase);

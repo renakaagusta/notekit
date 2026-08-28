@@ -1,0 +1,29 @@
+---
+title: Menu
+description: A list of actions for an item — a dropdown on desktop, an action sheet on mobile.
+---
+
+A menu collects the actions for a thing — rename, duplicate, delete a note. On desktop it's a
+dropdown anchored to a trigger (often a `⋯` button).
+
+<MenuShowcase />
+
+## Tokens
+
+[`popover`](/foundations/color) surface, `medium` [shadow](/foundations/elevation), rows at
+`13px` with [lucide](/foundations/icons) glyphs. Destructive actions use the destructive hue
+and sit last.
+
+## On mobile — action sheet
+
+An anchored dropdown is a small target next to the screen edge, so on mobile the same actions
+open as a **bottom action sheet**: full-width rows with `44px` touch targets, dismissible by
+the scrim or a swipe down. Same actions, same order — destructive last.
+
+<MenuSheetShowcase />
+
+## Guidance
+
+- Group related actions; put the destructive one last and color it.
+- Don't hide the primary action of a view inside a menu — surface it in the
+  [app bar](/components/appbar).

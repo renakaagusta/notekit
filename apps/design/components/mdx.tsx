@@ -4,11 +4,15 @@ import type { MDXComponents } from 'mdx/types';
 import { BrandShowcase } from '@/components/brand';
 import { FoundationGrid } from '@/components/foundation-grid';
 import { IconGallery } from '@/components/icon-gallery';
+import { AppBarShowcase, AppBarMobileShowcase } from '@/components/showcase/appbar';
+import { AvatarShowcase } from '@/components/showcase/avatar';
 import { BadgeShowcase } from '@/components/showcase/badge';
 import { BottomSheetShowcase } from '@/components/showcase/bottom-sheet';
 import { ButtonShowcase } from '@/components/showcase/button';
 import { DialogShowcase } from '@/components/showcase/dialog';
+import { NavDrawerShowcase } from '@/components/showcase/drawer';
 import { InputShowcase } from '@/components/showcase/input';
+import { MenuShowcase, MenuSheetShowcase } from '@/components/showcase/menu';
 import { SelectShowcase, SelectSheetShowcase } from '@/components/showcase/select';
 import { TabsShowcase } from '@/components/showcase/tabs';
 import { ToastShowcase } from '@/components/showcase/toast';
@@ -40,6 +44,12 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     TabsShowcase,
     TooltipShowcase,
     ToastShowcase,
+    AppBarShowcase,
+    AppBarMobileShowcase,
+    NavDrawerShowcase,
+    MenuShowcase,
+    MenuSheetShowcase,
+    AvatarShowcase,
     ScaleTable,
     TypeScale,
     ShadowGrid,

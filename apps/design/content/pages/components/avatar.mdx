@@ -1,0 +1,22 @@
+---
+title: Avatar
+description: A person's mark — a monochrome initial when there's no image.
+---
+
+Avatars identify a person — the account, a note's author, guests on a shared note. NoteKit
+keeps them monochrome: when there's no image, a single initial on the neutral accent, never a
+colored auto-generated background.
+
+<AvatarShowcase />
+
+## Tokens
+
+Circular ([`full`](/foundations/radius)), initial at 40% of the diameter, bold. The solid tone
+uses [`primary`](/foundations/color); the muted tone uses `muted`. Stacked avatars add a
+`2px` ring in the surface color to separate them.
+
+## Guidance
+
+- Prefer a real image (Gravatar) when available; fall back to a single initial, not two.
+- Don't tint fallbacks by name — NoteKit avatars stay monochrome, like the rest of the system.
+- Sizes: `24px` inline, `32px` in lists, `40px`+ in headers.

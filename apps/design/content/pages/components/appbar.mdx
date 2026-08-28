@@ -1,0 +1,31 @@
+---
+title: App bar
+description: The top bar of a surface — a breadcrumb on desktop, a hamburger + title on mobile.
+---
+
+The app bar anchors the top of a surface: where you are, and the actions for what you're
+looking at. On desktop it leads with a breadcrumb and trails with icon actions.
+
+<AppBarShowcase />
+
+## Tokens
+
+Height `48px`, a `border` hairline, [`ghost`](/components/button)-style icon buttons at
+`30px`. Breadcrumb text at [`small`/`13px`](/foundations/typography); the current item is
+full-contrast, ancestors are muted.
+
+## On mobile
+
+Phones don't have room for a breadcrumb, and the primary job becomes **navigation**. The
+mobile app bar leads with a hamburger that opens the [navigation drawer](/components/navigation-drawer),
+centers the surface title, and keeps a single primary action on the right. It respects the
+top safe-area inset so it never sits under the status bar.
+
+<AppBarMobileShowcase />
+
+## Guidance
+
+- One primary action in the bar; everything else goes in a [menu](/components/menu).
+- Keep the title to the current surface or note — don't restate the app name.
+- NoteKit's mobile shell has no bottom tab bar; navigation lives in the drawer behind the
+  hamburger, and the editor's formatting toolbar pins to the bottom safe-area instead.

@@ -1,0 +1,29 @@
+---
+title: Navigation drawer
+description: NoteKit's mobile navigation — an Obsidian-style left-slide drawer.
+---
+
+On mobile, NoteKit's primary navigation is a **left-slide drawer** rather than a bottom tab
+bar. It's opened from the [app bar](/components/appbar) hamburger and holds the whole
+navigation surface: the vault switcher, the six surfaces (Notes, Tasks, Links, Secrets,
+Inbox, Settings), and the account footer. Tap the scrim or swipe left to dismiss.
+
+<NavDrawerShowcase />
+
+## Why a drawer, not tabs
+
+Six top-level surfaces don't fit a comfortable bottom tab bar, and a drawer keeps the reading
+and editing canvas full-width and undisturbed — the same reasoning Obsidian and Bear use. The
+active surface is marked with the [`accent`](/foundations/color) fill.
+
+## Tokens
+
+Panel width `~78%`, [`popover`](/foundations/color) surface, a right `border` hairline, rows
+at `14px` with [lucide](/foundations/icons) glyphs. The scrim is 50% black; the panel respects
+the top and bottom safe-area insets.
+
+## Guidance
+
+- Desktop uses a persistent sidebar instead — same items, no scrim, always visible.
+- Keep the drawer to navigation and account; per-item actions belong in a
+  [menu](/components/menu), not here.

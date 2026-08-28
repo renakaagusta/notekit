@@ -1,0 +1,12 @@
+{
+  "title": "Security & cryptography",
+  "pages": [
+    "index",
+    "key-hierarchy",
+    "content-encryption",
+    "envelope-encryption",
+    "devices-and-pairing",
+    "sharing-and-revocation",
+    "threat-model"
+  ]
+}

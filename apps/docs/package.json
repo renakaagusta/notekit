@@ -18,7 +18,9 @@
     "fumadocs-core": "^16.15.4",
     "fumadocs-ui": "^16.15.4",
     "fumadocs-mdx": "^15.4.0",
-    "lucide-react": "^0.471.0"
+    "lucide-react": "^0.471.0",
+    "mermaid": "^11.12.0",
+    "next-themes": "^0.4.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.0",

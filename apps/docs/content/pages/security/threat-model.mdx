@@ -1,0 +1,80 @@
+---
+title: Threat model
+description: Exactly what the server and a network attacker can and cannot see, the trust anchors, and the conscious metadata trade-offs.
+---
+
+This page states plainly what NoteKit protects, what it doesn't, and why. A good threat model is
+honest about its edges.
+
+## What the server cannot see
+
+The NoteKit API and the Git host (Forgejo/GitHub/GitLab) store your vault, but they hold **ciphertext
+and keys they don't have**:
+
+- Note, task, and link **titles and bodies**
+- Task **assignees and labels**, note **tags**, link **URLs**
+- **Secret values**
+- Your **recovery phrase / identity keys** and every **device private key**
+
+All of this is `age`-encrypted client-side. The server has no decryption key, so it cannot read any of
+it — even under compulsion, it can only hand over ciphertext.
+
+## What the server *can* see (metadata)
+
+End-to-end encryption protects **content**, not the existence of records. The operator can see:
+
+- **Folder structure** — `notes/`, `tickets/`, `links/`, and note/link folder paths (cleartext so the
+  sidebar renders)
+- **Task board fields** — status, priority, due date (cleartext so the board renders)
+- **Timestamps** — created/updated, plus Git commit times
+- **Counts and sizes** — how many items you have and roughly how big each is
+- **Commit authors** — which device or agent wrote each change
+- **Share targets** — which items are shared, and the email of each recipient (from the cleartext
+  share manifest)
+
+If a piece of metadata in that list is sensitive for your use case, treat it as visible to the host.
+
+## What a network attacker sees
+
+Transport is HTTPS, and content is *already* ciphertext before it's sent, so a network attacker sees
+even less than the server: encrypted TLS to the API, carrying armored `age` blobs. They cannot read or
+tamper with content undetected — `age` is authenticated (AEAD), so any modification fails on decrypt.
+
+## Trust anchors
+
+- **Your master signing key** (from the phrase/wallet) is the root. It signs the genesis device roster;
+  everything else chains to it.
+- **Trust-on-first-use (TOFU):** the first time a client sees your master signing key it **pins** it
+  locally. If the key later disappears or changes in the directory, the client raises a
+  *trust-downgrade* error rather than silently accepting a substituted key.
+- **Signed rosters + keybox** mean a malicious server can't inject a device: an unsigned or
+  wrong-signed roster entry is rejected before its key is ever used as a recipient.
+- **Verified directory lookups** mean a malicious server can't trick you into sharing with an
+  attacker's key — device records are signature-checked against the recipient's pinned master key.
+
+## Conscious trade-offs
+
+| Trade-off | Why | Mitigation |
+| --- | --- | --- |
+| Folder paths in cleartext | Offline sidebar without decrypting everything | Don't put secrets in folder names |
+| Ticket status/priority/due in cleartext | Offline board rendering | Keep sensitive detail in the encrypted body |
+| Share targets visible | Server routes/authorizes shares by email | — |
+| Forward-only revocation | Git history is immutable by design | Rotate the underlying secret, not the history |
+| Recovery phrase is unrecoverable | The server holds no key material | Back up the 24 words; keep a second paired device |
+
+## Not in scope
+
+- **A compromised device.** If malware controls a device that already holds keys, it can read what that
+  device can read. E2EE protects data in transit and at rest on the server — not a device the attacker
+  already owns.
+- **Traffic analysis.** Sizes and timing of encrypted writes are observable and could leak coarse
+  activity patterns.
+- **Deleting already-shared data.** Revocation is forward-only (see
+  [Sharing & revocation](/security/sharing-and-revocation#forward-only-revocation)).
+
+## Why Git, not a custom backend
+
+NoteKit deliberately reuses Git for history, attribution, and audit rather than inventing a parallel
+system. Every change is a signed-in-content commit with an author (device or agent) and timestamp, so
+the audit trail is the Git log — inspectable in any Git client, on any of the supported hosts, with no
+NoteKit-specific tooling required.

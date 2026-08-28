@@ -1,0 +1,82 @@
+---
+title: Envelope encryption
+description: The keybox — one vault key wraps all content, so adding or removing a device is O(1) instead of re-encrypting everything.
+---
+
+A naive E2EE design encrypts every note to every device. Adding a device then means **re-encrypting
+the entire vault** (O(N) in your notes), and it forces the app to hold a key that can rewrite
+everything. NoteKit avoids this with **envelope encryption**.
+
+## One vault key, wrapped to many devices
+
+- All content is encrypted to a **single random vault key** (an X25519 identity).
+- The vault key is itself encrypted — "wrapped" — to every trusted device (and the recovery key) and
+  stored as `.notekit/keybox.age`.
+- To read anything, a device first opens the keybox with its own device key to recover the vault key,
+  then decrypts content with it.
+
+<Mermaid chart={`
+flowchart TD
+  subgraph keybox[".notekit/keybox.age — encrypted"]
+    VK["Vault key (X25519)"]
+  end
+  D1["Device A key"] -. wraps .-> keybox
+  D2["Device B key"] -. wraps .-> keybox
+  R["Recovery key"] -. wraps .-> keybox
+  VK --> C1["note 1 .age"]
+  VK --> C2["note 2 .age"]
+  VK --> C3["task N .age"]
+`} />
+
+The keybox record is small and signed:
+
+```json
+{
+  "v": 1,
+  "epoch": 3,
+  "vaultKey": { "identity": "AGE-SECRET-KEY-…", "recipient": "age1…" },
+  "sig": "…",          // Ed25519 signature over (v, epoch, recipient)
+  "signedBy": "…"      // the device signing key that wrote this keybox
+}
+```
+
+When a device opens the keybox it re-derives the recipient from the identity and checks it matches
+`vaultKey.recipient` — so a tampered keybox is rejected before any content is touched.
+
+## Adding a device is O(1)
+
+Approving a new device does **not** re-encrypt your notes. It only:
+
+1. adds the device to the signed [roster](/security/devices-and-pairing), and
+2. re-wraps the **same** vault key to the new recipient set (rewrite one small `keybox.age`).
+
+Your thousands of note files are untouched — they are still sealed to the same vault key.
+
+<Mermaid chart={`
+sequenceDiagram
+  participant New as New device
+  participant App as Approving device
+  participant Vault as Git vault
+  App->>Vault: publish roster v+1 (adds New, device-signed)
+  App->>Vault: unlock vault key from keybox
+  App->>Vault: re-wrap keybox to [old devices + New + recovery]
+  Note over Vault: content files unchanged (O(1))
+  New->>Vault: open keybox with its own key → gets vault key
+`} />
+
+## Removing a device rotates the key (epoch bump)
+
+Revocation must be stronger than "delete from a list" — a removed device still holds the old vault
+key. So revoking a device:
+
+1. removes it from the roster (new signed version), then
+2. **rotates the vault key**: generates a fresh random vault key, re-encrypts content and the keybox
+   to the remaining recipients, and bumps the keybox `epoch`.
+
+The revoked device is not a recipient of the new keybox, so it cannot open it and loses access to all
+**future** content. This is *forward-only* — see [Sharing & revocation](/security/sharing-and-revocation#forward-only-revocation).
+
+<Callout type="info">
+"O(1) add, key-rotate on remove" is the standard trade-off: adds are cheap and frequent; removes are
+rarer and pay the cost of a re-encrypt to actually cut off access.
+</Callout>

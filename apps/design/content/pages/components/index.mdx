@@ -1,20 +1,26 @@
 ---
 title: Components
-description: The component libraries per surface, how they relate, and the registry roadmap.
+description: Reference implementations of NoteKit's primitives, built from tokens.
 ---
 
-NoteKit follows hexagonal architecture — the UI is a driving adapter. Components live in the
-layer that owns their surface, and surfaces converge by consuming the same tokens, not by
-sharing component code.
+These are the reference implementations of NoteKit's UI primitives — every one is rendered
+live from [tokens](/foundations/color), monochrome and quiet, and adapts to the light/dark
+toggle above the same way the product does.
 
-## Primitives
-
-Built entirely from NoteKit tokens — monochrome, quiet, keyboard-first. This preview adapts
-to the light/dark toggle above, the same way the product does.
-
-<PrimitivesPreview />
+<Cards>
+  <Card title="Button" href="/components/button" description="Primary, secondary, ghost, and destructive actions." />
+  <Card title="Text field" href="/components/input" description="Single-line text input, with and without an icon." />
+  <Card title="Badge" href="/components/badge" description="Small status and metadata labels." />
+  <Card title="Checkbox" href="/components/checkbox" description="Binary selection in forms and lists." />
+  <Card title="Switch" href="/components/switch" description="Immediate on/off settings." />
+  <Card title="Dialog" href="/components/dialog" description="Modal surface for focused decisions." />
+</Cards>
 
 ## Where components live
+
+NoteKit follows hexagonal architecture — the UI is a driving adapter. The specimens here
+document the visual language; each product surface owns its own implementation and converges
+by consuming the same tokens, never by sharing component code.
 
 | Surface | Package / path | Basis |
 | --- | --- | --- |
@@ -22,21 +28,9 @@ to the light/dark toggle above, the same way the product does.
 | Backoffice (admin) | `apps/backoffice/.../components/ui` | shadcn/ui (Radix primitives) + Tailwind v4 |
 | Marketing | `apps/landing/components` | Bespoke, animation-heavy, DM Sans |
 
-The product library (`@notekit/core`) is the primary system — what NoteKit's users actually
-touch. The backoffice uses vendored shadcn primitives that track upstream. The landing
-surface is marketing-specific.
-
-## Shared tokens, independent components
-
-Driving adapters **never import each other** and never share a UI helper. Two buttons on two
-surfaces look consistent because they read the same [tokens](/foundations/color), not because
-they import a shared `<Button>`. Each surface stays free to evolve while the visual language
-stays coherent.
-
 ## Registry roadmap
 
-The [theme is installable today](/installation) via the shadcn registry. Individual component
-installables (`npx shadcn add …/button.json`) with live previews follow once the core
-primitives are extracted into publishable, dependency-light source. That work is tracked as a
-follow-up stage — this page will grow one component at a time as they ship, and will never
-list a component that isn't real.
+The [theme is installable today](/installation) via the shadcn registry. Per-component
+installables (`npx shadcn add …/button.json`) follow once these primitives are extracted into
+publishable, dependency-light source. This section grows one real component at a time — it
+never lists a component that isn't rendered here.

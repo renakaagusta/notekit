@@ -2,8 +2,13 @@ import { Card, Cards } from 'fumadocs-ui/components/card';
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 import type { MDXComponents } from 'mdx/types';
 import { BrandShowcase } from '@/components/brand';
+import { FoundationGrid } from '@/components/foundation-grid';
 import { IconGallery } from '@/components/icon-gallery';
-import { PrimitivesPreview } from '@/components/primitives-preview';
+import { BadgeShowcase } from '@/components/showcase/badge';
+import { ButtonShowcase } from '@/components/showcase/button';
+import { DialogShowcase } from '@/components/showcase/dialog';
+import { InputShowcase } from '@/components/showcase/input';
+import { CheckboxShowcase, SwitchShowcase } from '@/components/showcase/toggles';
 import { NeutralScale, SwatchRow } from '@/components/tokens/color-scale';
 import { ScaleTable } from '@/components/tokens/scale-table';
 import { ShadowGrid } from '@/components/tokens/shadow-grid';
@@ -15,9 +20,15 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Card,
     Cards,
     BrandShowcase,
+    FoundationGrid,
     NeutralScale,
     SwatchRow,
-    PrimitivesPreview,
+    ButtonShowcase,
+    InputShowcase,
+    BadgeShowcase,
+    CheckboxShowcase,
+    SwitchShowcase,
+    DialogShowcase,
     ScaleTable,
     TypeScale,
     ShadowGrid,

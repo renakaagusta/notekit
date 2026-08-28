@@ -1,0 +1,29 @@
+---
+title: Dialog
+description: A modal surface for focused decisions.
+---
+
+Dialogs interrupt for a single focused decision — a confirm, a destructive action, a short
+form. They sit on a dimmed overlay with the highest [elevation](/foundations/elevation). Open
+it:
+
+<DialogShowcase />
+
+## Anatomy
+
+- **Overlay** — dims the page and closes the dialog on click-outside.
+- **Panel** — a `popover`-token surface with `lg` radius and the `high` shadow.
+- **Title + body** — one clear question, one short line of context.
+- **Actions** — right-aligned; the primary or destructive action last.
+
+## Tokens
+
+Panel background from [`popover`](/foundations/color), radius
+[`lg` (8px)](/foundations/radius), [`high`](/foundations/elevation) shadow, overlay at 50%
+black.
+
+## Guidance
+
+- One decision per dialog. If it grows into a multi-step flow, it's a page, not a dialog.
+- Always offer a non-destructive way out (Cancel, click-outside, Escape).
+- Name the action on the button — "Delete", not "OK".

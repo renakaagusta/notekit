@@ -1,0 +1,47 @@
+---
+title: MCP for agents
+description: Connect Claude Code, Cursor, or any MCP client to your NoteKit vault.
+---
+
+NoteKit is **MCP-first**: anything you can do in the app, an agent can do through the
+[Model Context Protocol](https://modelcontextprotocol.io). The MCP server is a driving surface
+over the same vault as the apps, so an agent reads and writes the exact notes and tasks you see.
+
+## Connect from Claude Code
+
+Add NoteKit as an MCP server:
+
+```bash
+claude mcp add notekit -- npx -y @notekit/mcp
+```
+
+On first run the server pairs itself to your account as a device. Like any device, it gets its
+own encryption key — by default it can write, and it can only read content that has been shared
+to its key. See [Encryption](/concepts/encryption).
+
+## Connect from another MCP client
+
+Any MCP-compatible client (Cursor, and others) can run the same server binary. Point your client
+at:
+
+```
+npx -y @notekit/mcp
+```
+
+## Agent parity
+
+Every capability is reachable from three agent-facing surfaces that call the same underlying use
+cases:
+
+- the **in-app AI**,
+- the **CLI** (see [CLI](/cli)),
+- the **MCP server**.
+
+Adding an action to one without the others is a bug, not a feature gap — parity is a product
+guarantee.
+
+## Next
+
+<Cards>
+  <Card title="Available tools" href="/mcp/tools" description="The notes, tasks, and vault operations exposed over MCP." />
+</Cards>

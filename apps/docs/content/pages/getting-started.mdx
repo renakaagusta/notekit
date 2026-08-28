@@ -1,0 +1,38 @@
+---
+title: Getting started
+description: Create an account, unlock your encrypted vault, and write your first note.
+---
+
+## 1. Sign in
+
+Open [app.notekit.online](https://app.notekit.online) and sign in. NoteKit uses your Google
+account for identity — this authenticates you to the service; it does **not** give the service
+access to your content, which is encrypted separately (see [Encryption](/concepts/encryption)).
+
+## 2. Unlock your vault
+
+The first time you sign in, NoteKit generates your encryption identity and a **24-word recovery
+phrase**. This phrase is the master key to your vault.
+
+- Write it down and keep it somewhere safe. NoteKit cannot recover it for you — that is the point
+  of end-to-end encryption.
+- Each additional device you add (desktop, mobile, CLI) is paired to your account without
+  re-typing the phrase, using device-to-device linking.
+
+## 3. Write a note
+
+Create a note from the sidebar. As you type, the content is encrypted on your device and
+committed to your Git vault. Everything is Markdown underneath.
+
+## 4. Add another surface
+
+- **Desktop** — download the Electron app and sign in with the same account.
+- **Mobile** — install the iOS/Android app.
+- **Terminal & agents** — see [CLI](/cli) and [MCP](/mcp).
+
+## Next
+
+<Cards>
+  <Card title="Core concepts" href="/concepts" description="Understand the vault and encryption model before you go further." />
+  <Card title="Connect an agent" href="/mcp" description="Give Claude Code or Cursor access to your vault." />
+</Cards>

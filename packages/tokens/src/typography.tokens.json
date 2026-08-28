@@ -1,0 +1,45 @@
+{
+  "font": {
+    "family": {
+      "$type": "fontFamily",
+      "ui": {
+        "$value": ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
+        "$description": "Product UI + editor (packages/core)."
+      },
+      "mono": {
+        "$value": ["JetBrains Mono", "ui-monospace", "SF Mono", "Menlo", "Consolas", "monospace"],
+        "$description": "Code, terminals, secrets."
+      },
+      "marketing": {
+        "$value": ["DM Sans", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        "$description": "Marketing surface (apps/landing). Kept distinct from the product UI font by design."
+      }
+    },
+    "weight": {
+      "$type": "fontWeight",
+      "regular": { "$value": 400 },
+      "medium": { "$value": 510 },
+      "semibold": { "$value": 590 },
+      "bold": { "$value": 680 }
+    },
+    "size": {
+      "$type": "dimension",
+      "micro": { "$value": "11px", "$description": "0.6875rem" },
+      "mini": { "$value": "12px", "$description": "0.75rem" },
+      "small": { "$value": "13px", "$description": "0.8125rem" },
+      "ui": { "$value": "13.5px", "$description": "core --ui-size, chrome" },
+      "regular": { "$value": "15px", "$description": "0.9375rem" },
+      "editor": { "$value": "16px", "$description": "core --editor-size, body" },
+      "large": { "$value": "18px", "$description": "1.125rem" },
+      "title3": { "$value": "20px", "$description": "1.25rem" },
+      "title2": { "$value": "24px", "$description": "1.5rem" },
+      "title1": { "$value": "36px", "$description": "2.25rem" }
+    },
+    "leading": {
+      "$type": "number",
+      "tight": { "$value": 1.3 },
+      "ui": { "$value": 1.5 },
+      "editor": { "$value": 1.7, "$description": "core --editor-leading, sustained reading" }
+    }
+  }
+}

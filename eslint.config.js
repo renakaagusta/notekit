@@ -40,16 +40,19 @@ export default [
       '**/*.min.js',
       // generated router tree — not hand-edited
       '**/routeTree.gen.ts',
+      // fumadocs-mdx generated content sources — regenerated on every build
+      '**/.source/**',
     ],
   }),
 
-  // React apps/packages (core + web + backoffice admin + landing marketing)
+  // React apps/packages (core + web + backoffice admin + landing marketing + design docs)
   {
     files: [
       'packages/core/**/*.{ts,tsx}',
       'apps/web/**/*.{ts,tsx}',
       'apps/backoffice/**/*.{ts,tsx}',
       'apps/landing/**/*.{ts,tsx}',
+      'apps/design/**/*.{ts,tsx}',
     ],
     plugins: { 'react-hooks': reactHooks },
     rules: {

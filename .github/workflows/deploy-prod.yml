@@ -5,6 +5,7 @@
 #   prod/web        → notekit-web
 #   prod/landing    → notekit-landing
 #   prod/backoffice → notekit-backoffice
+#   prod/design     → notekit-design
 #
 # Flow: merge/verify on main → fast-forward the service's prod/* branch to
 # release just that service. The full docker-compose.notekit.yml stays the
@@ -18,13 +19,14 @@ on:
       - prod/web
       - prod/landing
       - prod/backoffice
+      - prod/design
   workflow_dispatch:
     inputs:
       service:
-        description: 'Service to deploy (api, web, landing, backoffice)'
+        description: 'Service to deploy (api, web, landing, backoffice, design)'
         required: true
         type: choice
-        options: [api, web, landing, backoffice]
+        options: [api, web, landing, backoffice, design]
 
 concurrency:
   # Serialize deploys of the SAME service; different services deploy in parallel.
@@ -50,6 +52,7 @@ jobs:
             web)        image=notekit-web;        file=apps/web/Dockerfile;        buildargs="VITE_API_URL=https://api.notekit.online" ;;
             landing)    image=notekit-landing;    file=apps/landing/Dockerfile;    buildargs="" ;;
             backoffice) image=notekit-backoffice; file=apps/backoffice/Dockerfile; buildargs="VITE_API_URL=https://api.notekit.online" ;;
+            design)     image=notekit-design;     file=apps/design/Dockerfile;     buildargs="" ;;
             *) echo "Unknown service: $svc" && exit 1 ;;
           esac
           echo "svc=$svc"                 >> "$GITHUB_OUTPUT"

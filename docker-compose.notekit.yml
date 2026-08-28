@@ -77,6 +77,32 @@ services:
       - "traefik.http.routers.notekit-backoffice.middlewares=notekit-compress"
       - "traefik.http.routers.notekit-backoffice.priority=10"
 
+  # Design system docs on design.<root>. Next.js (Fumadocs) standalone server,
+  # same shape as the landing service. Renders from @notekit/tokens. TLS is
+  # covered by the landing service's wildcard *.<root> cert.
+  notekit-design:
+    image: notekit-design:latest
+    container_name: notekit-design
+    restart: unless-stopped
+    networks:
+      - infrastructure
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=infrastructure"
+      - "traefik.http.services.notekit-design.loadbalancer.server.port=3000"
+      - "traefik.http.routers.notekit-design.rule=Host(`design.${ROOT_DOMAIN}`)"
+      - "traefik.http.routers.notekit-design.entrypoints=websecure"
+      - "traefik.http.routers.notekit-design.tls.certresolver=cloudflare"
+      - "traefik.http.routers.notekit-design.service=notekit-design"
+      - "traefik.http.routers.notekit-design.middlewares=notekit-compress"
+      - "traefik.http.routers.notekit-design.priority=10"
+
   notekit-api:
     image: notekit-api:latest
     container_name: notekit-api

@@ -1,0 +1,26 @@
+---
+title: Motion
+description: Durations and easing curves for transitions.
+---
+
+Motion in NoteKit is quick and unshowy — feedback, not spectacle. Most transitions land
+between 100ms and 250ms.
+
+## Durations
+
+- **`instant` (100ms)** — hover and press feedback.
+- **`fast` (150ms)** — small state changes, toggles.
+- **`regular` (250ms)** — panels, drawers, most UI transitions.
+- **`slow` (400ms)** — the largest layout shifts only.
+
+## Easing
+
+- **`out`** — the default for things entering or settling; decelerates into place.
+- **`in`** — for things leaving.
+- **`in-out`** — for movement that starts and ends on screen.
+- **`out-expo`** — snappy, overshoot-free exits for larger surfaces.
+
+## Usage
+
+Respect `prefers-reduced-motion`: when a user opts out, transitions collapse to near-zero
+duration rather than animating. Never gate meaning behind motion.

@@ -1,0 +1,27 @@
+---
+title: Icons
+description: The icon system — lucide-react, never emoji.
+---
+
+Every icon in NoteKit comes from [lucide-react](https://lucide.dev/). Emoji are **never**
+used as icons, hints, placeholders, or status glyphs — they render inconsistently across
+platforms and read as unfinished. This is enforced in code by
+`@notekit/eslint-plugin/no-emoji-as-icon`.
+
+## Defaults
+
+- **Size** — 20px in chrome, 16px inline with text.
+- **Stroke width** — 1.75, a touch lighter than lucide's default for a quieter feel.
+- **Color** — icons inherit `currentColor`; they take the text color of their context, not
+  a hardcoded value.
+
+## A sample of the working set
+
+<IconGallery />
+
+## Usage
+
+- Pick the icon whose lucide name matches the concept (`Trash2` for delete, `Share2` for
+  share). Don't repurpose an unrelated glyph because it looks close.
+- Keep an icon's meaning stable across surfaces — the same action uses the same icon on
+  web, desktop, and mobile.

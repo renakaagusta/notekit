@@ -1,0 +1,28 @@
+{
+  "radius": {
+    "$type": "dimension",
+    "0": { "$value": "0px" },
+    "2": { "$value": "2px" },
+    "4": { "$value": "4px" },
+    "5": { "$value": "5px" },
+    "6": { "$value": "6px" },
+    "8": { "$value": "8px" },
+    "12": { "$value": "12px" },
+    "16": { "$value": "16px" },
+    "24": { "$value": "24px" },
+    "32": { "$value": "32px" },
+    "full": { "$value": "9999px" },
+    "sm": {
+      "$value": "{radius.5}",
+      "$description": "Interactive surfaces: icon buttons, popover items. Alias of the 5px step (core --r-sm)."
+    },
+    "md": {
+      "$value": "{radius.6}",
+      "$description": "Buttons, inputs, cards. Alias of the 6px step (core --r-md)."
+    },
+    "lg": {
+      "$value": "{radius.8}",
+      "$description": "Dialogs, larger panels. Alias of the 8px step (core --r-lg)."
+    }
+  }
+}

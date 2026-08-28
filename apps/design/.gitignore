@@ -1,0 +1,8 @@
+.next
+.source
+out
+public/r
+node_modules
+next-env.d.ts
+*.tsbuildinfo
+.turbo

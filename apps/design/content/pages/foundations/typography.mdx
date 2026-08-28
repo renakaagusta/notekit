@@ -1,0 +1,24 @@
+---
+title: Typography
+description: Type families, the size scale, and weights.
+---
+
+## Families
+
+- **UI + editor** — `Inter`. The product runs Inter for both chrome and the editor body.
+- **Monospace** — `JetBrains Mono`. Code, terminals, secrets, and keys.
+- **Marketing** — `DM Sans`. The landing surface keeps a distinct display font. This is a
+  deliberate two-font decision (product vs marketing), not drift.
+
+## Scale
+
+The product leans on two anchor sizes: chrome at ~13.5px (`ui`) and editor body at 16px
+(`editor`, with generous 1.7 leading for sustained reading). The rest of the scale supports
+labels, captions, and titles.
+
+<TypeScale />
+
+## Weights
+
+NoteKit uses a slightly tightened weight ramp: regular 400, medium 510, semibold 590, bold
+680. The non-round values track Inter's optical weights for crisper chrome.

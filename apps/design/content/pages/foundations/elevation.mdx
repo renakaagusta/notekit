@@ -1,0 +1,19 @@
+---
+title: Elevation
+description: The shadow scale for lifting surfaces off the page.
+---
+
+Elevation is used sparingly — the product is mostly flat, with shadow reserved for
+genuinely floating surfaces. Three steps cover the range.
+
+<ShadowGrid />
+
+## Usage
+
+- **`low`** — resting cards and subtle lift.
+- **`medium`** — popovers and dropdowns.
+- **`high`** — dialogs and the command menu, the things that sit above everything.
+
+On the dark product theme, elevation reads more from the `surface` → `surface-2` stack and
+borders than from shadow. Do not stack shadows to fake depth — reach for a higher surface
+token instead.

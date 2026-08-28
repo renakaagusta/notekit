@@ -1,0 +1,21 @@
+---
+title: Radius
+description: The corner-radius scale and its semantic aliases.
+---
+
+Corners are gentle but not soft. The product uses a compact `5 / 6 / 8` set for
+interactive surfaces, popovers, and dialogs respectively, exposed as the semantic aliases
+`sm` / `md` / `lg`.
+
+<ScaleTable category="radius" />
+
+## Semantic aliases
+
+- **`sm` (5px)** — icon buttons, small pills, popover items.
+- **`md` (6px)** — buttons, inputs, cards.
+- **`lg` (8px)** — dialogs, larger panels.
+- **`full`** — avatars and circular controls.
+
+The numeric scale exists so surfaces can reconcile onto shared steps during token
+consolidation; new work should reference the semantic aliases (`sm`/`md`/`lg`) rather than
+raw numbers.

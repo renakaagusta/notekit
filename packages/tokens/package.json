@@ -9,7 +9,8 @@
     "./tokens.json": "./dist/tokens.json",
     "./css/variables.css": "./dist/css/variables.css",
     "./css/core.css": "./dist/css/core.css",
-    "./css/backoffice.css": "./dist/css/backoffice.css"
+    "./css/backoffice.css": "./dist/css/backoffice.css",
+    "./css/landing.css": "./dist/css/landing.css"
   },
   "files": [
     "dist",

@@ -1,0 +1,546 @@
+[
+  {
+    "name": "--header-height",
+    "value": "64px"
+  },
+  {
+    "name": "--header-blur",
+    "value": "12px"
+  },
+  {
+    "name": "--header-bg",
+    "value": "hsla(0, 0%, 100%, 0.01)"
+  },
+  {
+    "name": "--header-border",
+    "value": "hsla(0, 0%, 100%, 0.08)"
+  },
+  {
+    "name": "--header-top",
+    "value": "16px"
+  },
+  {
+    "name": "--header-radius",
+    "value": "16px"
+  },
+  {
+    "name": "--header-max-width",
+    "value": "calc(var(--page-max-width) + 24px)"
+  },
+  {
+    "name": "--page-padding-default",
+    "value": "32px"
+  },
+  {
+    "name": "--page-max-width",
+    "value": "1024px"
+  },
+  {
+    "name": "--page-padding-left",
+    "value": "max( env(safe-area-inset-left), var(--page-padding-default) )"
+  },
+  {
+    "name": "--page-padding-right",
+    "value": "max( env(safe-area-inset-right), var(--page-padding-default) )"
+  },
+  {
+    "name": "--page-padding-y",
+    "value": "64px"
+  },
+  {
+    "name": "--prose-max-width",
+    "value": "588px"
+  },
+  {
+    "name": "--grid-columns",
+    "value": "12"
+  },
+  {
+    "name": "--grid-column-gap",
+    "value": "24px"
+  },
+  {
+    "name": "--layer-max",
+    "value": "10000"
+  },
+  {
+    "name": "--layer-debug",
+    "value": "5100"
+  },
+  {
+    "name": "--layer-skip-nav",
+    "value": "5000"
+  },
+  {
+    "name": "--layer-tooltip",
+    "value": "1100"
+  },
+  {
+    "name": "--layer-toasts",
+    "value": "800"
+  },
+  {
+    "name": "--layer-dialog",
+    "value": "700"
+  },
+  {
+    "name": "--layer-dialog-overlay",
+    "value": "699"
+  },
+  {
+    "name": "--layer-command-menu",
+    "value": "650"
+  },
+  {
+    "name": "--layer-popover",
+    "value": "600"
+  },
+  {
+    "name": "--layer-context-menu",
+    "value": "600"
+  },
+  {
+    "name": "--layer-overlay",
+    "value": "500"
+  },
+  {
+    "name": "--layer-header",
+    "value": "100"
+  },
+  {
+    "name": "--layer-scrollbar",
+    "value": "75"
+  },
+  {
+    "name": "--layer-footer",
+    "value": "50"
+  },
+  {
+    "name": "--layer-3",
+    "value": "3"
+  },
+  {
+    "name": "--layer-2",
+    "value": "2"
+  },
+  {
+    "name": "--layer-1",
+    "value": "1"
+  },
+  {
+    "name": "--radius-4",
+    "value": "4px"
+  },
+  {
+    "name": "--radius-6",
+    "value": "6px"
+  },
+  {
+    "name": "--radius-8",
+    "value": "8px"
+  },
+  {
+    "name": "--radius-12",
+    "value": "12px"
+  },
+  {
+    "name": "--radius-16",
+    "value": "16px"
+  },
+  {
+    "name": "--radius-24",
+    "value": "24px"
+  },
+  {
+    "name": "--radius-32",
+    "value": "32px"
+  },
+  {
+    "name": "--radius-rounded",
+    "value": "9999px"
+  },
+  {
+    "name": "--radius-circle",
+    "value": "50%"
+  },
+  {
+    "name": "--font-monospace",
+    "value": "ui-monospace, 'SF Mono', 'Menlo', monospace"
+  },
+  {
+    "name": "--font-regular",
+    "value": "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Open Sans', 'Helvetica Neue', sans-serif"
+  },
+  {
+    "name": "--font-emoji",
+    "value": "'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Segoe UI', 'Twemoji Mozilla', 'Noto Color Emoji', 'Android Emoji'"
+  },
+  {
+    "name": "--font-weight-regular",
+    "value": "400"
+  },
+  {
+    "name": "--font-weight-medium",
+    "value": "510"
+  },
+  {
+    "name": "--font-weight-semibold",
+    "value": "590"
+  },
+  {
+    "name": "--font-weight-bold",
+    "value": "680"
+  },
+  {
+    "name": "--speed-highlightFadeIn",
+    "value": "0s"
+  },
+  {
+    "name": "--speed-highlightFadeOut",
+    "value": "0.15s"
+  },
+  {
+    "name": "--speed-quickTransition",
+    "value": "0.1s"
+  },
+  {
+    "name": "--speed-regularTransition",
+    "value": "0.25s"
+  },
+  {
+    "name": "--mask-visible",
+    "value": "#000"
+  },
+  {
+    "name": "--mask-on",
+    "value": "#000"
+  },
+  {
+    "name": "--mask-ease",
+    "value": "rgba(0, 0, 0, 0.2)"
+  },
+  {
+    "name": "--mask-invisible",
+    "value": "transparent"
+  },
+  {
+    "name": "--mask-off",
+    "value": "transparent"
+  },
+  {
+    "name": "--rounded-full",
+    "value": "9999px"
+  },
+  {
+    "name": "--transparent",
+    "value": "hsla(0, 0%, 100%, 0)"
+  },
+  {
+    "name": "--min-tap-size",
+    "value": "44px"
+  },
+  {
+    "name": "--dvh",
+    "value": "1vh"
+  },
+  {
+    "name": "--100dvh",
+    "value": "calc(100 * var(--dvh))"
+  },
+  {
+    "name": "--svh",
+    "value": "1vh"
+  },
+  {
+    "name": "--1fr",
+    "value": "minmax(0, 1fr)"
+  },
+  {
+    "name": "--scrollbar-color",
+    "value": "hsla(0, 0%, 100%, 0.2)"
+  },
+  {
+    "name": "--scrollbar-color-active",
+    "value": "hsla(0, 0%, 100%, 0.4)"
+  },
+  {
+    "name": "--scrollbar-size",
+    "value": "6px"
+  },
+  {
+    "name": "--scrollbar-size-active",
+    "value": "10px"
+  },
+  {
+    "name": "--scrollbar-gap",
+    "value": "4px"
+  },
+  {
+    "name": "--ease-in-quad",
+    "value": "cubic-bezier(0.55, 0.085, 0.68, 0.53)"
+  },
+  {
+    "name": "--ease-in-cubic",
+    "value": "cubic-bezier(0.55, 0.055, 0.675, 0.19)"
+  },
+  {
+    "name": "--ease-in-quart",
+    "value": "cubic-bezier(0.895, 0.03, 0.685, 0.22)"
+  },
+  {
+    "name": "--ease-in-quint",
+    "value": "cubic-bezier(0.755, 0.05, 0.855, 0.06)"
+  },
+  {
+    "name": "--ease-in-expo",
+    "value": "cubic-bezier(0.95, 0.05, 0.795, 0.035)"
+  },
+  {
+    "name": "--ease-in-circ",
+    "value": "cubic-bezier(0.6, 0.04, 0.98, 0.335)"
+  },
+  {
+    "name": "--ease-out-quad",
+    "value": "cubic-bezier(0.25, 0.46, 0.45, 0.94)"
+  },
+  {
+    "name": "--ease-out-cubic",
+    "value": "cubic-bezier(0.215, 0.61, 0.355, 1)"
+  },
+  {
+    "name": "--ease-out-quart",
+    "value": "cubic-bezier(0.165, 0.84, 0.44, 1)"
+  },
+  {
+    "name": "--ease-out-quint",
+    "value": "cubic-bezier(0.23, 1, 0.32, 1)"
+  },
+  {
+    "name": "--ease-out-expo",
+    "value": "cubic-bezier(0.19, 1, 0.22, 1)"
+  },
+  {
+    "name": "--ease-out-circ",
+    "value": "cubic-bezier(0.075, 0.82, 0.165, 1)"
+  },
+  {
+    "name": "--ease-in-out-quad",
+    "value": "cubic-bezier(0.455, 0.03, 0.515, 0.955)"
+  },
+  {
+    "name": "--ease-in-out-cubic",
+    "value": "cubic-bezier(0.645, 0.045, 0.355, 1)"
+  },
+  {
+    "name": "--ease-in-out-quart",
+    "value": "cubic-bezier(0.77, 0, 0.175, 1)"
+  },
+  {
+    "name": "--ease-in-out-quint",
+    "value": "cubic-bezier(0.86, 0, 0.07, 1)"
+  },
+  {
+    "name": "--ease-in-out-expo",
+    "value": "cubic-bezier(1, 0, 0, 1)"
+  },
+  {
+    "name": "--ease-in-out-circ",
+    "value": "cubic-bezier(0.785, 0.135, 0.15, 0.86)"
+  },
+  {
+    "name": "--color-white",
+    "value": "#fff"
+  },
+  {
+    "name": "--color-black",
+    "value": "#000"
+  },
+  {
+    "name": "--focus-ring-color",
+    "value": "var(--color-brand-bg)"
+  },
+  {
+    "name": "--focus-ring-width",
+    "value": "2px"
+  },
+  {
+    "name": "--focus-ring-offset",
+    "value": "2px"
+  },
+  {
+    "name": "--focus-ring-outline",
+    "value": "var(--focus-ring-width) solid var(--focus-ring-color)"
+  },
+  {
+    "name": "--pointer",
+    "value": "pointer"
+  },
+  {
+    "name": "--cursor-pointer",
+    "value": "pointer"
+  },
+  {
+    "name": "--cursor-disabled",
+    "value": "not-allowed"
+  },
+  {
+    "name": "--cursor-tooltip",
+    "value": "help"
+  },
+  {
+    "name": "--font-size-micro",
+    "value": "0.6875rem"
+  },
+  {
+    "name": "--font-size-mini",
+    "value": "0.75rem"
+  },
+  {
+    "name": "--font-size-small",
+    "value": "0.8125rem"
+  },
+  {
+    "name": "--font-size-regular",
+    "value": "0.9375rem"
+  },
+  {
+    "name": "--font-size-large",
+    "value": "1.125rem"
+  },
+  {
+    "name": "--font-size-title1",
+    "value": "2.25rem"
+  },
+  {
+    "name": "--font-size-title2",
+    "value": "1.5rem"
+  },
+  {
+    "name": "--font-size-title3",
+    "value": "1.25rem"
+  },
+  {
+    "name": "--header-bg",
+    "value": "hsla(0, 0%, 4%, 0.8)"
+  },
+  {
+    "name": "--header-border",
+    "value": "hsla(0, 0%, 100%, 0.08)"
+  },
+  {
+    "name": "--color-bg-primary",
+    "value": "#08090a"
+  },
+  {
+    "name": "--color-bg-secondary",
+    "value": "#161616"
+  },
+  {
+    "name": "--color-bg-tertiary",
+    "value": "#1c1c1c"
+  },
+  {
+    "name": "--color-bg-quaternary",
+    "value": "#232323"
+  },
+  {
+    "name": "--color-bg-quinary",
+    "value": "#282828"
+  },
+  {
+    "name": "--color-border-primary",
+    "value": "#23252a"
+  },
+  {
+    "name": "--color-border-secondary",
+    "value": "#292b30"
+  },
+  {
+    "name": "--color-border-tertiary",
+    "value": "#2c2e33"
+  },
+  {
+    "name": "--color-text-primary",
+    "value": "#fff"
+  },
+  {
+    "name": "--color-text-secondary",
+    "value": "#e3e4e6"
+  },
+  {
+    "name": "--color-text-tertiary",
+    "value": "#969799"
+  },
+  {
+    "name": "--color-text-quaternary",
+    "value": "#595a5c"
+  },
+  {
+    "name": "--color-link-primary",
+    "value": "#7281ff"
+  },
+  {
+    "name": "--color-link-hover",
+    "value": "#fff"
+  },
+  {
+    "name": "--color-brand-bg",
+    "value": "#5e69d1"
+  },
+  {
+    "name": "--color-brand-text",
+    "value": "#fff"
+  },
+  {
+    "name": "--color-selection-bg",
+    "value": "#474747"
+  },
+  {
+    "name": "--color-selection-text",
+    "value": "#fff"
+  },
+  {
+    "name": "--color-selection-dim",
+    "value": "hsla(0, 0%, 100%, 0.2)"
+  },
+  {
+    "name": "--focus-ring-color",
+    "value": "hsla(0, 0%, 100%, 0.4)"
+  },
+  {
+    "name": "--color-overlay-dim-rgb",
+    "value": "255, 255, 255"
+  },
+  {
+    "name": "--color-overlay-primary",
+    "value": "rgba(0, 0, 0, 0.4)"
+  },
+  {
+    "name": "--color-alpha",
+    "value": "255"
+  },
+  {
+    "name": "--shadow-low",
+    "value": "0px 2px 4px rgba(0, 0, 0, 0.1)"
+  },
+  {
+    "name": "--shadow-medium",
+    "value": "0px 4px 24px rgba(0, 0, 0, 0.2)"
+  },
+  {
+    "name": "--shadow-high",
+    "value": "0px 7px 32px rgba(0, 0, 0, 0.35)"
+  },
+  {
+    "name": "--shadow-stack-low",
+    "value": "0px -1px 1px 0px rgba(0, 0, 0, 0.11) inset, 0px 8px 2px 0px transparent, 0px 5px 2px 0px rgba(0, 0, 0, 0.01), 0px 3px 2px 0px rgba(0, 0, 0, 0.04), 0px 1px 1px 0px rgba(0, 0, 0, 0.07), 0px 0px 1px 0px rgba(0, 0, 0, 0.08)"
+  },
+  {
+    "name": "--icon-grayscale-image-filter",
+    "value": "grayscale(100%) brightness(400%)"
+  },
+  {
+    "name": "--bento-border",
+    "value": "hsla(0, 0%, 100%, 0.03)"
+  }
+]

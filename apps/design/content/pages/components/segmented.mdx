@@ -1,0 +1,56 @@
+---
+title: Segmented Control
+description: Set a mode or filter value in place — not switch between views.
+---
+
+A segmented control is an inline selector that **sets a single value** — a filter, a mode, a
+density level — without navigating away or revealing different content panels. The active
+segment fills onto the background surface; the track sits on the [`muted`](/foundations/color)
+surface.
+
+<SegmentedShowcase />
+
+## Tabs vs. Segmented
+
+| | [Tabs](/components/tabs) | Segmented Control |
+|---|---|---|
+| **Effect** | Swaps the visible content panel | Sets a value; content updates in place |
+| **Mental model** | "I am now on the Notes tab" | "Show me Active tasks" |
+| **State** | UI navigation state | Filter / mode value |
+| **Example** | Notes / Tasks / Links | All · Active · Done |
+
+Use Tabs when each option owns its own panel of content. Use a segmented control when all
+options share the same surface and you are changing a filter or preference.
+
+## Tokens
+
+| Property | Value |
+|---|---|
+| Track background | `--color-fd-muted` |
+| Active segment background | `--color-fd-background` |
+| Active segment shadow | `0 1px 2px rgba(0,0,0,0.12)` |
+| Segment height | `28px` (sits flush inside 32px track with 2px padding) |
+| Padding | `0 12px` per segment |
+| Track radius | `8px`, segment radius `6px` |
+| Label | `13px` semibold (`590`) |
+| Transition | `120ms` on background, color, shadow |
+
+## Guidance
+
+- Use 2–5 segments. More than 5 usually signals the control belongs in a dropdown or filter
+  panel instead.
+- Labels should be one word where possible. Avoid abbreviating — prefer "Comfortable" over
+  "Comfy".
+- Do not use a segmented control for navigation between unrelated pages. Use the sidebar or a
+  link for that.
+- The selected value should be immediately reflected in the surrounding content — no confirm
+  step, no apply button.
+- Avoid icons-only segments unless the icons are universally recognizable and supplemented by a
+  tooltip.
+
+## On mobile
+
+Touch targets inside the track must stay ≥ 44px tall. Increase segment height to `40px` and
+track padding to `3px` on touch viewports. If the total track width would exceed the screen, let
+the track **scroll horizontally** rather than wrapping segments onto a second line or truncating
+labels. The active segment should always be scrolled into view on mount and on change.

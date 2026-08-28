@@ -1,0 +1,35 @@
+---
+title: Breadcrumb
+description: Shows the path to the current item — ancestors as muted links, the current item full-contrast.
+---
+
+A breadcrumb traces the user's position in the information hierarchy. Ancestors are
+rendered as muted, tappable links. The current (last) item is full-contrast and carries
+`aria-current="page"`.
+
+<BreadcrumbShowcase />
+
+## Tokens
+
+Text at `13px`. Ancestors use `--color-fd-muted-foreground`; the current item uses
+`--color-fd-foreground` at `font-weight 590`. The separator is a `ChevronRight` at `12px`
+with `0.4` opacity — visually recessive so the labels read first.
+
+## On mobile
+
+On narrow screens a full path competes with limited horizontal space. Collapse the
+breadcrumb to show only the current item with a leading `ChevronLeft` that navigates
+one level up. This keeps the bar scannable without truncation or wrapping.
+
+<BreadcrumbMobileShowcase />
+
+## Guidance
+
+- Breadcrumbs reflect **hierarchy** (where an item lives), not **history** (how the user
+  got there). Never derive them from the navigation stack.
+- Keep depth between **2 and 4 levels**. Shallower means a flat structure that needs no
+  trail; deeper means the middle levels should collapse to an ellipsis (`…`) button that
+  expands on press.
+- Make every ancestor a real link — tapping it should navigate, not just indicate.
+- Do not repeat the top-level app name in the trail unless the surface genuinely hosts
+  multiple vaults or workspaces.

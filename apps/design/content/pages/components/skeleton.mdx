@@ -1,0 +1,26 @@
+---
+title: Skeleton
+description: Animated loading placeholders that match content shape.
+---
+
+Skeletons hold space while content loads — they render a muted, pulsing silhouette of the
+real layout so the page feels stable and the transition in is smooth.
+
+<SkeletonShowcase />
+
+## Tokens
+
+All blocks use `var(--color-fd-muted)` with `border-radius` sized to match the real element
+(round for avatars, `5px` pill for text lines). The pulse animation runs at `1.4s` so it feels
+calm rather than urgent.
+
+## Guidance
+
+- **Match shape and size exactly.** A skeleton that is a different height or width than the
+  real content causes layout shift when data arrives. Measure the live element and mirror it.
+- **Only use skeletons for content that takes a beat to load.** If the data is already in cache
+  or arrives in under ~100 ms, skip the skeleton — flashing a placeholder that disappears
+  instantly is more disruptive than nothing.
+- **Prefer skeletons over spinners for content areas.** Spinners signal "I am thinking";
+  skeletons signal "here is where your content will be." Use a spinner for an action (saving,
+  submitting); use a skeleton for a content region (note list, editor body).

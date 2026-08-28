@@ -8,12 +8,20 @@ import { AppBarShowcase, AppBarMobileShowcase } from '@/components/showcase/appb
 import { AvatarShowcase } from '@/components/showcase/avatar';
 import { BadgeShowcase } from '@/components/showcase/badge';
 import { BottomSheetShowcase } from '@/components/showcase/bottom-sheet';
+import { BreadcrumbShowcase, BreadcrumbMobileShowcase } from '@/components/showcase/breadcrumb';
 import { ButtonShowcase } from '@/components/showcase/button';
+import { ComboboxShowcase, ComboboxMobileShowcase } from '@/components/showcase/combobox';
+import { CommandMenuShowcase } from '@/components/showcase/command-menu';
 import { DialogShowcase } from '@/components/showcase/dialog';
 import { NavDrawerShowcase } from '@/components/showcase/drawer';
+import { EditorToolbarShowcase } from '@/components/showcase/editor-toolbar';
+import { EmptyStateShowcase } from '@/components/showcase/empty-state';
 import { InputShowcase } from '@/components/showcase/input';
 import { MenuShowcase, MenuSheetShowcase } from '@/components/showcase/menu';
+import { SegmentedShowcase } from '@/components/showcase/segmented';
 import { SelectShowcase, SelectSheetShowcase } from '@/components/showcase/select';
+import { SidebarShowcase } from '@/components/showcase/sidebar';
+import { SkeletonShowcase } from '@/components/showcase/skeleton';
 import { TabsShowcase } from '@/components/showcase/tabs';
 import { ToastShowcase } from '@/components/showcase/toast';
 import { CheckboxShowcase, SwitchShowcase } from '@/components/showcase/toggles';
@@ -30,30 +38,40 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     Cards,
     BrandShowcase,
     FoundationGrid,
+    IconGallery,
     NeutralScale,
     SwatchRow,
-    ButtonShowcase,
-    InputShowcase,
-    BadgeShowcase,
-    CheckboxShowcase,
-    SwitchShowcase,
-    DialogShowcase,
-    BottomSheetShowcase,
-    SelectShowcase,
-    SelectSheetShowcase,
-    TabsShowcase,
-    TooltipShowcase,
-    ToastShowcase,
-    AppBarShowcase,
-    AppBarMobileShowcase,
-    NavDrawerShowcase,
-    MenuShowcase,
-    MenuSheetShowcase,
-    AvatarShowcase,
     ScaleTable,
     TypeScale,
     ShadowGrid,
-    IconGallery,
+    AppBarShowcase,
+    AppBarMobileShowcase,
+    AvatarShowcase,
+    BadgeShowcase,
+    BottomSheetShowcase,
+    BreadcrumbShowcase,
+    BreadcrumbMobileShowcase,
+    ButtonShowcase,
+    ComboboxShowcase,
+    ComboboxMobileShowcase,
+    CommandMenuShowcase,
+    DialogShowcase,
+    NavDrawerShowcase,
+    EditorToolbarShowcase,
+    EmptyStateShowcase,
+    InputShowcase,
+    MenuShowcase,
+    MenuSheetShowcase,
+    SegmentedShowcase,
+    SelectShowcase,
+    SelectSheetShowcase,
+    SidebarShowcase,
+    SkeletonShowcase,
+    TabsShowcase,
+    TooltipShowcase,
+    ToastShowcase,
+    CheckboxShowcase,
+    SwitchShowcase,
     ...components,
   };
 }

@@ -1,0 +1,61 @@
+---
+title: Available tools
+description: The notes, tasks, and vault operations NoteKit exposes over MCP.
+---
+
+The MCP server groups its tools by the part of the vault they act on. Every tool that reads or
+writes accepts a `scope` (`project`, `global`, or `all`) so an agent can target a single project
+or your whole vault.
+
+## Notes
+
+| Tool | What it does |
+| --- | --- |
+| `notes_search` | Find notes by query before reading or writing |
+| `notes_read` | Read a note |
+| `notes_create` | Create a note |
+| `notes_update` | Replace a note's contents |
+| `notes_append` | Append to a note |
+| `notes_move` | Move a note between folders |
+| `notes_delete` | Delete a note |
+
+## Tasks
+
+| Tool | What it does |
+| --- | --- |
+| `tasks_list` | List tasks |
+| `tasks_read` | Read a task |
+| `tasks_create` | Create a task |
+| `tasks_update` | Update a task |
+| `tasks_delete` | Delete a task |
+
+## Projects & navigation
+
+| Tool | What it does |
+| --- | --- |
+| `project_list` | List projects in the vault |
+| `project_current` | Inspect the active project |
+| `project_create` | Onboard the current repo as a project |
+| `list_directory` | Browse the vault's folder tree |
+| `recent_activity` | See recent changes |
+
+## Links & secrets
+
+| Tool | What it does |
+| --- | --- |
+| `links_list` / `links_create` / `links_update` / `links_delete` | Manage saved links |
+| `secret_vault_list` / `secret_vault_create` / `secret_vault_rename` / `secret_vault_delete` | Manage secret vaults |
+| `secret_list` / `secret_remove` | Manage secrets within a vault |
+
+## Devices
+
+| Tool | What it does |
+| --- | --- |
+| `devices_list` | List paired devices |
+| `devices_pair` | Pair a new device |
+| `devices_revoke` | Revoke a device |
+
+<Callout>
+Every write is a Git commit. The commit author records that the change came from the agent, so
+your vault history stays legible.
+</Callout>

@@ -1,0 +1,4 @@
+{
+  "title": "NoteKit Docs",
+  "pages": ["index", "getting-started", "concepts", "mcp", "cli", "self-hosting"]
+}

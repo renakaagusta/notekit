@@ -1,0 +1,87 @@
+# Security-audit allowlist — high/critical advisories consciously accepted.
+# Format: one GHSA id per line; text after # is justification. Blank/comment lines ignored.
+# Consumed by scripts/audit-check.sh (the CI security gate). Criticals with an
+# available fix are NEVER allowlisted here — they are bumped/overridden instead.
+#
+# Review periodically: when a transitive dep ships a fix or an app upgrades a major,
+# drop the corresponding line so the gate re-enforces it.
+
+# app-builder-lib — electron-builder build-time toolchain (desktop packaging); not shipped to users.
+GHSA-7g7r-gx96-252g  # app-builder-lib (high)
+
+# axios — Transitive; tracked for a coordinated bump.
+GHSA-gcfj-64vw-6mp9  # axios (high)
+
+# brace-expansion — Deep transitive of build tooling.
+GHSA-3jxr-9vmj-r5cp  # brace-expansion (high)
+GHSA-mh99-v99m-4gvg  # brace-expansion (high)
+GHSA-rgw5-rvv9-x895  # brace-expansion (high)
+
+# builder-util-runtime — electron-builder build-time toolchain (desktop packaging); not shipped to users.
+GHSA-p2f4-r6v6-j797  # builder-util-runtime (high)
+
+# d3-color — Transitive of the design-system charting deps (build-time).
+GHSA-36jr-mh4h-2g58  # d3-color (high)
+
+# electron — Electron 33; fixes require Electron 35 major upgrade — desktop packaging only, tracked as a separate upgrade.
+GHSA-532v-xpq5-8h95  # electron (high)
+GHSA-8337-3p73-46f4  # electron (high)
+GHSA-9f4c-93c8-jc8g  # electron (high)
+GHSA-9wfr-w7mm-pc7f  # electron (high)
+GHSA-h7rp-cf8h-j98x  # electron (high)
+GHSA-jjp3-mq3x-295m  # electron (high)
+GHSA-v3j7-r9gq-3gjw  # electron (high)
+
+# extract-zip — No fixed version exists (patched=<0.0.0); electron-builder build-time only.
+GHSA-jmr9-qjv8-65gv  # extract-zip (high)
+
+# fast-uri — Transitive via api validation stack; minor bump tracked separately.
+GHSA-4c8g-83qw-93j6  # fast-uri (high)
+GHSA-7p8r-x3mc-p8w7  # fast-uri (high)
+GHSA-v2hh-gcrm-f6hx  # fast-uri (high)
+
+# form-data — Transitive; minor bump tracked separately.
+GHSA-hmw2-7cc7-3qxx  # form-data (high)
+
+# hono — apps/api runtime; low-impact advisory, minor bump tracked separately.
+GHSA-88fw-hqm2-52qc  # hono (high)
+
+# ip-address — Deep transitive.
+GHSA-mwp4-54f8-5fhr  # ip-address (high)
+
+# js-yaml — Deep transitive of build/lint tooling.
+GHSA-52cp-r559-cp3m  # js-yaml (high)
+GHSA-5p4m-2wfm-xmqj  # js-yaml (high)
+
+# linkify-it — Transitive of markdown rendering; content is trusted/authored.
+GHSA-22p9-wv53-3rq4  # linkify-it (high)
+GHSA-v245-v573-v5vm  # linkify-it (high)
+
+# nanoid — Deep transitive; not on a security-sensitive path.
+GHSA-28wg-ghj8-5hjv  # nanoid (high)
+GHSA-2v37-7h3g-55p8  # nanoid (high)
+
+# next — Next.js 14 line; remaining advisories only patched in Next 15 (major upgrade) — critical auth-bypass already fixed via 14.2.35. Build-time/SSR marketing site (apps/landing).
+GHSA-36qx-fr4f-26g5  # next (high)
+GHSA-89xv-2m56-2m9x  # next (high)
+GHSA-8h8q-6873-q5fj  # next (high)
+GHSA-c4j6-fc7j-m34r  # next (high)
+GHSA-h25m-26qc-wcjf  # next (high)
+GHSA-m99w-x7hq-7vfj  # next (high)
+GHSA-p9j2-gv94-2wf4  # next (high)
+GHSA-q4gf-8mx6-v5v3  # next (high)
+
+# postcss — Build-time CSS toolchain; not shipped.
+GHSA-6g55-p6wh-862q  # postcss (high)
+GHSA-r28c-9q8g-f849  # postcss (high)
+
+# tmp — Deep transitive of build tooling.
+GHSA-ph9p-34f9-6g65  # tmp (high)
+
+# undici — Transitive HTTP client; tracked for a coordinated bump.
+GHSA-v9p9-hfj2-hcw8  # undici (high)
+GHSA-vrm6-8vpv-qv8q  # undici (high)
+GHSA-vxpw-j846-p89q  # undici (high)
+
+# vite — Build-time dev server (apps/web, apps/backoffice); not shipped.
+GHSA-fx2h-pf6j-xcff  # vite (high)

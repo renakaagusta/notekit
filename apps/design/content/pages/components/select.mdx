@@ -1,0 +1,29 @@
+---
+title: Select
+description: Choose one option from a list — a dropdown on desktop, a sheet on mobile.
+---
+
+Select lets someone pick one value from a short, known list. On desktop it's a dropdown
+anchored to the trigger.
+
+<SelectShowcase />
+
+## Tokens
+
+Trigger matches the [text field](/components/input) (height `32px`, radius
+[`md`](/foundations/radius), `border` token). The menu uses the
+[`popover`](/foundations/color) surface with the `medium` [shadow](/foundations/elevation);
+the active row fills with the `accent` token.
+
+## On mobile — sheet picker
+
+An anchored dropdown is hard to hit with a thumb and clips against the screen edge, so on
+mobile the same select opens a **bottom-sheet picker**: full-width rows, comfortable
+`44px` touch targets, dismissible by tapping the scrim or dragging down.
+
+<SelectSheetShowcase />
+
+## Guidance
+
+- Use Select for a short list of known options. For many options or search, use a combobox.
+- Keep option labels to one line; don't nest actions inside rows.

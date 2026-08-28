@@ -1,0 +1,27 @@
+---
+title: Toast
+description: A brief, self-dismissing confirmation.
+---
+
+Toasts confirm that something happened — a note saved, a vault synced — without interrupting.
+They appear briefly, dismiss themselves, and never demand action.
+
+<ToastShowcase />
+
+## Tokens
+
+Filled with the [`primary`](/foundations/color) surface, radius
+[`md`](/foundations/radius), `medium` [shadow](/foundations/elevation), a
+[lucide](/foundations/icons) status icon, and a `~2.4s` auto-dismiss.
+
+## Placement
+
+- **Desktop** — bottom-right, stacking upward.
+- **Mobile** — bottom-center, above the safe-area inset and any pinned toolbar, so it never
+  hides behind the home indicator.
+
+## Guidance
+
+- Toasts are for confirmations, not errors that need a decision — use an inline message or a
+  [dialog](/components/dialog) for those.
+- One line. No buttons except a single optional Undo.

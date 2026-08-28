@@ -1,0 +1,26 @@
+---
+title: Tooltip
+description: A short label revealed on hover or focus.
+---
+
+Tooltips give a short, non-essential label to an icon-only control — what a button does, when
+something last synced. They appear on hover and on keyboard focus, and never contain essential
+information or actions.
+
+<TooltipShowcase />
+
+## Tokens
+
+Filled with the [`primary`](/foundations/color) surface, radius
+[`md`](/foundations/radius), `12px` text, `medium` [shadow](/foundations/elevation).
+
+## On mobile — don't rely on hover
+
+Touch has no hover, so a tooltip must never carry information the user needs. On mobile,
+either the control is self-explanatory, the label is shown inline, or the detail moves into a
+[bottom sheet](/components/dialog) on tap. Treat tooltips as a desktop-only enhancement.
+
+## Guidance
+
+- Never put essential text or the only copy of an action in a tooltip.
+- Keep it to a few words; if it needs a sentence, it's not a tooltip.

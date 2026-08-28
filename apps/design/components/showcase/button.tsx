@@ -34,12 +34,15 @@ const variants: Record<Variant, CSSProperties> = {
 
 export function Button({
   variant = 'primary',
+  block = false,
   children,
 }: {
   variant?: Variant;
+  block?: boolean;
   children: ReactNode;
 }) {
-  return <button style={{ ...base, ...variants[variant] }}>{children}</button>;
+  const width = block ? { width: '100%', justifyContent: 'center' as const } : null;
+  return <button style={{ ...base, ...variants[variant], ...width }}>{children}</button>;
 }
 
 export function ButtonShowcase() {

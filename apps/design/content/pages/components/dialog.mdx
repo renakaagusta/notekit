@@ -22,8 +22,22 @@ Panel background from [`popover`](/foundations/color), radius
 [`lg` (8px)](/foundations/radius), [`high`](/foundations/elevation) shadow, overlay at 50%
 black.
 
+## On mobile — bottom sheet
+
+The same decision doesn't use a centered modal on mobile. A centered dialog fights the
+thumb and the on-screen keyboard, so the mobile surface is a **bottom sheet**: it rises from
+the bottom edge, actions stack full-width within thumb reach, and a drag handle signals it's
+dismissible. Same content and semantics, platform-appropriate presentation.
+
+<BottomSheetShowcase />
+
+This is the general rule for platform variants: keep the component's *meaning* identical
+across surfaces, adapt its *presentation* to the platform. A [Select](/components/select)
+follows the same web-dropdown → mobile-sheet pattern.
+
 ## Guidance
 
 - One decision per dialog. If it grows into a multi-step flow, it's a page, not a dialog.
-- Always offer a non-destructive way out (Cancel, click-outside, Escape).
+- Always offer a non-destructive way out (Cancel, click-outside, Escape / drag-down).
 - Name the action on the button — "Delete", not "OK".
+- On mobile, present as a bottom sheet with full-width, stacked actions.

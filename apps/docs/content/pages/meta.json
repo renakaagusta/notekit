@@ -1,4 +1,4 @@
 {
   "title": "NoteKit Docs",
-  "pages": ["index", "getting-started", "concepts", "mcp", "cli", "self-hosting"]
+  "pages": ["index", "getting-started", "concepts", "security", "mcp", "cli", "self-hosting"]
 }

@@ -1,0 +1,49 @@
+---
+title: Security & cryptography
+description: How NoteKit keeps your notes private — the encryption, keys, device model, and threat model, in full technical detail.
+---
+
+NoteKit is **end-to-end encrypted**: content is encrypted on your device, and the server only ever
+holds ciphertext it cannot read. This section documents exactly how that works — the algorithms, the
+key hierarchy, the device model, and what an attacker (or the server operator) can and cannot see.
+
+Nothing here is hand-wavy. Every mechanism below maps to real code in `packages/core/src/lib/crypto`,
+and the primitives are standard, audited building blocks — no home-rolled ciphers.
+
+<SystemArchitectureDiagram />
+
+## The guarantee
+
+- **Plaintext never leaves your device.** Notes, tasks, secrets, titles, and bodies are encrypted
+  before they touch the network.
+- **Private keys never leave your device.** They live in IndexedDB (browser), the OS keychain (CLI),
+  or a local file (server agents) — never uploaded, never in the vault.
+- **The server stores ciphertext.** The API and the Git host (Forgejo/GitHub/GitLab) see armored
+  `age` blobs and some structural metadata, never content.
+- **You hold the only keys.** Recovery is a 24-word phrase (or a wallet signature) that NoteKit never
+  sees and cannot reset.
+
+## Building blocks
+
+NoteKit composes a small set of well-known primitives:
+
+| Purpose | Primitive | Library |
+| --- | --- | --- |
+| Recovery phrase → seed | BIP39 (24 words, 256-bit) | `@scure/bip39` |
+| Content encryption | `age` — X25519 + ChaCha20-Poly1305 (AEAD) | `age-encryption` |
+| Signatures (trust) | Ed25519 | `@noble/curves` |
+| Key derivation (wallet) | HKDF-SHA256 | `@noble/hashes` |
+| Domain-separated key split | SHA-512 | `@noble/hashes` |
+| Safety numbers | SHA-256 | Web Crypto |
+| Randomness | CSPRNG | `crypto.getRandomValues` |
+
+## Read next
+
+<Cards>
+  <Card title="Key hierarchy" href="/security/key-hierarchy" description="From the 24-word phrase (or wallet signature) down to per-device keys." />
+  <Card title="Content encryption" href="/security/content-encryption" description="How age encrypts each note, and what stays in cleartext." />
+  <Card title="Envelope encryption" href="/security/envelope-encryption" description="The keybox: why adding a device is O(1), not a full re-encrypt." />
+  <Card title="Devices & pairing" href="/security/devices-and-pairing" description="The signed device roster, phrase-free pairing, and safety numbers." />
+  <Card title="Sharing & revocation" href="/security/sharing-and-revocation" description="Per-item sharing to other people, and forward-only revocation." />
+  <Card title="Threat model" href="/security/threat-model" description="Exactly what the server sees, trust anchors, and known trade-offs." />
+</Cards>

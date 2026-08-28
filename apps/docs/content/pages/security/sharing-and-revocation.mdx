@@ -1,0 +1,71 @@
+---
+title: Sharing & revocation
+description: How you share a single note with another person, how recipient keys are verified, and why revocation is forward-only.
+---
+
+Sharing in NoteKit is **per item** — you grant one note or task to one person, not your whole vault.
+It reuses the same age multi-recipient mechanism as everything else.
+
+## The key directory
+
+To share with someone, NoteKit needs their public keys. Users publish theirs to a **directory** the
+server hosts at `/directory/keys`. The directory stores **public keys only** — each person's recovery
+signing key plus their signed device records.
+
+Crucially, the server is **untrusted** here. When you look someone up, your client **verifies every
+device record's signature** against that person's published recovery signing key before it will
+encrypt anything to them. A server that returns a forged device record can't get you to encrypt to an
+attacker's key — the unverified recipient is dropped.
+
+You can also compare **safety numbers** out of band (same mechanism as
+[pairing](/security/devices-and-pairing#safety-numbers-mitm-detection)) to confirm you looked up the
+right person.
+
+## Sharing an item
+
+<Mermaid chart={`
+sequenceDiagram
+  participant You as You
+  participant Dir as Key directory
+  participant Vault as Git vault
+  You->>Dir: look up recipient by email
+  Dir-->>You: recovery signing key + signed device records
+  You->>You: verify every device record's signature
+  You->>Vault: append grant to .notekit/shares/{kind}-{id}.json
+  You->>Vault: re-encrypt the item to [your recipients + their verified keys]
+`} />
+
+- The grant is recorded in a cleartext manifest `.notekit/shares/{kind}-{id}.json` — it lists who the
+  item is shared with (email, their signing key, their device recipients).
+- The item itself is **re-encrypted** to the widened recipient set, so their devices can now decrypt
+  that one item. Nothing else in your vault is affected.
+
+<Callout type="warn">
+The share manifest is cleartext metadata: the server can see **which items are shared with whom**
+(by email). The item **contents** stay encrypted. This is a conscious trade-off — see the
+[threat model](/security/threat-model).
+</Callout>
+
+## Forward-only revocation
+
+Un-sharing removes the grant from the manifest and re-encrypts the item **forward-only**. The same is
+true when you revoke a device (which additionally rotates the vault key).
+
+"Forward-only" means exactly what it says, and it's a property of Git, not a weakness to paper over:
+
+- New writes are encrypted to the **reduced** recipient set — the removed party can't read anything
+  new.
+- **Git history still contains** the old ciphertext, which was encrypted to the old set. Anyone who
+  already had access (and kept a clone) can still read what they could already read.
+
+In other words, revocation stops **future** access; it cannot un-send what was already shared. This is
+the honest, industry-standard guarantee — trying to "delete" already-disclosed data would be security
+theater. If content is truly sensitive after a revocation, rotate the secret itself (e.g. change the
+password you stored), don't rely on retroactively hiding history.
+
+## Least-privilege agents
+
+Agents (CLI/MCP) are just devices with their own keys, and by default they can **write** but only
+**read what has been granted to them**. When you approve an agent, the vault key is re-wrapped to
+include it (or specific items are resealed to it) — it decrypts with its **own** key, never your master
+phrase. See [MCP for agents](/mcp) for the agent surface.

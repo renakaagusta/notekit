@@ -75,12 +75,16 @@ StyleDictionary.registerFormat({
 
     const scale = [
       '.nk {',
+      '  --nk-accent: var(--accent);',
+      '  --nk-accent-contrast: var(--primary-foreground);',
+      '  --nk-accent-soft: var(--accent-soft);',
       `  --ui-font: ${v('font.family.ui')};`,
-      `  --editor-font: ${v('font.family.ui')};`,
+      `  --editor-font: ${v('font.family.editor')};`,
       `  --mono-font: ${v('font.family.mono')};`,
       `  --ui-size: ${v('font.size.ui')};`,
       `  --editor-size: ${v('font.size.editor')};`,
       `  --editor-leading: ${v('font.leading.editor')};`,
+      `  --measure: ${v('font.measure')};`,
       `  --r-sm: ${v('radius.sm')};`,
       `  --r-md: ${v('radius.md')};`,
       `  --r-lg: ${v('radius.lg')};`,

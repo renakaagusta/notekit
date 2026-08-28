@@ -4,7 +4,11 @@
       "$type": "fontFamily",
       "ui": {
         "$value": ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
-        "$description": "Product UI + editor (packages/core)."
+        "$description": "Product UI chrome (packages/core --ui-font)."
+      },
+      "editor": {
+        "$value": ["Inter", "system-ui", "sans-serif"],
+        "$description": "Product editor body (packages/core --editor-font)."
       },
       "mono": {
         "$value": ["JetBrains Mono", "ui-monospace", "SF Mono", "Menlo", "Consolas", "monospace"],
@@ -40,6 +44,11 @@
       "tight": { "$value": 1.3 },
       "ui": { "$value": 1.5 },
       "editor": { "$value": 1.7, "$description": "core --editor-leading, sustained reading" }
+    },
+    "measure": {
+      "$type": "dimension",
+      "$value": "680px",
+      "$description": "core --measure, comfortable editor line length"
     }
   }
 }

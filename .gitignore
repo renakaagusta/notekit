@@ -2,6 +2,10 @@ credential.txt
 node_modules/
 .turbo/
 dist/
+# The design-token package's compiled output is committed so every consumer (incl.
+# the live product) always has it, without a build-order dependency.
+!packages/tokens/dist/
+!packages/tokens/dist/**
 build/
 .next/
 *.log

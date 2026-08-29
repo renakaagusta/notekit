@@ -1,0 +1,33 @@
+---
+title: Card
+description: A surface for grouping related content — a note preview, a setting, a summary.
+---
+
+A card groups related content on a raised surface — a note in a grid, a settings panel, a
+stat. It's the quietest container in the system: a single hairline border on the `card`
+surface, no shadow at rest. Structure is optional — an unadorned body, or a header and a
+footer divided by hairlines.
+
+<CardShowcase />
+
+## Anatomy
+
+- **Surface** — the `card` background with a `border` hairline; use it, not a shadow, to
+  separate a card from the page.
+- **Header / footer** (optional) — divided from the body by a `border` hairline; good for a
+  title + actions, or metadata like a folder and timestamp.
+- **Body** — the content itself, at comfortable padding.
+
+## Tokens
+
+Background from [`card`](/foundations/color), `1px` [`border`](/foundations/color),
+[`lg` (8px)](/foundations/radius) radius, [`4`/16px](/foundations/spacing) padding. Elevation
+stays flat at rest — reach for [`low`](/foundations/elevation) only when a card is genuinely
+lifted (dragged, floating).
+
+## Guidance
+
+- Prefer a border over a shadow to delineate a card — the product is mostly flat.
+- Keep one idea per card; if it needs tabs or many sections, it's a page.
+- A whole card may be a link (a note preview) — give it a visible focus ring and keep inner
+  actions reachable.

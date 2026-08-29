@@ -10,6 +10,7 @@ import { BadgeShowcase } from '@/components/showcase/badge';
 import { BottomSheetShowcase } from '@/components/showcase/bottom-sheet';
 import { BreadcrumbShowcase, BreadcrumbMobileShowcase } from '@/components/showcase/breadcrumb';
 import { ButtonShowcase } from '@/components/showcase/button';
+import { CardShowcase } from '@/components/showcase/card';
 import { ComboboxShowcase, ComboboxMobileShowcase } from '@/components/showcase/combobox';
 import { CommandMenuShowcase } from '@/components/showcase/command-menu';
 import { DialogShowcase } from '@/components/showcase/dialog';
@@ -52,6 +53,7 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     BreadcrumbShowcase,
     BreadcrumbMobileShowcase,
     ButtonShowcase,
+    CardShowcase,
     ComboboxShowcase,
     ComboboxMobileShowcase,
     CommandMenuShowcase,

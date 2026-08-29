@@ -1,4 +1,4 @@
 {
   "title": "Components",
-  "pages": ["index", "appbar", "sidebar", "navigation-drawer", "breadcrumb", "command-menu", "button", "input", "select", "combobox", "menu", "segmented", "tabs", "checkbox", "switch", "badge", "avatar", "tooltip", "skeleton", "empty-state", "dialog", "toast", "editor-toolbar"]
+  "pages": ["index", "appbar", "sidebar", "navigation-drawer", "breadcrumb", "command-menu", "button", "input", "select", "combobox", "menu", "segmented", "tabs", "checkbox", "switch", "card", "badge", "avatar", "tooltip", "skeleton", "empty-state", "dialog", "toast", "editor-toolbar"]
 }

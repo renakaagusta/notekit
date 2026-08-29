@@ -1,0 +1,54 @@
+---
+title: Grant an agent read access
+description: Let a connected agent (CLI or MCP) read your encrypted vault — by approving its device, which re-wraps the vault key to it.
+---
+
+By default a freshly [connected agent](/guides/connect-an-agent) has its own key and can **write**, but
+it can't **read** your existing encrypted content. Granting read access is the same act as
+[approving any device](/guides/add-a-device): you approve the agent's device, which re-wraps the vault
+key to include it. There is no separate "grant read" toggle — approval *is* the grant.
+
+## Grant access
+
+**1. The agent surfaces a pairing code.** An MCP server exposes the `devices_pair` tool; running it
+returns a 6-digit code and a safety number. (The agent generates its own keypair locally on first run —
+its private key never leaves the machine it runs on.)
+
+**2. Approve it from a trusted device.** With that code, on a device that's already signed in:
+
+```bash
+notekit devices approve 123456
+```
+
+Compare the safety number, then confirm. Approval adds the agent to your [signed
+roster](/how-it-works/devices-and-trust) (with device kind `mcp` or `cli`) and re-wraps your vault key to
+the agent's key.
+
+**3. The agent can now read.** From that point it can decrypt and read notes, tasks, and links through
+its tools (`notes_search`, `tasks_list`, …) — because it's now a recipient of the vault key.
+
+## Least privilege
+
+- **Write-by-default, read-by-grant.** Until you approve it, an agent can add content but not read your
+  existing encrypted items. This is deliberate — see
+  [agent least-privilege](/how-it-works/sharing-and-revocation#least-privilege-agents).
+- **The agent never holds your master phrase.** It decrypts with its own device key, which you can
+  revoke at any time.
+
+## Revoke it later
+
+Revoke the agent's device from a trusted device (or another approved agent):
+
+```bash
+notekit devices revoke <deviceId>
+```
+
+Revocation rotates the vault key, so the agent loses access to everything written afterward — this is
+[forward-only](/how-it-works/sharing-and-revocation#forward-only-revocation).
+
+## Next
+
+<Cards>
+  <Card title="Connect an agent" href="/guides/connect-an-agent" description="Set up the MCP server first." />
+  <Card title="Zero-knowledge" href="/how-it-works/zero-knowledge" description="Why an agent reads only what's granted, never your keys." />
+</Cards>

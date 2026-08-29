@@ -39,9 +39,13 @@ Set `NOTEKIT_TOKEN` in the environment to authenticate headlessly, bypassing the
 
 | Command | Description |
 | --- | --- |
+| `notekit vault pair` | Start pairing this machine (prints a 6-digit code + safety number) |
 | `notekit devices list` | List paired devices |
-| `notekit devices approve` | Approve a pairing request |
+| `notekit devices approve <code>` | Approve a pairing request by its 6-digit code (`--yes` to skip the prompt) |
 | `notekit devices revoke <id>` | Revoke a device |
+
+See [Add a device](/guides/add-a-device) and [Grant an agent access](/guides/grant-agent-access) for
+the full flows.
 
 ## MCP
 

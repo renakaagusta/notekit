@@ -1,0 +1,57 @@
+---
+title: Add a device
+description: Pair a new device to your vault without typing your recovery phrase — using a 6-digit code and a safety-number check.
+---
+
+Adding a device is a two-sided handshake: the **new device** shows a short code, and an
+**already-trusted device** approves it. You never type your recovery phrase. Under the hood this adds
+the new device to your [signed roster](/how-it-works/devices-and-trust) and re-wraps your vault key to
+it — instant, with no re-encryption of your notes.
+
+You need one device that is already signed in to approve from.
+
+## From the CLI
+
+**On the new device**, start pairing:
+
+```bash
+notekit vault pair
+```
+
+It prints a **6-digit code** and a **safety number**, then waits.
+
+**On a device that's already trusted**, approve it with that code:
+
+```bash
+notekit devices approve 123456
+```
+
+The approving device shows the same safety number and asks you to confirm. **Check that the two safety
+numbers match** before you say yes — that's what rules out a machine-in-the-middle. Add `--yes` to skip
+the prompt only if you've already compared them.
+
+Once approved, the new device finishes automatically and can read your vault.
+
+## From the app
+
+1. On the new device, choose **Link a device** — it shows a 6-digit code and a safety number.
+2. On a trusted device, open **Account → Devices → Link a device** and enter the code.
+3. Compare the safety numbers on both screens, then **Approve**.
+
+## What the safety number is for
+
+The safety number is a short fingerprint of the new device's public key, shown on both screens. If they
+match, no one intercepted the pairing. It's the same idea as verifying a contact in a messaging app —
+see [devices & trust](/how-it-works/devices-and-trust#safety-numbers-mitm-detection).
+
+<Callout type="warn">
+If you lose every device, a new device can't be approved by another device — recover with your 24-word
+phrase instead. Keep a second device paired so you always have an approver.
+</Callout>
+
+## Next
+
+<Cards>
+  <Card title="Devices & trust" href="/how-it-works/devices-and-trust" description="How the roster and pairing work under the hood." />
+  <Card title="Connect an agent" href="/guides/connect-an-agent" description="Pairing an agent is the same flow." />
+</Cards>

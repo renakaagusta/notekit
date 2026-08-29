@@ -7,9 +7,5 @@ export function baseOptions(): BaseLayoutProps {
       title: <BrandLockup />,
     },
     githubUrl: 'https://github.com/renakaagusta/notekit',
-    links: [
-      { text: 'App', url: 'https://app.notekit.online' },
-      { text: 'Design', url: 'https://design.notekit.online' },
-    ],
   };
 }

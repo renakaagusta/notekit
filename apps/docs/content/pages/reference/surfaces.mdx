@@ -52,7 +52,7 @@ environment variable. The CLI binary also embeds the MCP server.
 
 A headless Model Context Protocol server for agents (Claude Code, Cursor, …). It registers tools
 (`notes_create`, `notes_search`, …) that call the same core logic. Because there's no OS keychain on a
-server, it stores its device identity in a **local file** (`$XDG_CONFIG_HOME/notekit/mcp-device.json`,
+server, it stores its device identity in a **local file** (`$XDG_CONFIG_HOME/notekit/guides/connect-an-agent-device.json`,
 mode `0600`) and reads its bearer token from `NOTEKIT_TOKEN`. Like every other surface, its private key
 is generated locally and never leaves the machine — only its public recipient is published to the
 vault's device roster.
@@ -61,5 +61,5 @@ vault's device roster.
 
 No matter the surface, the shape is the same: **generate keys on the device, keep the private half
 local, do the encryption on the device, and send only ciphertext plus public keys to the server.** The
-next two pages show that end to end — the [data flow](/architecture/data-flow) of a write, and why this
-means [zero knowledge](/architecture/zero-knowledge) for the server.
+next two pages show that end to end — the [data flow](/how-it-works/data-flow) of a write, and why this
+means [zero knowledge](/how-it-works/zero-knowledge) for the server.

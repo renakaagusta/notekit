@@ -1,0 +1,50 @@
+---
+title: Quickstart
+description: Create an account, unlock your encrypted vault, and write your first note — in about five minutes.
+---
+
+## 1. Sign in
+
+Open [app.notekit.online](https://app.notekit.online) and sign in. NoteKit uses your Google
+account for identity — this authenticates you to the service; it does **not** give the service
+access to your content, which is encrypted separately (see [Encryption](/how-it-works/encryption)).
+
+## 2. Unlock your vault
+
+The first time you sign in, NoteKit generates your encryption identity and a **24-word recovery
+phrase**. This phrase is the master key to your vault.
+
+- Write it down and keep it somewhere safe. NoteKit cannot recover it for you — that is the point
+  of end-to-end encryption.
+- Each additional device you add (desktop, mobile, CLI) is paired to your account without
+  re-typing the phrase, using device-to-device linking.
+
+## 3. Write a note
+
+Create a note from the sidebar. As you type, the content is encrypted on your device and
+committed to your Git vault. Everything is Markdown underneath.
+
+## 4. Add another surface
+
+- **Desktop** — download the Electron app and sign in with the same account.
+- **Mobile** — install the iOS/Android app.
+- **Terminal & agents** — see [Use the CLI](/guides/use-the-cli) and [Connect an agent](/guides/connect-an-agent).
+
+## What just happened?
+
+In those four steps you:
+
+- created an identity whose keys live **only on your device** — the server never saw your recovery
+  phrase or any private key;
+- wrote a note that was **encrypted on your device** and committed to your Git vault as ciphertext;
+- set up recovery (the phrase) and, optionally, more devices — each paired without re-typing the phrase.
+
+That's the whole model: your data is encrypted before it leaves you, and the server just stores and
+syncs ciphertext. The [How it works](/how-it-works) section explains why that holds.
+
+## Next
+
+<Cards>
+  <Card title="How it works" href="/how-it-works" description="Understand the vault and encryption model." />
+  <Card title="Connect an agent" href="/guides/connect-an-agent" description="Give Claude Code or Cursor access to your vault." />
+</Cards>

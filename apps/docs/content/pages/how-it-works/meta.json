@@ -1,0 +1,14 @@
+{
+  "title": "How it works",
+  "pages": [
+    "index",
+    "the-vault",
+    "encryption",
+    "devices-and-trust",
+    "sharing-and-revocation",
+    "architecture",
+    "data-flow",
+    "zero-knowledge",
+    "threat-model"
+  ]
+}

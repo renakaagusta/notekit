@@ -1,5 +1,5 @@
 ---
-title: MCP for agents
+title: Connect an agent
 description: Connect Claude Code, Cursor, or any MCP client to your NoteKit vault.
 ---
 
@@ -17,7 +17,7 @@ claude mcp add notekit -- npx -y @notekit/mcp
 
 On first run the server pairs itself to your account as a device. Like any device, it gets its
 own encryption key — by default it can write, and it can only read content that has been shared
-to its key. See [Encryption](/concepts/encryption).
+to its key. See [Encryption](/how-it-works/encryption).
 
 ## Connect from another MCP client
 
@@ -28,17 +28,8 @@ at:
 npx -y @notekit/mcp
 ```
 
-## Agent parity
-
-Every capability is reachable from three agent-facing surfaces that call the same underlying use
-cases:
-
-- the **in-app AI**,
-- the **CLI** (see [CLI](/cli)),
-- the **MCP server**.
-
-Adding an action to one without the others is a bug, not a feature gap — parity is a product
-guarantee.
+Every capability is reachable from the CLI and MCP as well as the app, because all three call the same
+use cases — see [agent parity](/how-it-works/architecture#agent-parity).
 
 ## These docs are agent-readable
 
@@ -46,10 +37,10 @@ This documentation is published in an LLM-friendly form so an agent can read it 
 
 - [`/llms.txt`](/llms.txt) — a compact index of every page (title, URL, description).
 - [`/llms-full.txt`](/llms-full.txt) — the entire documentation as one Markdown file.
-- `/llms.mdx/<path>` — any page as raw Markdown (e.g. [`/llms.mdx/mcp`](/llms.mdx/mcp)).
+- `/llms.mdx/<path>` — any page as raw Markdown (e.g. [`/llms.mdx/guides/connect-an-agent`](/llms.mdx/guides/connect-an-agent)).
 
 ## Next
 
 <Cards>
-  <Card title="Available tools" href="/mcp/tools" description="The notes, tasks, and vault operations exposed over MCP." />
+  <Card title="Available tools" href="/reference/mcp-tools" description="The notes, tasks, and vault operations exposed over MCP." />
 </Cards>

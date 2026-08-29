@@ -1,0 +1,40 @@
+---
+title: The vault
+description: Your notes, tasks, and secrets are files in a Git repository — encrypted, with history and attribution from Git itself.
+---
+
+A **vault** is a Git repository. Every note is a Markdown file; every task and secret is a file too.
+Because the store is just Git:
+
+- **History is Git history.** Every change is a commit — you can see what changed, when, and by which
+  device or agent.
+- **Attribution is the commit author.** When an agent writes to your vault, the commit records that it
+  was the agent, not you.
+- **No lock-in.** Clone the repository and you have every byte of your data in an open format.
+
+<Callout type="warn">
+"Every byte" means the **encrypted** bytes. The files in the repo are `age` ciphertext — cloning gives
+you the complete, portable vault, but you still need your keys (a paired device or your recovery
+phrase) to read it. That's the point of [end-to-end encryption](/how-it-works/encryption): even with
+full repo access, content stays private.
+</Callout>
+
+One vault can hold many **projects**, each under `projects/<slug>/`. Top-level `notes/` and `tickets/`
+hold personal or cross-project items.
+
+## Where the repository lives
+
+By default your vault is hosted on NoteKit's managed Git service (`git.notekit.online`, powered by
+Forgejo). If you prefer, you point NoteKit at your own Git backend — see
+[Self-hosting](/guides/self-host).
+
+## Sync
+
+Each surface (web, desktop, mobile, CLI) pulls and pushes to the vault. Content moves as **ciphertext**
+and is cached locally by its Git blob hash, so the apps stay fast and keep working across reconnects.
+The full trace is in [data flow](/how-it-works/data-flow).
+
+<Cards>
+  <Card title="Encryption" href="/how-it-works/encryption" description="How the files in your vault are encrypted." />
+  <Card title="Architecture" href="/how-it-works/architecture" description="How each surface reads and writes the vault." />
+</Cards>

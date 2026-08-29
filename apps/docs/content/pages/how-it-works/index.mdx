@@ -1,0 +1,52 @@
+---
+title: How it works
+description: The mental model behind NoteKit — a git-backed vault, end-to-end encryption, and one shared core behind every surface.
+---
+
+This section explains **how NoteKit is designed and why**. If you just want to use it, start with the
+[quickstart](/get-started/quickstart); come back here when you want to understand what's happening
+underneath.
+
+Everything rests on three ideas that reinforce each other.
+
+<SystemArchitectureDiagram />
+
+## 1. Your vault is a Git repository
+
+Notes, tasks, and secrets are files in a Git repo. History, attribution, and audit come from Git
+itself — no proprietary database, no lock-in. One vault can hold many projects.
+→ [The vault](/how-it-works/the-vault)
+
+## 2. Content is end-to-end encrypted
+
+Everything private is encrypted **on your device** before it is stored, so the files in that Git repo
+are ciphertext. The server holds encrypted blobs and a little structural metadata — never your titles,
+bodies, or secrets, and never your keys.
+
+The keys that decrypt your data are **derived or generated on your device and never leave it**. That
+single fact is what makes the server unable to read anything — the [zero-knowledge](/how-it-works/zero-knowledge)
+guarantee.
+→ [Encryption](/how-it-works/encryption) · [Devices & trust](/how-it-works/devices-and-trust)
+
+## 3. One core, many surfaces
+
+The web, desktop, mobile, CLI, and MCP server are thin front-ends over one shared core — including the
+encryption. They don't reimplement anything; they call the same logic. That's why an agent can do
+anything you can, and why every surface encrypts the same way.
+→ [Architecture](/how-it-works/architecture)
+
+## The pages here
+
+<Cards>
+  <Card title="The vault" href="/how-it-works/the-vault" description="Notes as Git files: history, attribution, no lock-in." />
+  <Card title="Encryption" href="/how-it-works/encryption" description="How age encrypts your content and how the keybox makes it fast." />
+  <Card title="Devices & trust" href="/how-it-works/devices-and-trust" description="The signed device roster, phrase-free pairing, safety numbers." />
+  <Card title="Sharing & revocation" href="/how-it-works/sharing-and-revocation" description="Sharing a single note, and why revocation is forward-only." />
+  <Card title="Architecture" href="/how-it-works/architecture" description="Hexagonal design: one core, many surfaces." />
+  <Card title="Data flow" href="/how-it-works/data-flow" description="Trace a note write from a keystroke to a Git commit." />
+  <Card title="Zero-knowledge" href="/how-it-works/zero-knowledge" description="Exactly why the server can't see your keys or data." />
+  <Card title="Threat model" href="/how-it-works/threat-model" description="What the server can and cannot see." />
+</Cards>
+
+Looking for exact algorithms, parameters, or formats? Those live in the
+[cryptography reference](/reference/cryptography).

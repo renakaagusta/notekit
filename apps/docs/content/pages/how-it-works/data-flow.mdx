@@ -37,7 +37,7 @@ sequenceDiagram
 3. **Encryption (domain).** If the vault is encrypted, the private fields (title, body, tags) are
    sealed with `age` to the vault key's recipient. Structural metadata (folder, timestamps) stays in
    cleartext frontmatter so the app can render without decrypting. See
-   [content encryption](/security/content-encryption).
+   [content encryption](/how-it-works/encryption).
 4. **Outbound port.** The use case calls `VaultPort.writeFile(path, content, sha)` — an interface, not
    an HTTP detail. The `sha` enables safe create-vs-update (optimistic concurrency).
 5. **Driven adapter → transport.** The port's implementation calls the `@notekit/api-client` HTTP
@@ -51,7 +51,7 @@ sequenceDiagram
 
 Because steps 2–7 live in the shared core, the web app, CLI, and MCP server all run the *identical*
 path — they differ only in step 1 (how the command is gathered) and in which key store and auth mode
-the composition root wired up. This is what "[agent parity](/mcp#agent-parity)" means concretely: the
+the composition root wired up. This is what "[agent parity](/how-it-works/architecture#agent-parity)" means concretely: the
 same use case, reached from three different driving adapters.
 
 <Callout>

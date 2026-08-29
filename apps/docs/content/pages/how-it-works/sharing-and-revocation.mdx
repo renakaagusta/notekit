@@ -18,7 +18,7 @@ encrypt anything to them. A server that returns a forged device record can't get
 attacker's key — the unverified recipient is dropped.
 
 You can also compare **safety numbers** out of band (same mechanism as
-[pairing](/security/devices-and-pairing#safety-numbers-mitm-detection)) to confirm you looked up the
+[pairing](/how-it-works/devices-and-trust#safety-numbers-mitm-detection)) to confirm you looked up the
 right person.
 
 ## Sharing an item
@@ -43,7 +43,7 @@ sequenceDiagram
 <Callout type="warn">
 The share manifest is cleartext metadata: the server can see **which items are shared with whom**
 (by email). The item **contents** stay encrypted. This is a conscious trade-off — see the
-[threat model](/security/threat-model).
+[threat model](/how-it-works/threat-model).
 </Callout>
 
 ## Forward-only revocation
@@ -68,4 +68,4 @@ password you stored), don't rely on retroactively hiding history.
 Agents (CLI/MCP) are just devices with their own keys, and by default they can **write** but only
 **read what has been granted to them**. When you approve an agent, the vault key is re-wrapped to
 include it (or specific items are resealed to it) — it decrypts with its **own** key, never your master
-phrase. See [MCP for agents](/mcp) for the agent surface.
+phrase. See [MCP for agents](/guides/connect-an-agent) for the agent surface.

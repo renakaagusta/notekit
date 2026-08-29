@@ -1,0 +1,90 @@
+---
+title: Encryption
+description: How NoteKit encrypts your content on-device with age, and how the keybox keeps adding a device fast.
+---
+
+In one sentence: **each item is encrypted on your device to a single vault key, and that vault key is
+wrapped separately for each of your devices.** This page explains what that means and why it's built
+this way. For exact algorithms, key sizes, and file formats, see the
+[cryptography reference](/reference/cryptography).
+
+## Encrypted on your device, before the network
+
+When you save a note, its private fields (title, body, tags) are encrypted on your device **before**
+anything is sent. By the time it reaches the network it's an [`age`](https://age-encryption.org)
+ciphertext blob. The server stores that blob; it never sees plaintext and never holds a key that could
+decrypt it.
+
+`age` is a small, audited, modern encryption format. NoteKit uses it because it's **authenticated**
+(tampering is detected on decrypt) and **multi-recipient** (one ciphertext can be readable by several
+keys — which is exactly what a multi-device, shareable vault needs).
+
+## What's encrypted, what's not
+
+Each item is stored as a `.md.age` file: a little **cleartext** metadata header, then the **encrypted**
+body. Some structural metadata is deliberately left readable so the app can draw a sidebar and a task
+board without decrypting everything first.
+
+| You get (encrypted) | The server sees (cleartext) |
+| --- | --- |
+| Titles, bodies, tags, URLs, secret values | Folders, timestamps, task status/priority/due date, file sizes |
+
+Filenames are opaque — items are stored under a UUID, never their title. The complete cleartext list
+is in the [threat model](/how-it-works/threat-model), and the exact field-by-field split is in the
+[cryptography reference](/reference/cryptography#item-format).
+
+## The keybox: why adding a device is instant
+
+A naive design would encrypt every note directly to every device. Then **adding a device would mean
+re-encrypting your whole vault** — slow, and it forces the app to hold a key that can rewrite
+everything. NoteKit avoids this with **envelope encryption**.
+
+- All content is encrypted to **one random vault key**.
+- The vault key is itself encrypted — "wrapped" — to each trusted device (and to your recovery key),
+  and stored as `.notekit/keybox.age`.
+- To read anything, a device first opens the keybox with its own key to recover the vault key, then
+  decrypts content with it.
+
+<Mermaid chart={`
+flowchart TD
+  subgraph keybox[".notekit/keybox.age — encrypted"]
+    VK["Vault key"]
+  end
+  D1["Device A key"] -. wraps .-> keybox
+  D2["Device B key"] -. wraps .-> keybox
+  R["Recovery key"] -. wraps .-> keybox
+  VK --> C1["note 1 .age"]
+  VK --> C2["note 2 .age"]
+  VK --> C3["task N .age"]
+`} />
+
+**Adding a device is O(1).** Approving a new device doesn't touch your notes — it just re-wraps the
+same vault key to include the new device. Your thousands of files are untouched.
+
+<Mermaid chart={`
+sequenceDiagram
+  participant New as New device
+  participant App as Approving device
+  participant Vault as Git vault
+  App->>Vault: add New to the signed roster
+  App->>Vault: re-wrap keybox to [devices + New + recovery]
+  Note over Vault: content files unchanged
+  New->>Vault: open keybox with its own key → vault key
+`} />
+
+**Removing a device rotates the key.** A revoked device still holds the old vault key, so revocation
+generates a *fresh* vault key, re-encrypts content to the remaining devices, and bumps the keybox
+`epoch`. The revoked device isn't a recipient of the new keybox, so it loses access to everything
+written afterward. This is *forward-only* — see [sharing & revocation](/how-it-works/sharing-and-revocation#forward-only-revocation).
+
+<Callout type="info">
+"Instant add, key-rotate on remove" is the deliberate trade-off: adds are frequent and cheap; removes
+are rare and pay the cost of a re-encrypt to actually cut off access.
+</Callout>
+
+## Next
+
+<Cards>
+  <Card title="Devices & trust" href="/how-it-works/devices-and-trust" description="How devices are added and trusted without your recovery phrase." />
+  <Card title="Cryptography reference" href="/reference/cryptography" description="Exact algorithms, parameters, and file formats." />
+</Cards>

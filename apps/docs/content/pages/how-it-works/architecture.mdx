@@ -35,7 +35,7 @@ must also exist in the CLI and MCP: they're all just different callers of the sa
 | `packages/core` | The core — `domain/` + `application/` + shared adapters. All crypto lives here. |
 | `packages/api-client` | A driven transport adapter — the HTTP client every surface uses. No React/DOM. |
 | `apps/web` · `apps/desktop` · `apps/mobile` | UI surfaces (composition roots mounting the core's UI). |
-| `apps/cli` · `apps/mcp` | Agent surfaces (their own composition roots). |
+| `apps/guides/use-the-cli` · `apps/guides/connect-an-agent` | Agent surfaces (their own composition roots). |
 | `apps/api` | The backend — a relay that binds Postgres + a Git provider. Never sees plaintext. |
 
 ## Honest migration status
@@ -46,10 +46,20 @@ The ideal layering above is the **target**, and NoteKit is actively migrating to
 it is being carved into explicit use cases as those areas are touched. We'd rather tell you this than
 present a tidy diagram that the code doesn't fully match yet.
 
+## Agent parity
+
+Because every surface calls the same inbound ports, every capability is reachable from all three
+agent-facing surfaces — the **in-app AI**, the **[CLI](/guides/use-the-cli)**, and the
+**[MCP server](/guides/connect-an-agent)** — as well as the UI. They converge on the same use case;
+none reimplements the logic.
+
+This is a product guarantee, not a coincidence: **adding an action to one surface without the others
+is a bug, not a feature gap.** It's why an agent can do anything a person can.
+
 ## Read next
 
 <Cards>
-  <Card title="The surfaces" href="/architecture/surfaces" description="Web, desktop, mobile, CLI, MCP — what each is and where it keeps your keys." />
-  <Card title="Data flow" href="/architecture/data-flow" description="Trace a note write from a keystroke to an encrypted Git commit." />
-  <Card title="Zero-knowledge" href="/architecture/zero-knowledge" description="Exactly why the server can never see your keys or your data." />
+  <Card title="The surfaces" href="/reference/surfaces" description="Web, desktop, mobile, CLI, MCP — what each is and where it keeps your keys." />
+  <Card title="Data flow" href="/how-it-works/data-flow" description="Trace a note write from a keystroke to an encrypted Git commit." />
+  <Card title="Zero-knowledge" href="/how-it-works/zero-knowledge" description="Exactly why the server can never see your keys or your data." />
 </Cards>

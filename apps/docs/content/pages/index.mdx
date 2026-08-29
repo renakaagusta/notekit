@@ -5,28 +5,23 @@ description: NoteKit is a git-backed, end-to-end-encrypted, MCP-first notes and 
 
 **NoteKit** is a notes and tasks app built on three ideas:
 
-- **Git-backed** — every note, task, and secret is a Markdown file in a Git repository. Your
-  history, attribution, and audit trail are plain Git; there is no proprietary database to be
-  locked into.
-- **End-to-end encrypted** — content is encrypted on your device before it is ever stored. The
-  server holds ciphertext it cannot read.
-- **MCP-first** — anything you can do in the app, an agent can do too, through the same
-  interfaces. NoteKit ships a Model Context Protocol server and a CLI alongside the web,
-  desktop, and mobile apps.
+- **Git-backed** — your vault is a Git repository; history and attribution are plain Git, with no
+  proprietary database to lock you in.
+- **End-to-end encrypted** — content is encrypted on your device; the server only ever holds
+  ciphertext it cannot read.
+- **MCP-first** — anything you can do in the app, an agent can do too, through the same interfaces.
 
-## Where to start
+Sign in on the web, desktop, mobile, CLI, or an MCP server and you're looking at the same vault.
+
+## Find your way
 
 <Cards>
-  <Card title="Getting started" href="/getting-started" description="Create an account, unlock your vault, and write your first note." />
-  <Card title="Core concepts" href="/concepts" description="How the git-backed vault and end-to-end encryption fit together." />
-  <Card title="Security & cryptography" href="/security" description="The full technical design: encryption, keys, device pairing, threat model." />
-  <Card title="Architecture" href="/architecture" description="One core, many surfaces — and why the server never sees your keys or data." />
-  <Card title="MCP for agents" href="/mcp" description="Connect Claude Code, Cursor, or any MCP client to your vault." />
-  <Card title="Self-hosting" href="/self-hosting" description="Run the whole stack on your own server." />
+  <Card title="Get started" href="/get-started/quickstart" description="Write your first encrypted note in five minutes." />
+  <Card title="Guides" href="/guides/connect-an-agent" description="Task-focused how-tos: connect an agent, use the CLI, self-host." />
+  <Card title="How it works" href="/how-it-works" description="The encryption model, the vault, the device trust model, the architecture." />
+  <Card title="Reference" href="/reference/cryptography" description="The cryptography spec, MCP tools, CLI commands, and per-surface details." />
 </Cards>
 
-## One product, every surface
-
-NoteKit runs on the web (`app.notekit.online`), desktop (Electron), and mobile (iOS/Android),
-plus a terminal CLI and an MCP server for agents. They are separate front-ends over the same
-vault — sign in on any of them and you see the same notes.
+This site is organized the way you'll use it: **learn** the basics in Get started, **do** specific
+tasks in Guides, **understand** the design in How it works, and **look up** exact details in
+Reference. Each concept is explained in one place and linked from the others.

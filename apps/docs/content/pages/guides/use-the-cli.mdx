@@ -1,0 +1,53 @@
+---
+title: Use the CLI
+description: Install, authenticate, and drive your NoteKit vault from the terminal — with full end-to-end encryption.
+---
+
+The NoteKit CLI is a terminal surface over your vault. It does full end-to-end encryption like the web,
+desktop, and mobile apps — the agent surface is never plaintext-only.
+
+## Install
+
+```bash
+npm install -g @notekit/cli
+```
+
+## Authenticate
+
+```bash
+notekit login
+```
+
+This pairs the CLI to your account as a device, with its own encryption key stored in your OS keychain.
+
+## Your first commands
+
+```bash
+notekit notes new "Meeting notes"
+notekit notes list
+notekit notes search "roadmap"
+notekit tasks list
+```
+
+For the complete command catalog, see the [CLI reference](/reference/cli-commands).
+
+## Run it headless (CI or a server)
+
+For non-interactive environments, authenticate with a token instead of the interactive flow:
+
+```bash
+NOTEKIT_TOKEN=... notekit notes list
+```
+
+In this mode the CLI runs without an OS keychain, which is what lets it run unattended on a server.
+
+## It's also an MCP server
+
+The CLI binary embeds the [MCP server](/guides/connect-an-agent), so a single install gives you both
+the terminal commands and the agent interface — both calling the same use cases as the app (see
+[agent parity](/how-it-works/architecture#agent-parity)).
+
+<Cards>
+  <Card title="CLI reference" href="/reference/cli-commands" description="Every command and flag." />
+  <Card title="Connect an agent" href="/guides/connect-an-agent" description="Use the embedded MCP server with Claude Code or Cursor." />
+</Cards>

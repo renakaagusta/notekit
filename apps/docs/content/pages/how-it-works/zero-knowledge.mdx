@@ -17,7 +17,7 @@ material is derived or generated **locally**:
 
 - Your **identity keys** come from a 24-word BIP39 phrase (or a wallet signature) that is turned into a
   seed *on your device*. The server never sees the phrase, the seed, or the private keys derived from
-  it. See [key hierarchy](/security/key-hierarchy).
+  it. See [key hierarchy](/reference/cryptography).
 - Each **device** additionally generates its own random age + Ed25519 keypair, locally, on first run.
 
 The server is never a party to any of this. It has no key-generation endpoint, no key-escrow table, no
@@ -41,7 +41,7 @@ signatures; they cannot decrypt or impersonate.
 ## Encryption happens before the network
 
 Because the crypto lives in the shared core, **every** surface encrypts on the device before a single
-byte is sent (see the [data flow](/architecture/data-flow)). By the time content reaches the transport,
+byte is sent (see the [data flow](/how-it-works/data-flow)). By the time content reaches the transport,
 it is already an armored `age` blob. The API and the Git host receive ciphertext and store ciphertext.
 
 ## What the server actually holds
@@ -55,7 +55,7 @@ stores the repository. In neither place is there a key that can decrypt your con
 
 It can see **metadata** — folder names, timestamps, ticket status, file sizes, commit authors, and who
 a note is shared with. It cannot see titles, bodies, tags, URLs, or secret values. The full list is in
-the [threat model](/security/threat-model).
+the [threat model](/how-it-works/threat-model).
 
 ## Why you don't have to trust us on this
 
@@ -69,7 +69,7 @@ Three properties make the guarantee checkable rather than promised:
 3. **Signed, verifiable trust.** New devices and shared recipients are admitted through a signed device
    roster rooted in *your* key, and verified client-side. A malicious server can't inject a key it
    controls to start reading new writes — the unsigned entry is rejected before it's ever used. See
-   [devices & pairing](/security/devices-and-pairing).
+   [devices & pairing](/how-it-works/devices-and-trust).
 
 ## The honest edges
 
@@ -79,7 +79,7 @@ Zero-knowledge is about the **server**. It does not mean magic:
 - Metadata (above) is visible to the host by design, so the app can work offline.
 - Revocation is **forward-only**: it stops future access, it cannot un-send already-shared history
   (that's a property of Git, and we don't pretend otherwise). See
-  [sharing & revocation](/security/sharing-and-revocation).
+  [sharing & revocation](/how-it-works/sharing-and-revocation).
 
 That's the whole deal: keys made on your device, kept on your device, used on your device — and a
 server that only ever moves ciphertext around.

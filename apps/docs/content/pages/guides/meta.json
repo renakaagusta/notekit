@@ -1,4 +1,4 @@
 {
   "title": "Guides",
-  "pages": ["connect-an-agent", "use-the-cli", "self-host"]
+  "pages": ["connect-an-agent", "use-the-cli", "add-a-device", "share-a-note", "grant-agent-access", "self-host"]
 }

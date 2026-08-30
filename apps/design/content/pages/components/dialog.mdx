@@ -31,6 +31,39 @@ sits last (rightmost on desktop, bottom on mobile).
   slot uses the destructive variant ("Delete this vault?" → *Cancel* / *Delete*). A
   destructive action always keeps a Cancel.
 
+## Button width & layout
+
+Button width is **responsive, not a single rule** — the two platforms differ on purpose, the
+same way Apple's own alerts do (iOS fills the width; macOS right-aligns).
+
+- **Desktop** — buttons are **right-aligned at their natural width**, not stretched. There's
+  no thumb constraint with a mouse, and auto width keeps the primary emphasized while Cancel
+  stays quiet; label length signals weight. Primary/destructive is rightmost.
+- **Mobile** — buttons **fill the sheet width**. Two short buttons sit **side by side, 50/50**
+  (Cancel left, primary right — see the bottom sheet below); **three or more, or long labels,
+  stack** full-width instead. Full width is for thumb reach and touch targets.
+
+Do **not** stretch buttons full-width on a desktop dialog: on a ~450px panel they look clumsy,
+flatten the Cancel-vs-primary hierarchy, and waste the right-to-left scanning economy. (Carbon
+is the deliberate exception — a whole-system edge-to-edge aesthetic, not a one-off.)
+
+## Content & layout
+
+A dialog is a **decision or a short form**, not a document. Keep it lean:
+
+- **Minimal copy.** One line of context under the title, at most. Long explanations
+  (how encryption works, where avatars come from) belong in docs or a help link, not stacked as
+  paragraphs inside the dialog.
+- **Short labels; never put essential info in a placeholder.** A placeholder is an example
+  ("e.g. Triage Bot"), not instructions — it vanishes on type and fails contrast. If a field
+  needs explanation, use a short label or a one-line hint under it.
+- **One column, consistent fields.** Every field spans the width and uses the same
+  [text field](/components/input) / [select](/components/select) treatment. Don't float a
+  [segmented control](/components/segmented) off to the side — align it with the rest.
+- **If it scrolls, it's a page.** A form with many fields (create-an-agent, full settings) is a
+  route, not a modal. If a dialog must scroll, pin the title and the action footer so they stay
+  visible.
+
 ## Tokens
 
 Panel background from [`popover`](/foundations/color), radius
@@ -41,8 +74,9 @@ black.
 
 The same decision doesn't use a centered modal on mobile. A centered dialog fights the
 thumb and the on-screen keyboard, so the mobile surface is a **bottom sheet**: it rises from
-the bottom edge, actions stack full-width within thumb reach, and a drag handle signals it's
-dismissible. Same content and semantics, platform-appropriate presentation.
+the bottom edge, its two actions sit side by side filling the width within thumb reach, and a
+drag handle signals it's dismissible. Same content and semantics, platform-appropriate
+presentation.
 
 <BottomSheetShowcase />
 
@@ -52,7 +86,8 @@ follows the same web-dropdown → mobile-sheet pattern.
 
 ## Guidance
 
-- One decision per dialog. If it grows into a multi-step flow, it's a page, not a dialog.
+- One decision per dialog. If it grows into a multi-step flow or a long form, it's a page.
 - Always offer a non-destructive way out (Cancel, click-outside, Escape / drag-down).
 - Name the action on the button — "Delete", not "OK".
-- On mobile, present as a bottom sheet with full-width, stacked actions.
+- Desktop: right-aligned auto-width actions. Mobile: full-width — 50/50 side by side for two,
+  stacked for three or more.

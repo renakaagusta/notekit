@@ -59,15 +59,15 @@ export function BottomSheetShowcase() {
               >
                 This removes the vault and its keys from this device.
               </p>
-              <div style={{ display: 'grid', gap: 8 }}>
-                <span onClick={() => setOpen(false)} style={{ display: 'grid' }}>
-                  <Button variant="destructive" block>
-                    Delete
-                  </Button>
-                </span>
-                <span onClick={() => setOpen(false)} style={{ display: 'grid' }}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <span onClick={() => setOpen(false)} style={{ display: 'flex', flex: 1 }}>
                   <Button variant="secondary" block>
                     Cancel
+                  </Button>
+                </span>
+                <span onClick={() => setOpen(false)} style={{ display: 'flex', flex: 1 }}>
+                  <Button variant="destructive" block>
+                    Delete
                   </Button>
                 </span>
               </div>

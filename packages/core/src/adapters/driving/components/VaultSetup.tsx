@@ -33,6 +33,7 @@ import {
   WalletConnectIcon,
   WalletIcon,
 } from "./BrandIcons";
+import { Modal } from "./Modal";
 import { RecoveryPhraseDialog } from "./VaultPairing";
 
 /** Render the brand logo for a detected wallet id. */
@@ -41,6 +42,166 @@ function WalletLogo({ id, size = 20 }: { id: WalletId; size?: number }) {
   if (id === "rabby") return <RabbyIcon size={size} />;
   if (id === "coinbase") return <CoinbaseIcon size={size} />;
   return <WalletIcon size={size} />;
+}
+
+function WalletCta({
+  wallet,
+  busy,
+  onRun,
+}: {
+  wallet: { id: WalletId; name: string };
+  busy: boolean;
+  onRun: () => void;
+}) {
+  return (
+    <>
+      <button
+        className="nk-wallet-cta"
+        onClick={onRun}
+        disabled={busy}
+      >
+        <WalletLogo id={wallet.id} size={22} />
+        <span>
+          {busy
+            ? "Waiting for wallet…"
+            : `Continue with ${wallet.name}`}
+        </span>
+      </button>
+
+      <div className="nk-wallet-strip">
+        <span className="nk-wallet-strip__label">works with</span>
+        <MetaMaskIcon size={18} />
+        <RabbyIcon size={18} />
+        <CoinbaseIcon size={18} />
+        <WalletConnectIcon size={18} />
+      </div>
+    </>
+  );
+}
+
+function PerDeviceApprovalsToggle({
+  checked,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="nk-vault-optin">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        disabled={disabled}
+      />
+      <span>
+        <strong>Per-device approvals (recommended)</strong>
+        <span className="nk-muted">
+          Each new device is approved from one you already trust — no need
+          to type your recovery phrase to add a device, and revoking one
+          takes effect immediately.
+        </span>
+      </span>
+    </label>
+  );
+}
+
+function ChoosingView({
+  walletBusy,
+  importBusy,
+  failed,
+  perDeviceApprovals,
+  onWalletRun,
+  onChoosePhrase,
+  onImportOpen,
+  onPerDeviceApprovalsChange,
+}: {
+  walletBusy: boolean;
+  importBusy: boolean;
+  failed: string | null;
+  perDeviceApprovals: boolean;
+  onWalletRun: () => void;
+  onChoosePhrase: () => void;
+  onImportOpen: () => void;
+  onPerDeviceApprovalsChange: (value: boolean) => void;
+}) {
+  const hasWallet = hasInjectedWallet();
+  const wallet = detectedWallet() ?? { id: "wallet" as WalletId, name: "wallet" };
+  const anyBusy = walletBusy || importBusy;
+
+  return (
+    <Modal open onClose={() => undefined} title="Secure your notes" isDismissable={false}>
+      <p className="nk-muted">
+        {hasWallet
+          ? "End-to-end encrypted. Your wallet holds the key — nothing else to back up, and any device unlocks by signing again."
+          : "End-to-end encrypted. We'll generate a recovery phrase for you — or reuse one you already have."}
+      </p>
+
+      {hasWallet && (
+        <WalletCta wallet={wallet} busy={walletBusy} onRun={onWalletRun} />
+      )}
+
+      <button
+        className={hasWallet ? "nk-textlink nk-wallet-alt" : "nk-btn nk-btn--primary"}
+        onClick={onChoosePhrase}
+        disabled={anyBusy}
+      >
+        {hasWallet
+          ? "Prefer a recovery phrase? Set it up →"
+          : "Create a new recovery phrase"}
+      </button>
+
+      <button
+        className="nk-textlink nk-wallet-alt"
+        onClick={onImportOpen}
+        disabled={anyBusy}
+      >
+        I already have a recovery phrase →
+      </button>
+
+      <PerDeviceApprovalsToggle
+        checked={perDeviceApprovals}
+        disabled={anyBusy}
+        onChange={onPerDeviceApprovalsChange}
+      />
+
+      {failed && <p className="nk-error-text">{failed}</p>}
+    </Modal>
+  );
+}
+
+function SettingUpView() {
+  return (
+    <Modal open onClose={() => undefined} title="Setting up your encrypted space…" isDismissable={false}>
+      <p className="nk-muted">One moment — generating your keys on this device.</p>
+    </Modal>
+  );
+}
+
+function SetupErrorView({
+  failed,
+  onDismiss,
+  onRetry,
+}: {
+  failed: string;
+  onDismiss: () => void;
+  onRetry: () => void;
+}) {
+  return (
+    <Modal open onClose={() => undefined} title="Couldn't finish setup" isDismissable={false}>
+      <p className="nk-error-text">{failed}</p>
+      <div className="nk-modal-actions">
+        <button className="nk-btn" onClick={onDismiss}>
+          Dismiss
+        </button>
+        <button className="nk-btn nk-btn--primary" onClick={onRetry}>
+          Try again
+        </button>
+      </div>
+    </Modal>
+  );
 }
 
 /**
@@ -233,83 +394,19 @@ export function VaultSetup() {
     }
   }
 
-  // Web3 path: lead with the user's detected wallet as the hero, with a muted
-  // "works with" logo strip for trust and the recovery phrase demoted to a
-  // quiet link. Shown only when a wallet is detected.
   if (choosing && !failed) {
-    const hasWallet = hasInjectedWallet();
-    const wallet = detectedWallet() ?? { id: "wallet" as WalletId, name: "wallet" };
     return (
-      <div className="nk-modal-backdrop">
-        <div className="nk-modal nk-vault-setup nk-vault-secure">
-          <h2>Secure your notes</h2>
-          <p className="nk-muted">
-            {hasWallet
-              ? "End-to-end encrypted. Your wallet holds the key — nothing else to back up, and any device unlocks by signing again."
-              : "End-to-end encrypted. We'll generate a recovery phrase for you — or reuse one you already have."}
-          </p>
-
-          {hasWallet && (
-            <>
-              <button
-                className="nk-wallet-cta"
-                onClick={() => void runWallet()}
-                disabled={walletBusy}
-              >
-                <WalletLogo id={wallet.id} size={22} />
-                <span>
-                  {walletBusy
-                    ? "Waiting for wallet…"
-                    : `Continue with ${wallet.name}`}
-                </span>
-              </button>
-
-              <div className="nk-wallet-strip">
-                <span className="nk-wallet-strip__label">works with</span>
-                <MetaMaskIcon size={18} />
-                <RabbyIcon size={18} />
-                <CoinbaseIcon size={18} />
-                <WalletConnectIcon size={18} />
-              </div>
-            </>
-          )}
-
-          <button
-            className={hasWallet ? "nk-textlink nk-wallet-alt" : "nk-btn nk-btn--primary"}
-            onClick={() => setChoosing(false)}
-            disabled={walletBusy || importBusy}
-          >
-            {hasWallet
-              ? "Prefer a recovery phrase? Set it up →"
-              : "Create a new recovery phrase"}
-          </button>
-
-          <button
-            className="nk-textlink nk-wallet-alt"
-            onClick={() => setImportOpen(true)}
-            disabled={walletBusy || importBusy}
-          >
-            I already have a recovery phrase →
-          </button>
-
-          <label className="nk-vault-optin">
-            <input
-              type="checkbox"
-              checked={perDeviceApprovals}
-              onChange={(event) => setPerDeviceApprovals(event.target.checked)}
-              disabled={walletBusy || importBusy}
-            />
-            <span>
-              <strong>Per-device approvals (recommended)</strong>
-              <span className="nk-muted">
-                Each new device is approved from one you already trust — no need
-                to type your recovery phrase to add a device, and revoking one
-                takes effect immediately.
-              </span>
-            </span>
-          </label>
-          {failed && <p className="nk-error-text">{failed}</p>}
-        </div>
+      <>
+        <ChoosingView
+          walletBusy={walletBusy}
+          importBusy={importBusy}
+          failed={failed}
+          perDeviceApprovals={perDeviceApprovals}
+          onWalletRun={() => void runWallet()}
+          onChoosePhrase={() => setChoosing(false)}
+          onImportOpen={() => setImportOpen(true)}
+          onPerDeviceApprovalsChange={setPerDeviceApprovals}
+        />
         {importOpen && (
           <RecoveryPhraseDialog
             busy={importBusy}
@@ -324,41 +421,22 @@ export function VaultSetup() {
             onSubmit={() => void runImport()}
           />
         )}
-      </div>
+      </>
     );
   }
 
   if (!failed) {
-    return (
-      <div className="nk-modal-backdrop">
-        <div className="nk-modal nk-vault-setup">
-          <h2>Setting up your encrypted space…</h2>
-          <p className="nk-muted">One moment — generating your keys on this device.</p>
-        </div>
-      </div>
-    );
+    return <SettingUpView />;
   }
 
   return (
-    <div className="nk-modal-backdrop">
-      <div className="nk-modal nk-vault-setup">
-        <h2>Couldn't finish setup</h2>
-        <p className="nk-error-text">{failed}</p>
-        <div className="nk-modal-actions">
-          <button className="nk-btn" onClick={() => setError(failed)}>
-            Dismiss
-          </button>
-          <button
-            className="nk-btn nk-btn--primary"
-            onClick={() => {
-              ranRef.current = false;
-              void run();
-            }}
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    </div>
+    <SetupErrorView
+      failed={failed}
+      onDismiss={() => setError(failed)}
+      onRetry={() => {
+        ranRef.current = false;
+        void run();
+      }}
+    />
   );
 }

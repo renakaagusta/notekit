@@ -1,9 +1,9 @@
-import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { AccessTokensView } from "./AccessTokensView";
 import { AgentsView } from "./AgentsView";
 import { DevicesPanel } from "./DevicesPanel";
 import { HistoryView } from "./HistoryView";
+import { Modal } from "./Modal";
 import { NotificationSettings } from "./NotificationSettings";
 import { NotificationsInbox } from "./NotificationsInbox";
 
@@ -16,26 +16,10 @@ interface ModalShellProps {
 
 function ModalShell({ title, subtitle, onClose, children }: ModalShellProps) {
   return (
-    <div className="nk-modal-backdrop" onClick={onClose}>
-      <div
-        className="nk-modal nk-modal--wide"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="nk-modal-hd">
-          <h2>{title}</h2>
-          <p className="nk-modal-sub">{subtitle}</p>
-        </header>
-        <button
-          className="nk-modal-close nk-iconbtn"
-          onClick={onClose}
-          title="Close"
-          aria-label="Close"
-        >
-          <X size={16} aria-hidden />
-        </button>
-        {children}
-      </div>
-    </div>
+    <Modal open onClose={onClose} title={title}>
+      <p className="nk-modal-sub">{subtitle}</p>
+      {children}
+    </Modal>
   );
 }
 

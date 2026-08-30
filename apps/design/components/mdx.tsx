@@ -11,9 +11,11 @@ import { BottomSheetShowcase } from '@/components/showcase/bottom-sheet';
 import { BreadcrumbShowcase, BreadcrumbMobileShowcase } from '@/components/showcase/breadcrumb';
 import { ButtonShowcase } from '@/components/showcase/button';
 import { CardShowcase } from '@/components/showcase/card';
+import { CodeInputShowcase } from '@/components/showcase/code-input';
 import { ComboboxShowcase, ComboboxMobileShowcase } from '@/components/showcase/combobox';
 import { CommandMenuShowcase } from '@/components/showcase/command-menu';
 import { DialogShowcase } from '@/components/showcase/dialog';
+import { DialogButtonsShowcase } from '@/components/showcase/dialog-buttons';
 import { NavDrawerShowcase } from '@/components/showcase/drawer';
 import { EditorToolbarShowcase } from '@/components/showcase/editor-toolbar';
 import { EmptyStateShowcase } from '@/components/showcase/empty-state';
@@ -54,6 +56,8 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     BreadcrumbMobileShowcase,
     ButtonShowcase,
     CardShowcase,
+    CodeInputShowcase,
+    DialogButtonsShowcase,
     ComboboxShowcase,
     ComboboxMobileShowcase,
     CommandMenuShowcase,

@@ -16,6 +16,21 @@ it:
 - **Title + body** — one clear question, one short line of context.
 - **Actions** — right-aligned; the primary or destructive action last.
 
+## Button layouts
+
+The footer carries one or two buttons, never more. The primary or destructive action always
+sits last (rightmost on desktop, bottom on mobile).
+
+<DialogButtonsShowcase />
+
+- **Single primary** — an acknowledgement with nothing to decide ("You're all set" → *Got it*).
+  No Cancel: there's no alternative to offer.
+- **Primary + secondary** — a normal confirm. The secondary (Cancel) is the safe way out; the
+  primary commits the action ("Pair this device?" → *Cancel* / *Pair*).
+- **Destructive + secondary** — same shape, but the commit is irreversible, so the primary
+  slot uses the destructive variant ("Delete this vault?" → *Cancel* / *Delete*). A
+  destructive action always keeps a Cancel.
+
 ## Tokens
 
 Panel background from [`popover`](/foundations/color), radius

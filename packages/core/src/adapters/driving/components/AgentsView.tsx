@@ -657,16 +657,21 @@ function AgentForm({
         }}
         disabled={disabled}
       />
-      <input
-        className={CSS_INPUT}
-        placeholder={
-          emailHint ??
-          "Email (optional — server picks a default if you leave it blank; pick a Gravatar-registered email to get a real avatar)"
-        }
-        value={draft.email}
-        onChange={(e) => onChange({ ...draft, email: e.target.value })}
-        disabled={disabled}
-      />
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-1)" }}>
+        <label style={{ fontSize: 12, color: "var(--text-dim)" }}>
+          Email (optional)
+        </label>
+        <input
+          className={CSS_INPUT}
+          placeholder="agent@example.com"
+          value={draft.email}
+          onChange={(e) => onChange({ ...draft, email: e.target.value })}
+          disabled={disabled}
+        />
+        <span style={{ fontSize: 11, color: "var(--muted)" }}>
+          {emailHint ?? "Use a Gravatar-registered email to set an avatar everywhere."}
+        </span>
+      </div>
       <textarea
         className={CSS_INPUT}
         placeholder="Description — what this agent does, who runs it, scope of authority…"
@@ -749,21 +754,17 @@ function AgentForm({
         rows={3}
         style={{ resize: "vertical", fontFamily: "inherit" }}
       />
-      <div className="nk-agent-perm">
-        <span className="nk-agent-perm-label">
+      <div style={{ display: "flex", flexDirection: "column", gap: "var(--gap-1)" }}>
+        <label style={{ fontSize: 12, color: "var(--text-dim)" }}>
           {t("agents.permissions")}
-          <span className="nk-agent-perm-hint">
-            {draft.toolPermissions === "read-write"
-              ? t("agents.permReadWrite")
-              : t("agents.permReadOnly")}
-          </span>
-        </span>
-        <div className="nk-seg" role="group" aria-label={t("agents.permissions")}>
+        </label>
+        <div className="nk-seg" role="group" aria-label={t("agents.permissions")} style={{ width: "100%" }}>
           <button
             type="button"
             className={`nk-seg-btn${draft.toolPermissions === "read-only" ? " is-active" : ""}`}
             onClick={() => onChange({ ...draft, toolPermissions: "read-only" })}
             disabled={disabled}
+            style={{ flex: 1 }}
           >
             {t("agents.readOnly")}
           </button>
@@ -772,59 +773,39 @@ function AgentForm({
             className={`nk-seg-btn${draft.toolPermissions === "read-write" ? " is-active" : ""}`}
             onClick={() => onChange({ ...draft, toolPermissions: "read-write" })}
             disabled={disabled}
+            style={{ flex: 1 }}
           >
             {t("agents.readWrite")}
           </button>
         </div>
+        <span className="nk-agent-perm-hint">
+          {draft.toolPermissions === "read-write"
+            ? t("agents.permReadWrite")
+            : t("agents.permReadOnly")}
+        </span>
       </div>
 
-      {/* Live preview of the avatar the agent will render with, sourced
-          from Gravatar by email hash. Until the email is filled in (or
-          defaulted by the server on submit), show the placeholder. */}
       {draft.email.trim() && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: GAP_2,
-            fontSize: "0.85em",
-            color: "var(--text-dim)",
-          }}
-        >
+        <div style={{ display: "flex", alignItems: "center", gap: GAP_2, fontSize: "0.85em", color: "var(--text-dim)" }}>
           <img
             className="nk-commit-avatar"
             alt=""
             src={gravatarUrlFor(draft.email.trim())}
             style={{ background: "var(--surface-2)" }}
           />
-          <span>
-            Avatar comes from Gravatar for{" "}
-            <code style={{ fontFamily: MONO_FONT }}>
-              {draft.email.trim()}
-            </code>
-            . Register that email at{" "}
-            <a
-              href="https://gravatar.com"
-              target="_blank"
-              rel="noreferrer noopener"
-              style={{ color: "inherit", textDecoration: "underline" }}
-            >
-              gravatar.com
-            </a>{" "}
-            to replace the identicon with a real photo.
-          </span>
+          <span>Avatar preview — register this email at gravatar.com to use a real photo.</span>
         </div>
       )}
       <div style={{ display: "flex", gap: GAP_2 }}>
+        <button className="nk-btn" onClick={onCancel} disabled={disabled}>
+          Cancel
+        </button>
         <button
           className="nk-btn nk-btn--primary"
           onClick={onSubmit}
           disabled={disabled}
         >
           {submitLabel}
-        </button>
-        <button className="nk-btn" onClick={onCancel} disabled={disabled}>
-          Cancel
         </button>
       </div>
     </div>

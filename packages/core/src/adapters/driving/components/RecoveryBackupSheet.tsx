@@ -16,12 +16,11 @@ import {
   Download,
   Share2,
   Check,
-  ShieldAlert,
-  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { StoredRecovery } from "../../../lib/crypto/recovery-store";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
+import { Modal } from "./Modal";
 
 const RECOVERY_FILE_NAME = "notekit-recovery-phrase.txt";
 
@@ -44,7 +43,127 @@ function canShareRecovery(): boolean {
   return true;
 }
 
-// eslint-disable-next-line max-lines-per-function, complexity -- recovery sheet manages phrase loading, reveal/hide, copy/download/share actions, and backup confirmation
+function MnemonicGrid({ words }: { words: string[] }) {
+  return (
+    <ol className="nk-mnemonic-grid">
+      {words.map((word, index) => (
+        <li key={index}>
+          <span className="nk-mnemonic-num">{index + 1}</span>
+          <span className="nk-mnemonic-word">{word}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function BackupActionButtons({
+  copied,
+  revealed,
+  alreadyBackedUp,
+  onCopy,
+  onShare,
+  onDownload,
+  onConfirmWritten,
+  onClose,
+}: {
+  copied: boolean;
+  revealed: boolean;
+  alreadyBackedUp: boolean;
+  onCopy: () => void;
+  onShare: () => void;
+  onDownload: () => void;
+  onConfirmWritten: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="nk-modal-actions">
+      <button type="button" className="nk-btn" onClick={onCopy}>
+        {copied ? <><Check size={14} aria-hidden /> Copied</> : <><Copy size={14} aria-hidden /> Copy</>}
+      </button>
+      {canShareRecovery() && (
+        <button type="button" className="nk-btn" onClick={onShare}>
+          <Share2 size={14} aria-hidden /> Share
+        </button>
+      )}
+      <button type="button" className="nk-btn" onClick={onDownload}>
+        <Download size={14} aria-hidden /> Download file
+      </button>
+      {revealed && !alreadyBackedUp ? (
+        <button type="button" className="nk-btn nk-btn--primary" onClick={onConfirmWritten}>
+          I've written it down
+        </button>
+      ) : (
+        <button type="button" className="nk-btn nk-btn--primary" onClick={onClose}>
+          Done
+        </button>
+      )}
+    </div>
+  );
+}
+
+function RecoveryActions({
+  recovery,
+  revealed,
+  copied,
+  alreadyBackedUp,
+  onReveal,
+  onCopy,
+  onShare,
+  onDownload,
+  onConfirmWritten,
+  onClose,
+}: {
+  recovery: StoredRecovery;
+  revealed: boolean;
+  copied: boolean;
+  alreadyBackedUp: boolean;
+  onReveal: () => void;
+  onCopy: () => void;
+  onShare: () => void;
+  onDownload: () => void;
+  onConfirmWritten: () => void;
+  onClose: () => void;
+}) {
+  const words = recovery.mnemonic.split(" ");
+  return (
+    <>
+      <div className="nk-mnemonic-hd">
+        <button type="button" className="nk-btn" onClick={onReveal}>
+          {revealed ? <><EyeOff size={14} aria-hidden /> Hide</> : <><Eye size={14} aria-hidden /> Reveal</>}
+        </button>
+        {alreadyBackedUp && (
+          <span className="nk-muted nk-backup-state">
+            <Check size={13} aria-hidden /> Backed up
+          </span>
+        )}
+      </div>
+      {revealed ? (
+        <MnemonicGrid words={words} />
+      ) : (
+        <div className="nk-mnemonic-hidden" aria-hidden>
+          •••• •••• •••• •••• •••• •••• •••• ••••
+        </div>
+      )}
+      <BackupActionButtons
+        copied={copied}
+        revealed={revealed}
+        alreadyBackedUp={alreadyBackedUp}
+        onCopy={onCopy}
+        onShare={onShare}
+        onDownload={onDownload}
+        onConfirmWritten={onConfirmWritten}
+        onClose={onClose}
+      />
+      <p className="nk-muted nk-backup-hint">
+        Paste into a password manager (1Password, Bitwarden) or save the
+        file to your private cloud. Never put it anywhere that syncs
+        unencrypted, or into chat.
+      </p>
+    </>
+  );
+}
+
+// eslint-disable-next-line max-lines-per-function -- recovery sheet manages phrase loading, reveal/hide, copy/download/share actions, and backup confirmation
 export function RecoveryBackupSheet() {
   const open = useRecoveryBackupStore((s) => s.sheetOpen);
   const close = useRecoveryBackupStore((s) => s.closeSheet);
@@ -68,8 +187,8 @@ export function RecoveryBackupSheet() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await load();
-        if (!cancelled) setRecovery(r);
+        const loadedRecovery = await load();
+        if (!cancelled) setRecovery(loadedRecovery);
       } catch (e) {
         if (!cancelled) setLoadingErr((e as Error).message);
       } finally {
@@ -80,21 +199,6 @@ export function RecoveryBackupSheet() {
       cancelled = true;
     };
   }, [open, load]);
-
-  // Escape closes.
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, close]);
-
-  if (!open) return null;
-
-  const words = recovery ? recovery.mnemonic.split(" ") : [];
-  const alreadyBackedUp = !!recovery?.backedUp;
 
   async function onCopy() {
     if (!recovery) return;
@@ -112,12 +216,12 @@ export function RecoveryBackupSheet() {
     if (!recovery) return;
     const blob = new Blob([recoveryFileBody(recovery)], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = RECOVERY_FILE_NAME;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = RECOVERY_FILE_NAME;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
     URL.revokeObjectURL(url);
     void completeBackup("download");
   }
@@ -156,145 +260,59 @@ export function RecoveryBackupSheet() {
     // Revealing alone is NOT a backup — looking at the words doesn't save
     // them. Copy/download count immediately; a revealed phrase only counts
     // once the user explicitly confirms they've written it down.
-    setRevealed((v) => !v);
+    setRevealed((previous) => !previous);
   }
 
+  const alreadyBackedUp = !!recovery?.backedUp;
+
   return (
-    <div className="nk-modal-backdrop" role="presentation">
-      <div
-        className="nk-modal nk-recovery-backup"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="nk-recovery-backup-title"
-      >
-        <header className="nk-modal-hd">
-          <ShieldAlert size={16} aria-hidden />
-          <h2 id="nk-recovery-backup-title">Back up your recovery phrase</h2>
-          <button
-            type="button"
-            className="nk-iconbtn nk-modal-close"
-            onClick={close}
-            title="Close"
-            aria-label="Close"
-          >
-            <X size={14} aria-hidden />
-          </button>
-        </header>
+    <Modal
+      open={open}
+      onClose={close}
+      title="Back up your recovery phrase"
+    >
+      <div className="nk-modal-body">
+        <p>
+          These 24 words are the master key to your encrypted notes. We keep a
+          copy on this device, but if you lose it and haven't backed up, your
+          encrypted items are <strong>gone — there's no operator override</strong>.
+          This is also how you unlock the vault on a device that can't sync
+          keys automatically.
+        </p>
 
-        <div className="nk-modal-body">
-          <p>
-            These 24 words are the master key to your encrypted notes. We keep a
-            copy on this device, but if you lose it and haven't backed up, your
-            encrypted items are <strong>gone — there's no operator override</strong>.
-            This is also how you unlock the vault on a device that can't sync
-            keys automatically.
-          </p>
+        {loadingErr && <p className="nk-error-text">{loadingErr}</p>}
 
-          {loadingErr && <p className="nk-error-text">{loadingErr}</p>}
+        {loaded && !recovery && !loadingErr && (
+          <>
+            <p className="nk-muted">
+              This device doesn't hold a copy of your recovery phrase — it was
+              set up on another device or before phrases were stored locally.
+              Use the phrase you saved during setup, or reveal it from a device
+              that has it.
+            </p>
+            <div className="nk-dialog__footer nk-dialog__footer--confirm">
+              <button type="button" className="nk-btn nk-btn--primary" onClick={close}>
+                Got it
+              </button>
+            </div>
+          </>
+        )}
 
-          {loaded && !recovery && !loadingErr && (
-            <>
-              <p className="nk-muted">
-                This device doesn't hold a copy of your recovery phrase — it was
-                set up on another device or before phrases were stored locally.
-                Use the phrase you saved during setup, or reveal it from a device
-                that has it.
-              </p>
-              <div className="nk-modal-actions">
-                <button
-                  type="button"
-                  className="nk-btn nk-btn--primary"
-                  onClick={close}
-                >
-                  Got it
-                </button>
-              </div>
-            </>
-          )}
-
-          {recovery && (
-            <>
-              <div className="nk-mnemonic-hd">
-                <button type="button" className="nk-btn" onClick={onReveal}>
-                  {revealed ? (
-                    <>
-                      <EyeOff size={14} aria-hidden /> Hide
-                    </>
-                  ) : (
-                    <>
-                      <Eye size={14} aria-hidden /> Reveal
-                    </>
-                  )}
-                </button>
-                {alreadyBackedUp && (
-                  <span className="nk-muted nk-backup-state">
-                    <Check size={13} aria-hidden /> Backed up
-                  </span>
-                )}
-              </div>
-
-              {revealed ? (
-                <ol className="nk-mnemonic-grid">
-                  {words.map((w, i) => (
-                    <li key={i}>
-                      <span className="nk-mnemonic-num">{i + 1}</span>
-                      <span className="nk-mnemonic-word">{w}</span>
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <div className="nk-mnemonic-hidden" aria-hidden>
-                  •••• •••• •••• •••• •••• •••• •••• ••••
-                </div>
-              )}
-
-              <div className="nk-modal-actions">
-                <button type="button" className="nk-btn" onClick={onCopy}>
-                  {copied ? (
-                    <>
-                      <Check size={14} aria-hidden /> Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={14} aria-hidden /> Copy
-                    </>
-                  )}
-                </button>
-                {canShareRecovery() && (
-                  <button type="button" className="nk-btn" onClick={onShare}>
-                    <Share2 size={14} aria-hidden /> Share
-                  </button>
-                )}
-                <button type="button" className="nk-btn" onClick={onDownload}>
-                  <Download size={14} aria-hidden /> Download file
-                </button>
-                {revealed && !alreadyBackedUp ? (
-                  <button
-                    type="button"
-                    className="nk-btn nk-btn--primary"
-                    onClick={() => completeBackup("reveal")}
-                  >
-                    I've written it down
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="nk-btn nk-btn--primary"
-                    onClick={close}
-                  >
-                    Done
-                  </button>
-                )}
-              </div>
-              <p className="nk-muted nk-backup-hint">
-                Paste into a password manager (1Password, Bitwarden) or save the
-                file to your private cloud. Never put it anywhere that syncs
-                unencrypted, or into chat.
-              </p>
-            </>
-          )}
-        </div>
+        {recovery && (
+          <RecoveryActions
+            recovery={recovery}
+            revealed={revealed}
+            copied={copied}
+            alreadyBackedUp={alreadyBackedUp}
+            onReveal={onReveal}
+            onCopy={onCopy}
+            onShare={onShare}
+            onDownload={onDownload}
+            onConfirmWritten={() => completeBackup("reveal")}
+            onClose={close}
+          />
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }

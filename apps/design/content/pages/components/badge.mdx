@@ -1,0 +1,25 @@
+---
+title: Badge
+description: Small status and metadata labels.
+---
+
+Badges label state and metadata — sync status, encryption, conflicts. They're small,
+pill-shaped, and mostly monochrome; color appears only for the two semantic meanings.
+
+<BadgeShowcase />
+
+## Tones
+
+- **Neutral** / **Outline** — non-semantic metadata (tags, counts, labels).
+- **Solid** — an active or selected state, using the neutral accent.
+- **Success** / **Destructive** — the only colored tones, for synced vs. conflict states.
+
+## Tokens
+
+Height `22px`, [`full`](/foundations/radius) radius, `12px` semibold text. Colors read from
+the [semantic tokens](/foundations/color); success and destructive are the sole hues.
+
+## Guidance
+
+- Keep the label to one or two words.
+- Don't invent new colors for categories — use neutral tones and rely on the label.

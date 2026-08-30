@@ -1,0 +1,45 @@
+---
+title: Sidebar
+description: NoteKit's desktop persistent navigation panel — always visible, no scrim.
+---
+
+On desktop, NoteKit's primary navigation is a **persistent sidebar** rather than a hidden
+drawer. It holds the same structure as the mobile [navigation drawer](/components/navigation-drawer):
+the vault switcher at the top, the six surfaces (Notes, Tasks, Links, Secrets, Inbox, Settings),
+and an account footer pinned to the bottom — but it is always visible and requires no gesture to
+open or close.
+
+<SidebarShowcase />
+
+## Same navigation, platform-appropriate presentation
+
+The sidebar and the mobile drawer share the same item set and order by design. A user switching
+between desktop and phone sees identical structure; only the _presentation_ adapts to the
+platform:
+
+| | Mobile | Desktop |
+|---|---|---|
+| Trigger | Hamburger in the [app bar](/components/appbar) | Always visible |
+| Scrim | Yes — tap or swipe to dismiss | None |
+| Width | ~78% of screen | Fixed ~240px |
+| Surface | [`popover`](/foundations/color) | [`popover`](/foundations/color) |
+
+Keeping the item set identical means the active-surface highlight, icon choice, and label text
+are defined once and reused across both surfaces — the model is the same navigation, presented
+appropriately for each platform.
+
+## Tokens
+
+Panel width `240px`, [`popover`](/foundations/color) surface, a `border` hairline on all sides,
+rows at `13px` with [lucide](/foundations/icons) glyphs at 16px. Active surface uses the
+[`accent`](/foundations/color) fill. Account footer separated by a top `border` hairline and
+pinned to the bottom via `margin-top: auto`.
+
+## Guidance
+
+- The sidebar replaces the drawer on desktop — do not render both simultaneously.
+- Keep navigation and account in the sidebar; per-item actions belong in a
+  [menu](/components/menu), not here.
+- The vault switcher opens a popover to switch or create vaults; it does not navigate inline.
+- Preserve the item order (Notes → Tasks → Links → Secrets → Inbox → Settings) across both
+  the sidebar and the drawer so muscle memory transfers between platforms.

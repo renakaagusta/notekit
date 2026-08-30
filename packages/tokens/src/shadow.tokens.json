@@ -1,0 +1,17 @@
+{
+  "shadow": {
+    "$type": "shadow",
+    "low": {
+      "$value": { "offsetX": "0px", "offsetY": "2px", "blur": "4px", "spread": "0px", "color": "rgba(0, 0, 0, 0.1)" },
+      "$description": "Subtle lift — resting cards."
+    },
+    "medium": {
+      "$value": { "offsetX": "0px", "offsetY": "4px", "blur": "24px", "spread": "0px", "color": "rgba(0, 0, 0, 0.2)" },
+      "$description": "Popovers, dropdowns."
+    },
+    "high": {
+      "$value": { "offsetX": "0px", "offsetY": "7px", "blur": "32px", "spread": "0px", "color": "rgba(0, 0, 0, 0.35)" },
+      "$description": "Dialogs, command menu."
+    }
+  }
+}

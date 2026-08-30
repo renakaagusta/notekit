@@ -14,6 +14,7 @@ import {
 } from "../../../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { HistoryView } from "./HistoryView";
+import { useConfirm } from "./useConfirm";
 
 /** Broadcast so the Secrets sidebar tree refetches after a mutation here. */
 function notifyChanged() {
@@ -36,6 +37,7 @@ export function SecretDetail({
   onClose: () => void;
 }) {
   const device = useCryptoStore((s) => s.device);
+  const { confirm, confirmDialog } = useConfirm();
 
   const [revealed, setRevealed] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -162,7 +164,13 @@ export function SecretDetail({
 
   async function onDelete() {
     if (!device) return;
-    if (!confirm(`Remove secret "${name}" from the vault?`)) return;
+    const confirmed = await confirm({
+      title: `Remove "${name}"?`,
+      description: "This secret will be removed from the vault.",
+      confirmLabel: "Remove",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusy(true);
     setError(null);
     try {
@@ -188,6 +196,7 @@ export function SecretDetail({
 
   return (
     <div className="nk-tab-detail nk-tab-detail--fill">
+      {confirmDialog}
       <div className="nk-tab-detail-header">
         <span className="nk-tab-detail-type">
           <Shield size={13} aria-hidden /> Secret

@@ -11,6 +11,8 @@ COPY --from=pruner /app/out/json/ .
 COPY --from=pruner /app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 RUN pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .
+# Compile @notekit/tokens → dist so globals.css can @import it.
+RUN pnpm --filter @notekit/tokens build
 WORKDIR /app/apps/landing
 RUN pnpm build
 

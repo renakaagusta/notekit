@@ -1,0 +1,36 @@
+---
+title: Editor toolbar
+description: NoteKit's mobile formatting toolbar, pinned to the bottom safe-area of the editor.
+---
+
+On mobile, NoteKit surfaces a **formatting toolbar** fixed to the bottom of the editor screen.
+It sits above the home-indicator safe-area so it stays reachable by the thumb and is never
+obscured by the system keyboard — the keyboard pushes the viewport up while the toolbar
+anchors to the viewport's new bottom edge.
+
+<EditorToolbarShowcase />
+
+## Why a bottom toolbar on mobile only
+
+On desktop and tablet, formatting is driven by **Markdown shortcuts and a hover bubble menu**
+that appears over selected text. A persistent toolbar at that screen size wastes vertical space
+and duplicates shortcuts power users already know.
+
+On mobile there is no hover event and no keyboard visible until the user taps, so a thumb-reach
+toolbar is the only ergonomic entry point for formatting commands. Anchoring it to the safe-area
+bottom mirrors the convention set by iA Writer, Bear, and Craft.
+
+## Tokens
+
+Toolbar surface uses the [`card`](/foundations/color) background with a single `border` hairline
+on top. Icon buttons are 40 × 40 px touch targets (the minimum Apple HIG recommends) with
+`foreground` glyphs at 18 px / `strokeWidth` 1.75. The 16 px bottom padding represents the
+home-indicator safe-area inset.
+
+## Guidance
+
+- Keep the toolbar to **formatting actions only** — document actions (share, export, delete)
+  belong in the [app bar](/components/appbar) overflow menu.
+- The order follows reading priority: text weight (Bold, Italic) → structure (Heading, List,
+  Checklist) → embeds (Link, Code).
+- On desktop, do not render this component — show the bubble menu on selection instead.

@@ -1,0 +1,38 @@
+{
+  "color": {
+    "scale": {
+      "$type": "color",
+      "neutral": {
+        "$description": "The 12-step neutral ramp (Radix-style roles), grounded in NoteKit's zinc values. Semantic tokens map onto these steps.",
+        "dark": {
+          "1": { "$value": "#0a0a0b", "$description": "App background" },
+          "2": { "$value": "#111113", "$description": "Subtle background / surface" },
+          "3": { "$value": "#17171a", "$description": "UI element background" },
+          "4": { "$value": "#1c1c20", "$description": "Hovered UI element background" },
+          "5": { "$value": "#1f1f24", "$description": "Active / selected UI element" },
+          "6": { "$value": "#232327", "$description": "Subtle borders and separators" },
+          "7": { "$value": "#2e2e35", "$description": "UI element border and focus rings" },
+          "8": { "$value": "#3a3a42", "$description": "Hovered UI element border" },
+          "9": { "$value": "#6b6b73", "$description": "Solid backgrounds" },
+          "10": { "$value": "#7c7c85", "$description": "Hovered solid backgrounds" },
+          "11": { "$value": "#a1a1aa", "$description": "Low-contrast text" },
+          "12": { "$value": "#e4e4e7", "$description": "High-contrast text" }
+        },
+        "light": {
+          "1": { "$value": "#ffffff", "$description": "App background / surface" },
+          "2": { "$value": "#fafafa", "$description": "Subtle background" },
+          "3": { "$value": "#f4f4f5", "$description": "UI element background" },
+          "4": { "$value": "#ececef", "$description": "Hovered UI element background" },
+          "5": { "$value": "#e4e4e7", "$description": "Active / selected UI element" },
+          "6": { "$value": "#d4d4d8", "$description": "Subtle borders and separators" },
+          "7": { "$value": "#c8c8cd", "$description": "UI element border and focus rings" },
+          "8": { "$value": "#a1a1aa", "$description": "Hovered UI element border" },
+          "9": { "$value": "#71717a", "$description": "Solid backgrounds" },
+          "10": { "$value": "#52525b", "$description": "Hovered solid backgrounds" },
+          "11": { "$value": "#3f3f46", "$description": "Low-contrast text" },
+          "12": { "$value": "#18181b", "$description": "High-contrast text" }
+        }
+      }
+    }
+  }
+}

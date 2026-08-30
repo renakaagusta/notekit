@@ -1,0 +1,35 @@
+---
+title: Code input
+description: A segmented input for a fixed-length code — device pairing, one-time codes.
+---
+
+For a code of known, fixed length — a device-pairing code, a one-time verification code —
+use a **segmented input**: one box per digit rather than a single [text field](/components/input).
+The fixed number of boxes makes the expected length obvious, each digit gets its own focus,
+and the whole code can be pasted at once. Type in it — it auto-advances, backspace steps back,
+and pasting fills every box.
+
+<CodeInputShowcase />
+
+## Behavior
+
+- **Auto-advance** — typing a digit moves focus to the next box; the last box keeps focus.
+- **Backspace** — on an empty box, steps back and clears the previous one.
+- **Paste to fill** — pasting a code into any box distributes it across the remaining boxes.
+- **Numeric** — `inputMode="numeric"` brings up the number pad on mobile; non-digits are
+  ignored. `autocomplete="one-time-code"` lets the OS offer the code from SMS/clipboard.
+
+## Tokens
+
+Each cell is `40×48px`, [`md`](/foundations/radius) radius, `1px` [`border`](/foundations/color)
+that becomes the [`ring`](/foundations/color) on focus, digits in the
+[mono font](/foundations/typography). Cells sit on the `background` surface with an
+[`2`/8px](/foundations/spacing) gap.
+
+## Guidance
+
+- Use it only for **fixed-length** codes. For a variable secret (a password, the 24-word
+  recovery phrase) use a normal [text field](/components/input) or a textarea.
+- Match the box count to the real code length — don't pad or split arbitrarily.
+- Keep it numeric unless the code is alphanumeric; if alphanumeric, widen the cells and don't
+  force uppercase visually without doing so in the value.

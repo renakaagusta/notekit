@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { vaultManagement } from "../../../composition/vault-management";
 import type { VaultRepo } from "../../../domain/entities/vault";
 import { useVaultStore } from "../stores/vaultStore";
+import { Modal } from "./Modal";
 import { SkeletonRepoList } from "./Skeleton";
 
 type Mode = "list" | "create";
@@ -74,102 +75,102 @@ export function VaultPicker({ onPicked }: VaultPickerProps) {
   }
 
   return (
-    <div className="nk-modal-backdrop">
-      <div className="nk-modal">
-        <header className="nk-modal-hd">
-          <h2>Pick your vault</h2>
-          <p className="nk-modal-sub">
-            NoteKit stores notes and tickets in a GitHub repo you own.
-            You can change this later.
-          </p>
-        </header>
+    <Modal
+      open
+      onClose={() => undefined}
+      title="Pick your vault"
+      isDismissable={false}
+    >
+      <p className="nk-modal-sub">
+        NoteKit stores notes and tickets in a GitHub repo you own.
+        You can change this later.
+      </p>
 
-        <div className="nk-modal-tabs">
+      <div className="nk-modal-tabs">
+        <button
+          className={mode === "list" ? "active" : ""}
+          onClick={() => setMode("list")}
+        >
+          Use existing repo
+        </button>
+        <button
+          className={mode === "create" ? "active" : ""}
+          onClick={() => setMode("create")}
+        >
+          Create new repo
+        </button>
+      </div>
+
+      {loadErr && (
+        <div className="nk-modal-error">
+          {loadErr}
+        </div>
+      )}
+
+      {mode === "list" && (
+        <div className="nk-modal-body">
+          {!repos && !loadErr && <SkeletonRepoList count={5} />}
+          {repos && repos.length === 0 && (
+            <p className="nk-empty-hint">
+              No repos found. Create a new one instead.
+            </p>
+          )}
+          {repos && repos.length > 0 && (
+            <ul className="nk-repo-list">
+              {repos.map((r) => (
+                <li key={r.id}>
+                  <button
+                    className="nk-repo-row"
+                    onClick={() => pick(r)}
+                    disabled={busy}
+                  >
+                    <div className="nk-repo-row-main">
+                      <span className="nk-repo-name">{r.fullName}</span>
+                      {r.private && (
+                        <span className="nk-chip">private</span>
+                      )}
+                    </div>
+                    {r.description && (
+                      <div className="nk-repo-desc">{r.description}</div>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {mode === "create" && (
+        <div className="nk-modal-body">
+          <label className="nk-field">
+            <span>Repo name</span>
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              disabled={busy}
+              placeholder="notekit-vault"
+            />
+          </label>
+          <label className="nk-field nk-field--row">
+            <input
+              type="checkbox"
+              checked={newPrivate}
+              onChange={(e) => setNewPrivate(e.target.checked)}
+              disabled={busy}
+            />
+            <span>Make repo private (recommended)</span>
+          </label>
           <button
-            className={mode === "list" ? "active" : ""}
-            onClick={() => setMode("list")}
+            className="nk-signin-btn"
+            onClick={createAndPick}
+            disabled={busy || !newName.trim()}
           >
-            Use existing repo
-          </button>
-          <button
-            className={mode === "create" ? "active" : ""}
-            onClick={() => setMode("create")}
-          >
-            Create new repo
+            {busy ? "Creating…" : "Create and use this repo"}
           </button>
         </div>
-
-        {loadErr && (
-          <div className="nk-modal-error">
-            {loadErr}
-          </div>
-        )}
-
-        {mode === "list" && (
-          <div className="nk-modal-body">
-            {!repos && !loadErr && <SkeletonRepoList count={5} />}
-            {repos && repos.length === 0 && (
-              <p className="nk-empty-hint">
-                No repos found. Create a new one instead.
-              </p>
-            )}
-            {repos && repos.length > 0 && (
-              <ul className="nk-repo-list">
-                {repos.map((r) => (
-                  <li key={r.id}>
-                    <button
-                      className="nk-repo-row"
-                      onClick={() => pick(r)}
-                      disabled={busy}
-                    >
-                      <div className="nk-repo-row-main">
-                        <span className="nk-repo-name">{r.fullName}</span>
-                        {r.private && (
-                          <span className="nk-chip">private</span>
-                        )}
-                      </div>
-                      {r.description && (
-                        <div className="nk-repo-desc">{r.description}</div>
-                      )}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
-
-        {mode === "create" && (
-          <div className="nk-modal-body">
-            <label className="nk-field">
-              <span>Repo name</span>
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                disabled={busy}
-                placeholder="notekit-vault"
-              />
-            </label>
-            <label className="nk-field nk-field--row">
-              <input
-                type="checkbox"
-                checked={newPrivate}
-                onChange={(e) => setNewPrivate(e.target.checked)}
-                disabled={busy}
-              />
-              <span>Make repo private (recommended)</span>
-            </label>
-            <button
-              className="nk-signin-btn"
-              onClick={createAndPick}
-              disabled={busy || !newName.trim()}
-            >
-              {busy ? "Creating…" : "Create and use this repo"}
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
+      )}
+    </Modal>
   );
 }

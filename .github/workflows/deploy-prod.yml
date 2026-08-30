@@ -5,6 +5,7 @@
 #   prod/web        → notekit-web
 #   prod/landing    → notekit-landing
 #   prod/backoffice → notekit-backoffice
+#   prod/design     → notekit-design
 #   prod/docs       → notekit-docs
 #
 # Flow: merge/verify on main → fast-forward the service's prod/* branch to
@@ -19,14 +20,15 @@ on:
       - prod/web
       - prod/landing
       - prod/backoffice
+      - prod/design
       - prod/docs
   workflow_dispatch:
     inputs:
       service:
-        description: 'Service to deploy (api, web, landing, backoffice, docs)'
+        description: 'Service to deploy (api, web, landing, backoffice, design, docs)'
         required: true
         type: choice
-        options: [api, web, landing, backoffice, docs]
+        options: [api, web, landing, backoffice, design, docs]
 
 concurrency:
   # Serialize deploys of the SAME service; different services deploy in parallel.
@@ -52,6 +54,7 @@ jobs:
             web)        image=notekit-web;        file=apps/web/Dockerfile;        buildargs="VITE_API_URL=https://api.notekit.online" ;;
             landing)    image=notekit-landing;    file=apps/landing/Dockerfile;    buildargs="" ;;
             backoffice) image=notekit-backoffice; file=apps/backoffice/Dockerfile; buildargs="VITE_API_URL=https://api.notekit.online" ;;
+            design)     image=notekit-design;     file=apps/design/Dockerfile;     buildargs="" ;;
             docs)       image=notekit-docs;       file=apps/docs/Dockerfile;       buildargs="" ;;
             *) echo "Unknown service: $svc" && exit 1 ;;
           esac

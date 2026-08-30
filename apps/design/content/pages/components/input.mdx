@@ -1,0 +1,26 @@
+---
+title: Text field
+description: Single-line text input, with and without a leading icon.
+---
+
+Text fields match the button height (32px) and radius so they line up in toolbars and forms.
+They stay quiet — a single hairline border — and lean on placeholder text for guidance.
+
+<InputShowcase />
+
+## States
+
+- **Empty** — placeholder in muted foreground.
+- **Filled** — value in full-contrast foreground.
+- **Disabled** — dimmed to 50%, non-interactive.
+- **With icon** — a leading [lucide](/foundations/icons) glyph for search and filters.
+
+## Tokens
+
+Height `32px`, radius [`md` (6px)](/foundations/radius), `1px` border from the
+[`border`](/foundations/color) token, text at [`small`/`13px`](/foundations/typography).
+
+## Guidance
+
+- Label every field (visible label or a clear placeholder that reads as one).
+- Don't pair a filled background with the border — pick one surface treatment.

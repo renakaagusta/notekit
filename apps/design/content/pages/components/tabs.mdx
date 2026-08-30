@@ -1,0 +1,25 @@
+---
+title: Tabs
+description: Switch between peer views within the same context.
+---
+
+Tabs switch between sibling views that share a context — Notes, Tasks, Links for a project.
+They're a compact segmented control; the active segment lifts onto the background surface.
+
+<TabsShowcase />
+
+## Tokens
+
+Track uses the [`muted`](/foundations/color) surface with an inner `background`-filled active
+segment, radius [`md`](/foundations/radius), label at [`small`/`13px`](/foundations/typography)
+semibold.
+
+## On mobile
+
+Keep the same segmented control, but let the track **scroll horizontally** when the labels
+don't fit rather than wrapping or truncating — the active tab always scrolls into view.
+
+## Guidance
+
+- Tabs are for peer views, not steps in a flow and not navigation between unrelated pages.
+- Keep labels to one word where possible; three to five tabs is the comfortable range.

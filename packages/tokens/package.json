@@ -1,0 +1,27 @@
+{
+  "name": "@notekit/tokens",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "NoteKit design tokens — single source of truth (W3C DTCG), compiled by Style Dictionary.",
+  "exports": {
+    "./tokens.json": "./dist/tokens.json",
+    "./css/variables.css": "./dist/css/variables.css",
+    "./css/core.css": "./dist/css/core.css",
+    "./css/backoffice.css": "./dist/css/backoffice.css",
+    "./css/landing.css": "./dist/css/landing.css"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "clean": "rm -rf dist .turbo *.tsbuildinfo",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "style-dictionary": "^5.5.2"
+  }
+}

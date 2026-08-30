@@ -1,0 +1,45 @@
+---
+title: Command menu
+description: A keyboard-first palette for actions and navigation.
+---
+
+The command menu surfaces every action and destination in one place. Users reach it
+with a keyboard shortcut — no hunting through menus. Open it:
+
+<CommandMenuShowcase />
+
+## Anatomy
+
+- **Trigger** — a quiet button that shows the shortcut hint. Clicking or pressing
+  the shortcut opens the palette.
+- **Overlay** — a dimmed scrim; clicking it or pressing Escape dismisses.
+- **Search input** — pinned at the top, focused immediately on open, filters the
+  list as the user types.
+- **Command list** — scrollable rows, each with a leading lucide icon, a label, and
+  an optional right-aligned keyboard shortcut badge.
+
+## Tokens
+
+Panel background from [`popover`](/foundations/color), radius `lg` (10px),
+`high` shadow. The search input sits on the same `popover` surface with a hairline
+`border` separator below it. Shortcut badges use the [`muted`](/foundations/color)
+token — quiet, never competing with the label.
+
+## On mobile
+
+The same palette takes the full viewport height on mobile, giving the list room to
+breathe and keeping the search input at the top edge within easy reach. The overlay
+and Escape/tap-outside dismissal behaviour are identical.
+
+## Guidance
+
+- Use the command menu for **actions and navigation**, not for displaying data or
+  settings forms — those belong in dedicated views.
+- Make it **keyboard-first**: every entry should be reachable by typing a few
+  characters, and the most frequent actions should expose a shortcut badge.
+- Keep labels short and action-oriented: "New note", not "Create a new note".
+- Filter results live as the user types; show a clear "No commands match" state
+  rather than an empty list.
+- Commands that open a different surface (e.g. Go to Tasks) close the palette
+  immediately; commands that are instant side-effects (e.g. Toggle theme) also close
+  so the result is visible.

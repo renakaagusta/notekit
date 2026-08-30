@@ -1,0 +1,29 @@
+---
+title: Button
+description: Primary, secondary, ghost, and destructive actions.
+---
+
+Buttons are compact (32px tall) and monochrome. The **primary** button is the only filled,
+high-emphasis action per view; everything else steps down to secondary, ghost, or — for
+irreversible actions — destructive.
+
+<ButtonShowcase />
+
+## Variants
+
+- **Primary** — the one main action. Filled with the neutral accent (near-white on dark,
+  near-black on light).
+- **Secondary** — supporting actions; a bordered, low-contrast surface.
+- **Ghost** — tertiary actions and toolbar buttons; no background until hovered.
+- **Destructive** — deletes and other irreversible actions only.
+
+## Tokens
+
+Height `32px`, radius [`md` (6px)](/foundations/radius), label at
+[`small`/`13px`](/foundations/typography) semibold. Colors read from the semantic
+[`primary` / `secondary`](/foundations/color) tokens, so buttons re-theme with the palette.
+
+## Guidance
+
+- One primary per view. If two actions feel equally important, one of them isn't.
+- Lead with a [lucide](/foundations/icons) icon only when it clarifies the action.

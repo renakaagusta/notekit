@@ -1,0 +1,62 @@
+{
+  "color": {
+    "$type": "color",
+    "dark": {
+      "$description": "Product theme — packages/core [data-theme=\"dark\"]. The default NoteKit surface.",
+      "bg": { "$value": "#0a0a0b" },
+      "surface": { "$value": "#111113" },
+      "surface-2": { "$value": "#17171a" },
+      "border": { "$value": "#1f1f24" },
+      "border-soft": { "$value": "#18181c" },
+      "border-guide": { "$value": "#2e2e35" },
+      "text": { "$value": "#e4e4e7" },
+      "text-2": { "$value": "#a1a1aa" },
+      "muted": { "$value": "#6b6b73" },
+      "hover": { "$value": "rgba(255, 255, 255, 0.06)" },
+      "selected": { "$value": "rgba(255, 255, 255, 0.06)" },
+      "accent": { "$value": "#e4e4e7", "$description": "Monochrome near-white accent (shadcn neutral)." },
+      "accent-soft": { "$value": "rgba(255, 255, 255, 0.08)" },
+      "accent-text": { "$value": "#fafafa" },
+      "ring": { "$value": "rgba(228, 228, 231, 0.35)" },
+      "primary": { "$value": "#fafafa" },
+      "primary-foreground": { "$value": "#18181b" },
+      "destructive": { "$value": "#f87171" },
+      "destructive-foreground": { "$value": "#18181b" },
+      "success": { "$value": "#4ade80" }
+    },
+    "light": {
+      "$description": "Product theme — packages/core [data-theme=\"light\"].",
+      "bg": { "$value": "#fafafa" },
+      "surface": { "$value": "#ffffff" },
+      "surface-2": { "$value": "#f4f4f5" },
+      "border": { "$value": "#e4e4e7" },
+      "border-soft": { "$value": "#ececef" },
+      "border-guide": { "$value": "#d4d4d8" },
+      "text": { "$value": "#18181b" },
+      "text-2": { "$value": "#52525b" },
+      "muted": { "$value": "#a1a1aa" },
+      "hover": { "$value": "rgba(0, 0, 0, 0.06)" },
+      "selected": { "$value": "rgba(0, 0, 0, 0.06)" },
+      "accent": { "$value": "#18181b", "$description": "Monochrome near-black accent." },
+      "accent-soft": { "$value": "rgba(0, 0, 0, 0.05)" },
+      "accent-text": { "$value": "#18181b" },
+      "ring": { "$value": "rgba(24, 24, 27, 0.30)" },
+      "primary": { "$value": "#18181b" },
+      "primary-foreground": { "$value": "#fafafa" },
+      "destructive": { "$value": "#dc2626" },
+      "destructive-foreground": { "$value": "#fafafa" },
+      "success": { "$value": "#16a34a" }
+    },
+    "marketing": {
+      "$description": "Marketing surface — apps/landing. Dark-first, richer palette. Documented, not the product theme.",
+      "bg-primary": { "$value": "#08090a" },
+      "bg-secondary": { "$value": "#161616" },
+      "bg-tertiary": { "$value": "#1c1c1c" },
+      "text-primary": { "$value": "#ffffff" },
+      "text-secondary": { "$value": "#e3e4e6" },
+      "text-tertiary": { "$value": "#969799" },
+      "link-primary": { "$value": "#7281ff" },
+      "brand-bg": { "$value": "#5e69d1" }
+    }
+  }
+}

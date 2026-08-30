@@ -1,0 +1,16 @@
+{
+  "duration": {
+    "$type": "duration",
+    "instant": { "$value": "100ms", "$description": "core --speed-quickTransition" },
+    "fast": { "$value": "150ms" },
+    "regular": { "$value": "250ms", "$description": "core --speed-regularTransition" },
+    "slow": { "$value": "400ms" }
+  },
+  "ease": {
+    "$type": "cubicBezier",
+    "in": { "$value": [0.55, 0.055, 0.675, 0.19], "$description": "ease-in-cubic" },
+    "out": { "$value": [0.215, 0.61, 0.355, 1], "$description": "ease-out-cubic" },
+    "in-out": { "$value": [0.645, 0.045, 0.355, 1], "$description": "ease-in-out-cubic" },
+    "out-expo": { "$value": [0.19, 1, 0.22, 1], "$description": "ease-out-expo — snappy overshoot-free exits" }
+  }
+}

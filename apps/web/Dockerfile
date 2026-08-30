@@ -15,6 +15,9 @@ RUN pnpm install --frozen-lockfile
 COPY --from=pruner /app/out/full/ .
 COPY --from=pruner /app/tsconfig.base.json ./tsconfig.base.json
 
+# Compile @notekit/tokens → dist so packages/core's styles.css can @import it.
+RUN pnpm --filter @notekit/tokens build
+
 # VITE_API_URL is baked into the bundle at build time
 ARG VITE_API_URL=https://api.notekit.app
 ENV VITE_API_URL=$VITE_API_URL

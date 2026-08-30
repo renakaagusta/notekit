@@ -1,0 +1,46 @@
+---
+title: Empty State
+description: Centered placeholder shown when a surface has no content yet.
+---
+
+An empty state reassures the user that nothing is broken — the surface is simply waiting for
+their first action. It pairs a muted icon, a short title, and a single primary action to
+get them started without friction.
+
+<EmptyStateShowcase />
+
+## Tokens
+
+The icon sits in a soft circle filled with `--color-fd-muted` at 64px, keeping it present
+but unobtrusive. The icon itself is colored `--color-fd-muted-foreground` at 28px with a
+thin `1.5` stroke weight. Title is 15px semibold on `--color-fd-foreground`; description is
+13px on `--color-fd-muted-foreground`. Vertical padding is generous (`48px`) so the state
+breathes inside the host surface. The primary action reuses the
+[Button `primary` variant](/components/button).
+
+## Guidance
+
+Empty states serve two distinct moments — and the copy must match:
+
+- **First-run ("nothing here yet")** — the user has never created anything. Be encouraging:
+  *"No notes yet"*, *"Create your first note"*. Frame it as an invitation, not a void.
+  This is the moment shown above.
+- **Empty search or filter results ("no results")** — the user searched or filtered and got
+  nothing back. Be specific: *"No notes match 'meeting'"*, and offer a way out (*"Clear
+  search"* or *"Try a different term"*). Do not show the primary create-action here — it
+  is not what the user needs in this moment.
+
+Keep to **one primary action** per empty state. If two actions feel equally important, one
+of them is a secondary and should use the `secondary` or `ghost` variant. Never stack two
+primary buttons.
+
+Use a [lucide-react](https://lucide.dev) icon that relates directly to the content type:
+`FileText` for notes, `CheckSquare` for tasks, `Link` for links. A generic icon dilutes
+the signal.
+
+## On mobile
+
+The layout is identical — centered column, icon circle, title, description, action — but
+the `<Button>` should be rendered with `block` so it spans the full available width and
+sits within comfortable thumb reach. Vertical padding can be reduced slightly (e.g. `32px`)
+when the empty state appears inside a scrollable list rather than a full-page surface.

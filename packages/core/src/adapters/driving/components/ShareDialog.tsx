@@ -4,7 +4,7 @@
  * lookup+verify (`previewShare`), confirm-with-safety-number (`shareItem`),
  * revoke (`unshareItem`), and passphrase links (`createShareLink`).
  */
-import { Copy, Link as LinkIcon, Lock, Trash2, X } from "lucide-react";
+import { Copy, Link as LinkIcon, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
   createShareLink,
@@ -15,6 +15,141 @@ import {
 } from "../../../composition/directory";
 import { listItemShares, type ShareGrant } from "../../../lib/secrets-vault";
 import { useShareStore } from "../stores/shareStore";
+import { Modal } from "./Modal";
+
+function ShareList({
+  shares,
+  busy,
+  onRevoke,
+}: {
+  shares: ShareGrant[];
+  busy: boolean;
+  onRevoke: (email: string) => void;
+}) {
+  if (shares.length === 0) return null;
+  return (
+    <div className="nk-share-list">
+      <p className="nk-muted">Shared with</p>
+      {shares.map((grant) => (
+        <div key={grant.email} className="nk-share-row">
+          <span>{grant.email}</span>
+          <button
+            type="button"
+            className="nk-iconbtn"
+            title={`Revoke ${grant.email} (forward-only)`}
+            aria-label={`Revoke ${grant.email}`}
+            disabled={busy}
+            onClick={() => onRevoke(grant.email)}
+          >
+            <Trash2 size={13} aria-hidden />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ShareLookupForm({
+  email,
+  busy,
+  onChange,
+  onLookup,
+}: {
+  email: string;
+  busy: boolean;
+  onChange: (value: string) => void;
+  onLookup: () => void;
+}) {
+  return (
+    <div className="nk-share-add">
+      <input
+        type="email"
+        placeholder="Share with a NoteKit user by email"
+        value={email}
+        disabled={busy}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && onLookup()}
+      />
+      <button
+        type="button"
+        className="nk-btn"
+        disabled={busy || !email.trim()}
+        onClick={onLookup}
+      >
+        Look up
+      </button>
+    </div>
+  );
+}
+
+function ShareVerifyPanel({
+  preview,
+  busy,
+  onBack,
+  onConfirmShare,
+}: {
+  preview: SharePreview;
+  busy: boolean;
+  onBack: () => void;
+  onConfirmShare: () => void;
+}) {
+  return (
+    <div className="nk-share-verify">
+      <p>
+        Share with <strong>{preview.email}</strong> ({preview.recipientCount} device
+        {preview.recipientCount === 1 ? "" : "s"}).
+      </p>
+      <p className="nk-muted">
+        Confirm their safety number out-of-band — ask them to read theirs and check it matches:
+      </p>
+      <p className="nk-safety-number">{preview.safetyNumber}</p>
+      <div className="nk-dialog__footer nk-dialog__footer--confirm">
+        <button type="button" className="nk-btn" disabled={busy} onClick={onBack}>
+          Back
+        </button>
+        <button
+          type="button"
+          className="nk-btn nk-btn--primary"
+          disabled={busy}
+          onClick={onConfirmShare}
+        >
+          Confirm &amp; share
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PassphraseLinkPanel({ link }: { link: { passphrase: string; armored: string } }) {
+  return (
+    <div className="nk-share-link">
+      <p className="nk-muted">
+        Send this passphrase and the encrypted file separately. Anyone with both can read a
+        snapshot of this item — it won't update on edits.
+      </p>
+      <div className="nk-share-row">
+        <code>{link.passphrase}</code>
+        <button
+          type="button"
+          className="nk-iconbtn"
+          title="Copy passphrase"
+          aria-label="Copy passphrase"
+          onClick={() => void navigator.clipboard?.writeText(link.passphrase)}
+        >
+          <Copy size={13} aria-hidden />
+        </button>
+      </div>
+      <button
+        type="button"
+        className="nk-btn nk-share-linkbtn"
+        title="Copy the encrypted file to share"
+        onClick={() => void navigator.clipboard?.writeText(link.armored)}
+      >
+        <Copy size={13} aria-hidden /> Copy encrypted file
+      </button>
+    </div>
+  );
+}
 
 // eslint-disable-next-line max-lines-per-function -- dialog handles lookup, preview, confirm-share, revoke, and passphrase-link flows
 export function ShareDialog() {
@@ -43,6 +178,8 @@ export function ShareDialog() {
     void refreshShares();
   }, [refreshShares]);
 
+  // Escape closes — preserved from original. Modal's Escape is gated by
+  // isDismissable (false here), so we wire it manually.
   useEffect(() => {
     if (!target) return;
     function onKey(e: KeyboardEvent) {
@@ -68,32 +205,32 @@ export function ShareDialog() {
   }
 
   async function onLookup() {
-    const addr = email.trim().toLowerCase();
-    if (!addr) return;
-    const p = await run(() => previewShare(addr));
-    if (p === undefined) return;
-    if (!p) {
-      setError(`No NoteKit user with verifiable keys found for ${addr}.`);
+    const address = email.trim().toLowerCase();
+    if (!address) return;
+    const lookupPreview = await run(() => previewShare(address));
+    if (lookupPreview === undefined) return;
+    if (!lookupPreview) {
+      setError(`No NoteKit user with verifiable keys found for ${address}.`);
       return;
     }
-    if (p.recipientCount === 0) {
+    if (lookupPreview.recipientCount === 0) {
       setError(
-        `${addr} has no verified devices to share with${p.rejected ? ` (${p.rejected} record(s) failed verification)` : ""}.`,
+        `${address} has no verified devices to share with${lookupPreview.rejected ? ` (${lookupPreview.rejected} record(s) failed verification)` : ""}.`,
       );
       return;
     }
-    setPreview(p);
+    setPreview(lookupPreview);
   }
 
   async function onConfirmShare() {
     if (!preview || !target) return;
-    const res = await run(() => shareItem(target.kind, target.id, preview.email));
-    if (res?.shared) {
+    const result = await run(() => shareItem(target.kind, target.id, preview.email));
+    if (result?.shared) {
       setPreview(null);
       setEmail("");
       await refreshShares();
-    } else if (res) {
-      setError(`Couldn't share (${res.reason ?? "unknown"}).`);
+    } else if (result) {
+      setError(`Couldn't share (${result.reason ?? "unknown"}).`);
     }
   }
 
@@ -105,120 +242,54 @@ export function ShareDialog() {
 
   async function onCreateLink() {
     if (!target) return;
-    const l = await run(() => createShareLink(target.kind, target.id));
-    if (l) setLink(l);
+    const createdLink = await run(() => createShareLink(target.kind, target.id));
+    if (createdLink) setLink(createdLink);
     else if (!error) setError("Couldn't create a share link for this item.");
   }
 
   return (
-    <div className="nk-modal-backdrop" role="presentation">
-      <div className="nk-modal nk-share-dialog" role="dialog" aria-modal="true" aria-labelledby="nk-share-title">
-        <header className="nk-modal-hd">
-          <Lock size={16} aria-hidden />
-          <h2 id="nk-share-title">Share “{target.title}”</h2>
-          <button type="button" className="nk-iconbtn nk-modal-close" onClick={close} aria-label="Close">
-            <X size={14} aria-hidden />
-          </button>
-        </header>
+    <Modal
+      open={!!target}
+      onClose={close}
+      title={`Share "${target.title}"`}
+      isDismissable={false}
+    >
+      <div className="nk-modal-body">
+        <ShareList shares={shares} busy={busy} onRevoke={onRevoke} />
 
-        <div className="nk-modal-body">
-          {/* Current shares */}
-          {shares.length > 0 && (
-            <div className="nk-share-list">
-              <p className="nk-muted">Shared with</p>
-              {shares.map((g) => (
-                <div key={g.email} className="nk-share-row">
-                  <span>{g.email}</span>
-                  <button
-                    type="button"
-                    className="nk-iconbtn"
-                    title={`Revoke ${g.email} (forward-only)`}
-                    aria-label={`Revoke ${g.email}`}
-                    disabled={busy}
-                    onClick={() => onRevoke(g.email)}
-                  >
-                    <Trash2 size={13} aria-hidden />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+        {!preview ? (
+          <ShareLookupForm
+            email={email}
+            busy={busy}
+            onChange={setEmail}
+            onLookup={onLookup}
+          />
+        ) : (
+          <ShareVerifyPanel
+            preview={preview}
+            busy={busy}
+            onBack={() => setPreview(null)}
+            onConfirmShare={onConfirmShare}
+          />
+        )}
 
-          {/* Add a NoteKit user */}
-          {!preview ? (
-            <div className="nk-share-add">
-              <input
-                type="email"
-                placeholder="Share with a NoteKit user by email"
-                value={email}
-                disabled={busy}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && onLookup()}
-              />
-              <button type="button" className="nk-btn" disabled={busy || !email.trim()} onClick={onLookup}>
-                Look up
-              </button>
-            </div>
-          ) : (
-            <div className="nk-share-verify">
-              <p>
-                Share with <strong>{preview.email}</strong> ({preview.recipientCount} device
-                {preview.recipientCount === 1 ? "" : "s"}).
-              </p>
-              <p className="nk-muted">
-                Confirm their safety number out-of-band — ask them to read theirs and check it matches:
-              </p>
-              <p className="nk-safety-number">{preview.safetyNumber}</p>
-              <div className="nk-modal-actions">
-                <button type="button" className="nk-btn" disabled={busy} onClick={() => setPreview(null)}>
-                  Back
-                </button>
-                <button type="button" className="nk-btn nk-btn--primary" disabled={busy} onClick={onConfirmShare}>
-                  Confirm &amp; share
-                </button>
-              </div>
-            </div>
-          )}
+        {link ? (
+          <PassphraseLinkPanel link={link} />
+        ) : (
+          !preview && (
+            <button
+              type="button"
+              className="nk-btn nk-share-linkbtn"
+              disabled={busy}
+              onClick={onCreateLink}
+            >
+              <LinkIcon size={13} aria-hidden /> Create a passphrase link (no account needed)
+            </button>
+          )
+        )}
 
-          {/* Passphrase link for non-users */}
-          {link ? (
-            <div className="nk-share-link">
-              <p className="nk-muted">
-                Send this passphrase and the encrypted file separately. Anyone with both can read a
-                snapshot of this {target.kind} — it won't update on edits.
-              </p>
-              <div className="nk-share-row">
-                <code>{link.passphrase}</code>
-                <button
-                  type="button"
-                  className="nk-iconbtn"
-                  title="Copy passphrase"
-                  aria-label="Copy passphrase"
-                  onClick={() => void navigator.clipboard?.writeText(link.passphrase)}
-                >
-                  <Copy size={13} aria-hidden />
-                </button>
-              </div>
-              <button
-                type="button"
-                className="nk-btn nk-share-linkbtn"
-                title="Copy the encrypted file to share"
-                onClick={() => void navigator.clipboard?.writeText(link.armored)}
-              >
-                <Copy size={13} aria-hidden /> Copy encrypted file
-              </button>
-            </div>
-          ) : (
-            !preview && (
-              <button type="button" className="nk-btn nk-share-linkbtn" disabled={busy} onClick={onCreateLink}>
-                <LinkIcon size={13} aria-hidden /> Create a passphrase link (no account needed)
-              </button>
-            )
-          )}
-
-          {error && <p className="nk-error-text">{error}</p>}
-        </div>
+        {error && <p className="nk-error-text">{error}</p>}
       </div>
-    </div>
+    </Modal>
   );
 }

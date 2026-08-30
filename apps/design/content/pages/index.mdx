@@ -1,0 +1,35 @@
+---
+title: Introduction
+description: NoteKit's design system for building one consistent, private product across every surface.
+---
+
+**NoteKit Design** is the design system behind NoteKit — a git-backed, end-to-end-encrypted
+notes and tasks app. It's the shared visual language that keeps web, desktop, mobile,
+backoffice, and the marketing site feeling like a single product.
+
+Everything here is driven by **`@notekit/tokens`**, one source of truth authored in the
+[W3C Design Tokens (DTCG)](https://www.designtokens.org/) format and compiled by
+[Style Dictionary](https://styledictionary.com/). The pages below render straight from that
+catalogue — they can't drift from what ships.
+
+## Foundations
+
+<FoundationGrid />
+
+## For agents
+
+NoteKit is MCP-first: anything a person can do, an agent can do too. This system extends
+that to design.
+
+- **Tokens as data** — the full catalogue is machine-readable at
+  [`@notekit/tokens`](https://github.com/renakaagusta/notekit) (`tokens.json`), so an agent
+  can read every color, size, and radius without scraping a page.
+- **Installable theme** — the NoteKit token theme is published as a
+  [shadcn registry](https://ui.shadcn.com/docs/registry) item. See
+  [Installation](/installation) to add it to a project with a single command.
+
+## Where components live
+
+NoteKit follows hexagonal architecture — the UI is a driving adapter, and each surface owns
+its components while sharing the same tokens. See [Components](/components) for the map and
+the registry roadmap.

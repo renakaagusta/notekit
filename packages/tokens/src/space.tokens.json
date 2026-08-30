@@ -1,0 +1,14 @@
+{
+  "space": {
+    "$type": "dimension",
+    "0": { "$value": "0px" },
+    "1": { "$value": "4px", "$description": "core --gap-1" },
+    "2": { "$value": "8px", "$description": "core --gap-2" },
+    "3": { "$value": "12px", "$description": "core --gap-3" },
+    "4": { "$value": "16px", "$description": "core --gap-4" },
+    "5": { "$value": "24px", "$description": "core --gap-5" },
+    "6": { "$value": "32px", "$description": "core --gap-6" },
+    "8": { "$value": "48px" },
+    "10": { "$value": "64px" }
+  }
+}

@@ -45,13 +45,14 @@ export default [
     ],
   }),
 
-  // React apps/packages (core + web + backoffice admin + landing marketing + docs)
+  // React apps/packages (core + web + backoffice admin + landing marketing + design + docs)
   {
     files: [
       'packages/core/**/*.{ts,tsx}',
       'apps/web/**/*.{ts,tsx}',
       'apps/backoffice/**/*.{ts,tsx}',
       'apps/landing/**/*.{ts,tsx}',
+      'apps/design/**/*.{ts,tsx}',
       'apps/docs/**/*.{ts,tsx}',
     ],
     plugins: { 'react-hooks': reactHooks },

@@ -1,0 +1,55 @@
+---
+title: Colors
+description: A monochrome neutral scale with semantic accents. Click any swatch to copy.
+---
+
+NoteKit's palette is deliberately monochrome: one 12-step neutral scale carries the entire
+product UI, with color reserved for meaning. Each step has a fixed role — backgrounds low,
+borders in the middle, text high — so the same step number does the same job in dark and
+light. Click any swatch to copy its value.
+
+## Neutral — dark
+
+<NeutralScale mode="dark" />
+
+## Neutral — light
+
+<NeutralScale mode="light" />
+
+## Step roles
+
+| Steps | Role |
+| --- | --- |
+| 1–2 | App and subtle backgrounds |
+| 3–5 | UI element backgrounds (default, hover, active) |
+| 6–8 | Borders, separators, and focus rings |
+| 9–10 | Solid backgrounds |
+| 11 | Low-contrast text |
+| 12 | High-contrast text |
+
+This is the same role model Radix uses: pick a step by the job it does, not by how it looks,
+and dark/light stay balanced for free.
+
+## Semantic — dark
+
+The product's semantic tokens map onto the scale, plus the accents that carry meaning.
+
+<SwatchRow group="dark" />
+
+## Semantic — light
+
+<SwatchRow group="light" />
+
+## Marketing
+
+The landing surface (`apps/landing`) runs a richer, dark-first palette with a violet brand
+accent. Documented here as a distinct surface theme, not the product palette.
+
+<SwatchRow group="marketing" />
+
+## Usage
+
+- **`accent`** drives primary buttons, focus rings, active indicators, and the logo slash.
+  In the monochrome theme it is a neutral, not a hue.
+- **`destructive` / `success`** are the only semantic hues. Do not add accent colors for
+  decoration.

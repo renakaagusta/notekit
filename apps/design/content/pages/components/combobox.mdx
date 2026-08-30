@@ -1,0 +1,39 @@
+---
+title: Combobox
+description: Searchable single-select — filters a long list as you type, on desktop or mobile.
+---
+
+Combobox solves the problem that a plain [Select](/components/select) cannot: when the list is
+long enough that scrolling is impractical, typing narrows it instantly. The user types any
+substring of the option and only matching rows appear; clicking (or tapping) one fills the field
+and closes the picker.
+
+<ComboboxShowcase />
+
+## Tokens
+
+The trigger reuses the same `32px` height, `radius` [`md`](/foundations/radius) (`6px`), and
+`border` token as a text input. The popover surface uses the
+[`popover`](/foundations/color) background with a `medium` shadow; the active row uses the
+`accent` fill — identical to [Select](/components/select) so the two feel like a family.
+The search input inside the popover uses the same `border` token and `13px` font size.
+[Icons](/foundations/icons) are from `lucide-react` at size 14, `strokeWidth 1.75`.
+
+## On mobile — bottom-sheet picker
+
+A floating popover that clips off-screen and requires precise tap targets is unusable on a phone.
+On mobile the combobox trigger opens a **bottom sheet** instead: a search input is pinned at the
+top of the sheet, and the filtered list scrolls below it in `44px` rows — the minimum comfortable
+touch target. Tap the scrim or drag the handle down to dismiss.
+
+<ComboboxMobileShowcase />
+
+## Guidance
+
+- Use Combobox instead of Select when the option count exceeds ~8–10 items or when users need
+  to search by typing partial strings (e.g. tags, contacts, folder names).
+- For a short, well-known set of options, prefer [Select](/components/select) — it imposes less
+  cognitive overhead.
+- Always show a "No results" state so the user knows the query was applied.
+- Provide a clear button when an option is selected so users can reset without reopening.
+- Option labels should be short and unique; avoid nesting extra actions inside rows.

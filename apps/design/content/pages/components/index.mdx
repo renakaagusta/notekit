@@ -1,0 +1,76 @@
+---
+title: Components
+description: Reference implementations of NoteKit's primitives, built from tokens.
+---
+
+These are the reference implementations of NoteKit's UI primitives — every one is rendered
+live from [tokens](/foundations/color), monochrome and quiet, and adapts to the light/dark
+toggle above the same way the product does.
+
+Many carry a **platform variant**: where web and mobile genuinely differ, the mobile version
+is shown in a phone frame (a dialog becomes a bottom sheet, a select becomes a sheet picker).
+The rule is constant — keep a component's meaning identical across surfaces, adapt its
+presentation to the platform.
+
+### Navigation
+
+<Cards>
+  <Card title="App bar" href="/components/appbar" description="Top bar — breadcrumb on desktop, hamburger + title on mobile." />
+  <Card title="Sidebar" href="/components/sidebar" description="Desktop persistent navigation — the drawer's counterpart." />
+  <Card title="Navigation drawer" href="/components/navigation-drawer" description="Mobile navigation — an Obsidian-style left-slide drawer." />
+  <Card title="Breadcrumb" href="/components/breadcrumb" description="The path to the current item; collapses on mobile." />
+  <Card title="Command menu" href="/components/command-menu" description="A keyboard-first palette for actions and navigation." />
+</Cards>
+
+### Inputs & controls
+
+<Cards>
+  <Card title="Button" href="/components/button" description="Primary, secondary, ghost, and destructive actions." />
+  <Card title="Text field" href="/components/input" description="Single-line text input, with and without an icon." />
+  <Card title="Code input" href="/components/code-input" description="Segmented input for a fixed-length pairing or one-time code." />
+  <Card title="Select" href="/components/select" description="Pick one option — dropdown on desktop, sheet on mobile." />
+  <Card title="Combobox" href="/components/combobox" description="Searchable single-select — popover on desktop, sheet on mobile." />
+  <Card title="Menu" href="/components/menu" description="Item actions — dropdown on desktop, action sheet on mobile." />
+  <Card title="Segmented control" href="/components/segmented" description="Set a mode or filter in place — distinct from Tabs." />
+  <Card title="Tabs" href="/components/tabs" description="Switch between peer views in one context." />
+  <Card title="Checkbox" href="/components/checkbox" description="Binary selection in forms and lists." />
+  <Card title="Switch" href="/components/switch" description="Immediate on/off settings." />
+</Cards>
+
+### Display & feedback
+
+<Cards>
+  <Card title="Card" href="/components/card" description="A surface for grouping related content." />
+  <Card title="Badge" href="/components/badge" description="Small status and metadata labels." />
+  <Card title="Avatar" href="/components/avatar" description="A person's mark — a monochrome initial fallback." />
+  <Card title="Tooltip" href="/components/tooltip" description="A short label on hover or focus." />
+  <Card title="Skeleton" href="/components/skeleton" description="Animated loading placeholders that match content shape." />
+  <Card title="Empty state" href="/components/empty-state" description="A placeholder when a surface has no content yet." />
+  <Card title="Dialog" href="/components/dialog" description="Focused decisions — a bottom sheet on mobile." />
+  <Card title="Toast" href="/components/toast" description="Brief, self-dismissing confirmations." />
+</Cards>
+
+### Mobile
+
+<Cards>
+  <Card title="Editor toolbar" href="/components/editor-toolbar" description="The mobile formatting toolbar, pinned to the bottom safe-area." />
+</Cards>
+
+## Where components live
+
+NoteKit follows hexagonal architecture — the UI is a driving adapter. The specimens here
+document the visual language; each product surface owns its own implementation and converges
+by consuming the same tokens, never by sharing component code.
+
+| Surface | Package / path | Basis |
+| --- | --- | --- |
+| Product (web, desktop, mobile) | `@notekit/core` → `adapters/driving/components` | Bespoke React, monochrome `.nk` theme, Inter |
+| Backoffice (admin) | `apps/backoffice/.../components/ui` | shadcn/ui (Radix primitives) + Tailwind v4 |
+| Marketing | `apps/landing/components` | Bespoke, animation-heavy, DM Sans |
+
+## Registry roadmap
+
+The [theme is installable today](/installation) via the shadcn registry. Per-component
+installables (`npx shadcn add …/button.json`) follow once these primitives are extracted into
+publishable, dependency-light source. This section grows one real component at a time — it
+never lists a component that isn't rendered here.

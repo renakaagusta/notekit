@@ -20,6 +20,8 @@ import {
 } from "../../../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { AddVaultDialog } from "./AddVaultDialog";
+import { Modal } from "./Modal";
+import { NkCodeInput } from "./NkCodeInput";
 
 /**
  * Derive the human-comparable pairing fingerprint for a pubkey. Both the new
@@ -87,10 +89,14 @@ export function RecoveryPhraseDialog({
   onSubmit: () => void;
 }) {
   return (
-    <div className="nk-modal-backdrop nk-recovery-backdrop">
-      <div className="nk-modal nk-recovery-dialog">
-        <h2>Enter recovery phrase</h2>
-        <p>
+    <Modal
+      open
+      onClose={onCancel}
+      title="Enter recovery phrase"
+      isDismissable={!busy}
+    >
+      <div className="nk-dialog__body">
+        <p className="nk-dialog__description">
           Type your 24-word phrase, separated by spaces. Capitalisation and
           extra spaces are ignored.
         </p>
@@ -107,20 +113,20 @@ export function RecoveryPhraseDialog({
           spellCheck={false}
         />
         {error && <p className="nk-error-text">{error}</p>}
-        <div className="nk-modal-actions">
-          <button className="nk-btn" onClick={onCancel} disabled={busy}>
-            Cancel
-          </button>
-          <button
-            className="nk-btn nk-btn--primary"
-            onClick={onSubmit}
-            disabled={busy || !value.trim()}
-          >
-            {busy ? "Unlocking…" : "Unlock"}
-          </button>
-        </div>
       </div>
-    </div>
+      <div className="nk-dialog__footer">
+        <button className="nk-btn" onClick={onCancel} disabled={busy}>
+          Cancel
+        </button>
+        <button
+          className="nk-btn nk-btn--primary"
+          onClick={onSubmit}
+          disabled={busy || !value.trim()}
+        >
+          {busy ? "Unlocking…" : "Unlock"}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -286,69 +292,76 @@ export function VaultPairNewDevice() {
   }
 
   return (
-    <div className="nk-modal-backdrop">
-      <div className="nk-modal nk-vault-pair">
-        <h2>Pair this device</h2>
-        <p>
-          Your encrypted vault is already set up on another device. To grant
-          this device access, open NoteKit on an existing one and enter the
-          code below.
-        </p>
-        <div className="nk-pair-code" aria-live="polite">
-          {pairCode ? formatCode(pairCode) : "…"}
+    <>
+      <Modal
+        open
+        onClose={() => { /* required step — not dismissable */ }}
+        title="Pair this device"
+        isDismissable={false}
+      >
+        <div className="nk-dialog__body">
+          <p className="nk-dialog__description">
+            Your encrypted vault is already set up on another device. To grant
+            this device access, open NoteKit on an existing one and enter the
+            code below.
+          </p>
+          <div className="nk-pair-code" aria-live="polite">
+            {pairCode ? formatCode(pairCode) : "…"}
+          </div>
+          <p className="nk-muted">
+            On your other device: AI rail → <em>Pair new device</em>.
+            Waiting for approval…
+          </p>
+
+          <PairingFingerprint value={fingerprint} />
+          <p className="nk-muted nk-pair-fp-hint">
+            Before approving, check the emoji code above matches the one shown on
+            your other device. If they differ, cancel — someone may be
+            intercepting the pairing.
+          </p>
+
+          <div className="nk-divider" />
+
+          {walletAvailable && (
+            <>
+              <button
+                className="nk-btn nk-btn--primary"
+                onClick={onUseWallet}
+                disabled={walletBusy}
+              >
+                {walletBusy ? "Waiting for wallet…" : "Unlock with wallet"}
+              </button>
+              {walletError && <p className="nk-error-text">{walletError}</p>}
+            </>
+          )}
+
+          <button
+            className="nk-btn"
+            onClick={() => setRecoveryOpen(true)}
+          >
+            Use recovery phrase instead
+          </button>
+
+          <div className="nk-divider" />
+
+          {/*
+           * Escape hatch (the only non-unlock exit): if you've lost the
+           * recovery phrase, have no other device, and it isn't a wallet vault,
+           * pairing and recovery are both impossible. Without this you'd be
+           * permanently stuck on this modal. Adding/connecting another vault
+           * activates it server-side; reloading re-bootstraps crypto against
+           * the new vault, leaving the unreachable one behind (its data stays
+           * encrypted in git, unread).
+           */}
+          <p className="nk-muted nk-pair-escape-hint">
+            Lost your recovery phrase and have no other device?
+          </p>
+          <button className="nk-btn" onClick={() => setAddVaultOpen(true)}>
+            Start a new vault instead
+          </button>
         </div>
-        <p className="nk-muted">
-          On your other device: AI rail → <em>Pair new device</em>.
-          Waiting for approval…
-        </p>
+      </Modal>
 
-        <PairingFingerprint value={fingerprint} />
-        <p className="nk-muted nk-pair-fp-hint">
-          Before approving, check the emoji code above matches the one shown on
-          your other device. If they differ, cancel — someone may be
-          intercepting the pairing.
-        </p>
-
-        <div className="nk-divider" />
-
-        {walletAvailable && (
-          <>
-            <button
-              className="nk-btn nk-btn--primary"
-              onClick={onUseWallet}
-              disabled={walletBusy}
-            >
-              {walletBusy ? "Waiting for wallet…" : "Unlock with wallet"}
-            </button>
-            {walletError && <p className="nk-error-text">{walletError}</p>}
-          </>
-        )}
-
-        <button
-          className="nk-btn"
-          onClick={() => setRecoveryOpen(true)}
-        >
-          Use recovery phrase instead
-        </button>
-
-        <div className="nk-divider" />
-
-        {/*
-         * Escape hatch (the only non-unlock exit): if you've lost the
-         * recovery phrase, have no other device, and it isn't a wallet vault,
-         * pairing and recovery are both impossible. Without this you'd be
-         * permanently stuck on this modal. Adding/connecting another vault
-         * activates it server-side; reloading re-bootstraps crypto against
-         * the new vault, leaving the unreachable one behind (its data stays
-         * encrypted in git, unread).
-         */}
-        <p className="nk-muted nk-pair-escape-hint">
-          Lost your recovery phrase and have no other device?
-        </p>
-        <button className="nk-btn" onClick={() => setAddVaultOpen(true)}>
-          Start a new vault instead
-        </button>
-      </div>
       {addVaultOpen && (
         <AddVaultDialog
           onAdded={() => {
@@ -375,12 +388,120 @@ export function VaultPairNewDevice() {
           onSubmit={onUseRecovery}
         />
       )}
-    </div>
+    </>
   );
 }
 
 function formatCode(code: string): string {
   return code.replace(/(\d{3})(\d{3})/, "$1 $2");
+}
+
+interface ApproveDeviceCodeStepProps {
+  code: string;
+  onCodeChange(code: string): void;
+  busy: boolean;
+  error: string | null;
+  onFetch(): void;
+  onClose(): void;
+}
+
+function ApproveDeviceCodeStep({
+  code,
+  onCodeChange,
+  busy,
+  error,
+  onFetch,
+  onClose,
+}: ApproveDeviceCodeStepProps) {
+  return (
+    <div className="nk-dialog__body">
+      <p className="nk-dialog__description">
+        Enter the 6-digit code shown on the new device.
+      </p>
+      <NkCodeInput
+        value={code}
+        onChange={onCodeChange}
+        length={6}
+        disabled={busy}
+        autoFocus
+        onComplete={onFetch}
+      />
+      {error && <p className="nk-error-text">{error}</p>}
+      <div className="nk-dialog__footer">
+        <button className="nk-btn" onClick={onClose} disabled={busy}>
+          Cancel
+        </button>
+        <button
+          className="nk-btn nk-btn--primary"
+          onClick={onFetch}
+          disabled={busy || code.length !== 6}
+        >
+          {busy ? "Looking up…" : "Continue"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface ApproveDeviceConfirmStepProps {
+  deviceName: string;
+  pubkey: string;
+  fingerprint: string | null;
+  busy: boolean;
+  error: string | null;
+  onBack(): void;
+  onApprove(): void;
+}
+
+function ApproveDeviceConfirmStep({
+  deviceName,
+  pubkey,
+  fingerprint,
+  busy,
+  error,
+  onBack,
+  onApprove,
+}: ApproveDeviceConfirmStepProps) {
+  return (
+    <div className="nk-dialog__body">
+      <p className="nk-dialog__description">Approve this device?</p>
+      <div className="nk-pair-info">
+        <div>
+          <span className="nk-muted">Name</span>
+          <strong>{deviceName}</strong>
+        </div>
+        <div>
+          <span className="nk-muted">Pubkey</span>
+          <code className="nk-pair-pubkey">
+            {pubkey.slice(0, 16)}…{pubkey.slice(-8)}
+          </code>
+        </div>
+      </div>
+      <PairingFingerprint value={fingerprint} />
+      <p className="nk-muted nk-pair-fp-hint">
+        Only approve if this emoji code matches what's shown on the new
+        device. A mismatch means the key was tampered with in transit —
+        cancel and try again.
+      </p>
+      {error && <p className="nk-error-text">{error}</p>}
+      <div className="nk-dialog__footer">
+        <button
+          className="nk-btn"
+          onClick={onBack}
+          disabled={busy}
+        >
+          Back
+        </button>
+        <button
+          className="nk-btn nk-btn--primary"
+          onClick={onApprove}
+          disabled={busy}
+        >
+          {busy ? "Approving…" : "Approve"}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 interface ApproveProps {
@@ -526,79 +647,35 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
   }
 
   return (
-    <div className="nk-modal-backdrop">
-      <div className="nk-modal nk-vault-pair">
-        <h2>Pair new device</h2>
+    <>
+      <Modal
+        open
+        onClose={onClose}
+        title="Pair new device"
+        isDismissable={!busy}
+      >
         {!info ? (
-          <>
-            <p>Enter the 6-digit code shown on the new device.</p>
-            <input
-              className="nk-input"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              value={code}
-              onChange={(e) =>
-                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-              }
-              disabled={busy}
-              autoFocus
-            />
-            {error && <p className="nk-error-text">{error}</p>}
-            <div className="nk-modal-actions">
-              <button className="nk-btn" onClick={onClose} disabled={busy}>
-                Cancel
-              </button>
-              <button
-                className="nk-btn nk-btn--primary"
-                onClick={onFetch}
-                disabled={busy || code.length !== 6}
-              >
-                {busy ? "Looking up…" : "Continue"}
-              </button>
-            </div>
-          </>
+          <ApproveDeviceCodeStep
+            code={code}
+            onCodeChange={setCode}
+            busy={busy}
+            error={error}
+            onFetch={onFetch}
+            onClose={onClose}
+          />
         ) : (
-          <>
-            <p>Approve this device?</p>
-            <div className="nk-pair-info">
-              <div>
-                <span className="nk-muted">Name</span>
-                <strong>{info.deviceName}</strong>
-              </div>
-              <div>
-                <span className="nk-muted">Pubkey</span>
-                <code className="nk-pair-pubkey">
-                  {info.pubkey.slice(0, 16)}…{info.pubkey.slice(-8)}
-                </code>
-              </div>
-            </div>
-            <PairingFingerprint value={fingerprint} />
-            <p className="nk-muted nk-pair-fp-hint">
-              Only approve if this emoji code matches what's shown on the new
-              device. A mismatch means the key was tampered with in transit —
-              cancel and try again.
-            </p>
-            {error && <p className="nk-error-text">{error}</p>}
-            <div className="nk-modal-actions">
-              <button
-                className="nk-btn"
-                onClick={() => setInfo(null)}
-                disabled={busy}
-              >
-                Back
-              </button>
-              <button
-                className="nk-btn nk-btn--primary"
-                onClick={onApprove}
-                disabled={busy}
-              >
-                {busy ? "Approving…" : "Approve"}
-              </button>
-            </div>
-          </>
+          <ApproveDeviceConfirmStep
+            deviceName={info.deviceName}
+            pubkey={info.pubkey}
+            fingerprint={fingerprint}
+            busy={busy}
+            error={error}
+            onBack={() => setInfo(null)}
+            onApprove={onApprove}
+          />
         )}
-      </div>
+      </Modal>
+
       {needsPhrase && (
         <RecoveryPhraseDialog
           busy={busy}
@@ -613,6 +690,6 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
           onSubmit={onApprove}
         />
       )}
-    </div>
+    </>
   );
 }

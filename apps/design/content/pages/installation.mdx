@@ -1,0 +1,56 @@
+---
+title: Installation
+description: Add NoteKit's design tokens to a project — installable as a shadcn registry item.
+---
+
+NoteKit's tokens are published as a [shadcn registry](https://ui.shadcn.com/docs/registry)
+item, so you can drop the whole theme into any project — or let an agent do it — with one
+command. No manual copying of hex values.
+
+## Add the theme
+
+```bash
+npx shadcn@latest add https://design.notekit.online/r/notekit-theme.json
+```
+
+This writes NoteKit's CSS variables into your project's stylesheet: the full 12-step neutral
+scale (`--nk-neutral-1` … `--nk-neutral-12`) plus the semantic tokens (`--nk-bg`,
+`--nk-surface`, `--nk-text`, `--nk-accent`, …), for both light and dark.
+
+## Use them
+
+```css
+.panel {
+  background: var(--nk-surface);
+  color: var(--nk-text);
+  border: 1px solid var(--nk-neutral-6);
+  border-radius: var(--nk-radius-md);
+}
+```
+
+## For agents
+
+The registry is machine-readable — an agent can consume it directly:
+
+```bash
+# the installable theme item
+curl https://design.notekit.online/r/notekit-theme.json
+
+# the registry index
+curl https://design.notekit.online/r/registry.json
+```
+
+The same tokens are also available as a flat catalogue in the monorepo at
+`@notekit/tokens/tokens.json`.
+
+## Inside the monorepo
+
+Surfaces in the NoteKit repo don't install from the registry — they consume `@notekit/tokens`
+directly (the compiled CSS variables and Tailwind output). The registry exists so **external**
+projects and agents can adopt the same theme.
+
+<Callout type="info">
+Component installables (`npx shadcn add …/button.json`) are on the roadmap — see
+[Components](/components). Today the registry ships the **theme**; components follow once the
+core primitives are published.
+</Callout>

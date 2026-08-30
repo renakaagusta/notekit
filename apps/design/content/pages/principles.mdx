@@ -1,0 +1,43 @@
+---
+title: Principles
+description: The ideas the NoteKit design system is built on.
+---
+
+## Quiet by default
+
+NoteKit is where people keep their thinking. The interface should recede so the content
+leads. The product theme is **monochrome** — a near-white accent on near-black, or
+near-black on near-white — with color reserved for meaning (destructive, success), never
+decoration. Dense, keyboard-first, Linear-and-Notion-adjacent.
+
+## One concept, one name, everywhere
+
+The same idea must look and be named identically across web, desktop, mobile, CLI, and
+MCP. A radius is `md`, not `rounded-6` on one surface and `r-medium` on another. This is a
+hard rule, not a preference — silent divergence between surfaces is a bug waiting to
+happen.
+
+## Tokens are the source of truth
+
+No surface hardcodes a hex value or a pixel radius. Every visual decision resolves to a
+token in `@notekit/tokens`. When something needs to change, it changes once, in the token
+source, and every surface follows. Adding a new output target (a native platform, a
+Tailwind preset) means adding a compiler platform — never a parallel copy of the values.
+
+## Icons are drawn, never typed
+
+All iconography is [lucide-react](https://lucide.dev/). Emoji are never used as icons,
+hints, placeholders, or status glyphs — they render inconsistently across platforms and
+read as unfinished. See [Icons](/foundations/icons).
+
+## Accessible on purpose
+
+Interactive surfaces reachable by keyboard carry a visible focus ring (WCAG 2.4.7). Tap
+targets clear the minimum comfortable size. Contrast is checked against the theme it ships
+in, not an idealized one.
+
+## Honest surfaces
+
+The UI only shows what is actually wired. Status copy matches reality; aspirational pitch
+language stays in the README until the feature ships. The same honesty applies here — this
+site documents what exists, and names what is still converging.

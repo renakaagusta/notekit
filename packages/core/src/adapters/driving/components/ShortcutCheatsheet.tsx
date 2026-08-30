@@ -1,5 +1,4 @@
-import { X } from "lucide-react";
-import { useEffect } from "react";
+import { Modal } from "./Modal";
 
 interface ShortcutCheatsheetProps {
   onClose(): void;
@@ -22,52 +21,32 @@ const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ["Esc"], label: "Close drawers / cheatsheet" },
 ];
 
-export function ShortcutCheatsheet({ onClose }: ShortcutCheatsheetProps) {
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
+function ShortcutKey({ shortcut }: { shortcut: { keys: string[]; label: string } }) {
   return (
-    <div className="nk-cheatsheet-backdrop" onClick={onClose}>
-      <div
-        className="nk-cheatsheet"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Keyboard shortcuts"
-      >
-        <header>
-          <h3>Keyboard shortcuts</h3>
-          <button
-            className="nk-iconbtn"
-            onClick={onClose}
-            title="Close"
-            aria-label="Close"
-          >
-            <X size={14} aria-hidden />
-          </button>
-        </header>
-        <ul>
-          {SHORTCUTS.map((s) => (
-            <li key={s.label}>
-              <span className="nk-cheat-keys">
-                {s.keys.map((k, i) => (
-                  <span key={k}>
-                    <kbd>{k}</kbd>
-                    {i < s.keys.length - 1 && (
-                      <span className="nk-cheat-or"> or </span>
-                    )}
-                  </span>
-                ))}
-              </span>
-              <span>{s.label}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+    <li>
+      <span className="nk-cheat-keys">
+        {shortcut.keys.map((key, index) => (
+          <span key={key}>
+            <kbd>{key}</kbd>
+            {index < shortcut.keys.length - 1 && (
+              <span className="nk-cheat-or"> or </span>
+            )}
+          </span>
+        ))}
+      </span>
+      <span>{shortcut.label}</span>
+    </li>
+  );
+}
+
+export function ShortcutCheatsheet({ onClose }: ShortcutCheatsheetProps) {
+  return (
+    <Modal open title="Keyboard shortcuts" onClose={onClose}>
+      <ul>
+        {SHORTCUTS.map((shortcut) => (
+          <ShortcutKey key={shortcut.label} shortcut={shortcut} />
+        ))}
+      </ul>
+    </Modal>
   );
 }

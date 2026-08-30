@@ -152,6 +152,39 @@ design doc in `docs/` first and land in reversible stages.
 scatter new docs inside `apps/*/` or `packages/*/`. Naming: flat `YYYY-MM-DD-<kebab-name>.md`
 at the root of `docs/`, or under an existing topic subfolder.
 
+## Design system & product docs — stay in sync (MANDATORY)
+
+NoteKit has two live reference sites, both built from this repo (`apps/design`, `apps/docs`):
+
+- **`design.notekit.online`** — the design system (`apps/design`). Foundations render live from
+  **`@notekit/tokens`** (the single source of truth for color/type/spacing/radius/etc.); the
+  Components section is the reference spec for every UI primitive (Button, Dialog, Text field,
+  Code input, App bar, Navigation drawer, …) including their **web↔mobile platform variants**
+  and rules like dialog button width/layout and content.
+- **`docs.notekit.online`** — the product docs (`apps/docs`): how NoteKit works, for users,
+  self-hosters, and MCP/agent integrators.
+
+**The app UI (web/desktop/mobile via `@notekit/core`, plus backoffice) MUST match the design
+system, and the two must never drift:**
+
+- **Tokens flow one way.** Every surface consumes `@notekit/tokens` (core → `css/core.css`,
+  backoffice → `css/backoffice.css`, landing → `css/landing.css`). Never hardcode a color/radius/
+  spacing value in a component — add/adjust the token in `packages/tokens` and rebuild. Changing a
+  value in one surface's CSS instead of the token is a violation.
+- **Build a component to the documented spec.** When you add or change a UI primitive, it must
+  follow its page on `design.notekit.online` (variants, tokens, states, mobile behavior, dialog
+  button width/layout + content rules). If the spec is wrong, fix the spec first (`apps/design`),
+  then the app — don't silently diverge.
+- **A change to shared UI updates BOTH the app and the design site in the same PR.** New primitive
+  or new variant → add/adjust its `apps/design` component page + showcase alongside the app code.
+  A shipped-but-undocumented primitive, or a documented-but-unshipped one, is drift to fix, not
+  leave. (Consistent with the honest-surfaces rule: the site documents what exists.)
+- **Behavioral/API changes get product docs.** A user- or agent-visible capability change updates
+  `apps/docs` in the same PR.
+- These two sites are **driving-adapter surfaces with their own composition roots**; they consume
+  the published token output + public component entrypoints, never blended `packages/core`
+  internals (see Architecture).
+
 ## Clean-code rules (MANDATORY — apply on every edit)
 
 Enforcement per rule → see `CONVENTIONS.md`. In short:

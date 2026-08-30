@@ -265,7 +265,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
           display: "flex",
           gap: GAP_2,
           alignItems: "center",
-          padding: "var(--gap-2) var(--gap-3)",
+          padding: "var(--gap-2) var(--gap-5)",
           fontSize: "0.85em",
           color: "var(--text-dim)",
           borderBottom: "1px solid var(--border)",

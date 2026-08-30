@@ -1118,7 +1118,7 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--r-sm, 4px);
   background: transparent;
-  color: var(--muted);
+  color: var(--text-2);
   font: inherit;
   font-size: 10px;
   cursor: pointer;
@@ -1203,7 +1203,7 @@ body {
   padding: 5px 10px;
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--text-2);
   font: inherit;
   font-size: 12px;
   cursor: pointer;
@@ -4906,8 +4906,10 @@ a.nk-commit-sha:hover {
 
 .nk-modal-sub {
   font-size: 11.5px;
-  color: var(--muted);
-  margin: 0;
+  color: var(--text-2);
+  /* Align with the dialog title row (same horizontal padding). */
+  margin: 0 0 var(--gap-3);
+  padding: 0 var(--gap-5);
   line-height: 1.5;
 }
 
@@ -10540,7 +10542,7 @@ a.nk-commit-sha:hover {
   padding: 9px 4px;
   border: 0;
   background: none;
-  color: var(--muted);
+  color: var(--text-2);
   font: inherit;
   font-size: 13.5px;
   font-weight: 600;

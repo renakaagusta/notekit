@@ -8,6 +8,7 @@ import type {
   VaultInvitation,
   CollaboratorPermission,
 } from "../../../domain/entities/vault";
+import { ConfirmDialog, Modal } from "./Modal";
 import { SkeletonLines, SkeletonCommitList } from "./Skeleton";
 import { useConfirm } from "./useConfirm";
 
@@ -101,140 +102,127 @@ export function VaultSettingsDialog({
   }
 
   return (
-    <div className="nk-modal-backdrop" onClick={onClose}>
-      <div className="nk-modal" onClick={(e) => e.stopPropagation()}>
-        <header className="nk-modal-hd">
-          <h2>Vault settings</h2>
-          <p className="nk-modal-sub">
-            {vault.label || `${vault.owner}/${vault.repo}`}
-          </p>
-        </header>
-        <button
-          className="nk-modal-close nk-iconbtn"
-          onClick={onClose}
-          aria-label="Close"
-          title="Close"
-        >
-          <X size={16} aria-hidden />
-        </button>
+    <Modal open onClose={onClose} title="Vault settings">
+      <p className="nk-dialog__description">
+        {vault.label || `${vault.owner}/${vault.repo}`}
+      </p>
 
-        {error && <div className="nk-modal-error">{error}</div>}
-        {!settings && !error && (
-          <div className="nk-modal-body">
-            <SkeletonLines count={4} />
-          </div>
-        )}
+      {error && <div className="nk-modal-error">{error}</div>}
 
-        {settings && (
-          <div className="nk-modal-body">
-            <Section title="General" defaultOpen>
-              <fieldset className="nk-field-group">
-                <legend>Theme</legend>
-                <div className="nk-radio-group">
-                  {THEMES.map((t) => (
-                    <label key={t.value} className="nk-radio">
-                      <input
-                        type="radio"
-                        name="theme"
-                        value={t.value}
-                        checked={settings.theme === t.value}
-                        onChange={() =>
-                          setSettings({ ...settings, theme: t.value })
-                        }
-                        disabled={busy}
-                      />
-                      <span>
-                        <b>{t.label}</b>
-                        <span className="nk-radio-hint">{t.hint}</span>
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+      {!settings && !error && (
+        <div className="nk-dialog__body">
+          <SkeletonLines count={4} />
+        </div>
+      )}
 
-              <label className="nk-field">
-                <span>Default folder for new notes</span>
-                <input
-                  type="text"
-                  value={settings.defaultFolder ?? ""}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      defaultFolder: e.target.value.trim() || null,
-                    })
-                  }
-                  placeholder="(root)"
-                  disabled={busy}
-                />
-                <span className="nk-field-hint">
-                  New notes drop into this folder. Leave blank to use the vault
-                  root.
-                </span>
-              </label>
-
-              <label className="nk-field">
-                <span>Default agent slug</span>
-                <input
-                  type="text"
-                  value={settings.defaultAgentSlug ?? ""}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      defaultAgentSlug: e.target.value.trim() || null,
-                    })
-                  }
-                  placeholder="(none — commit as you)"
-                  disabled={busy}
-                />
-                <span className="nk-field-hint">
-                  Agent-authored commits for this vault. Saved now; applied to
-                  the AI commit flow when the panel is wired.
-                </span>
-              </label>
-
-              <div className="nk-modal-actions">
-                <button
-                  className="nk-vault-rename-cancel"
-                  onClick={onClose}
-                  disabled={busy}
-                >
-                  Cancel
-                </button>
-                <button
-                  className="nk-signin-btn"
-                  onClick={save}
-                  disabled={busy}
-                  style={{ maxWidth: 160 }}
-                >
-                  {busy ? "Saving…" : "Save"}
-                </button>
+      {settings && (
+        <div className="nk-dialog__body">
+          <Section title="General" defaultOpen>
+            <fieldset className="nk-field-group">
+              <legend>Theme</legend>
+              <div className="nk-radio-group">
+                {THEMES.map((t) => (
+                  <label key={t.value} className="nk-radio">
+                    <input
+                      type="radio"
+                      name="theme"
+                      value={t.value}
+                      checked={settings.theme === t.value}
+                      onChange={() =>
+                        setSettings({ ...settings, theme: t.value })
+                      }
+                      disabled={busy}
+                    />
+                    <span>
+                      <b>{t.label}</b>
+                      <span className="nk-radio-hint">{t.hint}</span>
+                    </span>
+                  </label>
+                ))}
               </div>
-            </Section>
+            </fieldset>
 
-            <Section title="Members">
-              <MembersSection vault={vault} />
-            </Section>
-
-            <Section title="Rename">
-              <RenameSection
-                vault={vault}
-                onRename={onRename}
+            <label className="nk-field">
+              <span>Default folder for new notes</span>
+              <input
+                type="text"
+                value={settings.defaultFolder ?? ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    defaultFolder: e.target.value.trim() || null,
+                  })
+                }
+                placeholder="(root)"
+                disabled={busy}
               />
-            </Section>
+              <span className="nk-field-hint">
+                New notes drop into this folder. Leave blank to use the vault
+                root.
+              </span>
+            </label>
 
-            <Section title="Danger zone" danger>
-              <DangerSection
-                vault={vault}
-                onDelete={async (id) => {
-                  await onDelete(id);
-                  onClose();
-                }}
+            <label className="nk-field">
+              <span>Default agent slug</span>
+              <input
+                type="text"
+                value={settings.defaultAgentSlug ?? ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    defaultAgentSlug: e.target.value.trim() || null,
+                  })
+                }
+                placeholder="(none — commit as you)"
+                disabled={busy}
               />
-            </Section>
-          </div>
-        )}
-      </div>
-    </div>
+              <span className="nk-field-hint">
+                Agent-authored commits for this vault. Saved now; applied to
+                the AI commit flow when the panel is wired.
+              </span>
+            </label>
+
+            <div className="nk-dialog__footer">
+              <button
+                className="nk-btn"
+                onClick={onClose}
+                disabled={busy}
+              >
+                Cancel
+              </button>
+              <button
+                className="nk-btn nk-btn--primary"
+                onClick={() => void save()}
+                disabled={busy}
+              >
+                {busy ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </Section>
+
+          <Section title="Members">
+            <MembersSection vault={vault} />
+          </Section>
+
+          <Section title="Rename">
+            <RenameSection
+              vault={vault}
+              onRename={onRename}
+            />
+          </Section>
+
+          <Section title="Danger zone" danger>
+            <DangerSection
+              vault={vault}
+              onDelete={async (id) => {
+                await onDelete(id);
+                onClose();
+              }}
+            />
+          </Section>
+        </div>
+      )}
+    </Modal>
   );
 }
 
@@ -283,7 +271,7 @@ function RenameSection({
       </span>
       {error && <div className="nk-modal-error">{error}</div>}
       <div className="nk-modal-actions">
-        <button className="nk-signin-btn" type="submit" disabled={busy} style={{ maxWidth: 160 }}>
+        <button className="nk-btn nk-btn--primary" type="submit" disabled={busy}>
           {busy ? "Saving…" : "Save name"}
         </button>
       </div>
@@ -332,39 +320,27 @@ function DangerSection({
         untouched — you can re-add it any time.
       </p>
       {error && <div className="nk-modal-error">{error}</div>}
-      {!confirming ? (
+      {!confirming && (
         <div className="nk-modal-actions">
           <button
-            className="nk-vault-confirm-yes"
+            className="nk-btn nk-btn--danger"
             onClick={() => setConfirming(true)}
             disabled={busy}
           >
             Unregister vault
           </button>
         </div>
-      ) : (
-        <div className="nk-vault-confirm">
-          <p>
-            Unregister <b>{vault.label || `${vault.owner}/${vault.repo}`}</b>?
-          </p>
-          <div className="nk-vault-confirm-actions">
-            <button
-              className="nk-vault-confirm-yes"
-              onClick={remove}
-              disabled={busy}
-            >
-              {busy ? "Unregistering…" : "Yes, unregister"}
-            </button>
-            <button
-              className="nk-vault-confirm-no"
-              onClick={() => setConfirming(false)}
-              disabled={busy}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
       )}
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        title="Unregister vault?"
+        description={`Unregister ${vault.label || `${vault.owner}/${vault.repo}`}? The underlying ${repoKind} is left untouched.`}
+        confirmLabel={busy ? "Unregistering…" : "Yes, unregister"}
+        onConfirm={() => void remove()}
+        destructive
+        busy={busy}
+      />
     </div>
   );
 }
@@ -523,7 +499,7 @@ function MembersSection({ vault }: { vault: VaultRef }) {
           </select>
           <button
             className="nk-btn nk-btn--primary"
-            onClick={onInvite}
+            onClick={() => void onInvite()}
             disabled={busy || !username.trim()}
           >
             {busy ? "Sending…" : "Invite"}
@@ -565,7 +541,7 @@ function MembersSection({ vault }: { vault: VaultRef }) {
                   </span>
                   <button
                     className="nk-iconbtn"
-                    onClick={() => onCancelInvite(inv.id, inv.inviteeLogin)}
+                    onClick={() => void onCancelInvite(inv.id, inv.inviteeLogin)}
                     title="Cancel invitation"
                     aria-label={`Cancel invitation for ${inv.inviteeLogin}`}
                     disabled={busy}
@@ -603,7 +579,7 @@ function MembersSection({ vault }: { vault: VaultRef }) {
                   </div>
                   <button
                     className="nk-iconbtn"
-                    onClick={() => onRemove(m.login)}
+                    onClick={() => void onRemove(m.login)}
                     title="Remove collaborator"
                     aria-label={`Remove ${m.login}`}
                     disabled={busy}

@@ -35,6 +35,7 @@ import { useAuthStore } from "../stores/authStore";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
 import { SkeletonDeviceList } from "./Skeleton";
+import { useConfirm } from "./useConfirm";
 import { VaultApproveDevice } from "./VaultPairing";
 
 /**
@@ -181,6 +182,7 @@ export function DevicesPanel() {
   const device = useCryptoStore((s) => s.device);
   const account = useAuthStore((s) => s.user);
   const openBackupSheet = useRecoveryBackupStore((s) => s.openSheet);
+  const { confirm, confirmDialog } = useConfirm();
 
   const [devices, setDevices] = useState<DeviceRecord[] | null>(null);
   const [members, setMembers] = useState<MemberRecord[]>([]);
@@ -230,13 +232,13 @@ export function DevicesPanel() {
 
   async function onUpgradeToModelB() {
     if (!device) return;
-    if (
-      !window.confirm(
-        "Turn on per-device approvals for this vault? Afterwards you can approve or revoke a device from any trusted device without typing your recovery phrase. This is safe and non-destructive — nothing is re-encrypted.",
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Turn on per-device approvals?",
+      description:
+        "Afterwards you can approve or revoke a device from any trusted device without typing your recovery phrase. This is safe and non-destructive — nothing is re-encrypted.",
+      confirmLabel: "Turn on",
+    });
+    if (!confirmed) return;
     setBusy(true);
     setError(null);
     try {
@@ -258,16 +260,16 @@ export function DevicesPanel() {
   async function onRevokeDevice(deviceId: string, name: string) {
     if (!device) return;
     if (deviceId === device.deviceId) {
-      window.alert("Use another device to revoke this one.");
+      setError("Use another device to revoke this one.");
       return;
     }
-    if (
-      !window.confirm(
-        `Revoke "${name}"? It loses access immediately. Rotate any stored API keys afterwards.`,
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: `Revoke "${name}"?`,
+      description: "It loses access immediately. Rotate any stored API keys afterwards.",
+      confirmLabel: "Revoke",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusy(true);
     setError(null);
     try {
@@ -288,13 +290,14 @@ export function DevicesPanel() {
   }
 
   async function onRevokeMember(memberId: string) {
-    if (
-      !window.confirm(
-        `Remove "${memberId}" from this vault? Their devices lose access to future changes. (Anything they've already synced stays on their machine — revocation is forward-only.)`,
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: `Remove "${memberId}" from this vault?`,
+      description:
+        "Their devices lose access to future changes. Anything they've already synced stays on their machine — revocation is forward-only.",
+      confirmLabel: "Remove member",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusy(true);
     setError(null);
     try {
@@ -380,6 +383,7 @@ export function DevicesPanel() {
   return (
     <div className="nk-devices-panel">
       {error && <div className="nk-error-text">{error}</div>}
+      {confirmDialog}
 
       {memberMode ? (
         <>

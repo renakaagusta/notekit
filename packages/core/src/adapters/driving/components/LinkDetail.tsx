@@ -8,6 +8,7 @@ import { useLinksStore } from "../stores/linksStore";
 import { useShareStore } from "../stores/shareStore";
 import { useVaultStore } from "../stores/vaultStore";
 import { MediaViewer, MediaThumb } from "./MediaViewer";
+import { useConfirm } from "./useConfirm";
 
 function isMedia(link: SavedLink): boolean {
   return link.kind === "image" || link.kind === "pdf";
@@ -37,6 +38,7 @@ export function LinkDetail({
   const vaultId = useVaultStore((s) => s.activeId);
   const requestEncrypt = useE2eeOnboardingStore((s) => s.requestEncrypt);
 
+  const { confirm, confirmDialog } = useConfirm();
   const [viewing, setViewing] = useState(false);
 
   // Close the media modal if the tab switches to a different link.
@@ -84,8 +86,13 @@ export function LinkDetail({
     setFolder(item.id, next.trim() || null);
   }
 
-  function onDelete() {
-    if (!confirm(`Delete "${item.title || item.url}"?`)) return;
+  async function onDelete() {
+    const confirmed = await confirm({
+      title: `Delete "${item.title || item.url}"?`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     remove(item.id);
     onClose();
   }
@@ -94,6 +101,7 @@ export function LinkDetail({
 
   return (
     <div className="nk-tab-detail nk-tab-detail--fill">
+      {confirmDialog}
       <div className="nk-tab-detail-header">
         <span className="nk-tab-detail-type">
           <Link2 size={13} aria-hidden /> Link

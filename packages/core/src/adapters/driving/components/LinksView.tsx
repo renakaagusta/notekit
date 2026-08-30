@@ -16,6 +16,7 @@ import { detectPlatform, platformLabel } from "../../../domain/link-platform";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useLayoutStore, tabKey, findLeaf } from "../stores/layoutStore";
 import { useLinksStore } from "../stores/linksStore";
+import { useConfirm } from "./useConfirm";
 
 function parseTags(raw: string): string[] {
   return raw
@@ -105,6 +106,7 @@ export function LinksView({
   const removeFolder = useLinksStore((s) => s.removeFolder);
   const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
 
+  const { confirm, confirmDialog } = useConfirm();
   const [addingIn, setAddingIn] = useState<string | null | undefined>(undefined);
   const [addUrl, setAddUrl] = useState("");
   const [addTitle, setAddTitle] = useState("");
@@ -212,16 +214,22 @@ export function LinksView({
     createFolder(full);
   }
 
-  function onDeleteFolder(folderPath: string, e: React.MouseEvent) {
+  async function onDeleteFolder(folderPath: string, e: React.MouseEvent) {
     e.stopPropagation();
     const inside = links.filter(
       (l) => l.folder === folderPath || (l.folder ?? "").startsWith(`${folderPath}/`),
     );
-    const msg =
+    const description =
       inside.length > 0
-        ? `Delete folder "${folderPath}" and its ${inside.length} link${inside.length === 1 ? "" : "s"}?`
-        : `Delete folder "${folderPath}"?`;
-    if (!confirm(msg)) return;
+        ? `This will also delete ${inside.length} link${inside.length === 1 ? "" : "s"} inside it.`
+        : undefined;
+    const confirmed = await confirm({
+      title: `Delete folder "${folderPath}"?`,
+      description,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setCtxMenu(null);
     inside.forEach((l) => remove(l.id));
     removeFolder(folderPath);
@@ -237,9 +245,14 @@ export function LinksView({
     setFolder(link.id, next.trim() || null);
   }
 
-  function onDeleteLink(link: SavedLink) {
+  async function onDeleteLink(link: SavedLink) {
     setCtxMenu(null);
-    if (!confirm(`Delete "${link.title || link.url}"?`)) return;
+    const confirmed = await confirm({
+      title: `Delete "${link.title || link.url}"?`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     const tab = { type: "link" as const, id: link.id };
     const { layout, activePaneId } = useLayoutStore.getState();
     const leaf = findLeaf(layout, activePaneId);
@@ -528,6 +541,7 @@ export function LinksView({
 
   return (
     <>
+      {confirmDialog}
       <div className="nk-tree-toolbar">
         <button
           className="nk-tree-tb-btn"

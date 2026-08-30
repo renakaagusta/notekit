@@ -21,6 +21,7 @@ import { Copy, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { tokensService } from "../../../composition/tokens";
 import { SkeletonLines } from "./Skeleton";
+import { useConfirm } from "./useConfirm";
 import "./AccessTokensView.css";
 
 // eslint-disable-next-line max-lines-per-function -- component encompasses token list, create form, and reveal section
@@ -32,6 +33,7 @@ export function AccessTokensView() {
   const [draftScope, setDraftScope] = useState<PersonalAccessTokenScope>("mcp");
   const [reveal, setReveal] = useState<NewPersonalAccessToken | null>(null);
   const [copied, setCopied] = useState(false);
+  const { confirm, confirmDialog } = useConfirm();
 
   const refresh = useCallback(async () => {
     try {
@@ -66,9 +68,13 @@ export function AccessTokensView() {
   }
 
   async function onRevoke(id: string) {
-    if (!confirm("Revoke this token? Any client using it will lose access immediately.")) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: "Revoke this token?",
+      description: "Any client using it will lose access immediately.",
+      confirmLabel: "Revoke",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusy(`revoke:${id}`);
     setError(null);
     try {
@@ -97,6 +103,7 @@ export function AccessTokensView() {
 
   return (
     <div className="access-tokens">
+      {confirmDialog}
       {error && <div className="error">{error}</div>}
 
       {reveal && (

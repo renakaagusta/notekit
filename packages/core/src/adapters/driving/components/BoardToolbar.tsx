@@ -9,6 +9,7 @@ import {
   activeFacetCount,
   isFiltersEmpty,
 } from "../../../lib/board-filters";
+import { ConfirmDialog, DialogForm } from "./Modal";
 
 const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
   { value: "todo", label: "Todo" },
@@ -181,6 +182,8 @@ interface ViewTabButtonProps {
 }
 
 function ViewTabButton({ tab, active, onClick, onDelete }: ViewTabButtonProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
   return (
     <div className={"nk-view-tab" + (active ? " is-active" : "")}>
       <button
@@ -193,18 +196,31 @@ function ViewTabButton({ tab, active, onClick, onDelete }: ViewTabButtonProps) {
         {tab.name}
       </button>
       {onDelete && (
-        <button
-          type="button"
-          className="nk-view-tab-x"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (confirm(`Delete view "${tab.name}"?`)) onDelete();
-          }}
-          title={`Delete view "${tab.name}"`}
-          aria-label={`Delete view "${tab.name}"`}
-        >
-          <X size={12} aria-hidden />
-        </button>
+        <>
+          <button
+            type="button"
+            className="nk-view-tab-x"
+            onClick={(e) => {
+              e.stopPropagation();
+              setConfirmOpen(true);
+            }}
+            title={`Delete view "${tab.name}"`}
+            aria-label={`Delete view "${tab.name}"`}
+          >
+            <X size={12} aria-hidden />
+          </button>
+          <ConfirmDialog
+            open={confirmOpen}
+            onClose={() => setConfirmOpen(false)}
+            title={`Delete view "${tab.name}"?`}
+            confirmLabel="Delete"
+            onConfirm={() => {
+              setConfirmOpen(false);
+              onDelete();
+            }}
+            destructive
+          />
+        </>
       )}
     </div>
   );
@@ -217,30 +233,72 @@ interface SaveViewButtonProps {
 }
 
 function SaveViewButton({ disabled, existingNames, onSave }: SaveViewButtonProps) {
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [draftName, setDraftName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  function openDialog() {
+    setDraftName("");
+    setNameError(null);
+    setDialogOpen(true);
+  }
+
+  function handleSave() {
+    const trimmed = draftName.trim();
+    if (!trimmed) {
+      setNameError("Enter a name for this view.");
+      return;
+    }
+    if (existingNames.includes(trimmed)) {
+      setNameError(`A view named "${trimmed}" already exists.`);
+      return;
+    }
+    setDialogOpen(false);
+    onSave(trimmed);
+  }
+
   return (
-    <button
-      type="button"
-      className="nk-view-tab-btn nk-view-save"
-      disabled={disabled}
-      title={
-        disabled
-          ? "Add at least one filter to save a view"
-          : "Save current filters as a view"
-      }
-      onClick={() => {
-        const name = prompt("Name this view:");
-        const trimmed = name?.trim();
-        if (!trimmed) return;
-        if (existingNames.includes(trimmed)) {
-          alert(`A view named "${trimmed}" already exists.`);
-          return;
+    <>
+      <button
+        type="button"
+        className="nk-view-tab-btn nk-view-save"
+        disabled={disabled}
+        title={
+          disabled
+            ? "Add at least one filter to save a view"
+            : "Save current filters as a view"
         }
-        onSave(trimmed);
-      }}
-    >
-      <Plus size={12} aria-hidden />
-      Save view
-    </button>
+        onClick={openDialog}
+      >
+        <Plus size={12} aria-hidden />
+        Save view
+      </button>
+      <DialogForm
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title="Save view"
+        submitLabel="Save"
+        onSubmit={handleSave}
+      >
+        <label className="nk-field">
+          <span>View name</span>
+          <input
+            className="nk-input"
+            type="text"
+            value={draftName}
+            autoFocus
+            onChange={(e) => {
+              setDraftName(e.target.value);
+              setNameError(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+            }}
+          />
+          {nameError && <span className="nk-field-error">{nameError}</span>}
+        </label>
+      </DialogForm>
+    </>
   );
 }
 

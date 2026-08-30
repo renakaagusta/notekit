@@ -31,6 +31,7 @@ import {
 } from "../../../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useLayoutStore, tabKey, findLeaf } from "../stores/layoutStore";
+import { useConfirm } from "./useConfirm";
 
 /** Synthetic record used to render the Default bucket alongside named vaults. */
 const DEFAULT_VAULT: SecretVaultRecord = {
@@ -67,6 +68,7 @@ export function SecretsView({
 }) {
   const phase = useCryptoStore((s) => s.phase);
   const device = useCryptoStore((s) => s.device);
+  const { confirm, confirmDialog } = useConfirm();
 
   const [vaults, setVaults] = useState<SecretVaultRecord[]>([]);
   const [allSecrets, setAllSecrets] = useState<SecretRef[]>([]);
@@ -239,7 +241,13 @@ export function SecretsView({
   async function onRemoveSecret(ref: SecretRef) {
     if (!device) return;
     setMenuKey(null);
-    if (!confirm(`Remove secret "${ref.name}" from the vault?`)) return;
+    const confirmed = await confirm({
+      title: `Remove "${ref.name}"?`,
+      description: "This secret will be removed from the vault.",
+      confirmLabel: "Remove",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusy(true);
     setError(null);
     try {
@@ -305,10 +313,16 @@ export function SecretsView({
     const rec = vaults.find((v) => v.slug === slug);
     const count = allSecrets.filter((s) => s.vault === slug).length;
     const label = rec?.label ?? slug;
-    const msg = count
-      ? `Delete vault "${label}" and remove ${count} secret(s) inside it? This cannot be undone.`
-      : `Delete vault "${label}"?`;
-    if (!confirm(msg)) return;
+    const description = count
+      ? `This will also remove ${count} secret${count === 1 ? "" : "s"} inside it. This cannot be undone.`
+      : undefined;
+    const confirmed = await confirm({
+      title: `Delete vault "${label}"?`,
+      description,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusy(true);
     setError(null);
     try {
@@ -352,6 +366,7 @@ export function SecretsView({
 
   return (
     <>
+      {confirmDialog}
       <div className="nk-tree-toolbar">
         <button
           className="nk-tree-tb-btn"

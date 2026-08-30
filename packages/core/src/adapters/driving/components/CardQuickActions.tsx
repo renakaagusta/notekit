@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Ticket, TicketPriority } from "../../../domain/entities/ticket";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useShareStore } from "../stores/shareStore";
+import { useConfirm } from "./useConfirm";
 
 const PRIORITY_OPTIONS: { value: TicketPriority; label: string }[] = [
   { value: "urgent", label: "P0 · Urgent" },
@@ -32,6 +33,7 @@ export function CardQuickActions({
   // Born-E2EE vault: nothing to toggle, every ticket is sealed.
   const encryptionRequired = useCryptoStore((s) => s.encryptionRequired);
   const openShare = useShareStore((s) => s.open);
+  const { confirm, confirmDialog } = useConfirm();
 
   useEffect(() => {
     if (!open) return;
@@ -49,8 +51,14 @@ export function CardQuickActions({
     };
   }, [open]);
 
-  function handleDelete() {
-    if (confirm(`Delete "${ticket.title}"? This removes the file from the vault.`)) {
+  async function handleDelete() {
+    const confirmed = await confirm({
+      title: `Delete "${ticket.title}"?`,
+      description: "This removes the file from the vault.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (confirmed) {
       onDelete();
       setOpen(false);
     }
@@ -66,6 +74,7 @@ export function CardQuickActions({
 
   return (
     <div className="nk-qa" ref={wrapRef}>
+      {confirmDialog}
       <button
         type="button"
         className="nk-iconbtn nk-qa-trigger"

@@ -14,6 +14,7 @@ import { gravatarUrlFor } from "../../../domain/gravatar";
 import { listSecretNames, setSecret, removeSecret } from "../../../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { SkeletonCommitList } from "./Skeleton";
+import { useConfirm } from "./useConfirm";
 
 export interface AgentFocusPulse {
   slug: string;
@@ -67,6 +68,7 @@ const EMPTY_DRAFT: DraftFields = {
 // eslint-disable-next-line max-lines-per-function -- AgentsView is the root agents component: list, create, edit, reveal, and key-storage UX all in one surface
 export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   const [agents, setAgents] = useState<AgentProfile[] | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
   const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
 
   useEffect(() => {
@@ -221,12 +223,14 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
   }
 
   async function onDelete(slug: string) {
-    if (
-      !confirm(
-        `Revoke agent "${slug}"? Its token will stop working immediately and its profile file will be removed from the vault.`,
-      )
-    )
-      return;
+    const confirmed = await confirm({
+      title: `Revoke agent "${slug}"?`,
+      description:
+        "Its token will stop working immediately and its profile file will be removed from the vault.",
+      confirmLabel: "Revoke",
+      destructive: true,
+    });
+    if (!confirmed) return;
     try {
       setError(null);
       await agentsService.deleteAgent(slug);
@@ -252,6 +256,7 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
 
   return (
     <section className="nk-history">
+      {confirmDialog}
       {error && <div className="nk-history-error">Failed: {error}</div>}
 
       {/* Once at the top of the section: explain where avatars come from. */}

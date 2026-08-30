@@ -33,3 +33,5 @@ export { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 export { FirstEncryptDialog } from "./FirstEncryptDialog";
 export { Modal, ConfirmDialog, DialogForm } from "./Modal";
 export type { ModalProps, ConfirmDialogProps, DialogFormProps } from "./Modal";
+export { useConfirm } from "./useConfirm";
+export type { ConfirmOptions, UseConfirmResult } from "./useConfirm";

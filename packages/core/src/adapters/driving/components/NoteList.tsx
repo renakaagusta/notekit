@@ -22,6 +22,7 @@ import { useLayoutStore } from "../stores/layoutStore";
 import { useNotesStore } from "../stores/notesStore";
 import { useSyncStore } from "../stores/syncStore";
 import { useVaultStore } from "../stores/vaultStore";
+import { useConfirm } from "./useConfirm";
 
 type SortMode =
   | "alpha-asc"
@@ -152,6 +153,7 @@ export function NoteList({
   const contentReady = useSyncStore((s) => s.contentReady);
   const vaultReady = useVaultStore((s) => s.phase === "ready");
 
+  const { confirm, confirmDialog } = useConfirm();
   const [sortMode, setSortMode] = useState<SortMode>(DEFAULT_SORT);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const sortBtnRef = useRef<HTMLButtonElement>(null);
@@ -235,9 +237,14 @@ export function NoteList({
     setFolder(note.id, next.trim() || null);
   }
 
-  function onDeleteNote(note: Note, e: React.MouseEvent) {
+  async function onDeleteNote(note: Note, e: React.MouseEvent) {
     e.stopPropagation();
-    if (!confirm(`Delete "${noteTitle(note)}"?`)) return;
+    const confirmed = await confirm({
+      title: `Delete "${noteTitle(note)}"?`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setCtxMenu(null);
     remove(note.id);
   }
@@ -253,16 +260,22 @@ export function NoteList({
     setActive(copy.id);
   }
 
-  function onDeleteFolder(folderPath: string, e: React.MouseEvent) {
+  async function onDeleteFolder(folderPath: string, e: React.MouseEvent) {
     e.stopPropagation();
     const inside = all.filter(
       (n) => n.folder === folderPath || n.folder?.startsWith(`${folderPath}/`),
     );
-    const msg =
+    const description =
       inside.length > 0
-        ? `Delete folder "${folderPath}" and its ${inside.length} note${inside.length === 1 ? "" : "s"}?`
-        : `Delete folder "${folderPath}"?`;
-    if (!confirm(msg)) return;
+        ? `This will also delete ${inside.length} note${inside.length === 1 ? "" : "s"} inside it.`
+        : undefined;
+    const confirmed = await confirm({
+      title: `Delete folder "${folderPath}"?`,
+      description,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setCtxMenu(null);
     inside.forEach((n) => remove(n.id));
     removeFolder(folderPath);
@@ -541,6 +554,7 @@ export function NoteList({
 
   return (
     <>
+      {confirmDialog}
       {toolbar}
       <ul
         className={"nk-tree" + (dropTarget === "" ? " drop-root" : "")}

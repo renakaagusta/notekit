@@ -11,6 +11,7 @@ import {
 } from "../../../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { useRecoveryBackupStore } from "../stores/recoveryBackupStore";
+import { useConfirm } from "./useConfirm";
 import { VaultApproveDevice } from "./VaultPairing";
 
 const KNOWN_PROVIDERS: { id: AIProvider; label: string; placeholder: string }[] = [
@@ -23,6 +24,7 @@ export function AIVaultPanel() {
   const phase = useCryptoStore((s) => s.phase);
   const device = useCryptoStore((s) => s.device);
   const openBackupSheet = useRecoveryBackupStore((s) => s.openSheet);
+  const { confirm, confirmDialog } = useConfirm();
 
   const [names, setNames] = useState<string[]>([]);
   const [devices, setDevices] = useState<DeviceRecord[]>([]);
@@ -76,7 +78,13 @@ export function AIVaultPanel() {
 
   async function onRemove(name: string) {
     if (!device) return;
-    if (!window.confirm(`Remove "${name}" from the vault?`)) return;
+    const confirmed = await confirm({
+      title: `Remove "${name}"?`,
+      description: "This secret will be removed from the vault.",
+      confirmLabel: "Remove",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
       await removeSecret(name, device);
@@ -91,16 +99,16 @@ export function AIVaultPanel() {
   async function onRevokeDevice(deviceId: string, name: string) {
     if (!device) return;
     if (deviceId === device.deviceId) {
-      window.alert("Use another device to revoke this one.");
+      setError("Use another device to revoke this one.");
       return;
     }
-    if (
-      !window.confirm(
-        `Revoke "${name}"? It loses access immediately. Rotate any stored API keys afterwards.`,
-      )
-    ) {
-      return;
-    }
+    const confirmed = await confirm({
+      title: `Revoke "${name}"?`,
+      description: "It loses access immediately. Rotate any stored API keys afterwards.",
+      confirmLabel: "Revoke",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusy(true);
     try {
       await removeDevice(deviceId, device);
@@ -147,6 +155,7 @@ export function AIVaultPanel() {
       </header>
 
       {error && <div className="nk-error-text nk-ai-error">{error}</div>}
+      {confirmDialog}
 
       <section className="nk-ai-section">
         <h3>Keys</h3>

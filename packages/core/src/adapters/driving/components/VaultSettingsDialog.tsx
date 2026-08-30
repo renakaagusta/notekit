@@ -9,6 +9,7 @@ import type {
   CollaboratorPermission,
 } from "../../../domain/entities/vault";
 import { SkeletonLines, SkeletonCommitList } from "./Skeleton";
+import { useConfirm } from "./useConfirm";
 
 interface VaultSettingsDialogProps {
   vault: VaultRef;
@@ -391,6 +392,7 @@ function MembersSection({ vault }: { vault: VaultRef }) {
   const [permission, setPermission] = useState<CollaboratorPermission>("push");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
 
   async function refresh() {
     if (!vault.id) return;
@@ -436,12 +438,13 @@ function MembersSection({ vault }: { vault: VaultRef }) {
 
   async function onRemove(login: string) {
     if (!vault.id) return;
-    if (
-      !confirm(
-        `Remove @${login} from this vault? They'll lose access immediately.`,
-      )
-    )
-      return;
+    const confirmed = await confirm({
+      title: `Remove @${login}?`,
+      description: "They'll lose access to this vault immediately.",
+      confirmLabel: "Remove",
+      destructive: true,
+    });
+    if (!confirmed) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -474,6 +477,7 @@ function MembersSection({ vault }: { vault: VaultRef }) {
 
   return (
     <>
+      {confirmDialog}
       {error && <div className="nk-modal-error">{error}</div>}
       {notice && (
         <div

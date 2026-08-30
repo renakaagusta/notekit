@@ -31,3 +31,5 @@ export { NotificationsInbox } from "./NotificationsInbox";
 export { LinksView } from "./LinksView";
 export { EncryptedSkippedBanner } from "./EncryptedSkippedBanner";
 export { FirstEncryptDialog } from "./FirstEncryptDialog";
+export { Modal, ConfirmDialog, DialogForm } from "./Modal";
+export type { ModalProps, ConfirmDialogProps, DialogFormProps } from "./Modal";

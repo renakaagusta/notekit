@@ -11304,3 +11304,142 @@ a.nk-commit-sha:hover {
   background-repeat: no-repeat;
   background-position: center;
 }
+
+/* ── nk-dialog — shared dialog primitive (desktop centered + mobile sheet) ── */
+
+.nk-dialog-root {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nk-dialog-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.nk-dialog {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: 0 16px 56px rgba(0, 0, 0, 0.48);
+  width: min(540px, calc(100vw - 48px));
+  max-height: min(80vh, 640px);
+  display: flex;
+  flex-direction: column;
+  outline: none;
+}
+
+.nk-dialog__title-row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap-2);
+  padding: var(--gap-4) var(--gap-5) var(--gap-3);
+  flex-shrink: 0;
+}
+
+.nk-dialog__title {
+  flex: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.nk-dialog__close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-2);
+}
+
+.nk-dialog__close:hover:not(:disabled) {
+  background: var(--hover);
+  border-color: var(--border-soft);
+  color: var(--text);
+}
+
+.nk-dialog__description {
+  margin: 0 0 var(--gap-3);
+  padding: 0 var(--gap-5);
+  font-size: 12.5px;
+  color: var(--text-2);
+  line-height: 1.55;
+  flex-shrink: 0;
+}
+
+.nk-dialog__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 var(--gap-5) var(--gap-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-3);
+}
+
+.nk-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gap-2);
+  padding: var(--gap-3) var(--gap-5) var(--gap-4);
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-soft);
+}
+
+/* ConfirmDialog footer — cancel on the left, primary/danger on the right */
+.nk-dialog__footer--confirm {
+  justify-content: flex-end;
+}
+
+/* ── Mobile bottom sheet ── */
+@media (max-width: 720px) {
+  .nk-dialog-root {
+    align-items: flex-end;
+    justify-content: stretch;
+  }
+
+  .nk-dialog--sheet {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90dvh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-bottom: none;
+  }
+
+  .nk-dialog__handle {
+    width: 36px;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--border);
+    margin: var(--gap-3) auto var(--gap-2);
+    flex-shrink: 0;
+  }
+
+  /* Mobile confirm footer: two buttons side-by-side 50/50 */
+  .nk-dialog--sheet .nk-dialog__footer--confirm {
+    flex-direction: row;
+  }
+
+  .nk-dialog--sheet .nk-dialog__footer--confirm .nk-btn {
+    flex: 1;
+  }
+}
+
+/* On desktop, the handle is hidden (only rendered in sheet mode) */
+.nk-dialog:not(.nk-dialog--sheet) .nk-dialog__handle {
+  display: none;
+}

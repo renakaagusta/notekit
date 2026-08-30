@@ -1,4 +1,4 @@
-import { Check, Lightbulb, Lock, Pencil, X } from "lucide-react";
+import { Check, Info, Lightbulb, Lock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { agentsService } from "../../../composition/agents";
@@ -13,7 +13,7 @@ import {
 import { gravatarUrlFor } from "../../../domain/gravatar";
 import { listSecretNames, setSecret, removeSecret } from "../../../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
-import { SkeletonCommitList } from "./Skeleton";
+import { AgentList } from "./AgentList";
 import { useConfirm } from "./useConfirm";
 
 export interface AgentFocusPulse {
@@ -259,32 +259,36 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
       {confirmDialog}
       {error && <div className="nk-history-error">Failed: {error}</div>}
 
-      {/* Once at the top of the section: explain where avatars come from. */}
+      {/* Compact avatar note; the detail lives in an info tooltip. */}
       <div
         style={{
           display: "flex",
           gap: GAP_2,
-          alignItems: "flex-start",
+          alignItems: "center",
           padding: "var(--gap-2) var(--gap-3)",
           fontSize: "0.85em",
           color: "var(--text-dim)",
           borderBottom: "1px solid var(--border)",
         }}
       >
-        <Lightbulb size={14} aria-hidden style={{ flexShrink: 0, marginTop: 2 }} />
+        <Lightbulb size={14} aria-hidden style={{ flexShrink: 0 }} />
         <span>
-        Profile pictures come from{" "}
-        <a
-          href="https://gravatar.com"
-          target="_blank"
-          rel="noreferrer noopener"
-          style={{ color: "inherit", textDecoration: "underline" }}
+          Agent avatars come from{" "}
+          <a
+            href="https://gravatar.com"
+            target="_blank"
+            rel="noreferrer noopener"
+            style={{ color: "inherit", textDecoration: "underline" }}
+          >
+            Gravatar
+          </a>
+          .
+        </span>
+        <span
+          title="Register the agent's email at gravatar.com for a real photo everywhere — NoteKit, GitHub commit pages, and Forgejo. Otherwise a deterministic identicon is shown."
+          style={{ display: "inline-flex", flexShrink: 0, cursor: "help", opacity: 0.7 }}
         >
-          Gravatar
-        </a>
-        . Register an agent's email at gravatar.com to give it a real photo
-        everywhere — NoteKit, GitHub commit pages, and Forgejo. Otherwise
-        Gravatar's deterministic identicon is shown.
+          <Info size={13} aria-hidden />
         </span>
       </div>
 
@@ -385,93 +389,28 @@ export function AgentsView({ focusAgent }: AgentsViewProps = {}) {
         />
       )}
 
-      {!error && agents === null && <SkeletonCommitList count={3} />}
-
-      {agents && agents.length === 0 && (
-        <div className="nk-empty">
-          <p>No agents yet.</p>
-          <p className="nk-empty-hint">
-            Create an agent to give an AI assistant its own identity. Commits
-            it makes are attributed to the agent in git history, with you as
-            the committer.
-          </p>
-        </div>
-      )}
-
-      {agents && agents.length > 0 && (
-        <ol className="nk-commitlist">
-          {agents.map((a) =>
-            editingSlug === a.slug ? (
-              <li key={a.slug} className="nk-commit">
-                <AgentForm
-                  draft={editDraft}
-                  onChange={setEditDraft}
-                  onSubmit={onSaveEdit}
-                  onCancel={() => setEditingSlug(null)}
-                  submitLabel={busy ? "Saving…" : "Save"}
-                  disabled={busy}
-                  emailHint={`Slug stays "${a.slug}" — vault path doesn't change.`}
-                  keyStored={keyStoredSlugs.has(a.slug)}
-                  autoFocus
-                />
-              </li>
-            ) : (
-              <li
-                key={a.slug}
-                className="nk-commit"
-                ref={(el) => {
-                  if (el) rowRefs.current.set(a.slug, el);
-                  else rowRefs.current.delete(a.slug);
-                }}
-              >
-                <div className="nk-commit-row">
-                  {/* Gravatar serves the agent owner's photo for registered
-                      emails, or its identicon otherwise. No URL stored on the
-                      agent — it's computed from the email at render time. */}
-                  <img
-                    className="nk-commit-avatar"
-                    src={gravatarUrlFor(a.email)}
-                    alt=""
-                  />
-
-                  <div className="nk-commit-body">
-                    <div className="nk-commit-msg">{a.name}</div>
-                    {a.description && (
-                      <div className="nk-agent-desc">{a.description}</div>
-                    )}
-                    <div className="nk-commit-meta">
-                      <code style={{ fontFamily: MONO_FONT }}>
-                        {a.email}
-                      </code>
-                      {" · "}
-                      created {formatTime(a.createdAt)}
-                      {" · "}
-                      <code style={{ fontFamily: MONO_FONT }}>
-                        agents/{a.slug}.json
-                      </code>
-                    </div>
-                  </div>
-                  <button
-                    className="nk-iconbtn"
-                    onClick={() => startEdit(a)}
-                    title="Edit agent"
-                    aria-label={`Edit ${a.slug}`}
-                  >
-                    <Pencil size={13} aria-hidden />
-                  </button>
-                  <button
-                    className="nk-iconbtn"
-                    onClick={() => onDelete(a.slug)}
-                    title="Revoke agent"
-                    aria-label={`Revoke ${a.slug}`}
-                  >
-                    <X size={14} aria-hidden />
-                  </button>
-                </div>
-              </li>
-            ),
+      {!creating && (
+        <AgentList
+          agents={agents}
+          error={error}
+          editingSlug={editingSlug}
+          rowRefs={rowRefs}
+          startEdit={startEdit}
+          onDelete={onDelete}
+          renderEditForm={(a) => (
+            <AgentForm
+              draft={editDraft}
+              onChange={setEditDraft}
+              onSubmit={onSaveEdit}
+              onCancel={() => setEditingSlug(null)}
+              submitLabel={busy ? "Saving…" : "Save"}
+              disabled={busy}
+              emailHint={`Slug stays "${a.slug}" — vault path doesn't change.`}
+              keyStored={keyStoredSlugs.has(a.slug)}
+              autoFocus
+            />
           )}
-        </ol>
+        />
       )}
     </section>
   );
@@ -812,9 +751,3 @@ function AgentForm({
   );
 }
 
-function formatTime(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString();
-}

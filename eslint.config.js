@@ -45,7 +45,7 @@ export default [
     ],
   }),
 
-  // React apps/packages (core + web + backoffice admin + landing marketing + design docs)
+  // React apps/packages (core + web + backoffice admin + landing marketing + design + docs)
   {
     files: [
       'packages/core/**/*.{ts,tsx}',
@@ -53,6 +53,7 @@ export default [
       'apps/backoffice/**/*.{ts,tsx}',
       'apps/landing/**/*.{ts,tsx}',
       'apps/design/**/*.{ts,tsx}',
+      'apps/docs/**/*.{ts,tsx}',
     ],
     plugins: { 'react-hooks': reactHooks },
     rules: {

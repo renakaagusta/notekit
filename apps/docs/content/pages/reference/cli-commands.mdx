@@ -1,0 +1,60 @@
+---
+title: CLI reference
+description: The NoteKit CLI command catalog.
+---
+
+Command catalog for `@notekit/cli`. For a walkthrough, see [Use the CLI](/guides/use-the-cli).
+
+## Auth
+
+| Command | Description |
+| --- | --- |
+| `notekit login` | Pair this machine as a device (interactive) |
+| `notekit logout` | Remove local credentials |
+| `notekit whoami` | Show the signed-in account |
+
+Set `NOTEKIT_TOKEN` in the environment to authenticate headlessly, bypassing the OS keychain.
+
+## Notes
+
+| Command | Description |
+| --- | --- |
+| `notekit notes new <title>` | Create a note |
+| `notekit notes list` | List notes |
+| `notekit notes read <id>` | Print a note |
+| `notekit notes search <query>` | Search notes |
+| `notekit notes move <id> --folder <path>` | Move a note |
+| `notekit notes delete <id>` | Delete a note |
+
+## Tasks
+
+| Command | Description |
+| --- | --- |
+| `notekit tasks new <title>` | Create a task |
+| `notekit tasks list` | List tasks |
+| `notekit tasks update <id>` | Update a task |
+| `notekit tasks delete <id>` | Delete a task |
+
+## Devices
+
+| Command | Description |
+| --- | --- |
+| `notekit vault pair` | Start pairing this machine (prints a 6-digit code + safety number) |
+| `notekit devices list` | List paired devices |
+| `notekit devices approve <code>` | Approve a pairing request by its 6-digit code (`--yes` to skip the prompt) |
+| `notekit devices revoke <id>` | Revoke a device |
+
+See [Add a device](/guides/add-a-device) and [Grant an agent access](/guides/grant-agent-access) for
+the full flows.
+
+## MCP
+
+| Command | Description |
+| --- | --- |
+| `notekit mcp` | Run the embedded MCP server (stdio) |
+
+<Callout>
+Every write is a Git commit authored by this device, so your vault history stays legible. The same
+operations are available over [MCP](/reference/mcp-tools) and in the app — see
+[agent parity](/how-it-works/architecture#agent-parity).
+</Callout>

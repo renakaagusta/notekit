@@ -1,0 +1,65 @@
+---
+title: Architecture
+description: One core, many surfaces — how NoteKit is built as a hexagonal (ports & adapters) system so the same logic runs everywhere and the server never holds your keys.
+---
+
+NoteKit is **one core with many surfaces**. The web app, desktop app, mobile app, CLI, and MCP
+server are all thin front-ends over the same shared logic — they don't reimplement anything, they
+call into it. That shared logic includes the encryption, so **every surface encrypts on the device
+and the server only ever sees ciphertext**.
+
+<HexagonDiagram />
+
+## Ports & adapters
+
+The codebase follows **hexagonal architecture** (also called ports & adapters). The rule is simple:
+source-code dependencies point **inward only**.
+
+- **`domain/`** — entities, value-objects, and the E2EE crypto primitives. Zero external libraries.
+- **`application/`** — use cases (one per action) plus **ports**: `in` (what the outside may ask
+  NoteKit to do) and `out` (what NoteKit needs from the outside — storage, a clock, an id
+  generator, the vault).
+- **`adapters/driven/`** — implementations of outbound ports: the HTTP client, the Git vault, the
+  IndexedDB cache.
+- **`adapters/driving/`** — the surfaces that call inbound ports: React components/stores, CLI
+  commands, MCP tools.
+
+The two adapter sides never import each other. A surface converges on the core by calling the same
+inbound port — not by sharing a helper with another surface. That's why an action added to the UI
+must also exist in the CLI and MCP: they're all just different callers of the same use case.
+
+## The pieces
+
+| Package / app | Role |
+| --- | --- |
+| `packages/core` | The core — `domain/` + `application/` + shared adapters. All crypto lives here. |
+| `packages/api-client` | A driven transport adapter — the HTTP client every surface uses. No React/DOM. |
+| `apps/web` · `apps/desktop` · `apps/mobile` | UI surfaces (composition roots mounting the core's UI). |
+| `apps/guides/use-the-cli` · `apps/guides/connect-an-agent` | Agent surfaces (their own composition roots). |
+| `apps/api` | The backend — a relay that binds Postgres + a Git provider. Never sees plaintext. |
+
+## Honest migration status
+
+The ideal layering above is the **target**, and NoteKit is actively migrating toward it. Parts of
+`packages/core` (some stores, and the `lib/` orchestration for sync and secrets) still blend layers
+— they predate the rule. The crypto itself is cleanly isolated; the sync/store orchestration around
+it is being carved into explicit use cases as those areas are touched. We'd rather tell you this than
+present a tidy diagram that the code doesn't fully match yet.
+
+## Agent parity
+
+Because every surface calls the same inbound ports, every capability is reachable from all three
+agent-facing surfaces — the **in-app AI**, the **[CLI](/guides/use-the-cli)**, and the
+**[MCP server](/guides/connect-an-agent)** — as well as the UI. They converge on the same use case;
+none reimplements the logic.
+
+This is a product guarantee, not a coincidence: **adding an action to one surface without the others
+is a bug, not a feature gap.** It's why an agent can do anything a person can.
+
+## Read next
+
+<Cards>
+  <Card title="The surfaces" href="/reference/surfaces" description="Web, desktop, mobile, CLI, MCP — what each is and where it keeps your keys." />
+  <Card title="Data flow" href="/how-it-works/data-flow" description="Trace a note write from a keystroke to an encrypted Git commit." />
+  <Card title="Zero-knowledge" href="/how-it-works/zero-knowledge" description="Exactly why the server can never see your keys or your data." />
+</Cards>

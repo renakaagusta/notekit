@@ -1,0 +1,61 @@
+---
+title: Data flow
+description: Trace a single note write from a keystroke, inward through the use case and encryption, then outward to an encrypted Git commit.
+---
+
+Here is what actually happens when you save a note — on any surface. The path runs **inward** (adapter
+→ use case → domain) and then **outward** (outbound port → transport → backend → Git). The encryption
+happens on your device, before anything is sent.
+
+<Mermaid chart={`
+sequenceDiagram
+  participant UI as Surface (UI / CLI / MCP)
+  participant UC as Use case (application)
+  participant Crypto as age crypto (domain)
+  participant Port as VaultPort (outbound)
+  participant API as NoteKit API (relay)
+  participant Git as Git vault
+  UI->>UC: upsert note (title, body, folder)
+  UC->>UC: merge with existing, set timestamps, resolve path
+  UC->>Crypto: encrypt private fields to the vault key
+  Crypto-->>UC: armored age ciphertext
+  UC->>Port: writeFile(path, ciphertext, sha)
+  Port->>API: PUT /vault/file { path, content, sha }
+  Note over API: sees ciphertext + path only
+  API->>Git: commit blob (author = this device/agent)
+  Git-->>API: new sha
+  API-->>Port: { path, sha }
+`} />
+
+## Step by step
+
+1. **Driving adapter.** The web editor, `notekit note new`, or the `notes_create` MCP tool receives
+   your input. This layer carries no business logic — it just gathers the command.
+2. **Use case (application).** A single, pure function merges your command with any existing note,
+   fills defaults, preserves `createdAt`, advances `updatedAt`, and computes the file path. It's
+   testable with in-memory ports — no network, no clock, no disk.
+3. **Encryption (domain).** If the vault is encrypted, the private fields (title, body, tags) are
+   sealed with `age` to the vault key's recipient. Structural metadata (folder, timestamps) stays in
+   cleartext frontmatter so the app can render without decrypting. See
+   [content encryption](/how-it-works/encryption).
+4. **Outbound port.** The use case calls `VaultPort.writeFile(path, content, sha)` — an interface, not
+   an HTTP detail. The `sha` enables safe create-vs-update (optimistic concurrency).
+5. **Driven adapter → transport.** The port's implementation calls the `@notekit/api-client` HTTP
+   client, which every surface shares.
+6. **Backend relay.** `apps/api` (Hono) authenticates the request, checks vault access, and relays the
+   **already-encrypted** bytes to the Git provider. It never decrypts.
+7. **Git commit.** The provider (Forgejo/GitHub/GitLab) writes the blob and commits it, authored by the
+   device or agent that made the change — so history and attribution are plain Git.
+
+## Why the same trace works on every surface
+
+Because steps 2–7 live in the shared core, the web app, CLI, and MCP server all run the *identical*
+path — they differ only in step 1 (how the command is gathered) and in which key store and auth mode
+the composition root wired up. This is what "[agent parity](/how-it-works/architecture#agent-parity)" means concretely: the
+same use case, reached from three different driving adapters.
+
+<Callout>
+Reads are the mirror image: the transport fetches ciphertext (delta-pulled by Git blob sha and cached
+locally), then the device decrypts it with its own key. The server is never in possession of a key that
+could read it.
+</Callout>

@@ -1,0 +1,49 @@
+---
+title: Self-hosting
+description: Run the whole NoteKit stack on your own server.
+---
+
+NoteKit is open source and designed to be self-hosted. Because the vault is a Git repository and
+content is end-to-end encrypted, self-hosting gives you full custody of your data with no change
+to how the apps work.
+
+## What the stack is
+
+A self-hosted deployment runs these services behind a reverse proxy (Traefik):
+
+- **App** — the web client (`app.<your-domain>`)
+- **API** — the backend (`api.<your-domain>`)
+- **Git** — a Forgejo instance that stores vaults (`git.<your-domain>`)
+- **Landing / Docs / Design** — the marketing, documentation, and design-system sites
+
+Each service is a container; the app, docs, and landing are Next.js/Vite front-ends, the API is a
+Hono server, and Git is Forgejo.
+
+## Domains
+
+The stack is wired around a single root domain with subdomains, covered by one wildcard TLS
+certificate:
+
+```
+ROOT_DOMAIN=example.com
+WEB_DOMAIN=app.example.com
+API_DOMAIN=api.example.com
+GIT_DOMAIN=git.example.com
+```
+
+## Deploy
+
+Deployment is the CI pipeline, not manual edits on the server — the environment lives in CI and is
+rendered at deploy time. See the deployment workflow in the repository for the exact steps.
+
+<Callout>
+This page is an overview. Full, reproducible self-hosting instructions live alongside the
+deployment configuration in the [repository](https://github.com/renakaagusta/notekit).
+</Callout>
+
+## Next
+
+<Cards>
+  <Card title="The vault" href="/how-it-works/the-vault" description="What self-hosting stores: a Git repository of encrypted files." />
+  <Card title="Architecture" href="/how-it-works/architecture" description="The services you're running and how they fit together." />
+</Cards>

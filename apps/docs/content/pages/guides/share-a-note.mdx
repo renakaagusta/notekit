@@ -1,0 +1,48 @@
+---
+title: Share a note
+description: Share a single note with another person by email — end-to-end encrypted, with a safety-number check.
+---
+
+Sharing in NoteKit is **per item**: you grant one note (or task or link) to one person, not your whole
+vault. The item is re-encrypted so their devices can read it; nothing else you have is exposed.
+
+Sharing is done from the **app** (web or desktop). It relies on the recipient having published their
+public keys, which happens automatically when they use NoteKit.
+
+## Share an item
+
+1. Open the note you want to share and choose **Share** (the lock icon).
+2. Enter the recipient's **email address**. NoteKit looks them up in the key
+   [directory](/how-it-works/sharing-and-revocation) and verifies their published device keys against
+   their signing key.
+3. Compare the **safety number** shown for that person, if you want out-of-band assurance you've got
+   the right recipient.
+4. Confirm. The note is re-encrypted to include the recipient's verified keys, and a grant is recorded
+   in the vault.
+
+The recipient doesn't need to accept anything — the shared item appears in their vault the next time
+they sync.
+
+## Stop sharing
+
+Open the same Share dialog and remove the person. The item is re-encrypted to the reduced set, so they
+can't read **future** changes.
+
+<Callout type="warn">
+Revocation is **forward-only**. Removing someone stops future access, but Git history still contains the
+versions they could already read — you can't un-send what was already shared. If the content is
+sensitive, rotate the underlying secret rather than relying on hiding history. See
+[sharing & revocation](/how-it-works/sharing-and-revocation#forward-only-revocation).
+</Callout>
+
+<Callout type="info">
+Sharing is currently available in the app UI. The share grant and the recipient email are visible to
+the server as metadata; the note **contents** stay encrypted.
+</Callout>
+
+## Next
+
+<Cards>
+  <Card title="Sharing & revocation" href="/how-it-works/sharing-and-revocation" description="How per-item sharing and forward-only revocation work." />
+  <Card title="Threat model" href="/how-it-works/threat-model" description="What the server can see when you share." />
+</Cards>

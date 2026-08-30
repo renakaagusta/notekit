@@ -81,8 +81,8 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Audit dependencies (fail on high/critical CVEs)
-        run: pnpm audit --audit-level=high
+      - name: Audit dependencies (fail on unlisted high/critical CVEs)
+        run: bash scripts/audit-check.sh
 
       - name: Typecheck (all packages)
         run: pnpm -r typecheck

@@ -1,0 +1,65 @@
+---
+title: The surfaces
+description: Web, desktop, mobile, CLI, and MCP — the framework each uses, how each reuses the core, and where each keeps your private keys.
+---
+
+Every surface is a **driving adapter** plus a **composition root**: it mounts the core's logic and
+wires the core's outbound ports to concrete implementations for its platform. The most important of
+those is **where the device's private key lives** — it never leaves the device, but *where* it's kept
+differs by platform.
+
+| Surface | Runtime | Reuses the core by | Private key stored in |
+| --- | --- | --- | --- |
+| Web | Vite + React | mounting the core's stores & components | IndexedDB (`notekit-crypto`) |
+| Desktop | Electron (wraps the web build) | the renderer *is* the web app | OS keychain (`@napi-rs/keyring`) |
+| Mobile | Capacitor (wraps the web build) | the WebView runs the web bundle | IndexedDB (in the WebView) |
+| CLI | Node.js | imports `@notekit/core` + `@notekit/api-client` | OS keychain |
+| MCP | Node.js (MCP SDK) | imports `@notekit/core` + tools | local file, mode `0600` |
+
+## Web
+
+A Vite + React app. It mounts the core's UI (stores like `useNotesStore`, components like the editor)
+and authenticates to the API with a **session cookie**. The device's age private key and Ed25519
+signing key live in the browser's **IndexedDB** (`notekit-crypto` database), created on first run and
+never uploaded.
+
+## Desktop
+
+An Electron shell whose renderer is the web build — so the UI and crypto are identical to web. What's
+different is key storage: the desktop app keeps the device key and bearer token in the **native OS
+keychain** (macOS Keychain, Windows Credential Manager, libsecret/kwallet) via `@napi-rs/keyring`, and
+a context-isolated preload bridge hands the token to the renderer. This survives browser-cache clears.
+
+<Callout type="info">
+Because a browser's IndexedDB is scoped by origin, the dev build (`localhost`) and the packaged build
+(`app://`) are *different* devices with *different* keys. That's expected — each is paired separately.
+</Callout>
+
+## Mobile
+
+iOS and Android via Capacitor, which runs the same web bundle inside a native WebView. The crypto
+storage layer is unchanged from web — the device key lives in the WebView's **IndexedDB**. Auth uses a
+bearer token (the OAuth-in-WebView flow isn't used).
+
+## CLI
+
+A Node.js command-line tool. It imports the same `@notekit/core` crypto and `@notekit/api-client`
+transport as everything else, so `notekit note new` encrypts exactly the way the web editor does. Keys
+and tokens live in the **OS keychain**; for headless/CI use it falls back to a `NOTEKIT_TOKEN`
+environment variable. The CLI binary also embeds the MCP server.
+
+## MCP
+
+A headless Model Context Protocol server for agents (Claude Code, Cursor, …). It registers tools
+(`notes_create`, `notes_search`, …) that call the same core logic. Because there's no OS keychain on a
+server, it stores its device identity in a **local file** (`$XDG_CONFIG_HOME/notekit/guides/connect-an-agent-device.json`,
+mode `0600`) and reads its bearer token from `NOTEKIT_TOKEN`. Like every other surface, its private key
+is generated locally and never leaves the machine — only its public recipient is published to the
+vault's device roster.
+
+## The common thread
+
+No matter the surface, the shape is the same: **generate keys on the device, keep the private half
+local, do the encryption on the device, and send only ciphertext plus public keys to the server.** The
+next two pages show that end to end — the [data flow](/how-it-works/data-flow) of a write, and why this
+means [zero knowledge](/how-it-works/zero-knowledge) for the server.

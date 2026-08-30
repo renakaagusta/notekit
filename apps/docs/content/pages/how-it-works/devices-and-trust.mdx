@@ -1,0 +1,88 @@
+---
+title: Devices & pairing
+description: The signed device roster, how a new device is paired without typing the recovery phrase, and safety numbers for MITM detection.
+---
+
+Every surface you use — browser, desktop, mobile, CLI, MCP server — is a **device** with its own keys.
+Which devices are trusted is recorded in a **signed roster** that lives in the vault, and new devices
+join through a **phrase-free pairing** handshake.
+
+## The signed device roster
+
+The roster is a chain of versioned files at `.notekit/roster/<version>.json` (one file per version, so
+Git history *is* the audit log). Each version lists the trusted devices and is signed:
+
+```json
+{
+  "v": 1,
+  "version": 3,
+  "entries": [
+    { "deviceId": "…", "signPub": "…", "recipient": "age1…", "addedAt": "…", "kind": "web" }
+  ],
+  "signedBy": "…",   // Ed25519 public key that signed this version
+  "sig": "…"         // Ed25519 signature over the canonical payload
+}
+```
+
+**What's signed** is a canonical, sorted payload — `deviceId`, `signPub`, `recipient`, and `addedAt`
+for each entry (sorted by `deviceId`, so any device rebuilding it produces identical bytes). Cosmetic
+fields like the device **name** and **kind** are *not* signed, so renaming a device is free and can't
+invalidate trust.
+
+**Chain of trust:**
+
+- **Version 1 (genesis)** is signed by your **master recovery signing key**.
+- **Later versions** are signed by a device **already in the previous version** — so your existing
+  devices admit new ones, and the master key stays cold.
+- Verification (`verifyRosterChain`) walks the whole chain oldest→newest, checks every signature,
+  requires the genesis signer to equal your pinned master key, and requires **strictly increasing
+  version numbers** so an old roster can't be replayed. Any break **fails closed** — there is no
+  fallback.
+
+## Phrase-free pairing
+
+Adding a device never requires typing your 24-word phrase. Instead, an already-trusted device vouches
+for the newcomer:
+
+<Mermaid chart={`
+sequenceDiagram
+  participant New as New device
+  participant Relay as Server relay
+  participant App as Trusted device
+  New->>New: generate device keys (age + Ed25519)
+  New->>Relay: announce { 6-digit code, age pubkey, signing pubkey, name }
+  Note over Relay: held in memory, 5-min TTL, rate-limited
+  App->>Relay: fetch announcement by code
+  App->>App: show safety number from the new pubkey
+  Note over App,New: human compares safety numbers on both screens
+  App->>App: approve → sign roster v+1, re-wrap keybox
+  App->>Vault: publish roster + device record
+  New->>Vault: poll → sees itself listed → opens keybox → paired
+`} />
+
+Key points:
+
+- The **relay only carries a public key and a code** for five minutes; it never sees a private key or
+  any content. It's rate-limited to stop code guessing.
+- Approval is a **cryptographic vouch**: the trusted device signs the new roster version and re-wraps
+  the keybox with *its own* device signing key. No master phrase involved.
+- The new device is admitted by being **added to the keybox recipients**, so it can immediately open
+  the vault key — no full re-encrypt.
+
+## Safety numbers (MITM detection)
+
+To make sure the server didn't swap in its own key during pairing, both sides display a **safety
+number** derived from the device's public key:
+
+- `SHA-256(pubkey)` → take the first bytes → map each to a **32-word alphabet** (each word paired with
+  an emoji for cross-platform legibility).
+- The result is three short words, e.g. `fox · pine · key`, shown on both screens.
+
+If the two screens show the same words, there's no machine-in-the-middle. Because it's a hash of the
+full key, the server cannot substitute a key without the words changing. This is the same idea as
+Signal/WhatsApp safety numbers — a quick, human out-of-band check.
+
+## Device kinds
+
+Each device carries a cosmetic `kind` — `web`, `desktop`, `ios`, `android`, `cli`, or `mcp` — used only
+to pick an icon in the device list. It is not part of the signed payload and carries no privilege.

@@ -1,0 +1,46 @@
+---
+title: Connect an agent
+description: Connect Claude Code, Cursor, or any MCP client to your NoteKit vault.
+---
+
+NoteKit is **MCP-first**: anything you can do in the app, an agent can do through the
+[Model Context Protocol](https://modelcontextprotocol.io). The MCP server is a driving surface
+over the same vault as the apps, so an agent reads and writes the exact notes and tasks you see.
+
+## Connect from Claude Code
+
+Add NoteKit as an MCP server:
+
+```bash
+claude mcp add notekit -- npx -y @notekit/mcp
+```
+
+On first run the server pairs itself to your account as a device. Like any device, it gets its
+own encryption key — by default it can write, and it can only read content once you grant it access.
+See [Grant an agent read access](/guides/grant-agent-access).
+
+## Connect from another MCP client
+
+Any MCP-compatible client (Cursor, and others) can run the same server binary. Point your client
+at:
+
+```
+npx -y @notekit/mcp
+```
+
+Every capability is reachable from the CLI and MCP as well as the app, because all three call the same
+use cases — see [agent parity](/how-it-works/architecture#agent-parity).
+
+## These docs are agent-readable
+
+This documentation is published in an LLM-friendly form so an agent can read it without scraping HTML:
+
+- [`/llms.txt`](/llms.txt) — a compact index of every page (title, URL, description).
+- [`/llms-full.txt`](/llms-full.txt) — the entire documentation as one Markdown file.
+- `/llms.mdx/<path>` — any page as raw Markdown (e.g. [`/llms.mdx/guides/connect-an-agent`](/llms.mdx/guides/connect-an-agent)).
+
+## Next
+
+<Cards>
+  <Card title="Available tools" href="/reference/mcp-tools" description="The notes, tasks, and vault operations exposed over MCP." />
+</Cards>

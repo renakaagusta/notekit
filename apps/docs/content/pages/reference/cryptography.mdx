@@ -1,0 +1,134 @@
+---
+title: Cryptography reference
+description: The exact primitives, key hierarchy, derivations, and file formats NoteKit uses. A spec for reviewers.
+---
+
+This page is a **specification** — the exact algorithms, parameters, and formats, with no rationale.
+For why it's built this way, see [Encryption](/how-it-works/encryption) and
+[Zero-knowledge](/how-it-works/zero-knowledge). Every mechanism here maps to code in
+`packages/core/src/lib/crypto`.
+
+## Primitives
+
+| Purpose | Primitive | Library |
+| --- | --- | --- |
+| Recovery phrase → seed | BIP39, 24 words, 256-bit entropy | `@scure/bip39` |
+| Content encryption | `age` — X25519 + ChaCha20-Poly1305 (AEAD) | `age-encryption` |
+| Signatures (trust) | Ed25519 | `@noble/curves` |
+| Key derivation (wallet) | HKDF-SHA256 | `@noble/hashes` |
+| Domain-separated key split | SHA-512 | `@noble/hashes` |
+| Safety numbers | SHA-256 | Web Crypto |
+| Randomness | CSPRNG (`crypto.getRandomValues`) | platform |
+
+## Key hierarchy
+
+<KeyHierarchyDiagram />
+
+| Key | Type | Origin | Storage | Published |
+| --- | --- | --- | --- | --- |
+| Recovery identity | X25519 | from seed | recovery phrase | public recipient |
+| Recovery signing key | Ed25519 | from seed | recovery phrase | public key in `.notekit/recovery.json` |
+| Device age key | X25519 | random per device | local key store | public recipient in roster |
+| Device signing key | Ed25519 | random per device | local key store | public key in roster |
+| Vault key | X25519 | random per vault | wrapped in `.notekit/keybox.age` | never (sealed) |
+
+## Seed derivation
+
+**From a recovery phrase:** a BIP39 mnemonic (24 words, 256-bit entropy) stretched to a 64-byte seed
+via `mnemonicToSeed`, with the application passphrase `notekit-recovery-v1`.
+
+**From an EVM wallet:** `personal_sign` (EIP-191, deterministic per RFC 6979) over a fixed
+domain-separated message, stretched to the same 64-byte seed:
+
+```text
+seed = HKDF-SHA256(ikm = wallet_signature, salt = "", info = "notekit-wallet-seed-v1", len = 64)
+```
+
+## Identity keys (from the 64-byte seed)
+
+```text
+# Age encryption identity (X25519)
+scalar    = seed[0:32]
+identity  = bech32("AGE-SECRET-KEY-", scalar)
+recipient = identityToRecipient(identity)          # public age1… address
+
+# Signing key (Ed25519), domain-separated so it can't collide with the age key
+privateKey = SHA-512("notekit-recovery-sign-v1" ‖ seed)[0:32]
+publicKey  = ed25519.getPublicKey(privateKey)
+```
+
+Same seed → same identity, deterministically, on every device and forever.
+
+## Content encryption
+
+`age` AEAD: a random file key encrypts the payload with ChaCha20-Poly1305; the file key is wrapped to
+each recipient via X25519; output is armored (`-----BEGIN AGE ENCRYPTED FILE-----`).
+
+```ts
+const enc = new Encrypter();
+for (const recipient of recipients) enc.addRecipient(recipient);
+const armored = armor.encode(await enc.encrypt(plaintext));
+
+const dec = new Decrypter();
+dec.addIdentity(myIdentity);
+const plaintext = await dec.decrypt(armor.decode(armored), 'text');
+```
+
+Recipients (envelope mode): content is encrypted to the single **vault key**; the vault key is wrapped
+to every device recipient plus recovery. Shared items add the recipient's verified device keys.
+
+## Item format
+
+Each item is a `.md.age` file — cleartext YAML frontmatter + armored ciphertext:
+
+```text
+---
+v: 1
+encrypted: true
+kind: note
+id: 8f3c…
+createdAt: 2026-08-29T…
+updatedAt: 2026-08-29T…
+folder: work            # cleartext
+---
+-----BEGIN AGE ENCRYPTED FILE-----
+…armored ciphertext of { title, body, tags, … }…
+-----END AGE ENCRYPTED FILE-----
+```
+
+| Item | Encrypted | Cleartext |
+| --- | --- | --- |
+| Note | title, body, tags, linked notes | id, timestamps, folder |
+| Task | title, body, assignee, labels | id, timestamps, status, priority, due date |
+| Link | URL, title, annotations | id, timestamps, folder |
+| Secret | value | id, timestamps |
+
+## Keybox format
+
+`.notekit/keybox.age` — the vault key, wrapped (age-encrypted) to all device recipients + recovery:
+
+```json
+{
+  "v": 1,
+  "epoch": 3,
+  "vaultKey": { "identity": "AGE-SECRET-KEY-…", "recipient": "age1…" },
+  "sig": "…",          // Ed25519 over (v, epoch, recipient)
+  "signedBy": "…"      // device signing public key that wrote it
+}
+```
+
+On open, a device re-derives the recipient from `identity` and rejects the keybox if it doesn't match
+`recipient`.
+
+## Device roster
+
+`.notekit/roster/<version>.json` — one signed file per version (Git history is the audit log). Signed
+payload is a canonical, `deviceId`-sorted list of `deviceId · signPub · recipient · addedAt`. Genesis
+(v1) is signed by the recovery signing key; later versions by a device already in the prior version.
+Verification requires strictly increasing versions and fails closed. Cosmetic fields (name, kind) are
+not signed.
+
+## Safety number
+
+`SHA-256(recipient)` → first bytes mapped onto a 32-word alphabet → three words shown on both screens
+during pairing for out-of-band MITM detection.

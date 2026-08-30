@@ -5297,6 +5297,30 @@ a.nk-commit-sha:hover {
   border-color: var(--nk-accent);
 }
 
+.nk-code-input {
+  display: flex;
+  gap: var(--gap-2);
+}
+
+.nk-code-input__cell {
+  width: 40px;
+  height: 48px;
+  text-align: center;
+  font-family: var(--mono-font);
+  font-size: 20px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  caret-color: var(--nk-accent);
+}
+
+.nk-code-input__cell:focus {
+  outline: none;
+  border-color: var(--nk-accent);
+  box-shadow: 0 0 0 2px var(--nk-accent-soft);
+}
+
 .nk-pill {
   display: inline-block;
   padding: 1px 6px;

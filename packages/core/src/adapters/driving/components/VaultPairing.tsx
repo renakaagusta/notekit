@@ -20,6 +20,7 @@ import {
 } from "../../../lib/secrets-vault";
 import { useCryptoStore } from "../stores/cryptoStore";
 import { AddVaultDialog } from "./AddVaultDialog";
+import { NkCodeInput } from "./NkCodeInput";
 
 /**
  * Derive the human-comparable pairing fingerprint for a pubkey. Both the new
@@ -532,17 +533,13 @@ export function VaultApproveDevice({ onClose }: ApproveProps) {
         {!info ? (
           <>
             <p>Enter the 6-digit code shown on the new device.</p>
-            <input
-              className="nk-input"
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
+            <NkCodeInput
               value={code}
-              onChange={(e) =>
-                setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-              }
+              onChange={setCode}
+              length={6}
               disabled={busy}
               autoFocus
+              onComplete={onFetch}
             />
             {error && <p className="nk-error-text">{error}</p>}
             <div className="nk-modal-actions">

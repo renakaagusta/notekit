@@ -20,6 +20,7 @@ import { NavDrawerShowcase } from '@/components/showcase/drawer';
 import { EditorToolbarShowcase } from '@/components/showcase/editor-toolbar';
 import { EmptyStateShowcase } from '@/components/showcase/empty-state';
 import { InputShowcase } from '@/components/showcase/input';
+import { ListShowcase, ListEmptyShowcase, ListIconLeadingShowcase } from '@/components/showcase/list';
 import { MenuShowcase, MenuSheetShowcase } from '@/components/showcase/menu';
 import { SegmentedShowcase } from '@/components/showcase/segmented';
 import { SelectShowcase, SelectSheetShowcase } from '@/components/showcase/select';
@@ -66,6 +67,9 @@ export function getMDXComponents(components?: MDXComponents): MDXComponents {
     EditorToolbarShowcase,
     EmptyStateShowcase,
     InputShowcase,
+    ListShowcase,
+    ListEmptyShowcase,
+    ListIconLeadingShowcase,
     MenuShowcase,
     MenuSheetShowcase,
     SegmentedShowcase,

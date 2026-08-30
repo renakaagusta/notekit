@@ -1,0 +1,87 @@
+---
+title: List
+description: Presents a collection of peer items — agents, devices, API tokens, notes — with consistent row anatomy.
+---
+
+A list presents a scrollable collection of **peer items** that share the same shape. Each row
+carries a leading identity (avatar or icon), a primary title, a secondary meta line, and trailing
+actions. The container uses the [`card`](/foundations/color) surface bounded by a hairline
+[`border`](/foundations/color), giving the list a lifted, scannable feel without visual weight.
+
+<ListShowcase />
+
+## Anatomy
+
+| Part | Description |
+|---|---|
+| **Container** | Rounded, bordered box on `--color-fd-card`. Clips row dividers at the edges. |
+| **Leading** | 32px circle — initials avatar (`--color-fd-muted` fill) or a lucide icon badge. Always present; aligns all rows optically. |
+| **Title** | 14px semibold on `--color-fd-foreground`. Truncated with ellipsis when overflowing. |
+| **Meta** | 12–13px on `--color-fd-muted-foreground`. One line, `·`-separated fields (email, relative time, path). |
+| **Divider** | 1px `--color-fd-border` between rows; never below the last row. |
+| **Hover / focus** | Row background transitions to `--color-fd-accent`. |
+| **Trailing actions** | Icon buttons (28px, 6px radius, `--color-fd-border` outline). Edit uses `Pencil`; delete uses `Trash2` at `#e5484d`. |
+
+## Density
+
+<ListShowcase />
+
+**Comfortable** rows (`10px` vertical padding) pair an avatar with a two-line block (title + meta).
+Use when identity matters — agents, members, shared notes — and the avatar helps recognition.
+
+**Compact** rows (`7px` vertical padding) use a small icon lead and inline `title · meta` on a
+single line. Use for high-cardinality lists — devices, API tokens, recent activity — where
+scanning speed matters more than individual identity.
+
+Choose one density per list. Do not mix comfortable and compact rows in the same container.
+
+## Empty state
+
+<ListEmptyShowcase />
+
+Every list **must define its empty state**. A list that renders nothing with no explanation
+breaks the mental model.
+
+Follow the [Empty State](/components/empty-state) pattern exactly: icon in a 64px muted circle,
+15px semibold title, 13px muted description, one primary action. For a list of agents the icon is
+`Bot`; for devices use `Cpu`; for API tokens use `KeyRound`. Pick the icon that relates directly
+to the content type.
+
+See [Empty State](/components/empty-state) for first-run vs. empty-search copy guidance.
+
+## Tokens
+
+| Property | Value |
+|---|---|
+| Container surface | `--color-fd-card` |
+| Container border | `1px solid --color-fd-border`, radius `10px` |
+| Row hover | `--color-fd-accent` |
+| Avatar / icon badge | 32px circle, `--color-fd-muted` fill, `--color-fd-muted-foreground` color |
+| Title | `14px`, weight `590`, `--color-fd-foreground` |
+| Meta | `12–13px`, `--color-fd-muted-foreground` |
+| Divider | `1px solid --color-fd-border`, omitted on last row |
+| Trailing icon button | `28px × 28px`, radius `6px`, `1px solid --color-fd-border` |
+| Destructive action | `#e5484d` |
+| Comfortable row padding | `10px 14px` |
+| Compact row padding | `7px 14px` |
+
+## On mobile
+
+Rows span the full screen width. Increase minimum row height to **44px** so touch targets are
+comfortable — add vertical padding if needed. When two trailing icon buttons appear side by side,
+collapse them into a single `MoreHorizontal` trigger that opens the [Menu](/components/menu)
+action sheet. This keeps the row readable and avoids accidental taps on destructive actions.
+
+## Guidance
+
+- **One item shape per list.** All rows must share the same anatomy. Do not render some rows
+  with avatars and others without — use a fallback initial avatar when no image is available.
+- **Keep meta to one line.** If additional context is needed, surface it in a detail view
+  rather than a second meta line.
+- **Primary action on the row.** Clicking or tapping the row body navigates to the item's
+  detail page. Reserve trailing icon buttons for secondary (edit) and destructive (delete)
+  actions only.
+- **Do not mix wildly different row heights.** A comfortable row next to a compact row disrupts
+  visual rhythm. Pick one density and apply it consistently.
+- **Avoid more than two trailing actions.** Two icons (edit + delete) is the maximum. More
+  actions belong in a `MoreHorizontal` menu.

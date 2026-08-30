@@ -22,6 +22,27 @@ surface.
 Use Tabs when each option owns its own panel of content. Use a segmented control when all
 options share the same surface and you are changing a filter or preference.
 
+## Contrast — inactive segments must stay readable
+
+The **inactive** segment label uses the **secondary** text color, never the muted/dim one.
+An inactive segment is still a live, tappable choice — if its label fades to the muted color it
+reads as *disabled* and users miss the option entirely. Only genuinely disabled segments use the
+dim/muted color (plus reduced opacity).
+
+| Segment state | Label color |
+|---|---|
+| Active | high-contrast foreground (`--color-fd-foreground`), on the raised segment |
+| Inactive | **secondary** text (`--nk-text-2` / `--color-fd-foreground` at ~high opacity) — clearly readable |
+| Disabled | muted (`--color-fd-muted-foreground`) + reduced opacity |
+
+## Width
+
+- **Two options** (e.g. Read-only / Read & write, a yes/no mode): the control **fills the width**
+  of its field, each segment `flex: 1` — so it aligns with the inputs above and below it. Never
+  let a two-option control float at its intrinsic width beside a label.
+- **Three or more** short options: intrinsic width is fine; only fill the width when the control
+  is the primary control of a full-width form row.
+
 ## Tokens
 
 | Property | Value |
@@ -29,6 +50,7 @@ options share the same surface and you are changing a filter or preference.
 | Track background | `--color-fd-muted` |
 | Active segment background | `--color-fd-background` |
 | Active segment shadow | `0 1px 2px rgba(0,0,0,0.12)` |
+| Inactive label | secondary text — **not** muted (see Contrast above) |
 | Segment height | `28px` (sits flush inside 32px track with 2px padding) |
 | Padding | `0 12px` per segment |
 | Track radius | `8px`, segment radius `6px` |

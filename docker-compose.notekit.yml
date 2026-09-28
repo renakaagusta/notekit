@@ -10,10 +10,11 @@ services:
       - infrastructure
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
-      interval: 30s
+      interval: 60s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 60s
+      start_interval: 5s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=infrastructure"
@@ -39,10 +40,11 @@ services:
       - infrastructure
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
-      interval: 30s
+      interval: 60s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 60s
+      start_interval: 5s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=infrastructure"
@@ -62,10 +64,11 @@ services:
       - infrastructure
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
-      interval: 30s
+      interval: 60s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 60s
+      start_interval: 5s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=infrastructure"
@@ -88,10 +91,11 @@ services:
       - infrastructure
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
-      interval: 30s
+      interval: 60s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 60s
+      start_interval: 5s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=infrastructure"
@@ -114,10 +118,11 @@ services:
       - infrastructure
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
-      interval: 30s
+      interval: 60s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 60s
+      start_interval: 5s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=infrastructure"
@@ -194,10 +199,11 @@ services:
       - infrastructure
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
-      interval: 30s
+      interval: 60s
       timeout: 5s
       retries: 3
-      start_period: 15s
+      start_period: 60s
+      start_interval: 5s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=infrastructure"
@@ -243,10 +249,11 @@ services:
       - infrastructure
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/healthz"]
-      interval: 30s
+      interval: 60s
       timeout: 5s
       retries: 3
-      start_period: 30s
+      start_period: 60s
+      start_interval: 5s
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=infrastructure"

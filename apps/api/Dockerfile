@@ -29,7 +29,7 @@ ENV NODE_ENV=production
 WORKDIR /app/apps/api
 EXPOSE 3001
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=60s --timeout=5s --start-period=60s --start-interval=5s --retries=3 \
   CMD wget -qO- http://localhost:3001/health || exit 1
 
 CMD ["pnpm", "start"]

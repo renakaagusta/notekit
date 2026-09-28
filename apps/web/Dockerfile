@@ -43,5 +43,5 @@ COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
-HEALTHCHECK --interval=30s --timeout=3s \
+HEALTHCHECK --interval=60s --timeout=5s --start-period=60s --start-interval=5s --retries=3 \
   CMD wget -qO- http://localhost/health || exit 1

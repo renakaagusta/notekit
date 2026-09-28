@@ -194,7 +194,6 @@ services:
       OTEL_TRACES_EXPORTER: otlp
       OTEL_METRICS_EXPORTER: otlp
       OTEL_LOGS_EXPORTER: otlp
-      PYROSCOPE_ENDPOINT: http://pyroscope:4040
     networks:
       - infrastructure
     healthcheck:

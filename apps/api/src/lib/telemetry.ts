@@ -6,7 +6,6 @@ import {
   ATTR_SERVICE_NAME,
   ATTR_SERVICE_VERSION,
 } from "@opentelemetry/semantic-conventions";
-import Pyroscope from "@pyroscope/nodejs";
 
 // NodeSDK auto-configures exporters from:
 //   OTEL_EXPORTER_OTLP_ENDPOINT  → collector URL
@@ -56,23 +55,9 @@ const sdk = new NodeSDK({
 
 sdk.start();
 
-// Pyroscope continuous profiling — labels include service name so profiles
-// can be correlated with traces in Grafana via the profile_id tag.
-Pyroscope.init({
-  serverAddress: process.env.PYROSCOPE_ENDPOINT ?? "http://localhost:4040",
-  appName: "notekit-api",
-  tags: {
-    env: process.env.NODE_ENV ?? "development",
-    version: "0.1.0",
-  },
-});
-Pyroscope.start();
-
 process.once("SIGTERM", () => {
-  Pyroscope.stop();
   sdk.shutdown().catch((_err) => { /* intentional noop */ });
 });
 process.once("SIGINT", () => {
-  Pyroscope.stop();
   sdk.shutdown().catch((_err) => { /* intentional noop */ });
 });
